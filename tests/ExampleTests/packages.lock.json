@@ -104,6 +104,12 @@
         "dependencies": {
           "FSharp.Core": "[10.1.301, )"
         }
+      },
+      "ch16": {
+        "type": "Project",
+        "dependencies": {
+          "FSharp.Core": "[10.1.301, )"
+        }
       }
     }
   }

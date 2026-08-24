@@ -207,6 +207,28 @@
       ]
     },
     {
+      "id": "ch16-multifile-project",
+      "kind": "compile",
+      "path": "examples/chapters/ch16/Ch16.fsproj",
+      "sources": [
+        "examples/chapters/ch16/Domain.fs",
+        "examples/chapters/ch16/Workflow.fs",
+        "examples/chapters/ch16/Program.fs"
+      ]
+    },
+    {
+      "id": "ch16-wrong-file-order",
+      "kind": "expected-error",
+      "path": "examples/expected-errors/ch16-file-order/Ch16WrongOrder.fsproj",
+      "sources": [
+        "examples/chapters/ch16/Workflow.fs",
+        "examples/chapters/ch16/Domain.fs"
+      ],
+      "diagnostics": [
+        "FS0039"
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",
@@ -221,7 +243,8 @@
       "sources": [
         "tests/ExampleTests/SmokeTests.fs",
         "tests/ExampleTests/CapstonePart01Tests.fs",
-        "tests/ExampleTests/BookingDomainTests.fs"
+        "tests/ExampleTests/BookingDomainTests.fs",
+        "tests/ExampleTests/Ch16ProjectTests.fs"
       ]
     }
   ]

@@ -243,10 +243,10 @@
 
 ### E16 — 多文件模块、命名空间与编译顺序样例
 
-- [ ] **依赖：** B15、F06。
+- [x] **依赖：** B15、F06。
 - **主要文件（5）：** `examples/chapters/ch16/Ch16.fsproj`、`Domain.fs`、`Workflow.fs`、`Program.fs`、`tests/ExampleTests/Ch16ProjectTests.fs`。
 - **验收：** 展示正确文件顺序、模块/命名空间边界、打开声明和 `<Nullable>enable</Nullable>`；交换顺序有单独预期诊断而非关闭警告。
-- **验证：** 聚焦 Release build/test；`pnpm check:examples`。
+- **验证：** 先以缺失 API 获得 FS0039 预期红灯，再由 4 项 `Ch16ProjectTests` 覆盖可空输入、组件错误、跨文件工作流与程序组合；Release 可执行程序输出 `accepted:REQ-16 remaining=1`；反序项目稳定产生 FS0039；`pnpm check:examples` 的锁定还原、Release 构建、全测试、脚本与预期错误检查通过。
 - **规模：** M。
 
 ### B16 — 模块、命名空间、项目与编译设置 / Modules, Namespaces, Projects, and Compiler Settings

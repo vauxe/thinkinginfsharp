@@ -9,10 +9,12 @@
     <Compile Include="SmokeTests.fs" />
     <Compile Include="CapstonePart01Tests.fs" />
     <Compile Include="BookingDomainTests.fs" />
+    <Compile Include="Ch16ProjectTests.fs" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="../../examples/capstone/src/Booking.Domain/Booking.Domain.fsproj" />
+    <ProjectReference Include="../../examples/chapters/ch16/Ch16.fsproj" />
   </ItemGroup>
 
   <ItemGroup>

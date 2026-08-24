@@ -2,4 +2,5 @@
   <Project Path="tests/ExampleTests/ExampleTests.fsproj" />
   <Project Path="tests/ContractTests/ContractTests.fsproj" />
   <Project Path="examples/capstone/src/Booking.Domain/Booking.Domain.fsproj" />
+  <Project Path="examples/chapters/ch16/Ch16.fsproj" />
 </Solution>
