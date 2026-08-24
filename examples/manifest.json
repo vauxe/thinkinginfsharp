@@ -49,6 +49,17 @@
       ]
     },
     {
+      "id": "ch05-lists-pipelines",
+      "kind": "script",
+      "path": "examples/scripts/ch05-lists-pipelines.fsx",
+      "expectedOutput": [
+        "Pipeline labels: [\"Lin:3\"; \"Sam:2\"]",
+        "Chosen labels: [\"Lin:3\"; \"Sam:2\"]",
+        "For/while agree: true",
+        "Iteration order: Lin:3 Sam:2"
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",

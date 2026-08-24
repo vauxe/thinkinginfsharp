@@ -71,6 +71,26 @@
         "definition": "A type made of named cases; each value belongs to exactly one case, and a case may carry additional data."
       }
     },
+    "eager-evaluation": {
+      "zh": {
+        "preferred": "立即求值",
+        "definition": "在操作被调用时就计算结果，而不是等到以后枚举或请求某项时才计算。"
+      },
+      "en": {
+        "preferred": "eager evaluation",
+        "definition": "Computing a result when an operation is called rather than delaying work until later enumeration or demand."
+      }
+    },
+    "effect": {
+      "zh": {
+        "preferred": "效果",
+        "definition": "求值期间发生、不能只由返回值描述的可观察行为，例如输出、写文件或修改状态。"
+      },
+      "en": {
+        "preferred": "effect",
+        "definition": "Observable behavior during evaluation that is not described by the return value alone, such as output, file writes, or state changes."
+      }
+    },
     "currying": {
       "zh": {
         "preferred": "柯里化",
@@ -181,6 +201,16 @@
         "definition": "A representation of a value written directly in source code, such as 40, true, \"hello\", or 1.5m."
       }
     },
+    "mutable-binding": {
+      "zh": {
+        "preferred": "可变绑定",
+        "definition": "用 let mutable 建立、其存储位置可随后通过 <- 更新的绑定。"
+      },
+      "en": {
+        "preferred": "mutable binding",
+        "definition": "A binding introduced with let mutable whose storage location can subsequently be updated with <-."
+      }
+    },
     "list": {
       "zh": {
         "preferred": "列表",
@@ -199,6 +229,16 @@
       "en": {
         "preferred": "numeric conversion",
         "definition": "Explicitly producing a value of one numeric type from another, such as using decimal to obtain a decimal from an int."
+      }
+    },
+    "option": {
+      "zh": {
+        "preferred": "option",
+        "definition": "用 Some value 表示存在值、用 None 表示没有值的 F# 类型；完整建模规则在第 9 章展开。"
+      },
+      "en": {
+        "preferred": "option",
+        "definition": "An F# type representing a present value as Some value and absence as None; Chapter 9 develops its full modeling rules."
       }
     },
     "parameter": {

@@ -123,10 +123,10 @@
 
 ### B05 — 列表、管道与数据流 / Lists, Pipelines, and Data Flow
 
-- [ ] **依赖：** B04。
+- [x] **依赖：** B04。
 - **主要文件（5）：** `docs/{zh,en}/part-01/ch-05-lists-pipelines.md`、`docs/{zh,en}/solutions/ch-05-lists-pipelines.md`、`examples/scripts/ch05-lists-pipelines.fsx`。
 - **验收：** 用 `map/filter/choose` 与管道表达变换，并在同一问题上诚实对比 `for`、`while` 和可变绑定。
-- **验证：** 聚焦 FSI 脚本及确定性输出；双语与内容检查；`pnpm build`。
+- **验证：** FSI 证明 `filter`+`map`、`choose`、`for` 与 `while` 的结果和顺序一致，4 行确定性输出按 manifest 通过；`pnpm test` 全链路通过。
 - **规模：** M。
 
 ### B06 — 递归、尾递归与折叠 / Recursion, Tail Calls, and Folds
