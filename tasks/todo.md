@@ -323,10 +323,10 @@
 
 ### B21 — 异常、资源与 I/O / Exceptions, Resources, and I/O
 
-- [ ] **依赖：** B20。
+- [x] **依赖：** B20。
 - **主要文件（5）：** `docs/{zh,en}/part-04/ch-21-exceptions-resources-io.md`、`docs/{zh,en}/solutions/ch-21-exceptions-resources-io.md`、`examples/scripts/ch21-exceptions-resources-io.fsx`。
 - **验收：** 覆盖异常边界、`use`、文件 I/O 与资源释放；用决策表收束 `option/Result/验证/异常`，避免把异常包装成无信息错误。
-- **验证：** FSI 在临时目录验证成功/故障均释放资源；双语与内容检查；`pnpm build`。
+- **验证：** 中英文正文各 278 行、答案各 187 行且语义/结构对应；FSI 在 GUID 临时目录以真实 `StreamReader` 证明成功与异常路径均释放资源、特定 I/O 异常保留结构化上下文、最终目录完成清理，五行输出由 manifest 精确校验；答案的读取/解析组合、窄异常翻译与双 reader 测试在 `--checknulls+` 下通过，双语/内容、全量示例与 `pnpm build` 通过。
 - **规模：** L。
 
 ### B22 — `Async<'T>` 与 `Task<'T>` / `Async<'T>` and `Task<'T>`

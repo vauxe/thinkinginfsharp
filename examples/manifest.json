@@ -286,6 +286,18 @@
       ]
     },
     {
+      "id": "ch21-exceptions-resources-io",
+      "kind": "script",
+      "path": "examples/scripts/ch21-exceptions-resources-io.fsx",
+      "expectedOutput": [
+        "Success: text=42 disposed=true",
+        "Failure: caught=true disposed=true",
+        "Read result: ok:42",
+        "Missing result: path-not-found",
+        "Cleanup: removed=true"
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",
