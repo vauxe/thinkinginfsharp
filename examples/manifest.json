@@ -451,6 +451,14 @@
       ]
     },
     {
+      "id": "ecosystem-fable-browser",
+      "kind": "compile",
+      "path": "examples/ecosystem/fable/FableSample.fsproj",
+      "sources": [
+        "examples/ecosystem/fable/App.fs"
+      ]
+    },
+    {
       "id": "capstone-booking-api",
       "kind": "compile",
       "path": "examples/capstone/src/Booking.Api/Booking.Api.fsproj",

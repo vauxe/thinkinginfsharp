@@ -2,6 +2,12 @@
   "version": 1,
   "isRoot": true,
   "tools": {
+    "fable": {
+      "version": "5.13.0",
+      "commands": [
+        "fable"
+      ]
+    },
     "fantomas": {
       "version": "7.0.5",
       "commands": [

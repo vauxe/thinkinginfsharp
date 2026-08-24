@@ -1,3 +1,6 @@
+packages:
+  - examples/ecosystem/fable
+
 allowBuilds:
   esbuild: true
 engineStrict: true

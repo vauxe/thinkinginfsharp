@@ -667,10 +667,10 @@
 
 ### X41a — Fable 工作区与锁定依赖
 
-- [ ] **依赖：** B40、F01。
+- [x] **依赖：** B40、F01。
 - **主要文件（5）：** `pnpm-workspace.yaml`、`examples/ecosystem/fable/package.json`、`FableSample.fsproj`、`pnpm-lock.yaml`、`examples/manifest.json`。
 - **验收：** 锁定 Fable、.NET tool 与前端直接依赖；根冻结安装覆盖生态工作区；包脚本预留开发、生产构建和浏览器冒烟入口。
-- **验证：** `pnpm install --frozen-lockfile`；Fable 项目 restore；`pnpm check:examples` 能识别该样例。
+- **验证：** 根工作区现显式包含 `examples/ecosystem/fable`，样例包精确固定 Vite 6.4.3，并预留锁定还原、开发监听、Fable 生产编译、Vite 打包与浏览器冒烟脚本；根工具清单锁定 Fable 5.13.0，项目直接锁定 Fable.Core 5.2.0 与 Fable.Browser.Dom 2.20.0，完整 NuGet 传递图写入 `packages.lock.json`。先让清单因缺失项目、源文件与解决方案引用产生四项预期红灯，再补入最小 `net10.0` 项目；`CI=true pnpm install --frozen-lockfile` 覆盖两个工作区且通过供应链策略，`dotnet tool restore` 恢复 Fable/Fantomas，项目 `--locked-mode` 还原和 Release `--no-restore` 构建通过且 0 警告/0 错误。直接运行 Fable 5.13.0 将一个 F# 源文件编译为 JavaScript，整套 `pnpm check:examples` 也识别、锁定还原、构建并通过该项目。
 - **规模：** M。
 
 ### X41b — Fable 浏览器构建与最小交互
