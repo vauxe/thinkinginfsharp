@@ -249,6 +249,20 @@
       ]
     },
     {
+      "id": "ch18-workflow-validation",
+      "kind": "script",
+      "path": "examples/scripts/ch18-workflow-validation.fsx",
+      "expectedOutput": [
+        "First error: [missing-request-id]",
+        "Accumulated invalid: [missing-request-id; missing-attendee; seats-not-integer:oops]",
+        "Accumulated mixed: [missing-attendee; non-positive-seats:0]",
+        "Valid strategies agree: true (REQ-18|Lin|3)",
+        "Dependent invalid: [seats-not-integer:oops] capacity-checks=0",
+        "Dependent excessive: [exceeds-capacity:5/4] capacity-checks=1",
+        "Dependent accepted: ok:3 capacity-checks=1"
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",

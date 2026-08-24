@@ -44,7 +44,8 @@ export const enLocale = {
             { text: '14 · Choosing Collections and Evaluation Models', link: '/en/part-03/ch-14-collections-evaluation' },
             { text: '15 · Active Patterns and Domain Matching Boundaries', link: '/en/part-03/ch-15-active-patterns' },
             { text: '16 · Modules, Namespaces, Projects, and Compiler Settings', link: '/en/part-03/ch-16-modules-namespaces-projects' },
-            { text: '17 · Signatures, Access Control, and F#-Facing APIs', link: '/en/part-03/ch-17-signatures-encapsulation' }
+            { text: '17 · Signatures, Access Control, and F#-Facing APIs', link: '/en/part-03/ch-17-signatures-encapsulation' },
+            { text: '18 · Explicit Workflow Composition and Validation Accumulation', link: '/en/part-03/ch-18-workflow-validation' }
           ]
         }
       ],
@@ -68,7 +69,8 @@ export const enLocale = {
             { text: 'Chapter 14', link: '/en/solutions/ch-14-collections-evaluation' },
             { text: 'Chapter 15', link: '/en/solutions/ch-15-active-patterns' },
             { text: 'Chapter 16', link: '/en/solutions/ch-16-modules-namespaces-projects' },
-            { text: 'Chapter 17', link: '/en/solutions/ch-17-signatures-encapsulation' }
+            { text: 'Chapter 17', link: '/en/solutions/ch-17-signatures-encapsulation' },
+            { text: 'Chapter 18', link: '/en/solutions/ch-18-workflow-validation' }
           ]
         }
       ]

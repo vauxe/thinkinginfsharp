@@ -275,10 +275,10 @@
 
 ### B18 — 显式工作流组合与验证累积 / Explicit Workflow Composition and Validation Accumulation
 
-- [ ] **依赖：** B17。
+- [x] **依赖：** B17。
 - **主要文件（5）：** `docs/{zh,en}/part-03/ch-18-workflow-validation.md`、`docs/{zh,en}/solutions/ch-18-workflow-validation.md`、`examples/scripts/ch18-workflow-validation.fsx`。
 - **验收：** 用普通函数分别实现 `Result` 短路和独立错误累积；不声称存在内置验证 CE；自定义 builder 与 builder 特定 `and!` 仅为标明的延伸。
-- **验证：** FSI 同时断言首错短路和多错累积；双语与内容检查；`pnpm build`。
+- **验证：** FSI 的 7 行确定性输出与断言覆盖首错结果、三项/两项错误累积、两种成功策略等价，以及依赖容量检查的 0/1 次调用；显式三路匹配与普通 `applyValidation` 重构结果完全一致；答案三字段探针独立执行通过；正文明确 FSharp.Core 无内置 result/validation builder 且 `and!` 语义属于特定构建器；双语、内容、示例与生产构建检查通过。
 - **规模：** L。
 
 ### K03 — 预约纯工作流与验证累积

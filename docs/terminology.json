@@ -811,6 +811,16 @@
         "definition": "A result produced when evaluation completes normally and available to other expressions; a function is itself a value."
       }
     },
+    "validation-accumulation": {
+      "zh": {
+        "preferred": "验证错误累积",
+        "definition": "对彼此独立的检查全部求值，并把各自的失败按明确顺序合并到一个错误集合中的组合策略。"
+      },
+      "en": {
+        "preferred": "validation accumulation",
+        "definition": "A combination strategy that evaluates independent checks and merges their failures in an explicit order into one error collection."
+      }
+    },
     "value-restriction": {
       "zh": {
         "preferred": "值限制",
