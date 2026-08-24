@@ -284,6 +284,21 @@
       ]
     },
     {
+      "id": "ch26-dotnet-runtime-boundaries",
+      "kind": "script",
+      "path": "examples/scripts/ch26-dotnet-runtime-boundaries.fsx",
+      "expectedOutput": [
+        "Runtime type: declared=BookingRequest actual=BookingRequest",
+        "Pattern casts: [\"text:LIN\"; \"request:R-26/3\"; \"int:42\"]",
+        "Failed downcast: InvalidCastException",
+        "Delegates: add=7 labels=[|\"2\"; \"4\"; \"6\"|]",
+        "Event: observed=[\"4->2\"] after-remove=1",
+        ".NET list: live=[1; 2; 3] snapshot=[1; 2]",
+        "String comparer: count=1 found=true value=second",
+        "Class keys: same-reference=false default=2 domain=1 value=second"
+      ]
+    },
+    {
       "id": "ch20-functional-core-effects",
       "kind": "script",
       "path": "examples/scripts/ch20-functional-core-effects.fsx",

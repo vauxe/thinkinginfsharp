@@ -66,7 +66,8 @@ export const zhLocale = {
         {
           text: '第五部分 · .NET 互操作与工程质量',
           items: [
-            { text: '第 25 章 · 在 F# 中定义对象', link: '/zh/part-05/ch-25-objects-interfaces' }
+            { text: '第 25 章 · 在 F# 中定义对象', link: '/zh/part-05/ch-25-objects-interfaces' },
+            { text: '第 26 章 · 深入 .NET 边界', link: '/zh/part-05/ch-26-dotnet-runtime-boundaries' }
           ]
         }
       ],
@@ -98,7 +99,8 @@ export const zhLocale = {
             { text: '第 22 章', link: '/zh/solutions/ch-22-async-task' },
             { text: '第 23 章', link: '/zh/solutions/ch-23-cancellation-timeouts' },
             { text: '第 24 章', link: '/zh/solutions/ch-24-concurrency-agents-state' },
-            { text: '第 25 章', link: '/zh/solutions/ch-25-objects-interfaces' }
+            { text: '第 25 章', link: '/zh/solutions/ch-25-objects-interfaces' },
+            { text: '第 26 章', link: '/zh/solutions/ch-26-dotnet-runtime-boundaries' }
           ]
         }
       ]

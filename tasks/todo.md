@@ -387,10 +387,10 @@
 
 ### B26 — 深入 .NET 边界 / Deeper .NET Boundaries
 
-- [ ] **依赖：** B25。
+- [x] **依赖：** B25。
 - **主要文件（5）：** `docs/{zh,en}/part-05/ch-26-dotnet-runtime-boundaries.md`、`docs/{zh,en}/solutions/ch-26-dotnet-runtime-boundaries.md`、`examples/scripts/ch26-dotnet-runtime-boundaries.fsx`。
 - **验收：** 覆盖运行时类型/转换、委托、事件、.NET 集合、引用身份和哈希；与 B07/B11/B14 的相等和键规则贯通。
-- **验证：** FSI 断言委托/事件与集合边界；双语与内容检查；`pnpm build`。
+- **验证：** 共享脚本的 8 行确定性输出在常规 FSI 与 `--checknulls+ --warnaserror+` 下通过，覆盖运行时类型/转换、委托、事件退订、实时集合/快照和两种字典键策略；三段答案探针在两种模式下零诊断执行；`pnpm check:examples`、双语/内容检查与 VitePress 生产构建通过。
 - **规模：** L。
 
 ### E27 — 给 C# 调用的 F# API 契约样例

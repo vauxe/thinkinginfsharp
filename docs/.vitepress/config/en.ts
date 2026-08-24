@@ -66,7 +66,8 @@ export const enLocale = {
         {
           text: 'Part V · .NET interop and engineering quality',
           items: [
-            { text: '25 · Defining Objects in F#', link: '/en/part-05/ch-25-objects-interfaces' }
+            { text: '25 · Defining Objects in F#', link: '/en/part-05/ch-25-objects-interfaces' },
+            { text: '26 · Deeper .NET Boundaries', link: '/en/part-05/ch-26-dotnet-runtime-boundaries' }
           ]
         }
       ],
@@ -98,7 +99,8 @@ export const enLocale = {
             { text: 'Chapter 22', link: '/en/solutions/ch-22-async-task' },
             { text: 'Chapter 23', link: '/en/solutions/ch-23-cancellation-timeouts' },
             { text: 'Chapter 24', link: '/en/solutions/ch-24-concurrency-agents-state' },
-            { text: 'Chapter 25', link: '/en/solutions/ch-25-objects-interfaces' }
+            { text: 'Chapter 25', link: '/en/solutions/ch-25-objects-interfaces' },
+            { text: 'Chapter 26', link: '/en/solutions/ch-26-dotnet-runtime-boundaries' }
           ]
         }
       ]
