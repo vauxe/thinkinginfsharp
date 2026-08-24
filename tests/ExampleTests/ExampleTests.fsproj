@@ -19,6 +19,7 @@
     <Compile Include="Ch28WorkflowTests.fs" />
     <Compile Include="Ch29Properties.fs" />
     <Compile Include="Ch32CompositionTests.fs" />
+    <Compile Include="BookingProperties.fs" />
   </ItemGroup>
 
   <ItemGroup>

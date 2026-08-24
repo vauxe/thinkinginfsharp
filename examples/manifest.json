@@ -173,6 +173,7 @@
         "examples/capstone/src/Booking.Domain/Domain.fs",
         "examples/capstone/src/Booking.Domain/Validation.fs",
         "examples/capstone/src/Booking.Domain/Workflow.fs",
+        "examples/capstone/src/Booking.Domain/PublicApi.fs",
         "examples/capstone/src/Booking.Domain/Ports.fs",
         "examples/capstone/src/Booking.Domain/Fakes.fs"
       ]
@@ -435,7 +436,8 @@
         "tests/ExampleTests/Ch28WorkflowTests.fs",
         "examples/chapters/ch29/Generators.fs",
         "tests/ExampleTests/Ch29Properties.fs",
-        "tests/ExampleTests/Ch32CompositionTests.fs"
+        "tests/ExampleTests/Ch32CompositionTests.fs",
+        "tests/ExampleTests/BookingProperties.fs"
       ]
     }
   ]

@@ -491,10 +491,10 @@
 
 ### K05 — 预约性质测试与稳定公共边界
 
-- [ ] **依赖：** B32、K04、E29。
+- [x] **依赖：** B32、K04、E29。
 - **主要文件（≤5）：** `tests/ExampleTests/BookingProperties.fs`、`tests/ExampleTests/ExampleTests.fsproj`、`examples/capstone/src/Booking.Domain/PublicApi.fs`、`Booking.Domain.fsproj`、`examples/manifest.json`。
 - **验收：** 容量与状态转换具有性质测试；公开模块隐藏领域表示细节并为后续 DTO/C# 边界提供稳定函数；反例可重放。
-- **验证：** 精确过滤 BookingProperties；Release build；`pnpm check:examples`。
+- **验证：** 先由缺失 `Booking.Domain.PublicApi` 得到预期 FS0039 红灯；实现后编译器又以 FS0025 揭示共享转换错误联合的非穷尽映射，改为显式覆盖两个案例；两个性质各检查 500 个输入，另有公共表面反射契约和固定种子反例测试，聚焦 `BookingProperties` 4/4 通过；错误的“所有正请求都能容纳”主张稳定缩减为容量 1、请求 2；反射检查确认公开函数不泄漏 `Event`、`Booking`、`BookingState`、`BookingEvent`、`RequestId` 或 `SeatCount`，模型与视图均不可由外部构造；Release 完整示例门通过。
 - **规模：** M。
 
 ### C5 — 第五部分检查点
