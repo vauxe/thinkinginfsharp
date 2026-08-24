@@ -827,10 +827,10 @@
 
 ### S02 — 完整目录、侧栏与同页语言映射
 
-- [ ] **依赖：** A08、S01。
+- [x] **依赖：** A08、S01。
 - **主要文件（≤5）：** `docs/.vitepress/config/index.ts`、`zh.ts`、`en.ts`、`scripts/generate-navigation.mjs`、`package.json`。
 - **验收：** 45 章、前言、8 附录、术语和答案进入对称导航；前后章顺序正确；语言切换始终映射相同 `translationKey`。
-- **验证：** 导航生成检查；`pnpm check:parity`；`pnpm build`；随机抽查每部分首尾页。
+- **验证：** 新增 `scripts/generate-navigation.mjs`，以 100 对完整双语页面的已验证 frontmatter 为唯一导航源，生成复用共享侧栏常量的 `navigation.generated.ts`；手写中英文配置只保留本地化 UI 文本并导入生成结果。生成器要求 1 个首页、1 个前言、45 章、45 个答案、A–E/G/H 七个普通附录与作为附录 F 的术语表全部为 `complete`，章号严格连续且落在规定七部分，章节/答案 slug 相同；任何缺翻译、`translationKey`/kind 漂移、孤立页、重复/缺失章节或附录都会失败。主书侧栏按首页→前言→第 1–45 章→附录 A–H 排序并跨部分连续；答案侧栏含评审指南和 45 个答案；顶部参考菜单含完整 A–H。新增 `generate:navigation`/`check:navigation` 并接入内容门禁，四项导航测试及完整内容测试 33/33 通过；双语、内容与 VitePress 生产构建通过。真实 Chrome 对七部分各首尾共 14 页逐页比较前后链接，14/14 正确，包含 6→7、12→13、18→19、24→25、32→33、38→39 与 45→附录 A；深页 `/en/part-01/ch-06-recursion-folds` 的语言菜单精确指向中文同章，答案侧栏实际呈现评审指南加 45 章共 46 个链接。
 - **规模：** L。
 
 ### S03 — 本地搜索、答案索引与交互可用性
