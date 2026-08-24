@@ -325,6 +325,20 @@
       ]
     },
     {
+      "id": "ch24-concurrency-agents-state",
+      "kind": "script",
+      "path": "examples/scripts/ch24-concurrency-agents-state.fsx",
+      "expectedOutput": [
+        "Concurrent waits: entered=2 pending=true",
+        "Concurrent results: [|\"first\"; \"second\"|]",
+        "Parallel map agrees: true",
+        "Shared counter: race=1 lock=2 interlocked=2",
+        "Locked capacity: accepted=1 remaining=1 invariant=true",
+        "Agent capacity: accepted=1 remaining=1 invariant=true",
+        "Cache: values=[|23; 23|] computations=1 entries=1"
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",

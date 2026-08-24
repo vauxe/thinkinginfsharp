@@ -347,10 +347,10 @@
 
 ### B24 — 并行、并发、代理与受控可变性 / Parallelism, Concurrency, Agents, and Controlled Mutation
 
-- [ ] **依赖：** B23。
+- [x] **依赖：** B23。
 - **主要文件（5）：** `docs/{zh,en}/part-04/ch-24-concurrency-agents-state.md`、`docs/{zh,en}/solutions/ch-24-concurrency-agents-state.md`、`examples/scripts/ch24-concurrency-agents-state.fsx`。
 - **验收：** 区分并行/并发；覆盖 `MailboxProcessor`、锁/原子操作、共享状态和缓存的适用边界；不宣称代理自动解决一致性。
-- **验证：** FSI 使用确定性屏障验证竞争前后行为；双语与内容检查；`pnpm build`。
+- **验证：** 中英文正文各 258 行、答案各 244 行且语义/结构对应；FSI 用显式门闩证明并发重叠而不臆测线程，以 `Barrier` 强制两个线程先读后写，稳定得到丢失更新 1，并验证 `lock`/`Interlocked` 修正为 2、复合容量不变量、邮箱串行所有权和 `ConcurrentDictionary`+`Lazy` 单次计算；共享脚本连续运行 20 次通过，答案代码、双语/内容与 `pnpm build` 通过。
 - **规模：** L。
 
 ### K04 — 预约异步端口与确定性替身

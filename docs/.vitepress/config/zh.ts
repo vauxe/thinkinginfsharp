@@ -57,7 +57,8 @@ export const zhLocale = {
             { text: '第 20 章 · 函数式核心与副作用边界', link: '/zh/part-04/ch-20-functional-core-effects' },
             { text: '第 21 章 · 异常、资源与 I/O', link: '/zh/part-04/ch-21-exceptions-resources-io' },
             { text: "第 22 章 · Async<'T> 与 Task<'T>", link: '/zh/part-04/ch-22-async-task' },
-            { text: '第 23 章 · 取消、超时、故障与释放', link: '/zh/part-04/ch-23-cancellation-timeouts' }
+            { text: '第 23 章 · 取消、超时、故障与释放', link: '/zh/part-04/ch-23-cancellation-timeouts' },
+            { text: '第 24 章 · 并行、并发、代理与状态', link: '/zh/part-04/ch-24-concurrency-agents-state' }
           ]
         }
       ],
@@ -87,7 +88,8 @@ export const zhLocale = {
             { text: '第 20 章', link: '/zh/solutions/ch-20-functional-core-effects' },
             { text: '第 21 章', link: '/zh/solutions/ch-21-exceptions-resources-io' },
             { text: '第 22 章', link: '/zh/solutions/ch-22-async-task' },
-            { text: '第 23 章', link: '/zh/solutions/ch-23-cancellation-timeouts' }
+            { text: '第 23 章', link: '/zh/solutions/ch-23-cancellation-timeouts' },
+            { text: '第 24 章', link: '/zh/solutions/ch-24-concurrency-agents-state' }
           ]
         }
       ]
