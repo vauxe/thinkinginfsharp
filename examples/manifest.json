@@ -13,6 +13,17 @@
       ]
     },
     {
+      "id": "ch02-values-bindings-expressions",
+      "kind": "script",
+      "path": "examples/scripts/ch02-values-bindings-expressions.fsx",
+      "expectedOutput": [
+        "Functional Foundations (F): capacity=40, fill=0.45, open=true",
+        "Ticket total: 58.50",
+        "Normalized capacity: 24; outer capacity: 40",
+        "Next attendee count: 25"
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",

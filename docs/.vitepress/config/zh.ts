@@ -14,7 +14,8 @@ export const zhLocale = {
         {
           text: '第一部分 · 表达式与函数',
           items: [
-            { text: '第 1 章 · 第一次 F# 会话', link: '/zh/part-01/ch-01-first-session' }
+            { text: '第 1 章 · 第一次 F# 会话', link: '/zh/part-01/ch-01-first-session' },
+            { text: '第 2 章 · 值、绑定与表达式', link: '/zh/part-01/ch-02-values-bindings-expressions' }
           ]
         }
       ],
@@ -22,7 +23,8 @@ export const zhLocale = {
         {
           text: '练习答案',
           items: [
-            { text: '第 1 章', link: '/zh/solutions/ch-01-first-session' }
+            { text: '第 1 章', link: '/zh/solutions/ch-01-first-session' },
+            { text: '第 2 章', link: '/zh/solutions/ch-02-values-bindings-expressions' }
           ]
         }
       ]

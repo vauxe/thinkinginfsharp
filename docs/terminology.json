@@ -71,6 +71,16 @@
         "definition": "A value that accepts input and computes a result; in F#, functions can be bound, passed, and returned like other values."
       }
     },
+    "immutability": {
+      "zh": {
+        "preferred": "不可变性",
+        "definition": "值建立后不被原地改写的性质；对绑定而言，它表示名称不会被重新赋给另一个值，但不自动保证所引用对象的内部也不可变。"
+      },
+      "en": {
+        "preferred": "immutability",
+        "definition": "The property of not being changed in place; for a binding, it means the name is not reassigned to another value, but it does not automatically make a referenced object's internals immutable."
+      }
+    },
     "literal": {
       "zh": {
         "preferred": "字面量",
@@ -79,6 +89,16 @@
       "en": {
         "preferred": "literal",
         "definition": "A representation of a value written directly in source code, such as 40, true, \"hello\", or 1.5m."
+      }
+    },
+    "numeric-conversion": {
+      "zh": {
+        "preferred": "数值转换",
+        "definition": "显式地从一种数值类型产生另一种数值类型的值，例如用 decimal 由 int 得到 decimal。"
+      },
+      "en": {
+        "preferred": "numeric conversion",
+        "definition": "Explicitly producing a value of one numeric type from another, such as using decimal to obtain a decimal from an int."
       }
     },
     "partial-application": {
@@ -109,6 +129,26 @@
       "en": {
         "preferred": "pipeline",
         "definition": "Using |> to pass the result on the left as the final argument of the function application on the right, expressing transformations in data-flow order."
+      }
+    },
+    "shadowing": {
+      "zh": {
+        "preferred": "遮蔽",
+        "definition": "在内层或后续作用域中建立同名的新绑定，使旧绑定在该范围内无法再由这个名称访问；它不是修改旧值。"
+      },
+      "en": {
+        "preferred": "shadowing",
+        "definition": "Introducing a new binding with the same name in an inner or later scope so that the old binding can no longer be reached by that name there; it does not mutate the old value."
+      }
+    },
+    "type-annotation": {
+      "zh": {
+        "preferred": "类型标注",
+        "definition": "源码中显式写出的类型约束，用来记录意图或补足编译器无法可靠推断的上下文。"
+      },
+      "en": {
+        "preferred": "type annotation",
+        "definition": "An explicitly written type constraint used to record intent or supply context the compiler cannot infer reliably."
       }
     },
     "type-inference": {

@@ -99,10 +99,10 @@
 
 ### B02 — 值、绑定与表达式 / Values, Bindings, and Expressions
 
-- [ ] **依赖：** CP。
+- [x] **依赖：** CP。
 - **主要文件（5）：** `docs/{zh,en}/part-01/ch-02-values-bindings-expressions.md`、`docs/{zh,en}/solutions/ch-02-values-bindings-expressions.md`、`examples/scripts/ch02-values-bindings-expressions.fsx`。
 - **验收：** 清楚区分值、绑定、表达式与语句式心智；覆盖基本类型、推断、遮蔽和类型签名阅读。
-- **验证：** 聚焦 FSI 脚本；`pnpm check:parity`；`pnpm check:content`；`pnpm build`。
+- **验证：** FSI 的 4 行确定性输出按 manifest 顺序通过；`pnpm test` 全链路通过；真实浏览器验证 320px 中英同页切换、三段共享代码、答案往返、章节翻页及无控制台/网络错误。
 - **规模：** M。
 
 ### B03 — 函数也是值 / Functions Are Values
