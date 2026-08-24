@@ -30,7 +30,7 @@
 ### F02 — 建立最小 VitePress 站点与命令契约
 
 - [x] **依赖：** F01。
-- **主要文件（6）：** `docs/index.md`、`docs/.vitepress/config.ts`、`docs/.vitepress/config/index.ts`、`docs/.vitepress/config/zh.ts`、`docs/.vitepress/config/en.ts`、`package.json`。标准 `config.ts` 只负责转发到模块化配置。
+- **主要文件（5）：** `docs/index.md`、`docs/.vitepress/config/index.ts`、`docs/.vitepress/config/zh.ts`、`docs/.vitepress/config/en.ts`、`package.json`。VitePress 1.6.4 原生解析模块化 `config/index.ts`。
 - **验收：** `dev/build/preview` 命令可用；根页可生产构建；配置预留中英 locale 但没有虚假章节链接。
 - **验证：** `pnpm build`；启动 `pnpm dev` 后检查根页返回成功且控制台无错误。
 - **规模：** S。
