@@ -5,6 +5,7 @@ open ThinkingInFSharp.Ch28
 open Xunit
 
 module Ch28WorkflowTests =
+    // #region pure-value-tests
     let private expectOk result =
         match result with
         | Ok value -> value
@@ -38,7 +39,9 @@ module Ch28WorkflowTests =
             Error(InsufficientStock(3, 2)),
             OrderDecision.decide (Some snapshot) request
         )
+    // #endregion pure-value-tests
 
+    // #region port-double-tests
     [<Fact>]
     let ``small fake records the successful boundary protocol`` () =
         let request = command "ORD-28" "FSP-BOOK" 2
@@ -93,3 +96,33 @@ module Ch28WorkflowTests =
 
         Assert.Equal(0, clockCalls)
         Assert.Empty saved
+    // #endregion port-double-tests
+
+    // #region missing-product-test
+    [<Fact>]
+    let ``missing product queries the sku without later effects`` () =
+        let request = command "ORD-28" "FSP-BOOK" 2
+        let lookups = ResizeArray<string>()
+        let saved = ResizeArray<PlacedOrder>()
+        let mutable clockCalls = 0
+
+        let ports: OrderPorts =
+            { FindProduct =
+                fun sku ->
+                    lookups.Add sku
+                    None
+              GetUtcNow =
+                fun () ->
+                    clockCalls <- clockCalls + 1
+                    DateTimeOffset.MaxValue
+              SaveOrder = saved.Add }
+
+        Assert.Equal(
+            Error(ProductNotFound "FSP-BOOK"),
+            OrderWorkflow.place ports request
+        )
+
+        Assert.True(([ "FSP-BOOK" ] = (lookups |> Seq.toList)))
+        Assert.Equal(0, clockCalls)
+        Assert.Empty saved
+    // #endregion missing-product-test

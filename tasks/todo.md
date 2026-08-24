@@ -414,15 +414,15 @@
 - [x] **依赖：** B27。
 - **主要文件（≤4）：** `examples/chapters/ch28/OrderWorkflow.fs`、`tests/ExampleTests/Ch28WorkflowTests.fs`、`tests/ContractTests/Ch28BoundaryTests.fs`、`examples/manifest.json`。
 - **验收：** 纯逻辑用值测试，外部端口用小型替身，序列化等稳定边界用契约测试；不引入重型 mock 框架。
-- **验证：** 先由共享实现空壳获得两项目预期 FS0039 编译红灯；随后精确过滤 `Ch28`，4 项 example tests 与 4 项 contract tests 全部通过，分别覆盖纯值结果、库存反例、手写记录替身的成功/失败协议、camel-case JSON 形状、DTO 解码、null/默认值和未知字段；`pnpm check:examples` 全门通过。
+- **验证：** 先由共享实现空壳获得两项目预期 FS0039 编译红灯；随后精确过滤 `Ch28`，5 项 example tests 与 4 项 contract tests 全部通过，分别覆盖纯值结果、库存反例、手写记录替身的成功/库存不足/产品缺失协议、camel-case JSON 形状、DTO 解码、null/默认值和未知字段；`pnpm check:examples` 全门通过。
 - **规模：** M。
 
 ### B28 — 示例测试、替身与边界测试 / Example Tests, Test Doubles, and Boundary Tests
 
-- [ ] **依赖：** E28。
+- [x] **依赖：** E28。
 - **主要文件（4）：** `docs/{zh,en}/part-05/ch-28-testing-boundaries.md`、`docs/{zh,en}/solutions/ch-28-testing-boundaries.md`。
 - **验收：** 从风险选择测试层；展示状态与行为断言、确定性替身和契约边界；避免测试实现细节。
-- **验证：** E28 聚焦测试；双语与内容检查；`pnpm build`。
+- **验证：** E28 聚焦过滤中 5 项 example tests 与 4 项 contract tests 全部通过；中英正文与答案严格保持 310/310 和 134/134 行；22 项内容测试、双语/内容检查、完整示例门及 VitePress 生产构建通过。
 - **规模：** M。
 
 ### E29 — FsCheck 性质测试样例

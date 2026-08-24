@@ -5,6 +5,7 @@ open ThinkingInFSharp.Ch28
 open Xunit
 
 module Ch28BoundaryTests =
+    // #region json-shape-contract
     [<Fact>]
     let ``json output keeps the documented camel-case shape`` () =
         let dto: PlaceOrderDto =
@@ -25,7 +26,9 @@ module Ch28BoundaryTests =
         Assert.Equal("ORD-28", root.GetProperty("orderId").GetString())
         Assert.Equal("FSP-BOOK", root.GetProperty("sku").GetString())
         Assert.Equal(2, root.GetProperty("quantity").GetInt32())
+    // #endregion json-shape-contract
 
+    // #region json-input-contract
     [<Fact>]
     let ``json input crosses validation before becoming a command`` () =
         let dto =
@@ -65,3 +68,4 @@ module Ch28BoundaryTests =
             PlaceOrderJson.deserialize
                 """{"orderId":"ORD-28","sku":"FSP-BOOK","quantity":2,"priority":true}"""
             |> ignore)
+    // #endregion json-input-contract
