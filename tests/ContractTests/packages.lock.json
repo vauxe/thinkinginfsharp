@@ -140,6 +140,12 @@
         "dependencies": {
           "FSharp.Core": "[10.1.301, )"
         }
+      },
+      "websample": {
+        "type": "Project",
+        "dependencies": {
+          "FSharp.Core": "[10.1.301, )"
+        }
       }
     }
   }

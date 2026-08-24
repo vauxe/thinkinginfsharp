@@ -635,10 +635,10 @@
 
 ### X39 — ASP.NET Core/F# Web 代表性样例
 
-- [ ] **依赖：** C6。
+- [x] **依赖：** C6。
 - **主要文件（≤5）：** `examples/ecosystem/web/WebSample.fsproj`、`Program.fs`、`tests/ContractTests/WebSampleTests.fs`、`examples/ecosystem/web/README.md`、`examples/manifest.json`。
 - **验收：** 锁定验证版本；用 F# Minimal API 完成一个输入/输出与错误边界；说明它和 capstone 的关系，避免复制第二个大型 Web 应用。
-- **验证：** Release build、进程内 HTTP 契约测试、`pnpm check:examples`。
+- **验证：** 先由 `WebSample.map` 缺失得到预期 FS0039 红灯；新增 `net10.0` F# Web SDK 项目，仅依赖 .NET 共享 Web 框架并锁定 `FSharp.Core` 10.1.301。一个 `POST /api/greetings` Minimal API 使用显式 `GreetingRequestDto`/`GreetingResponseDto`/`WebSampleErrorDto`、区分大小写且拒绝未知成员的 JSON、非空名称验证、稳定 `400 invalid_json`/`name_required`、`415 unsupported_media_type` 和不泄露异常的 `500 internal_error`，并原样传播请求取消。真实 `WebApplication` + `TestServer` 的 7 个契约用例覆盖修剪后的成功输出及六类传输/验证失败，Release 构建 0 警告/0 错误；README 给出可复制回环运行命令，明确样例只隔离平台原生 Web 选择，预约领域、持久化、一致性、诊断和 C# 客户端仍由 capstone 负责，也明确未验证套接字/TLS/认证/限流/正文上限/部署。项目、测试和源文件均进入解决方案与清单，完整锁定 `pnpm check:examples` 通过。
 - **规模：** M。
 
 ### B39 — ASP.NET Core 与 F# Web 生态 / ASP.NET Core and the F# Web Ecosystem

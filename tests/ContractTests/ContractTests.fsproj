@@ -10,6 +10,7 @@
     <Compile Include="../../examples/chapters/ch28/OrderWorkflow.fs" Link="Ch28/OrderWorkflow.fs" />
     <Compile Include="Ch19NullTests.fs" />
     <Compile Include="Ch28BoundaryTests.fs" />
+    <Compile Include="WebSampleTests.fs" />
     <Compile Include="BookingJsonContractTests.fs" />
     <Compile Include="BookingStoreContractTests.fs" />
     <Compile Include="BookingApiTests.fs" />
@@ -25,6 +26,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../examples/chapters/ch19/Ch19.fsproj" />
+    <ProjectReference Include="../../examples/ecosystem/web/WebSample.fsproj" />
     <ProjectReference Include="../../examples/capstone/src/Booking.Domain/Booking.Domain.fsproj" />
     <ProjectReference Include="../../examples/capstone/src/Booking.Contracts/Booking.Contracts.fsproj" />
     <ProjectReference Include="../../examples/capstone/src/Booking.Infrastructure/Booking.Infrastructure.fsproj" />

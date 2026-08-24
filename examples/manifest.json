@@ -435,6 +435,14 @@
       ]
     },
     {
+      "id": "ecosystem-web-minimal-api",
+      "kind": "compile",
+      "path": "examples/ecosystem/web/WebSample.fsproj",
+      "sources": [
+        "examples/ecosystem/web/Program.fs"
+      ]
+    },
+    {
       "id": "capstone-booking-api",
       "kind": "compile",
       "path": "examples/capstone/src/Booking.Api/Booking.Api.fsproj",
@@ -461,6 +469,7 @@
         "examples/chapters/ch28/OrderWorkflow.fs",
         "tests/ContractTests/Ch19NullTests.fs",
         "tests/ContractTests/Ch28BoundaryTests.fs",
+        "tests/ContractTests/WebSampleTests.fs",
         "tests/ContractTests/BookingJsonContractTests.fs",
         "tests/ContractTests/BookingStoreContractTests.fs",
         "tests/ContractTests/BookingApiTests.fs",
