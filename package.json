@@ -10,12 +10,14 @@
     "preview": "vitepress preview docs",
     "generate:glossary": "node scripts/generate-glossary.mjs",
     "check:glossary": "node scripts/generate-glossary.mjs --check",
+    "generate:solutions-guide": "node scripts/generate-solutions-guide.mjs",
+    "check:solutions-guide": "node scripts/generate-solutions-guide.mjs --check",
     "check:parity": "node scripts/check-parity.mjs",
-    "check:content": "pnpm check:glossary && node scripts/check-content.mjs",
+    "check:content": "pnpm check:glossary && pnpm check:solutions-guide && node scripts/check-content.mjs",
     "check:examples": "node scripts/check-examples.mjs && pnpm check:fable",
     "check:fable": "pnpm --filter @thinking-in-fsharp/fable-sample build && pnpm --filter @thinking-in-fsharp/fable-sample smoke",
     "check:capstone": "node scripts/check-capstone.mjs",
-    "test:content": "node --test scripts/content-contract.test.mjs scripts/markdown.test.mjs scripts/content-checks.test.mjs scripts/example-checks.test.mjs scripts/glossary.test.mjs",
+    "test:content": "node --test scripts/content-contract.test.mjs scripts/markdown.test.mjs scripts/content-checks.test.mjs scripts/example-checks.test.mjs scripts/glossary.test.mjs scripts/solutions-guide.test.mjs",
     "test": "pnpm test:content && pnpm check:parity && pnpm check:content && pnpm check:examples && pnpm build"
   },
   "engines": {
