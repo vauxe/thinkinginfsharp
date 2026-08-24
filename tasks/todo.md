@@ -699,10 +699,10 @@
 
 ### B42 — 云、容器、Serverless 与 .NET Aspire / Cloud, Containers, Serverless, and .NET Aspire
 
-- [ ] **依赖：** X42。
+- [x] **依赖：** X42。
 - **主要文件（4）：** `docs/{zh,en}/part-07/ch-42-cloud-containers-aspire.md`、`docs/{zh,en}/solutions/ch-42-cloud-containers-aspire.md`。
 - **验收：** 以部署问题区分容器、托管服务、Serverless 和 Aspire；注明 F# 项目模板/生态摩擦及 C# 基础设施项目互操作选择。
-- **验证：** X42 聚焦检查；双语与内容检查；`pnpm build`。
+- **验证：** 中英文正文均为 501 行、解答均为 234 行，覆盖从源码、制品、镜像到平台、实例与可观测发布的完整部署链，并以触发方式、生命周期、状态、伸缩、控制面与运维责任六个问题比较托管进程、托管容器、Kubernetes、Serverless 和 VM；同时纳入配置/机密/身份、进程退出、健康信号、镜像供应链、RID 锁污染、Serverless 重试与幂等、Aspire 两套健康状态、Service Defaults 的可选边界以及发布/观测/回滚证据阶梯。所有易变版本与平台能力均注明截至 2026-08-25，严格区分 X42 已执行证据、官方资料审阅和未执行的平台边界；Azure Functions 的 F# isolated worker 绑定摩擦与 AWS Lambda .NET 10 只作有来源的决策说明。`check-parity`、`check-content` 与 VitePress 生产构建通过；X42 的锁定还原、Release 构建、测试、Fable 构建/Chrome 冒烟和本地 Aspire 证据保持通过。真实 Chrome 从英文正文进入英文解答，经语言菜单切到中文解答再返回中文正文，两套导航、侧栏和链接均正确；390×844 视口无页面横向溢出，宽代码仅在代码框内滚动，控制台零错误；移动端 Lighthouse Accessibility、Best Practices、SEO 与 Agentic Browsing 均为 100。
 - **规模：** L。
 
 ### X43 — Avalonia 最小桌面样例

@@ -96,7 +96,8 @@ export const enLocale = {
           items: [
             { text: '39 · ASP.NET Core and the F# Web Ecosystem', link: '/en/part-07/ch-39-web-ecosystem' },
             { text: '40 · Data, Type Providers, Analytics, and ML', link: '/en/part-07/ch-40-data-analytics' },
-            { text: '41 · Fable, Elmish, and Browser Applications', link: '/en/part-07/ch-41-fable-elmish' }
+            { text: '41 · Fable, Elmish, and Browser Applications', link: '/en/part-07/ch-41-fable-elmish' },
+            { text: '42 · Cloud, Containers, Serverless, and .NET Aspire', link: '/en/part-07/ch-42-cloud-containers-aspire' }
           ]
         }
       ],
@@ -144,7 +145,8 @@ export const enLocale = {
             { text: 'Chapter 38', link: '/en/solutions/ch-38-integration-diagnostics-release' },
             { text: 'Chapter 39', link: '/en/solutions/ch-39-web-ecosystem' },
             { text: 'Chapter 40', link: '/en/solutions/ch-40-data-analytics' },
-            { text: 'Chapter 41', link: '/en/solutions/ch-41-fable-elmish' }
+            { text: 'Chapter 41', link: '/en/solutions/ch-41-fable-elmish' },
+            { text: 'Chapter 42', link: '/en/solutions/ch-42-cloud-containers-aspire' }
           ]
         }
       ]
