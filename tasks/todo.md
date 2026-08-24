@@ -219,10 +219,10 @@
 
 ### B13 — 组合、参数顺序与管道 API / Composition, Argument Order, and Pipeline APIs
 
-- [ ] **依赖：** C2。
+- [x] **依赖：** C2。
 - **主要文件（5）：** `docs/{zh,en}/part-03/ch-13-composition-pipeline-api.md`、`docs/{zh,en}/solutions/ch-13-composition-pipeline-api.md`、`examples/scripts/ch13-composition-pipeline-api.fsx`。
 - **验收：** 从重复嵌套调用推导 `>>`/`<<` 和面向管道的参数顺序；说明何时直接调用比管道更清楚。
-- **验证：** 聚焦 FSI；双语与内容检查；`pnpm build`。
+- **验证：** FSI 的 6 行确定性输出覆盖嵌套调用、等价管道、前向/后向组合、配置式部分应用和有意保持直接的谓词；`pnpm test` 的 22 项内容测试、双语/内容/示例门与生产构建全部通过。
 - **规模：** M。
 
 ### B14 — 集合选择与求值 / Choosing Collections and Evaluation Models

@@ -201,6 +201,16 @@
         "definition": "A higher-order operation that combines collection elements into an accumulator in a defined order and returns the final state."
       }
     },
+    "function-composition": {
+      "zh": {
+        "preferred": "函数组合",
+        "definition": "把前一个函数的输出连接到后一个函数的输入，从多个函数值得到一个新函数值。"
+      },
+      "en": {
+        "preferred": "function composition",
+        "definition": "Connecting one function's output to the next function's input to obtain a new function value from multiple function values."
+      }
+    },
     "function": {
       "zh": {
         "preferred": "函数",

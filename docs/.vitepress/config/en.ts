@@ -36,6 +36,14 @@ export const enLocale = {
           ]
         }
       ],
+      '/en/part-03/': [
+        {
+          text: 'Part III · Composition and program structure',
+          items: [
+            { text: '13 · Composition, Argument Order, and Pipeline APIs', link: '/en/part-03/ch-13-composition-pipeline-api' }
+          ]
+        }
+      ],
       '/en/solutions/': [
         {
           text: 'Solutions',
@@ -51,7 +59,8 @@ export const enLocale = {
             { text: 'Chapter 9', link: '/en/solutions/ch-09-option-result' },
             { text: 'Chapter 10', link: '/en/solutions/ch-10-recursive-types' },
             { text: 'Chapter 11', link: '/en/solutions/ch-11-generics-constraints' },
-            { text: 'Chapter 12', link: '/en/solutions/ch-12-making-illegal-states-unrepresentable' }
+            { text: 'Chapter 12', link: '/en/solutions/ch-12-making-illegal-states-unrepresentable' },
+            { text: 'Chapter 13', link: '/en/solutions/ch-13-composition-pipeline-api' }
           ]
         }
       ]

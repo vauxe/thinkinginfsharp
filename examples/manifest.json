@@ -166,6 +166,19 @@
       ]
     },
     {
+      "id": "ch13-composition-pipeline-api",
+      "kind": "script",
+      "path": "examples/scripts/ch13-composition-pipeline-api.fsx",
+      "expectedOutput": [
+        "Nested: Lin:4:web",
+        "Pipeline matches nested: true",
+        "Forward composition: Lin:4:web",
+        "Backward composition: Lin:4:web",
+        "Configured pipeline: Mira:2:desk",
+        "Direct predicate: requested=3 capacity=4 fits=true"
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",
