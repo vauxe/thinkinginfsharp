@@ -331,6 +331,16 @@
         "definition": "Using |> to pass the result on the left as the final argument of the function application on the right, expressing transformations in data-flow order."
       }
     },
+    "recursive-type": {
+      "zh": {
+        "preferred": "递归类型",
+        "definition": "在自身定义的组成部分中再次引用自身、从而能表示有限嵌套结构的类型。"
+      },
+      "en": {
+        "preferred": "recursive type",
+        "definition": "A type that refers to itself in part of its own definition, allowing values with finite nested structure."
+      }
+    },
     "recursion": {
       "zh": {
         "preferred": "递归",

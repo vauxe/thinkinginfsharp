@@ -121,6 +121,19 @@
       ]
     },
     {
+      "id": "ch10-recursive-types",
+      "kind": "script",
+      "path": "examples/scripts/ch10-recursive-types.fsx",
+      "expectedOutput": [
+        "Counts: empty=0 leaf=1 branch=3",
+        "Totals: empty=0 leaf=2 branch=9",
+        "Mapped: Branch(Leaf(2 seats),Branch(Leaf(3 seats),Leaf(4 seats)))",
+        "Fold agrees: count=true total=true",
+        "Heights: empty=0 leaf=1 branch=3",
+        "Shape preserved: before=3 after=3"
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",

@@ -179,10 +179,10 @@
 
 ### B10 — 递归类型与结构递归 / Recursive Types and Structural Recursion
 
-- [ ] **依赖：** B09。
+- [x] **依赖：** B09。
 - **主要文件（5）：** `docs/{zh,en}/part-02/ch-10-recursive-types.md`、`docs/{zh,en}/solutions/ch-10-recursive-types.md`、`examples/scripts/ch10-recursive-types.fsx`。
 - **验收：** 建模树并从类型结构推导遍历、`map` 与 `fold`；讨论深度和栈边界但不提前优化。
-- **验证：** FSI 覆盖空、叶、分支树；双语与内容检查；`pnpm build`。
+- **验证：** FSI 的 6 行确定性输出覆盖空树、叶子、分支、`map`、`fold`、高度与形状保持；正文示例已在 FSI 复核；`pnpm test` 全链路通过。
 - **规模：** M。
 
 ### B11 — 泛型、值限制、约束与度量 / Generics, Value Restriction, Constraints, and Units
