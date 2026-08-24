@@ -95,7 +95,8 @@ export const zhLocale = {
           text: '第七部分 · 生态地图',
           items: [
             { text: '第 39 章 · ASP.NET Core 与 F# Web 生态', link: '/zh/part-07/ch-39-web-ecosystem' },
-            { text: '第 40 章 · 数据、类型提供器、分析与 ML', link: '/zh/part-07/ch-40-data-analytics' }
+            { text: '第 40 章 · 数据、类型提供器、分析与 ML', link: '/zh/part-07/ch-40-data-analytics' },
+            { text: '第 41 章 · Fable、Elmish 与浏览器应用', link: '/zh/part-07/ch-41-fable-elmish' }
           ]
         }
       ],
@@ -142,7 +143,8 @@ export const zhLocale = {
             { text: '第 37 章', link: '/zh/solutions/ch-37-consistency-idempotency' },
             { text: '第 38 章', link: '/zh/solutions/ch-38-integration-diagnostics-release' },
             { text: '第 39 章', link: '/zh/solutions/ch-39-web-ecosystem' },
-            { text: '第 40 章', link: '/zh/solutions/ch-40-data-analytics' }
+            { text: '第 40 章', link: '/zh/solutions/ch-40-data-analytics' },
+            { text: '第 41 章', link: '/zh/solutions/ch-41-fable-elmish' }
           ]
         }
       ]

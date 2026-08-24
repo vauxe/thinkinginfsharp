@@ -683,10 +683,10 @@
 
 ### B41 — Fable、Elmish 与浏览器应用 / Fable, Elmish, and Browser Applications
 
-- [ ] **依赖：** X41b。
+- [x] **依赖：** X41b。
 - **主要文件（4）：** `docs/{zh,en}/part-07/ch-41-fable-elmish.md`、`docs/{zh,en}/solutions/ch-41-fable-elmish.md`。
 - **验收：** 用问题/技术/优势/摩擦结构解释 Fable 与 Elmish；不把 .NET 服务端假设带入浏览器；代表例只承诺已验证的构建。
-- **验证：** X41b 构建与浏览器冒烟；双语与内容检查；`pnpm build`。
+- **验证：** 正文严格保持 495/495 行，答案严格保持 284/284 行；中英逐段对齐并从 F# 源语言、Fable 编译器、生成 JavaScript 与浏览器运行时四层边界出发，分别回答“F# 能否编译”“Fable 是否支持所用能力”“目标浏览器与打包器是否支持”三个兼容性问题。章节以 X41b 的纯 `Model`/`Message`/`update` 与 DOM 效果壳为唯一已执行切片，明确数值、集合边界、日期/正则、反射/泛型、同步异步、代理和 option 的跨目标差异；再给出共享纯核心、显式 JS 适配器、NuGet/npm 双依赖图、HTTP/安全/存储/无障碍边界，以及纯 DOM、Elmish、React/Feliz/Elmish.React 和服务端岛屿的决策地图。Elmish 部分覆盖命令、订阅、请求身份与取消、URL 所有权和不可能状态，并区分状态架构与渲染器；截至 2026-08-25 的版本表只把 Fable 5.13.0、Fable.Core 5.2.0、Fable.Browser.Dom 2.20.0、Vite 6.4.3 标为仓库验证，把 Fable.Elmish、Fable.Elmish.React、Feliz 与 Fable.React 明示为仅核对官方包资料，且记录 Fable.React 对新项目推荐 Feliz。三道答案分别论证渐进岛屿、工作流状态机和 React 组件约束，设计防抖/取消/陈旧响应模型，并把共享定价核心置于服务端权威与跨目标黄金向量之下。X41b 的 Fable 生产构建与真实 Chrome 冒烟通过；双语、内容和 VitePress 生产构建通过。真实 Chrome 验证英文正文、答案与站内语言切换后的中文答案/正文及两类侧栏；390×844 下无页面级横向溢出，代码和宽表格只在自身内部滚动，控制台零消息，中文正文移动端 Lighthouse 可访问性、最佳实践、SEO 与可代理浏览均为 100。
 - **规模：** L。
 
 ### X42 — 云、容器与 Aspire 的本地验证切片
