@@ -1,0 +1,322 @@
+---
+title: "第 14 章：集合选择与求值模型"
+description: "依据形状、求值时机、查找语义与转换成本，在列表、数组、序列、映射表、集合和 .NET 哈希集合之间作出选择。"
+translationKey: part-03/ch-14-collections-evaluation
+kind: chapter
+part: 3
+chapter: 14
+status: complete
+verifiedWith:
+  fsharp: "10"
+  dotnetSdk: "10.0.301"
+exampleIds:
+  - ch14-collections-evaluation
+exerciseIds:
+  - ch14-exercise-01
+  - ch14-exercise-02
+  - ch14-exercise-03
+termIds:
+  - array
+  - comparison-constraint
+  - deferred-evaluation
+  - eager-evaluation
+  - enumeration
+  - hash-code
+  - list
+  - map
+  - sequence
+  - set
+sources:
+  - id: microsoft-collection-types
+    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/fsharp-collection-types
+    checked: "2026-08-24"
+  - id: microsoft-lists
+    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/lists
+    checked: "2026-08-24"
+  - id: microsoft-arrays
+    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/arrays
+    checked: "2026-08-24"
+  - id: microsoft-sequences
+    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/sequences
+    checked: "2026-08-24"
+  - id: fsharp-core-collections
+    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections.html
+    checked: "2026-08-24"
+  - id: fsharp-core-map
+    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-mapmodule.html
+    checked: "2026-08-24"
+  - id: fsharp-core-set
+    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-setmodule.html
+    checked: "2026-08-24"
+  - id: dotnet-dictionary
+    url: https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2?view=net-10.0
+    checked: "2026-08-24"
+  - id: dotnet-hashset
+    url: https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.hashset-1?view=net-10.0
+    checked: "2026-08-24"
+---
+
+# 第 14 章：集合选择与求值模型 {#overview}
+
+集合类型不只是围绕同一组元素换一套标点。它会选择数据形状、工作发生时机、允许哪些更新、查找如何判定键相同，以及调用方可以预期哪些成本。只因 `seq` 能接收很多来源就到处使用它，会丢掉有用保证；到处使用 `list` 则可能隐藏索引或查找成本。
+
+本章从程序所需操作出发。最终得到一套小型决策模型，覆盖 F# `list`、数组、`seq`、`Map`、`Set`，以及真正需要基于相等的哈希时所用的 .NET `Dictionary` 与 `HashSet` 边界。
+
+## 学完本章后你能做什么 {#outcomes}
+
+学完本章后，你应该能够：
+
+- 根据主要操作而非习惯选择集合；
+- 区分立即求值的已存储集合与延迟执行的枚举规则；
+- 解释为何把一个序列枚举两次可能重复工作或效果；
+- 在值应按需产生时使用序列表达式；
+- 在缓存序列与物化快照之间作出选择；
+- 说明转换边界的分配、遍历、可变性与语义变化；
+- 解释 `Map` 与 `Set` 为何需要比较；
+- 解释 `Dictionary` 与 `HashSet` 为何改为需要相等和相容哈希码；
+- 避免在所选集合没有承诺时依赖插入顺序。
+
+## 从主要操作开始 {#decision-first}
+
+先问消费者最常做什么：
+
+1. 从头部分解一段不大的不可变序列；
+2. 按索引读取或更新一个固定大小的数据块；
+3. 只请求一个可能很大生产器的部分结果；
+4. 按有序键查找不可变值；
+5. 维护唯一且有序的元素；
+6. 用自定义比较器执行基于相等的可变查找。
+
+这些答案指向不同表示。“它包含多个值”并不足以作出选择。
+
+## 五种核心形状 {#five-shapes}
+
+### 列表：从头处理的不可变结构 {#list}
+
+F# 列表是不可变单向链式结构。`head :: tail` 可以常数时间构造，也符合第 4～6 章教授的递归形状。`List.map` 与 `List.filter` 会立即遍历输入并分配结果列表。
+
+对于一批不大、已经到手、会被顺序变换或从头分解的数据，列表是很好的默认选择。它不适合反复索引：到达第 *i* 项必须走过此前节点。反复向尾部追加也违背其形状；应考虑前插后反转、折叠或其他构建表示。
+
+### 数组：固定范围与索引存储 {#array}
+
+数组是固定大小、从零开始的 .NET 数组，其元素占据连续存储。按索引读取和替换元素都是常数时间。绑定可以保持不可变，而它引用的对象仍被修改：
+
+```fsharp
+let seats = [| false; false; false |]
+seats[1] <- true
+```
+
+索引算法、稠密固定快照、数值计算，以及自然交换数组的 API 都适合数组。`Array.map` 会立即返回新数组，而不会修改输入。切片会创建副本。数组复制是浅复制，因此引用类型元素仍指向相同底层对象。
+
+共享脚本把列表与数组行为并排展示：
+
+<<< @/../examples/scripts/ch14-collections-evaluation.fsx#eager-collections{fsharp:line-numbers} [ch14-collections-evaluation.fsx]
+
+两种表示都不具有普遍“更快”的地位。主要访问模式、分配特征、元素类型与实测工作负载才决定结果。
+
+### 序列：枚举契约，而非已存储数据 {#sequence}
+
+`seq<'T>` 是 `System.Collections.Generic.IEnumerable<'T>` 的类型缩写。它描述消费者如何请求元素，却不表示全部元素已经存储，也不保证来源纯净、枚举便宜，甚至不保证重复遍历观察到相同外部状态。
+
+很多值都能被视为序列：列表、数组、映射表、集合，以及大多数 .NET 可枚举集合。因此，接收 `seq<'T>` 可以让只读消费者适用于很多来源。它提供的保证也少于数组或列表：一般情况下没有常数时间计数、索引、快照或可重新遍历的承诺。
+
+当按需生产很重要、消费者可能提前停止，或 API 自然接收 `IEnumerable<'T>` 时，使用序列。不要只为让每个公开输入达到最大抽象程度就使用它；应要求实现与调用方真正需要的形状。
+
+### Map 与 Set：按比较顺序进行不可变查找 {#map-and-set}
+
+`Map<'Key,'Value>` 为每个键存储一个值；`Set<'T>` 存储唯一元素。二者都是基于树的不可变集合。添加或删除会返回新集合，旧值仍可使用。
+
+它们的决定性约束是排序：
+
+```fsharp
+Map<'Key, 'Value>  // 'Key : comparison
+Set<'T>            // 'T : comparison
+```
+
+在这些树实现中，查找、插入与成员判断相对于集合大小都是对数时间。枚举遵循 F# 泛型比较顺序，而不是插入顺序。同一键的后续绑定会替换此前映射；比较结果相同的集合元素会合并为一项。
+
+当不可变查找与确定的键排序遍历都有用时，选择 `Map`。当元素有意义且稳定的比较，并需要不可变成员判断、去重与集合代数时，选择 `Set`。
+
+## 求值时机可以被观察 {#evaluation}
+
+创建并变换列表与数组通常会立即执行遍历。很多 `Seq` 生产器和变换会把工作推迟到枚举时。“惰性”因此不只是性能形容词：它会决定异常、状态读取、I/O 与其他效果在何时发生。
+
+### 序列表达式定义生产器 {#sequence-expression}
+
+序列表达式用 `seq { ... }` 描述如何产出元素：
+
+```fsharp
+let candidateSeatCounts maximum =
+    seq {
+        for seats in 1..maximum do
+            if seats % 2 = 1 then
+                yield seats
+    }
+```
+
+调用 `candidateSeatCounts 1_000_000` 会创建序列值，而不会立即建立一百万项候选值。`Seq.truncate 3 >> Seq.toList` 这样的消费者可以只请求一个前缀。`yield!` 可以贡献内部序列的全部元素。
+
+仍应把表达式主体看成可执行代码，而不是静态数据。内部效果会在元素被请求时运行。
+
+### 重复枚举可能重复生产 {#repeated-enumeration}
+
+共享示例用计数器让求值过程可见：
+
+<<< @/../examples/scripts/ch14-collections-evaluation.fsx#repeated-enumeration{fsharp:line-numbers} [ch14-collections-evaluation.fsx]
+
+构造 `delayedSquares` 后，计数器仍为零。第一次 `Seq.toList` 拉取三项；第二次会为这个序列表达式开始新枚举，并让主体再运行三次。
+
+这项观察并不表示每个 `IEnumerable<'T>` 都可以安全地重新遍历。具体来源控制其枚举器：它可能查询变化中的状态、包装资源、按约定只能使用一次，或者在再次遍历时抛出异常。`seq<'T>` 类型本身不承诺这些行为。
+
+### 运算决定请求多少数据 {#operation-timing}
+
+很多 `Seq` 变换——例如 `map`、`filter` 与 `choose`——会产生另一个延迟序列。`toList`、`toArray`、`fold` 与迭代等消费者会请求元素。搜索与前缀操作可以提前停止。排序和分组必须检查足够输入来组织结果，通常会先缓冲数据才能产生有用输出。
+
+不要只根据 `Seq.` 前缀推断求值方式。应阅读运算契约并找出终结消费者。无界序列交给 `Seq.truncate 10` 可能安全，却无法交给 `Seq.toList` 或完整排序。
+
+### 缓存重放，或物化快照 {#cache-or-materialize}
+
+`Seq.cache` 会按需计算元素，并为后续枚举记住它们：
+
+<<< @/../examples/scripts/ch14-collections-evaluation.fsx#cached-sequence{fsharp:line-numbers} [ch14-collections-evaluation.fsx]
+
+当一项延迟计算必须重放，并且保留已产生元素可以接受时，缓存很合适。它不是普遍优化：缓存消耗内存、保留此前观察而不是重新取得最新值，并可能随很长或无限来源无界增长。
+
+当程序含义是“现在捕获全部值”时，用 `Seq.toList` 或 `Seq.toArray` 明确表达该边界。物化快照具有清楚的完成点与可预测重放，代价是一次完整遍历和全部元素的存储。
+
+## 转换是语义边界 {#conversions}
+
+转换可能分配、枚举、复制引用、改变更新规则、丢弃重复项或施加顺序。推理时应说出它，并有意选择位置：
+
+- `List.toArray` 分配索引存储，并复制元素值；
+- `Array.toList` 分配列表节点，并捕获数组当时的元素值；
+- `Seq.toList` 与 `Seq.toArray` 现在就枚举并物化全部产出元素；
+- 把列表或数组视作 `seq` 并不会创建独立不可变快照；
+- `Set.ofSeq` 会枚举并移除比较结果相同的重复项；
+- `Map.ofSeq` 会枚举键值对，并为每个比较结果相同的键保留一项绑定。
+
+这些复制都是浅复制。若元素是指向可变对象的引用，两个集合仍可能指向同一个对象。共享脚本的数组到列表转换证明的是集合槽位彼此独立，而不是深复制：
+
+<<< @/../examples/scripts/ch14-collections-evaluation.fsx#conversion-snapshot{fsharp:line-numbers} [ch14-collections-evaluation.fsx]
+
+不要只为调用熟悉的模块函数而在 `list`、数组和 `seq` 之间反复来回转换。应保留适合工作流的表示，或只在清楚边界转换一次。
+
+## 有序键与哈希键回答不同问题 {#lookup-semantics}
+
+脚本中的有序集合直接暴露比较顺序：
+
+<<< @/../examples/scripts/ch14-collections-evaluation.fsx#ordered-collections{fsharp:line-numbers} [ch14-collections-evaluation.fsx]
+
+`Map` 与 `Set` 需要全序关系来导航其树。因此，它们的类型参数带有 `comparison`，而非只有 `equality`。值作为键或元素期间，这项顺序还必须保持稳定。
+
+### 哈希集合需要相等与相容哈希码 {#hash-collections}
+
+.NET `Dictionary<'Key,'Value>` 与 `HashSet<'T>` 通过 `IEqualityComparer` 而非全序关系来组织值。相等值必须产生相同哈希码；不相等值可能发生碰撞，此时再由相等判断区分。值作为键存储期间，影响相等或哈希的可变状态不得改变。
+
+脚本定义了一个带 `[<NoComparison>]`、只支持相等的键：
+
+<<< @/../examples/scripts/ch14-collections-evaluation.fsx#equality-only-key{fsharp:line-numbers} [ch14-collections-evaluation.fsx]
+
+字典会接受该键，因为它的相等与哈希语义已经足够。尝试使用 `Map<EmailAddress,string>` 会产生 FS0001：该类型明确不支持 `comparison` 约束。这是真实能力差异，不只是性能选择。
+
+对于不区分大小写字符串等上下文特定规则，向 `Dictionary` 或 `HashSet` 提供 `IEqualityComparer` 往往优于改变领域类型的全局相等。脚本把规则嵌入类型，只是为了让“只支持相等”的约束可见。
+
+### 先选择契约，再考虑复杂度标签 {#hash-or-tree}
+
+F# `Map` 与 `Set` 不可变且有序，树操作是对数时间。.NET `Dictionary` 与 `HashSet` 可变；哈希分布良好时，它们提供接近常数时间的查找。后两者不提供排序枚举契约。
+
+首先根据所需语义选择：
+
+- 需要不可变更新与按键顺序遍历：`Map` 或 `Set`；
+- 需要自定义相等、不需要排序且可接受受控局部可变：`Dictionary` 或 `HashSet`；
+- 偶尔需要从哈希集合产生排序报告：在输出边界显式排序投影；
+- 需要带自定义相等的持久数据：考虑 .NET 生态中的不可变哈希集合，并把其比较器纳入设计。
+
+然后再对代表性工作负载做基准。大 O 记号没有涵盖集合大小、分配、缓存局部性、比较器成本或并发。
+
+## 紧凑决策表 {#decision-table}
+
+| 主要需求 | 首选起点 | 重要检查 |
+|---|---|---|
+| 从头处理并模式匹配不可变数据 | `list<'T>` | 反复索引或向尾部追加意味着可能需要其他形状 |
+| 固定大小索引数据或基于数组的 .NET 互操作 | `'T array` | 元素可变；复制为浅复制 |
+| 按需生产或提前终止 | `seq<'T>` | 枚举时机、可重复性、生命周期与缓冲 |
+| 带确定排序遍历的不可变键查找 | `Map<'K,'V>` | 键需要稳定的 F# 比较 |
+| 不可变唯一性与有序集合代数 | `Set<'T>` | 元素需要稳定的 F# 比较 |
+| 带自定义相等的可变查找 | `Dictionary` / `HashSet` | 相等与哈希码必须一致；没有排序顺序契约 |
+
+这张表是起点，而不是禁止转换。良好程序可以接收 `seq`，验证后只物化一次为数组，再暴露不可变结果。关键在于每个边界都有理由。
+
+## 运行共享示例 {#run-example}
+
+在仓库根目录执行：
+
+```console
+dotnet fsi --exec examples/scripts/ch14-collections-evaluation.fsx
+```
+
+八行确定性输出和可执行断言覆盖列表/数组的立即行为、序列的延迟与重复枚举、缓存、有序 `Map`/`Set` 行为、只支持相等的字典键，以及转换快照。
+
+## 练习 {#exercises}
+
+### 练习 1：根据工作负载选择 {#exercise-01}
+
+为每种情况选择一个起始集合并说明理由：
+
+1. 通过头/尾递归处理的一批不大的不可变命令；
+2. 按数值索引反复更新和读取的固定座位占用表；
+3. 只需前十项有效结果的候选分配生成器；
+4. 还必须按确认码顺序产生报告的不可变预约查找表；
+5. 不需要排序、按大小写不敏感规则判断成员的可变参与者邮箱集合。
+
+说明你会在输入或输出边界放置哪些转换。
+
+### 练习 2：预测请求量与缓存 {#exercise-02}
+
+不要运行以下代码，预测每次物化后的 `reads`：
+
+```fsharp
+let mutable reads = 0
+
+let values =
+    seq {
+        for value in 1..3 do
+            reads <- reads + 1
+            yield value * 2
+    }
+
+let firstTwo = values |> Seq.take 2 |> Seq.toList
+let all = values |> Seq.toList
+```
+
+然后插入 `let cached = values |> Seq.cache`，改为消费 `cached`，并再次预测。说明调用代码应暴露哪种含义：新鲜枚举、缓存重放，还是完整快照。
+
+### 练习 3：顺序与相等 {#exercise-03}
+
+某领域键有意支持大小写不敏感的相等与哈希，但标有 `[<NoComparison>]`。解释它为何能用于 `Dictionary` 或 `HashSet`，却不能用于 `Map` 或 `Set`。设计一种偶尔生成字母顺序报告的方法，而不削弱键的类型契约，并说明其相等与哈希码必须遵守的规则。
+
+[查看本章练习答案](../solutions/ch-14-collections-evaluation)。
+
+## 模型复盘 {#model-review}
+
+- 集合会选择数据形状、求值时机、更新规则与查找语义。
+- 列表和数组都是立即求值的已存储集合；数组还提供可变索引槽位。
+- 序列是枚举契约，并不承诺存储、纯净、重放或低成本工作。
+- 重新枚举延迟生产器可能重复工作与效果；只有在符合预期含义时才缓存或物化。
+- 转换会带来遍历、分配、可变性、排序与重复项处理后果。
+- `Map` 和 `Set` 使用泛型比较与有序树；哈希集合使用相等和相容哈希码。
+- 所需语义选择集合家族，测量再细化选择。
+
+第 15 章会以这些边界为基础介绍活动模式：匹配抽象应揭示领域形状，而不隐藏昂贵求值或不可见失败。
+
+## 资料来源 {#sources}
+
+- [Microsoft Learn：F# 集合类型](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/fsharp-collection-types)
+- [Microsoft Learn：列表](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/lists)
+- [Microsoft Learn：数组](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/arrays)
+- [Microsoft Learn：序列](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/sequences)
+- [FSharp.Core：集合命名空间](https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections.html)
+- [FSharp.Core：Map 模块](https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-mapmodule.html)
+- [FSharp.Core：Set 模块](https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-setmodule.html)
+- [Microsoft Learn：`Dictionary<TKey,TValue>`](https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2?view=net-10.0)
+- [Microsoft Learn：`HashSet<T>`](https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.hashset-1?view=net-10.0)

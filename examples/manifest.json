@@ -179,6 +179,21 @@
       ]
     },
     {
+      "id": "ch14-collections-evaluation",
+      "kind": "script",
+      "path": "examples/scripts/ch14-collections-evaluation.fsx",
+      "expectedOutput": [
+        "Eager: list=[2; 4; 6] array=[|20; 4; 6|] source=[1; 2; 3]",
+        "Deferred before enumeration: pulls=0",
+        "First enumeration: values=[1; 4; 9] pulls=3",
+        "Second enumeration: values=[1; 4; 9] pulls=6",
+        "Cached enumerations: first=[1; 4; 9] second=[1; 4; 9] pulls=3",
+        "Ordered collections: set=[1; 2; 3] map=[(\"A1\", \"only\"); (\"B2\", \"replacement\")]",
+        "Hash dictionary: count=1 lookup=second",
+        "Conversion snapshot: array=[|99; 2; 3|] list=[1; 2; 3]"
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",

@@ -51,6 +51,16 @@
         "definition": "A record value whose exact shape is determined by its field labels and types without a separately declared type name."
       }
     },
+    "array": {
+      "zh": {
+        "preferred": "数组",
+        "definition": "具有固定长度、连续存储且元素可原地更新的同类型有序集合；改变长度需要创建新数组。"
+      },
+      "en": {
+        "preferred": "array",
+        "definition": "An ordered same-type collection with fixed length, contiguous storage, and elements that can be updated in place; changing length requires a new array."
+      }
+    },
     "automatic-generalization": {
       "zh": {
         "preferred": "自动泛化",
@@ -111,6 +121,16 @@
         "definition": "A type made of named cases; each value belongs to exactly one case, and a case may carry additional data."
       }
     },
+    "deferred-evaluation": {
+      "zh": {
+        "preferred": "延迟求值",
+        "definition": "把产生值或执行工作的时机推迟到消费者请求结果时；工作是否重复取决于具体来源与是否缓存。"
+      },
+      "en": {
+        "preferred": "deferred evaluation",
+        "definition": "Delaying value production or work until a consumer requests results; whether work repeats depends on the source and on caching."
+      }
+    },
     "eager-evaluation": {
       "zh": {
         "preferred": "立即求值",
@@ -129,6 +149,16 @@
       "en": {
         "preferred": "equality constraint",
         "definition": "The 'T : equality requirement that a type parameter support F# generic equality operations."
+      }
+    },
+    "enumeration": {
+      "zh": {
+        "preferred": "枚举",
+        "definition": "消费者通过枚举器依次请求集合元素的遍历过程；每次枚举所执行的工作由具体来源决定。"
+      },
+      "en": {
+        "preferred": "enumeration",
+        "definition": "A traversal in which a consumer requests collection elements through an enumerator; the concrete source determines the work performed by each enumeration."
       }
     },
     "effect": {
@@ -301,6 +331,16 @@
         "definition": "An ordered immutable singly linked collection of elements of one type; [] is empty, and :: constructs or decomposes a head and tail."
       }
     },
+    "map": {
+      "zh": {
+        "preferred": "映射表（Map）",
+        "definition": "按键的 F# 泛型比较顺序组织键值绑定的不可变树；每个键至多对应一个值。"
+      },
+      "en": {
+        "preferred": "map",
+        "definition": "An immutable tree of key-value bindings organized by F# generic comparison of keys; each key has at most one value."
+      }
+    },
     "numeric-conversion": {
       "zh": {
         "preferred": "数值转换",
@@ -439,6 +479,26 @@
       "en": {
         "preferred": "Result",
         "definition": "An F# type representing success as Ok value and an expected failure with a modeled reason as Error error."
+      }
+    },
+    "sequence": {
+      "zh": {
+        "preferred": "序列",
+        "definition": "`seq<'T>` 是 `IEnumerable<'T>` 的类型缩写，描述如何枚举同类型元素，但本身不保证缓存、纯度或可重复遍历。"
+      },
+      "en": {
+        "preferred": "sequence",
+        "definition": "`seq<'T>` is a type abbreviation for `IEnumerable<'T>` that describes how to enumerate same-type elements but does not itself guarantee caching, purity, or repeatable traversal."
+      }
+    },
+    "set": {
+      "zh": {
+        "preferred": "集合（Set）",
+        "definition": "按元素的 F# 泛型比较顺序组织唯一元素的不可变树。"
+      },
+      "en": {
+        "preferred": "set",
+        "definition": "An immutable tree of unique elements organized by F# generic comparison of the elements."
       }
     },
     "reference-identity": {

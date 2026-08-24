@@ -40,7 +40,8 @@ export const zhLocale = {
         {
           text: '第三部分 · 组合与程序结构',
           items: [
-            { text: '第 13 章 · 组合、参数顺序与管道 API', link: '/zh/part-03/ch-13-composition-pipeline-api' }
+            { text: '第 13 章 · 组合、参数顺序与管道 API', link: '/zh/part-03/ch-13-composition-pipeline-api' },
+            { text: '第 14 章 · 集合选择与求值模型', link: '/zh/part-03/ch-14-collections-evaluation' }
           ]
         }
       ],
@@ -60,7 +61,8 @@ export const zhLocale = {
             { text: '第 10 章', link: '/zh/solutions/ch-10-recursive-types' },
             { text: '第 11 章', link: '/zh/solutions/ch-11-generics-constraints' },
             { text: '第 12 章', link: '/zh/solutions/ch-12-making-illegal-states-unrepresentable' },
-            { text: '第 13 章', link: '/zh/solutions/ch-13-composition-pipeline-api' }
+            { text: '第 13 章', link: '/zh/solutions/ch-13-composition-pipeline-api' },
+            { text: '第 14 章', link: '/zh/solutions/ch-14-collections-evaluation' }
           ]
         }
       ]

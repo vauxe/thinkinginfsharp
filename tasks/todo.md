@@ -227,10 +227,10 @@
 
 ### B14 — 集合选择与求值 / Choosing Collections and Evaluation Models
 
-- [ ] **依赖：** B13。
+- [x] **依赖：** B13。
 - **主要文件（5）：** `docs/{zh,en}/part-03/ch-14-collections-evaluation.md`、`docs/{zh,en}/solutions/ch-14-collections-evaluation.md`、`examples/scripts/ch14-collections-evaluation.fsx`。
 - **验收：** 比较 `list/array/seq/Map/Set`、转换成本和求值；在问题上下文中教授 `seq {}`；用可观察计数证明 `seq` 重复枚举；准确区分有序键约束与哈希集合约束。
-- **验证：** FSI 断言求值次数、顺序和集合行为；双语与内容检查；`pnpm build`。
+- **验证：** FSI 的 8 行确定性输出和断言覆盖立即/延迟求值、重复枚举、`Seq.cache`、转换快照、有序 `Map`/`Set` 与只支持相等的哈希键；额外交互探针确认部分枚举后的增量缓存计数为 2→3，并确认该键用于 `Map` 产生 FS0001；`pnpm test` 全链路通过。
 - **规模：** L。
 
 ### B15 — 活动模式与领域匹配边界 / Active Patterns and Domain Matching Boundaries
