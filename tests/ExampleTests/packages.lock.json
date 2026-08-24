@@ -141,6 +141,13 @@
         "dependencies": {
           "FSharp.Core": "[10.1.301, )"
         }
+      },
+      "ch32.app": {
+        "type": "Project",
+        "dependencies": {
+          "Booking.Domain": "[1.0.0, )",
+          "FSharp.Core": "[10.1.301, )"
+        }
       }
     }
   }

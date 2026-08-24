@@ -9,4 +9,5 @@
   <Project Path="examples/chapters/ch27/FSharpApi/FSharpApi.fsproj" />
   <Project Path="examples/chapters/ch27/CSharpClient/CSharpClient.csproj" />
   <Project Path="examples/chapters/ch31/Ch31.Benchmarks.fsproj" />
+  <Project Path="examples/chapters/ch32/Ch32.App.fsproj" />
 </Solution>

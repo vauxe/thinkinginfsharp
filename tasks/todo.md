@@ -475,10 +475,10 @@
 
 ### E32 — 从函数到应用的最小宿主
 
-- [ ] **依赖：** B31。
+- [x] **依赖：** B31。
 - **主要文件（≤5）：** `examples/chapters/ch32/Ch32.App.fsproj`、`Ports.fs`、`Composition.fs`、`Program.fs`、`tests/ExampleTests/Ch32CompositionTests.fs`。
 - **验收：** 组合根连接配置、端口和生命周期；提供结构化日志、指标/追踪概念的最小可观察证据；不引入容器框架作为前提。
-- **验证：** 聚焦 Release build/test；以固定配置运行并检查结构化输出；`pnpm check:examples`。
+- **验证：** 先在尚未接入计数器时得到预期红灯（3 项中 2 项通过，成功路径仅缺少 `booking.requests` 测量），接入低基数 `outcome` 标签后聚焦 Release 测试 3/3 通过；固定配置运行精确输出一条 JSON 日志以及结果、指标、追踪和释放证据共 5 行；F# 10、空值检查和警告即错误下的完整 `pnpm check:examples` 通过。
 - **规模：** L。
 
 ### B32 — 从函数到应用 / From Functions to Applications

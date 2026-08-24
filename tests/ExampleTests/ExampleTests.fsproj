@@ -18,6 +18,7 @@
     <Compile Include="Ch25ObjectTests.fs" />
     <Compile Include="Ch28WorkflowTests.fs" />
     <Compile Include="Ch29Properties.fs" />
+    <Compile Include="Ch32CompositionTests.fs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -25,6 +26,7 @@
     <ProjectReference Include="../../examples/chapters/ch16/Ch16.fsproj" />
     <ProjectReference Include="../../examples/chapters/ch17/Ch17.fsproj" />
     <ProjectReference Include="../../examples/chapters/ch25/Ch25.fsproj" />
+    <ProjectReference Include="../../examples/chapters/ch32/Ch32.App.fsproj" />
   </ItemGroup>
 
   <ItemGroup>

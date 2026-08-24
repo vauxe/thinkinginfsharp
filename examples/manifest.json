@@ -398,6 +398,16 @@
       ]
     },
     {
+      "id": "ch32-functions-to-applications",
+      "kind": "compile",
+      "path": "examples/chapters/ch32/Ch32.App.fsproj",
+      "sources": [
+        "examples/chapters/ch32/Ports.fs",
+        "examples/chapters/ch32/Composition.fs",
+        "examples/chapters/ch32/Program.fs"
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",
@@ -424,7 +434,8 @@
         "examples/chapters/ch28/OrderWorkflow.fs",
         "tests/ExampleTests/Ch28WorkflowTests.fs",
         "examples/chapters/ch29/Generators.fs",
-        "tests/ExampleTests/Ch29Properties.fs"
+        "tests/ExampleTests/Ch29Properties.fs",
+        "tests/ExampleTests/Ch32CompositionTests.fs"
       ]
     }
   ]
