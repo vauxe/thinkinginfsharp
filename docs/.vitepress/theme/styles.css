@@ -1,0 +1,78 @@
+:root {
+  --vp-font-family-base:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Noto Sans CJK SC", "Noto Sans SC", sans-serif;
+  --vp-c-brand-1: #2457a7;
+  --vp-c-brand-2: #17447f;
+  --vp-c-brand-3: #123767;
+  --book-choice-bg: #f7f9fc;
+  --book-choice-border: #c7d2e3;
+}
+
+.dark {
+  --vp-c-brand-1: #8ab4f8;
+  --vp-c-brand-2: #3f6fb5;
+  --vp-c-brand-3: #285188;
+  --book-choice-bg: #20242b;
+  --book-choice-border: #465365;
+}
+
+.stable-anchor {
+  display: block;
+  scroll-margin-top: calc(var(--vp-nav-height) + 1rem);
+}
+
+:focus-visible {
+  outline: 3px solid var(--vp-c-brand-1);
+  outline-offset: 3px;
+}
+
+.vp-doc a {
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.language-landing .VPPage {
+  max-width: 48rem;
+  padding: clamp(1.5rem, 5vw, 3rem) clamp(1.25rem, 5vw, 3rem) 4rem;
+  margin: 0 auto;
+}
+
+.language-choice {
+  display: grid;
+  gap: 1rem;
+  max-width: 44rem;
+  margin-top: 2rem;
+}
+
+.language-choice__item {
+  display: grid;
+  min-height: 5.5rem;
+  padding: 1rem 1.25rem;
+  color: var(--vp-c-text-1);
+  text-decoration: none;
+  background: var(--book-choice-bg);
+  border: 1px solid var(--book-choice-border);
+  border-radius: 0.5rem;
+}
+
+.language-choice__item:hover {
+  color: var(--vp-c-brand-1);
+  border-color: var(--vp-c-brand-1);
+}
+
+.language-choice__item strong {
+  align-self: end;
+  font-size: 1.125rem;
+}
+
+.language-choice__item span {
+  align-self: start;
+  color: var(--vp-c-text-2);
+}
+
+@media (min-width: 48rem) {
+  .language-choice {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

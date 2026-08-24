@@ -37,10 +37,10 @@
 
 ### F03 — 双语路由、同页切换与最小可访问主题
 
-- [ ] **依赖：** F02。
-- **主要文件（≤5）：** `docs/.vitepress/theme/index.ts`、`styles.css`、`LanguageSwitch.vue`、`language-map.ts`、`config/index.ts`。
-- **验收：** 根页不偏向语言；`/zh/` 与 `/en/` 可达；切换语言保留同一 `translationKey` 对应位置；键盘焦点、跳至正文、对比度和窄屏布局满足基础可访问性。
-- **验证：** `pnpm build`；浏览器人工检查根页、两种 locale、键盘和 360px 布局。
+- [x] **依赖：** F02。
+- **主要文件（两个切片）：** 路由切片修改 `docs/index.md`、`docs/{zh,en}/index.md`、`docs/.vitepress/config/{index,zh,en}.ts`；主题切片新增 `docs/.vitepress/theme/index.ts` 与 `styles.css`。
+- **验收：** 根页不偏向语言；`/zh/` 与 `/en/` 可达；使用 VitePress 1.6.4 内置对应路径路由保留同一相对页面与锚点，不维护重复切换组件；键盘焦点、跳至正文、对比度和窄屏布局满足基础可访问性。
+- **验证：** `pnpm build`；真实浏览器检查根页、两种 locale、锚点切换、键盘、明暗主题及 320/768/1440px 布局；移动端与桌面 Lighthouse 的 Accessibility、Best Practices、SEO、Agentic Browsing 均为 100。
 - **规模：** M。
 
 ### F04 — 定义页面、术语与共享示例内容契约
