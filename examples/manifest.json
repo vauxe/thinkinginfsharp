@@ -197,8 +197,10 @@
       "sources": [
         "examples/capstone/src/Booking.Infrastructure/Configuration.fs",
         "examples/capstone/src/Booking.Infrastructure/FileStore.fs",
+        "examples/capstone/src/Booking.Infrastructure/AtomicBookingStore.fs",
         "examples/capstone/src/Booking.Infrastructure/PaymentStub.fs",
         "examples/capstone/src/Booking.Infrastructure/NotificationStub.fs",
+        "examples/capstone/src/Booking.Infrastructure/Idempotency.fs",
         "examples/capstone/src/Booking.Infrastructure/Composition.fs"
       ]
     },
@@ -452,7 +454,8 @@
         "tests/ContractTests/Ch28BoundaryTests.fs",
         "tests/ContractTests/BookingJsonContractTests.fs",
         "tests/ContractTests/BookingStoreContractTests.fs",
-        "tests/ContractTests/BookingApiTests.fs"
+        "tests/ContractTests/BookingApiTests.fs",
+        "tests/ContractTests/BookingConsistencyTests.fs"
       ]
     },
     {

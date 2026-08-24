@@ -13,6 +13,13 @@
     <Compile Include="BookingJsonContractTests.fs" />
     <Compile Include="BookingStoreContractTests.fs" />
     <Compile Include="BookingApiTests.fs" />
+    <Compile Include="BookingConsistencyTests.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../ContentFixtures/capstone/restart-probe.fsx.txt"
+          Link="restart-probe.fsx"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

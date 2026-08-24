@@ -6,8 +6,10 @@
   <ItemGroup>
     <Compile Include="Configuration.fs" />
     <Compile Include="FileStore.fs" />
+    <Compile Include="AtomicBookingStore.fs" />
     <Compile Include="PaymentStub.fs" />
     <Compile Include="NotificationStub.fs" />
+    <Compile Include="Idempotency.fs" />
     <Compile Include="Composition.fs" />
   </ItemGroup>
 

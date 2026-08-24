@@ -587,10 +587,10 @@
 
 ### K11 — 原子容量、幂等、重试与重启恢复
 
-- [ ] **依赖：** B36、K10。
+- [x] **依赖：** B36、K10。
 - **主要文件（≤5）：** `examples/capstone/src/Booking.Infrastructure/AtomicBookingStore.fs`、`Idempotency.fs`、`Booking.Infrastructure.fsproj`、`tests/ContractTests/BookingConsistencyTests.fs`、`tests/ContentFixtures/capstone/`。
 - **验收：** 两个受控并发预约不超卖；重复请求 ID 不重复副作用；失败后重试语义明确；新进程实例从持久状态恢复；测试不用不稳定 sleep。
-- **验证：** 精确过滤 BookingConsistency 并重复运行 20 次；Release build；`pnpm check:examples`。
+- **验证：** 先由缺失 `AtomicBookingStore`、`IdempotentBookingService` 与一致性错误类型得到预期 FS0039 红灯；版本化聚合快照在同一次替换中保存活动容量、多预约与命令进度，待处理/已确认预约占位、取消释放座位，按规范化命令种类、请求标识和载荷指纹重放已确认结果并拒绝同键异载荷；进程内同路径工作流门把容量读取—决策—写入串行化，明确不声称跨进程并发写入安全。支付调用前持久化 `paymentStarted`，故障后重试返回结果未知且不盲目重扣；授权后的预约与待通知标记原子提交，通知故障重试只重发通知，并明确其为至少一次而非恰好一次。6 项 `BookingConsistency` 契约测试以显式门闩覆盖竞争容量、并发重复、指纹冲突、通知失败重试、支付歧义、取消释放容量，并真实启动第二个 `dotnet fsi` 进程证明重启后恢复与零副作用重放；无 `Sleep`/计时猜测，精确过滤连续 20 轮共 120 次通过。全解决方案 Release 构建 0 警告/0 错误，完整锁定 `pnpm check:examples` 通过。
 - **规模：** L。
 
 ### B37 — 一致性、幂等、重试与部分失败 / Consistency, Idempotency, Retries, and Partial Failure

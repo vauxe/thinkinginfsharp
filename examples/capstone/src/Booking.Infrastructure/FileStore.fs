@@ -14,6 +14,8 @@ type SnapshotCorruption =
     | InvalidUtf8
     | InvalidJson
     | InvalidDomainData of DtoMappingError
+    | UnsupportedSchemaVersion of actual: int
+    | InconsistentData
 
 [<RequireQualifiedAccess>]
 type BookingStoreError =
@@ -22,8 +24,9 @@ type BookingStoreError =
     | CannotReadSnapshot
     | CannotWriteTemporarySnapshot
     | CannotReplaceSnapshot
+    | SnapshotActivityMismatch
 
-module private FileStoreImplementation =
+module internal FileStoreImplementation =
     [<Literal>]
     let MaxSnapshotBytes = 64 * 1024
 
@@ -40,7 +43,7 @@ module private FileStoreImplementation =
         with :? DecoderFallbackException ->
             Error(BookingStoreError.CorruptSnapshot SnapshotCorruption.InvalidUtf8)
 
-    let readBounded (path: string) (cancellationToken: CancellationToken) =
+    let readBounded maxSnapshotBytes (path: string) (cancellationToken: CancellationToken) =
         task {
             try
                 let options = FileStreamOptions()
@@ -51,7 +54,7 @@ module private FileStoreImplementation =
                 options.BufferSize <- 4096
 
                 use stream = new FileStream(path, options)
-                let buffer = Array.zeroCreate<byte> (MaxSnapshotBytes + 1)
+                let buffer = Array.zeroCreate<byte> (maxSnapshotBytes + 1)
                 let mutable total = 0
                 let mutable reachedEnd = false
 
@@ -63,8 +66,8 @@ module private FileStoreImplementation =
                     else
                         total <- total + count
 
-                if total > MaxSnapshotBytes then
-                    return Error(BookingStoreError.SnapshotTooLarge MaxSnapshotBytes)
+                if total > maxSnapshotBytes then
+                    return Error(BookingStoreError.SnapshotTooLarge maxSnapshotBytes)
                 else
                     return Ok(Some(buffer.AsSpan(0, total).ToArray()))
             with
@@ -123,7 +126,12 @@ type FileBookingStore(configuration: BookingStoreConfiguration) =
     member _.Load(cancellationToken: CancellationToken) : Task<Result<Booking option, BookingStoreError>> =
         task {
             cancellationToken.ThrowIfCancellationRequested()
-            let! bytesResult = FileStoreImplementation.readBounded snapshotPath cancellationToken
+
+            let! bytesResult =
+                FileStoreImplementation.readBounded
+                    FileStoreImplementation.MaxSnapshotBytes
+                    snapshotPath
+                    cancellationToken
 
             match bytesResult with
             | Error error -> return Error error
