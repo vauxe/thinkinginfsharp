@@ -771,10 +771,10 @@
 
 ### A03 — 附录 C：集合选择与复杂度
 
-- [ ] **依赖：** A02、B14、B26。
+- [x] **依赖：** A02、B14、B26。
 - **主要文件（2）：** `docs/zh/appendices/c-collections.md`、`docs/en/appendices/c-collections.md`。
 - **验收：** 汇总集合求值、更新、查找、顺序、键约束和典型复杂度；复杂度声明注明条件且与官方实现文档一致。
-- **验证：** 双语与内容检查；对表中每行执行来源复核；`pnpm build`。
+- **验证：** 中英文严格保持 276/276 行与同键结构，先按产生时机、更新所有权、访问形状、可观察顺序和键身份五份契约区分 list、array、`seq`、`ResizeArray`、Map/Set、Dictionary/HashSet。逐行复核 Microsoft F# 集合指南、FSharp.Core List/Seq/Map/Set API 与 .NET 10 集合复杂度/API：列表前置 O(1)、索引 O(k)、连接 O(左长)；数组索引/长度 O(1)；`List<T>.Add` 均摊 O(1)/扩容最坏 O(n)；有限序列完整消费 O(n) 但生产器和重复枚举另计；Map/Set 查找/更新 O(log n)、普通构建 O(n log n)、当前文档中 `count` O(n)；哈希查找/添加只在稳定且分布良好的相等/哈希契约下期望/均摊 O(1)，最坏 O(n)。顺序表明 List/Array 保持索引/源顺序，Map/Set 按 F# 泛型比较，HashSet 无特定顺序，且不把当前 Dictionary 枚举行为当作领域 API 承诺。键表区分 Map/Set 的编译期 `comparison` 约束与 Dictionary/HashSet 的运行期 `IEqualityComparer`/稳定哈希责任。三个完整代码区只引用已执行的第 14 章源，实际展示重复枚举、比较有序集合与仅相等哈希键。完整示例门、双语/内容检查与 VitePress 生产构建通过。
 - **规模：** M。
 
 ### A04 — 附录 D：C# 到 F# 迁移与互操作表
