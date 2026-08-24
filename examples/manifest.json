@@ -444,6 +444,14 @@
       ]
     },
     {
+      "id": "capstone-booking-csharp-client",
+      "kind": "compile",
+      "path": "examples/capstone/clients/Booking.CSharpClient/Booking.CSharpClient.csproj",
+      "sources": [
+        "examples/capstone/clients/Booking.CSharpClient/Program.cs"
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",
@@ -455,7 +463,8 @@
         "tests/ContractTests/BookingJsonContractTests.fs",
         "tests/ContractTests/BookingStoreContractTests.fs",
         "tests/ContractTests/BookingApiTests.fs",
-        "tests/ContractTests/BookingConsistencyTests.fs"
+        "tests/ContractTests/BookingConsistencyTests.fs",
+        "tests/ContractTests/BookingEndToEndTests.fs"
       ]
     },
     {

@@ -603,10 +603,10 @@
 
 ### K12a — 集成测试与 C# 契约客户端
 
-- [ ] **依赖：** B37、K11、E27。
+- [x] **依赖：** B37、K11、E27。
 - **主要文件（≤5）：** `examples/capstone/clients/Booking.CSharpClient/Booking.CSharpClient.csproj`、`Program.cs`、`tests/ContractTests/BookingEndToEndTests.fs`、`tests/ContractTests/ContractTests.fsproj`、`ThinkingInFSharp.slnx`。
 - **验收：** C# 客户端通过已发布 DTO/API 表面完成预约；端到端测试覆盖成功、重复、冲突和无效 JSON；不引用领域内部类型。
-- **验证：** 构建并运行 C# 客户端；精确过滤 BookingEndToEnd；`pnpm check:examples`。
+- **验证：** 先由缺失 `BookingEndpoints.mapConsistent` 得到预期 FS0039 红灯；保留 K10 的旧端口级 `map` 契约测试，同时新增最终 `mapConsistent` 组合路径，共享同一套 16 KiB/严格 JSON/DTO/验证/安全异常边界，并把聚合容量、幂等冲突、前序操作未完成、拒付、支付结果未知、依赖与存储故障映射为稳定且不泄密的 HTTP 结果；实际 `Program.fs` 已使用 `AtomicBookingStore`、`IdempotentBookingService` 和受控支付/通知替身。3 项 `BookingEndToEnd` 测试以真实 `TestServer`、原子快照和一致性服务覆盖首次 `201`、规范化等价重复的同结果重放、同键异载荷 `idempotency_conflict`、效果计数不重复、GET 当前状态、无效 JSON 在存储/外部效果前失败，以及支付故障后精确重试返回 `payment_outcome_unknown` 且不盲目重复扣款。C# 客户端只直接引用 `Booking.Contracts`，通过 `HttpClient` 和公开 DTO 执行放置—重放—确认—读取；Release 构建 0 警告/0 错误，并针对真实 Kestrel 独立进程输出 `Placed`、`Replay: status=201 same-body=True`、`Confirmed` 与 `Loaded: status=200 same-body=True`。完整锁定 `pnpm check:examples` 通过解决方案还原、构建、全部测试和已注册样例检查。
 - **规模：** L。
 
 ### K12b — 诊断、运行说明与发布检查

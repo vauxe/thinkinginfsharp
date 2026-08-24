@@ -2,8 +2,6 @@ namespace Booking.Api
 
 open System
 open System.Globalization
-open System.Threading
-open System.Threading.Tasks
 open Booking.Domain
 open Booking.Infrastructure
 open Microsoft.AspNetCore.Builder
@@ -80,23 +78,19 @@ module Program =
             )
             |> ignore
 
-            let clock (cancellationToken: CancellationToken) =
-                cancellationToken.ThrowIfCancellationRequested()
-                Task.FromResult DateTimeOffset.UtcNow
+            let store = AtomicBookingStore configuration.Store
+            use payment = new PaymentStub(PaymentStubBehavior.Authorize "TX-LOCAL-STUB")
+            use notification = new NotificationStub(NotificationStubBehavior.Deliver)
 
-            use infrastructure =
-                Composition.start
-                    configuration.Store
-                    (PaymentStubBehavior.Authorize "TX-LOCAL-STUB")
-                    NotificationStubBehavior.Deliver
-                    clock
+            let service =
+                IdempotentBookingService(configuration.Activity, store, payment.Invoke, notification.Invoke)
 
             use application = builder.Build()
 
-            BookingEndpoints.map
+            BookingEndpoints.mapConsistent
                 application
-                { Activity = configuration.Activity
-                  Ports = infrastructure.Ports }
+                { Execute = fun command token -> service.Execute(command, token)
+                  Load = fun requestId token -> service.Load(requestId, token) }
 
             application.Run()
             0

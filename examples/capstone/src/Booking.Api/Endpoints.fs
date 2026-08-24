@@ -5,6 +5,7 @@ open System.Globalization
 open System.IO
 open System.Text.Json
 open System.Text.Json.Serialization
+open System.Threading
 open System.Threading.Tasks
 open Booking.Contracts
 open Booking.Domain
@@ -34,6 +35,10 @@ type ApiErrorDto =
 // #endregion api-error-contract
 
 type BookingApiDependencies = { Activity: Event; Ports: AsyncPorts }
+
+type ConsistentBookingApiDependencies =
+    { Execute: BookingCommand -> CancellationToken -> Task<Result<Booking, BookingConsistencyError>>
+      Load: RequestId -> CancellationToken -> Task<Result<Booking option, BookingStoreError>> }
 
 [<RequireQualifiedAccess>]
 module BookingEndpoints =
@@ -147,6 +152,59 @@ module BookingEndpoints =
                 StatusCodes.Status409Conflict
                 "invalid_transition"
                 "The requested booking transition is not allowed."
+                [||]
+
+    let private writeConsistencyError context error =
+        match error with
+        | BookingConsistencyError.DecisionRejected decisionError -> writeDecisionError context decisionError
+        | BookingConsistencyError.AggregateCapacityExceeded _ ->
+            writeError
+                context
+                StatusCodes.Status409Conflict
+                "capacity_exceeded"
+                "The requested seats exceed the remaining activity capacity."
+                [||]
+        | BookingConsistencyError.IdempotencyConflict ->
+            writeError
+                context
+                StatusCodes.Status409Conflict
+                "idempotency_conflict"
+                "The request ID was already used with different command data."
+                [||]
+        | BookingConsistencyError.PreviousOperationIncomplete ->
+            writeError
+                context
+                StatusCodes.Status409Conflict
+                "operation_incomplete"
+                "A previous operation for this booking is incomplete."
+                [||]
+        | BookingConsistencyError.PaymentDeclined ->
+            writeError
+                context
+                StatusCodes.Status422UnprocessableEntity
+                "payment_declined"
+                "Payment was declined."
+                [||]
+        | BookingConsistencyError.PaymentOutcomeUnknown ->
+            writeError
+                context
+                StatusCodes.Status409Conflict
+                "payment_outcome_unknown"
+                "The payment outcome requires reconciliation before retrying."
+                [||]
+        | BookingConsistencyError.DependencyUnavailable ->
+            writeError
+                context
+                StatusCodes.Status503ServiceUnavailable
+                "dependency_unavailable"
+                "An external dependency is unavailable."
+                [||]
+        | BookingConsistencyError.StorageUnavailable _ ->
+            writeError
+                context
+                StatusCodes.Status503ServiceUnavailable
+                "storage_unavailable"
+                "Booking storage is unavailable."
                 [||]
 
     let private writeBodyError context error =
@@ -281,6 +339,13 @@ module BookingEndpoints =
         { RequestId = BookingEvent.requestId bookingEvent
           Message = message }
 
+    let private writeBooking (context: HttpContext) (prepared: PreparedCommand) (booking: Booking) =
+        if prepared.SuccessStatusCode = StatusCodes.Status201Created then
+            let requestId = booking |> Booking.requestId |> RequestId.value |> Uri.EscapeDataString
+            context.Response.Headers.Location <- $"/api/bookings/{requestId}"
+
+        writeJson context prepared.SuccessStatusCode (BookingMapping.ofDomain booking)
+
     // #region endpoint-workflow
     let private executeCommand dependencies prepared (context: HttpContext) =
         task {
@@ -326,24 +391,30 @@ module BookingEndpoints =
                                 "dependency_unavailable"
                                 "An external dependency is unavailable."
                                 [||]
-                    | Ok() ->
-                        let booking = BookingEvent.booking bookingEvent
+                    | Ok() -> return! writeBooking context prepared (BookingEvent.booking bookingEvent)
+        }
 
-                        if prepared.SuccessStatusCode = StatusCodes.Status201Created then
-                            let requestId =
-                                booking |> Booking.requestId |> RequestId.value |> Uri.EscapeDataString
+    let private executeConsistent
+        (dependencies: ConsistentBookingApiDependencies)
+        prepared
+        (context: HttpContext)
+        =
+        task {
+            let cancellationToken = context.RequestAborted
+            cancellationToken.ThrowIfCancellationRequested()
+            let! result = dependencies.Execute prepared.Command cancellationToken
 
-                            context.Response.Headers.Location <- $"/api/bookings/{requestId}"
-
-                        return! writeJson context prepared.SuccessStatusCode (BookingMapping.ofDomain booking)
+            match result with
+            | Ok booking -> return! writeBooking context prepared booking
+            | Error error -> return! writeConsistencyError context error
         }
     // #endregion endpoint-workflow
 
     let private processCommand<'dto, 'command when 'dto: not struct and 'dto: not null>
+        execute
         (deserializeDto: byte array -> Result<'dto | null, BodyError>)
         (mapDto: ('dto | null) -> Result<'command, DtoMappingError>)
         (prepare: 'command -> Result<PreparedCommand, CommandValidationError list>)
-        dependencies
         context
         =
         task {
@@ -360,42 +431,56 @@ module BookingEndpoints =
                     | Ok command ->
                         match prepare command with
                         | Error errors -> return! writeValidationErrors context errors
-                        | Ok prepared -> return! executeCommand dependencies prepared context
+                        | Ok prepared -> return! execute prepared context
         }
 
-    let private handlePlace dependencies context =
-        processCommand (deserialize<PlaceBookingDto>) PlaceBookingMapping.toDomain preparePlace dependencies context
-
-    let private handleConfirm dependencies context =
+    let private handlePlaceWith execute context =
         processCommand
+            execute
+            (deserialize<PlaceBookingDto>)
+            PlaceBookingMapping.toDomain
+            preparePlace
+            context
+
+    let private handleConfirmWith execute context =
+        processCommand
+            execute
             (deserialize<ConfirmBookingDto>)
             ConfirmBookingMapping.toDomain
             prepareConfirm
-            dependencies
             context
 
-    let private handleCancel dependencies context =
-        processCommand (deserialize<CancelBookingDto>) CancelBookingMapping.toDomain prepareCancel dependencies context
+    let private handleCancelWith execute context =
+        processCommand
+            execute
+            (deserialize<CancelBookingDto>)
+            CancelBookingMapping.toDomain
+            prepareCancel
+            context
+
+    let private routeRequestId (context: HttpContext) =
+        let rawRequestId =
+            match context.Request.RouteValues.TryGetValue "requestId" with
+            | true, value ->
+                match Convert.ToString(value, CultureInfo.InvariantCulture) with
+                | null -> String.Empty
+                | converted -> converted
+            | false, _ -> String.Empty
+
+        RequestId.create rawRequestId
+
+    let private writeInvalidRouteRequestId context =
+        writeError
+            context
+            StatusCodes.Status400BadRequest
+            "validation_failed"
+            "One or more fields are invalid."
+            [| fieldError "requestId" "blank" |]
 
     let private handleGet dependencies (context: HttpContext) =
         task {
-            let rawRequestId =
-                match context.Request.RouteValues.TryGetValue "requestId" with
-                | true, value ->
-                    match Convert.ToString(value, CultureInfo.InvariantCulture) with
-                    | null -> String.Empty
-                    | converted -> converted
-                | false, _ -> String.Empty
-
-            match RequestId.create rawRequestId with
-            | Error _ ->
-                return!
-                    writeError
-                        context
-                        StatusCodes.Status400BadRequest
-                        "validation_failed"
-                        "One or more fields are invalid."
-                        [| fieldError "requestId" "blank" |]
+            match routeRequestId context with
+            | Error _ -> return! writeInvalidRouteRequestId context
             | Ok requestId ->
                 let! state = dependencies.Ports.LoadBooking requestId context.RequestAborted
 
@@ -404,6 +489,30 @@ module BookingEndpoints =
                     return! writeJson context StatusCodes.Status200OK (BookingMapping.ofDomain booking)
                 | Booked _
                 | NotBooked ->
+                    return!
+                        writeError
+                            context
+                            StatusCodes.Status404NotFound
+                            "booking_not_found"
+                            "No booking exists for this request ID."
+                            [||]
+        }
+
+    let private handleConsistentGet (dependencies: ConsistentBookingApiDependencies) (context: HttpContext) =
+        task {
+            match routeRequestId context with
+            | Error _ -> return! writeInvalidRouteRequestId context
+            | Ok requestId ->
+                let! loaded = dependencies.Load requestId context.RequestAborted
+
+                match loaded with
+                | Error error ->
+                    return!
+                        writeConsistencyError context (BookingConsistencyError.StorageUnavailable error)
+                | Ok(Some booking) when Booking.requestId booking = requestId ->
+                    return! writeJson context StatusCodes.Status200OK (BookingMapping.ofDomain booking)
+                | Ok(Some _)
+                | Ok None ->
                     return!
                         writeError
                             context
@@ -452,21 +561,41 @@ module BookingEndpoints =
     // #endregion safe-error-boundary
 
     // #region endpoint-map
-    let map (application: WebApplication) dependencies =
+    let private mapHandlers (application: WebApplication) place confirm cancel load =
         ArgumentNullException.ThrowIfNull(application, nameof application)
 
         let protectedHandler handler =
             RequestDelegate(fun context -> safely handler context)
 
-        application.MapPost("/api/bookings/place", protectedHandler (handlePlace dependencies))
+        application.MapPost("/api/bookings/place", protectedHandler place)
         |> ignore
 
-        application.MapPost("/api/bookings/confirm", protectedHandler (handleConfirm dependencies))
+        application.MapPost("/api/bookings/confirm", protectedHandler confirm)
         |> ignore
 
-        application.MapPost("/api/bookings/cancel", protectedHandler (handleCancel dependencies))
+        application.MapPost("/api/bookings/cancel", protectedHandler cancel)
         |> ignore
 
-        application.MapGet("/api/bookings/{requestId}", protectedHandler (handleGet dependencies))
+        application.MapGet("/api/bookings/{requestId}", protectedHandler load)
         |> ignore
+
+    let map (application: WebApplication) (dependencies: BookingApiDependencies) =
+        let execute = executeCommand dependencies
+
+        mapHandlers
+            application
+            (handlePlaceWith execute)
+            (handleConfirmWith execute)
+            (handleCancelWith execute)
+            (handleGet dependencies)
+
+    let mapConsistent (application: WebApplication) (dependencies: ConsistentBookingApiDependencies) =
+        let execute = executeConsistent dependencies
+
+        mapHandlers
+            application
+            (handlePlaceWith execute)
+            (handleConfirmWith execute)
+            (handleCancelWith execute)
+            (handleConsistentGet dependencies)
 // #endregion endpoint-map
