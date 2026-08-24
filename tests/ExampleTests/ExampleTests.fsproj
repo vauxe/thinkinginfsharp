@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <Compile Include="SmokeTests.fs" />
+    <Compile Include="../../examples/chapters/ch28/OrderWorkflow.fs" Link="Ch28/OrderWorkflow.fs" />
     <Compile Include="CapstonePart01Tests.fs" />
     <Compile Include="BookingDomainTests.fs" />
     <Compile Include="Ch16ProjectTests.fs" />
@@ -14,6 +15,7 @@
     <Compile Include="BookingWorkflowTests.fs" />
     <Compile Include="BookingAsyncPortTests.fs" />
     <Compile Include="Ch25ObjectTests.fs" />
+    <Compile Include="Ch28WorkflowTests.fs" />
   </ItemGroup>
 
   <ItemGroup>
