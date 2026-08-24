@@ -13,10 +13,17 @@ module private Guard =
         if value < 0.0f then
             invalidArg parameterName "Value must be non-negative."
 
-[<Sealed>]
-type MotionState internal (positionX: single, velocityX: single) =
-    member _.PositionX = positionX
-    member _.VelocityX = velocityX
+[<Struct; NoEquality; NoComparison>]
+type MotionState =
+    val private positionX: single
+    val private velocityX: single
+
+    internal new(positionX, velocityX) =
+        { positionX = positionX
+          velocityX = velocityX }
+
+    member this.PositionX = this.positionX
+    member this.VelocityX = this.velocityX
 
 [<AbstractClass; Sealed>]
 type Gameplay private () =

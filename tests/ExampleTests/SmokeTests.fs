@@ -38,6 +38,7 @@ module SmokeTests =
         Assert.Equal(6.0f, moved.VelocityX)
         Assert.Equal(13.0f, stopped.PositionX)
         Assert.Equal(0.0f, stopped.VelocityX)
+        Assert.True(typeof<MotionState>.IsValueType, "The fixed-step state must not allocate a class per tick.")
 
         let assembly = typeof<Gameplay>.Assembly
         let references = assembly.GetReferencedAssemblies()

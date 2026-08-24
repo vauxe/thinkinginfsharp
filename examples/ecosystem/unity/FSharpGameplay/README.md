@@ -6,7 +6,7 @@ This sample draws a narrow, testable boundary:
 - `UnityAdapter.cs` is the Unity-owned `MonoBehaviour`, serialization, lifecycle, time, and transform adapter.
 - `link.xml` preserves only the two public bridge types; it does not preserve all of `FSharp.Core`.
 
-The public F# surface uses ordinary .NET classes, properties, and tupled static methods. It does not expose F# functions, options, lists, or discriminated unions to C#.
+The public F# surface uses an ordinary .NET value type, properties, and tupled static methods. It does not expose F# functions, options, lists, or discriminated unions to C#. `MotionState` is a struct so the fixed-step transition does not allocate a state class on every tick.
 
 ## Automated evidence
 
@@ -76,7 +76,7 @@ Update this table only with the exact Editor patch, target, scripting backend, s
 
 本例刻意保持一条很窄、可测试的边界：`Gameplay.fs` 是不引用 `UnityEngine` 的纯 F# 类库；`UnityAdapter.cs` 独占 `MonoBehaviour`、Unity 序列化、生命周期、时间与 Transform；`link.xml` 只保留两个公开桥接类型，而不粗暴保留整个 `FSharp.Core`。
 
-F# 的公开面只使用普通 .NET 类、属性和元组式静态方法，不向 C# 暴露 F# 函数、option、list 或可辨识联合。仓库自动验证 `netstandard2.1` Release 编译、纯状态转换、程序集对 `FSharp.Core` 的引用，以及 `FSharpGameplay.dll` 旁确实复制了锁定的 `FSharp.Core.dll`。
+F# 的公开面只使用普通 .NET 值类型、属性和元组式静态方法，不向 C# 暴露 F# 函数、option、list 或可辨识联合；`MotionState` 是 struct，因此固定步长转换不会在每次 tick 分配状态类。仓库自动验证 `netstandard2.1` Release 编译、纯状态转换、程序集对 `FSharp.Core` 的引用，以及 `FSharpGameplay.dll` 旁确实复制了锁定的 `FSharp.Core.dll`。
 
 导入 Unity 时必须同时复制本次构建产生的两个 DLL；不要随意替换 `FSharp.Core.dll`，也不要让一个 Unity 项目保留多个版本。将 DLL 放入 `Assets/Plugins/ThinkingInFSharp/`，保持 Validate References 开启；将同名的 `UnityAdapter.cs` 放入 `Assets/Scripts/`，将 `link.xml` 放在 `Assets/` 下。输入系统只需调用 `SetHorizontal(float)`，因此本例不强迫选择旧 Input Manager 或 Input System 包。
 
