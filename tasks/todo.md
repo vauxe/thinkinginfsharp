@@ -435,10 +435,10 @@
 
 ### B29 — 使用 FsCheck 进行性质测试 / Property Testing with FsCheck
 
-- [ ] **依赖：** E29。
+- [x] **依赖：** E29。
 - **主要文件（4）：** `docs/{zh,en}/part-05/ch-29-property-testing.md`、`docs/{zh,en}/solutions/ch-29-property-testing.md`。
 - **验收：** 从例子推广到不变量，讲清生成、分类、缩减与重放；不把性质测试表述为单元测试替代品。
-- **验证：** E29 聚焦测试；双语与内容检查；`pnpm build`。
+- **验证：** E29 三项通过性质与固定失败步重放测试全部通过；两段答案代码由 F# 10 在 `--checknulls+ --warnaserror+` 下执行通过；中英正文与答案严格保持 292/292 和 160/160 行；22 项内容测试、双语/内容检查、完整示例门及 VitePress 生产构建通过。
 - **规模：** M。
 
 ### E30 — 诊断、格式化与可复现构建证据

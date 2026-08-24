@@ -69,7 +69,8 @@ export const zhLocale = {
             { text: '第 25 章 · 在 F# 中定义对象', link: '/zh/part-05/ch-25-objects-interfaces' },
             { text: '第 26 章 · 深入 .NET 边界', link: '/zh/part-05/ch-26-dotnet-runtime-boundaries' },
             { text: '第 27 章 · 为 C# 设计 F# API', link: '/zh/part-05/ch-27-fsharp-api-for-csharp' },
-            { text: '第 28 章 · 示例测试、替身与边界测试', link: '/zh/part-05/ch-28-testing-boundaries' }
+            { text: '第 28 章 · 示例测试、替身与边界测试', link: '/zh/part-05/ch-28-testing-boundaries' },
+            { text: '第 29 章 · 使用 FsCheck 进行性质测试', link: '/zh/part-05/ch-29-property-testing' }
           ]
         }
       ],
@@ -104,7 +105,8 @@ export const zhLocale = {
             { text: '第 25 章', link: '/zh/solutions/ch-25-objects-interfaces' },
             { text: '第 26 章', link: '/zh/solutions/ch-26-dotnet-runtime-boundaries' },
             { text: '第 27 章', link: '/zh/solutions/ch-27-fsharp-api-for-csharp' },
-            { text: '第 28 章', link: '/zh/solutions/ch-28-testing-boundaries' }
+            { text: '第 28 章', link: '/zh/solutions/ch-28-testing-boundaries' },
+            { text: '第 29 章', link: '/zh/solutions/ch-29-property-testing' }
           ]
         }
       ]

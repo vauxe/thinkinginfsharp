@@ -69,7 +69,8 @@ export const enLocale = {
             { text: '25 · Defining Objects in F#', link: '/en/part-05/ch-25-objects-interfaces' },
             { text: '26 · Deeper .NET Boundaries', link: '/en/part-05/ch-26-dotnet-runtime-boundaries' },
             { text: '27 · Designing F# APIs for C#', link: '/en/part-05/ch-27-fsharp-api-for-csharp' },
-            { text: '28 · Example Tests, Doubles, and Boundary Tests', link: '/en/part-05/ch-28-testing-boundaries' }
+            { text: '28 · Example Tests, Doubles, and Boundary Tests', link: '/en/part-05/ch-28-testing-boundaries' },
+            { text: '29 · Property Testing with FsCheck', link: '/en/part-05/ch-29-property-testing' }
           ]
         }
       ],
@@ -104,7 +105,8 @@ export const enLocale = {
             { text: 'Chapter 25', link: '/en/solutions/ch-25-objects-interfaces' },
             { text: 'Chapter 26', link: '/en/solutions/ch-26-dotnet-runtime-boundaries' },
             { text: 'Chapter 27', link: '/en/solutions/ch-27-fsharp-api-for-csharp' },
-            { text: 'Chapter 28', link: '/en/solutions/ch-28-testing-boundaries' }
+            { text: 'Chapter 28', link: '/en/solutions/ch-28-testing-boundaries' },
+            { text: 'Chapter 29', link: '/en/solutions/ch-29-property-testing' }
           ]
         }
       ]
