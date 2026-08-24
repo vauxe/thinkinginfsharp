@@ -299,6 +299,22 @@
       ]
     },
     {
+      "id": "ch27-fsharp-api",
+      "kind": "compile",
+      "path": "examples/chapters/ch27/FSharpApi/FSharpApi.fsproj",
+      "sources": [
+        "examples/chapters/ch27/FSharpApi/Library.fs"
+      ]
+    },
+    {
+      "id": "ch27-csharp-client",
+      "kind": "compile",
+      "path": "examples/chapters/ch27/CSharpClient/CSharpClient.csproj",
+      "sources": [
+        "examples/chapters/ch27/CSharpClient/Program.cs"
+      ]
+    },
+    {
       "id": "ch20-functional-core-effects",
       "kind": "script",
       "path": "examples/scripts/ch20-functional-core-effects.fsx",

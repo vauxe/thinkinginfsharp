@@ -6,4 +6,6 @@
   <Project Path="examples/chapters/ch17/Ch17.fsproj" />
   <Project Path="examples/chapters/ch19/Ch19.fsproj" />
   <Project Path="examples/chapters/ch25/Ch25.fsproj" />
+  <Project Path="examples/chapters/ch27/FSharpApi/FSharpApi.fsproj" />
+  <Project Path="examples/chapters/ch27/CSharpClient/CSharpClient.csproj" />
 </Solution>

@@ -395,10 +395,10 @@
 
 ### E27 — 给 C# 调用的 F# API 契约样例
 
-- [ ] **依赖：** B26。
+- [x] **依赖：** B26。
 - **主要文件（5）：** `examples/chapters/ch27/FSharpApi/FSharpApi.fsproj`、`Library.fs`、`examples/chapters/ch27/CSharpClient/CSharpClient.csproj`、`Program.cs`、`examples/manifest.json`。
 - **验收：** C# 客户端无需依赖 F# 语法知识即可消费稳定公共表面；DU/option 等内部表示经明确边界适配；XML 文档可见；编译即契约证据。
-- **验证：** 分别 Release 构建 F# 库和 C# 客户端并运行客户端断言；`pnpm check:examples`。
+- **验证：** 先由缺失 API 获得 CS0246 红灯；随后 F# 库与 C# 客户端在 Release 警告即错误下构建，客户端运行断言接受/拒绝/验证、三项参数防卫、仅 4 个导出类型、所有公开签名无 `Microsoft.FSharp.*` 泄漏、C# 可空元数据及 XML 文档旁车；`pnpm check:examples` 通过。
 - **规模：** M。
 
 ### B27 — 为 C# 设计 F# API / Designing F# APIs for C#
