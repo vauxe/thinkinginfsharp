@@ -1,6 +1,16 @@
 {
   "schemaVersion": 1,
   "terms": {
+    "abstract-representation": {
+      "zh": {
+        "preferred": "抽象表示",
+        "definition": "签名只公开类型名称而省略联合案例、记录字段或其他实现形状，使消费者能使用该类型的值却不能依赖其底层表示。"
+      },
+      "en": {
+        "preferred": "abstract representation",
+        "definition": "A signature exposes a type name while omitting its union cases, record fields, or other implementation shape, so consumers can use values of the type without depending on its representation."
+      }
+    },
     "active-pattern": {
       "zh": {
         "preferred": "活动模式",
@@ -539,6 +549,16 @@
       "en": {
         "preferred": "private representation",
         "definition": "A design in which callers can use a type but cannot directly use its underlying union cases, record construction, or other representation details."
+      }
+    },
+    "public-api-surface": {
+      "zh": {
+        "preferred": "公共 API 表面",
+        "definition": "组件有意向消费者公开并承诺支持的一组类型、案例、函数、成员及其签名。"
+      },
+      "en": {
+        "preferred": "public API surface",
+        "definition": "The set of types, cases, functions, members, and signatures that a component intentionally exposes and commits to supporting for consumers."
       }
     },
     "project-file": {

@@ -267,10 +267,10 @@
 
 ### B17 — 签名、访问控制与 F# API / Signatures, Access Control, and F#-Facing APIs
 
-- [ ] **依赖：** E17。
+- [x] **依赖：** E17。
 - **主要文件（4）：** `docs/{zh,en}/part-03/ch-17-signatures-encapsulation.md`、`docs/{zh,en}/solutions/ch-17-signatures-encapsulation.md`。
 - **验收：** 准确解释签名文件、访问修饰、抽象表示和面向 F# 的公共 API；与 B12 的智能构造模式连接而不重复整章。
-- **验证：** E17 聚焦检查；双语与内容检查；`pnpm build`。
+- **验证：** E17 的 4 项外部消费者测试和 `FS0800` 反例分别证明公共表面可用且隐藏表示不可构造；额外 F# 10 探针以零警告验证答案中的完整 `.fsi`/`.fs` 文件对及 `val internal`/`let internal` 语法；中英正文/答案逐行对齐，双语、内容检查与生产构建通过。
 - **规模：** M。
 
 ### B18 — 显式工作流组合与验证累积 / Explicit Workflow Composition and Validation Accumulation
