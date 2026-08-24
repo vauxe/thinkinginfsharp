@@ -108,6 +108,19 @@
       ]
     },
     {
+      "id": "ch09-option-result",
+      "kind": "script",
+      "path": "examples/scripts/ch09-option-result.fsx",
+      "expectedOutput": [
+        "Lookup: known=Lin missing=none",
+        "Option bind: positive=3 nonPositive=none",
+        "Validation: success=ok:Lin:2 failure=error:attendee is empty",
+        "Context: R-9 -> requested 6 exceeds maximum 4",
+        "Short circuit: error:attendee is empty",
+        "Some null: isSome=true payloadIsNull=true"
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",

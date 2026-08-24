@@ -351,6 +351,16 @@
         "definition": "A product type made of named fields; an ordinary F# record is immutable by default and automatically supports structural equality and comparison when its components do."
       }
     },
+    "result": {
+      "zh": {
+        "preferred": "Result",
+        "definition": "用 Ok value 表示成功、用 Error error 表示带有已建模原因的预期失败的 F# 类型。"
+      },
+      "en": {
+        "preferred": "Result",
+        "definition": "An F# type representing success as Ok value and an expected failure with a modeled reason as Error error."
+      }
+    },
     "reference-identity": {
       "zh": {
         "preferred": "引用身份",
@@ -369,6 +379,16 @@
       "en": {
         "preferred": "shadowing",
         "definition": "Introducing a new binding with the same name in an inner or later scope so that the old binding can no longer be reached by that name there; it does not mutate the old value."
+      }
+    },
+    "short-circuit": {
+      "zh": {
+        "preferred": "短路",
+        "definition": "组合计算时，一旦遇到无法继续的 None 或 Error，便直接保留该结果而不运行后续依赖步骤。"
+      },
+      "en": {
+        "preferred": "short-circuit",
+        "definition": "Stopping a composition at a None or Error that cannot continue, preserving that result without running later dependent steps."
       }
     },
     "structural-comparison": {

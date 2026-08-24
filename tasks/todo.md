@@ -171,10 +171,10 @@
 
 ### B09 — `option` 与 `Result` / `option` and `Result`
 
-- [ ] **依赖：** B08。
+- [x] **依赖：** B08。
 - **主要文件（5）：** `docs/{zh,en}/part-02/ch-09-option-result.md`、`docs/{zh,en}/solutions/ch-09-option-result.md`、`examples/scripts/ch09-option-result.fsx`。
 - **验收：** 分别用缺失与预期失败推导两种表示，覆盖组合和错误上下文；明确 `Some null` 可能存在但把完整 null 模型留给 B19。
-- **验证：** FSI 覆盖成功、缺失和失败；双语与内容检查；`pnpm build`。
+- **验证：** FSI 的 6 行确定性输出覆盖成功、缺失、首错短路、结构化错误上下文与 `Some null` 边界；`pnpm test` 全链路通过。
 - **规模：** M。
 
 ### B10 — 递归类型与结构递归 / Recursive Types and Structural Recursion
