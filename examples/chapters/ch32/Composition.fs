@@ -65,6 +65,7 @@ type BookingApplication internal (event, ports: BookingPorts, writeLog: BookingL
               Seats = command.Seats
               Detail = detail }
 
+    // #region place
     member _.Place(command: PlaceBookingCommand, cancellationToken: CancellationToken) =
         task {
             ensureActive ()
@@ -105,6 +106,7 @@ type BookingApplication internal (event, ports: BookingPorts, writeLog: BookingL
                 | null -> ()
                 | current -> current.Dispose()
         }
+    // #endregion place
 
     interface IDisposable with
         member _.Dispose() =

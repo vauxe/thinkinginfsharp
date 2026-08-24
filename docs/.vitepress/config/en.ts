@@ -72,7 +72,8 @@ export const enLocale = {
             { text: '28 · Example Tests, Doubles, and Boundary Tests', link: '/en/part-05/ch-28-testing-boundaries' },
             { text: '29 · Property Testing with FsCheck', link: '/en/part-05/ch-29-property-testing' },
             { text: '30 · Diagnostics, Tooling, and Reproducible Builds', link: '/en/part-05/ch-30-diagnostics-tooling-builds' },
-            { text: '31 · Measure Before Optimizing', link: '/en/part-05/ch-31-measure-before-optimizing' }
+            { text: '31 · Measure Before Optimizing', link: '/en/part-05/ch-31-measure-before-optimizing' },
+            { text: '32 · From Functions to Applications', link: '/en/part-05/ch-32-functions-to-applications' }
           ]
         }
       ],
@@ -110,7 +111,8 @@ export const enLocale = {
             { text: 'Chapter 28', link: '/en/solutions/ch-28-testing-boundaries' },
             { text: 'Chapter 29', link: '/en/solutions/ch-29-property-testing' },
             { text: 'Chapter 30', link: '/en/solutions/ch-30-diagnostics-tooling-builds' },
-            { text: 'Chapter 31', link: '/en/solutions/ch-31-measure-before-optimizing' }
+            { text: 'Chapter 31', link: '/en/solutions/ch-31-measure-before-optimizing' },
+            { text: 'Chapter 32', link: '/en/solutions/ch-32-functions-to-applications' }
           ]
         }
       ]

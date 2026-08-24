@@ -483,10 +483,10 @@
 
 ### B32 — 从函数到应用 / From Functions to Applications
 
-- [ ] **依赖：** E32。
+- [x] **依赖：** E32。
 - **主要文件（4）：** `docs/{zh,en}/part-05/ch-32-functions-to-applications.md`、`docs/{zh,en}/solutions/ch-32-functions-to-applications.md`。
 - **验收：** 从纯工作流推导端口、组合根、配置、生命周期与最小可观测性；保持模式轻量并说明何时需要更强宿主。
-- **验证：** E32 聚焦检查；双语与内容检查；`pnpm build`。
+- **验证：** E32 聚焦 Release 测试 3/3 与固定 5 行运行证据复核；答案中的版本化端口与任务编排代码由 F# 10 在 `--checknulls+ --warnaserror+` 下执行通过，并由该探针发现、修复一处记录字段函数类型的无效参数标签语法；中英正文与答案严格保持 344/344 和 159/159 行；Fantomas 只读检查、22 项内容测试、双语/内容检查、完整示例门及 VitePress 生产构建通过；真实 Chrome 验证侧栏、共享代码、中英切换和 390px 移动视口，中文目标页无控制台告警且无页面级横向溢出。
 - **规模：** L。
 
 ### K05 — 预约性质测试与稳定公共边界
