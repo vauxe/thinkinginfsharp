@@ -139,10 +139,10 @@
 
 ### K01 — 预约系统第一部分纯脚本切片
 
-- [ ] **依赖：** B06。
+- [x] **依赖：** B06。
 - **主要文件（≤3）：** `examples/capstone/part-01/BookingBasics.fsx`、`tests/ExampleTests/CapstonePart01Tests.fs`、`examples/manifest.json`。
 - **验收：** 用已教概念解析固定输入、变换预约行并折叠容量摘要；不提前使用领域联合类型、异步或外部 I/O。
-- **验证：** 聚焦 FSI；`dotnet test ThinkingInFSharp.slnx --configuration Release --filter FullyQualifiedName~CapstonePart01`；`pnpm check:examples`。
+- **验证：** FSI 的 5 行确定性输出按 manifest 通过；聚焦 `CapstonePart01` xUnit 测试通过；`pnpm check:examples` 与 `pnpm test` 全链路通过。
 - **规模：** S。
 
 ### C1 — 第一部分检查点

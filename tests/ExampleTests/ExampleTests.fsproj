@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <Compile Include="SmokeTests.fs" />
+    <Compile Include="CapstonePart01Tests.fs" />
   </ItemGroup>
 
   <ItemGroup>

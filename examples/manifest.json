@@ -72,6 +72,18 @@
       ]
     },
     {
+      "id": "capstone-part-01-booking-basics",
+      "kind": "script",
+      "path": "examples/capstone/part-01/BookingBasics.fsx",
+      "expectedOutput": [
+        "Rows: valid=4 invalid=2",
+        "Labels: [\"B-101:Lin:3\"; \"B-102:Ada:2\"; \"B-103:Sam:4\"; \"B-104:Mira:2\"]",
+        "Accepted IDs: [\"B-101\"; \"B-102\"; \"B-104\"]",
+        "Rejected IDs: [\"B-103\"]",
+        "Capacity: booked=7 remaining=1"
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",
@@ -84,7 +96,8 @@
       "kind": "test",
       "path": "tests/ExampleTests/ExampleTests.fsproj",
       "sources": [
-        "tests/ExampleTests/SmokeTests.fs"
+        "tests/ExampleTests/SmokeTests.fs",
+        "tests/ExampleTests/CapstonePart01Tests.fs"
       ]
     }
   ]
