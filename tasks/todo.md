@@ -427,10 +427,10 @@
 
 ### E29 — FsCheck 性质测试样例
 
-- [ ] **依赖：** B28。
+- [x] **依赖：** B28。
 - **主要文件（≤4）：** `tests/ExampleTests/Ch29Properties.fs`、`tests/ExampleTests/ExampleTests.fsproj`、`examples/chapters/ch29/Generators.fs`、`examples/manifest.json`。
 - **验收：** 锁定 FsCheck 版本；性质、生成器、缩减和反例可复现；至少一个“看似合理但错误”的性质被反例推翻。
-- **验证：** 精确过滤 Ch29 tests，并用固定重放信息复现失败示例；`pnpm check:examples`。
+- **验证：** `FsCheck.Xunit` 与传递依赖 `FsCheck` 均锁定为 3.4.0；先由缺失性质 API 获得预期 FS0039 编译红灯；随后精确过滤 `Ch29`，三个各运行 300 个案例的性质与一个固定重放测试全部通过；错误的“接受请求构成前缀”性质稳定缩减为 `capacity = 1, requests = [2; 1]`；`pnpm check:examples` 全门通过。
 - **规模：** M。
 
 ### B29 — 使用 FsCheck 进行性质测试 / Property Testing with FsCheck

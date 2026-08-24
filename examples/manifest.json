@@ -405,7 +405,9 @@
         "tests/ExampleTests/BookingAsyncPortTests.fs",
         "tests/ExampleTests/Ch25ObjectTests.fs",
         "examples/chapters/ch28/OrderWorkflow.fs",
-        "tests/ExampleTests/Ch28WorkflowTests.fs"
+        "tests/ExampleTests/Ch28WorkflowTests.fs",
+        "examples/chapters/ch29/Generators.fs",
+        "tests/ExampleTests/Ch29Properties.fs"
       ]
     }
   ]
