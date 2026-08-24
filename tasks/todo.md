@@ -53,10 +53,10 @@
 
 ### F05 — 实现双语与内容静态检查
 
-- [ ] **依赖：** F04。
+- [x] **依赖：** F04。
 - **主要文件（5）：** `scripts/check-parity.mjs`、`scripts/check-content.mjs`、`scripts/lib/markdown.mjs`、`scripts/content-checks.test.mjs`、`package.json`。
 - **验收：** 检出缺失翻译、键/编号不一致、占位页、无效内部链接、重复锚点、未知术语键、越界代码引用；故障返回非零且信息含文件路径。
-- **验证：** `node --test scripts/content-checks.test.mjs`；`pnpm check:parity`；`pnpm check:content`。
+- **验证：** `pnpm test:content`（16 项通过，含故障 CLI、活性 HTML、YAML alias 与输入体积边界）；`pnpm check:parity`；`pnpm check:content`；`pnpm build`；`pnpm install --frozen-lockfile`；`pnpm audit --audit-level high` 无已知漏洞。
 - **规模：** M。
 
 ### F06 — 建立 F# 解决方案与基础测试工程

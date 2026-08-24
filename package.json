@@ -8,7 +8,9 @@
     "dev": "vitepress dev docs",
     "build": "vitepress build docs",
     "preview": "vitepress preview docs",
-    "test:content": "node --test scripts/content-contract.test.mjs scripts/markdown.test.mjs"
+    "check:parity": "node scripts/check-parity.mjs",
+    "check:content": "node scripts/check-content.mjs",
+    "test:content": "node --test scripts/content-contract.test.mjs scripts/markdown.test.mjs scripts/content-checks.test.mjs"
   },
   "engines": {
     "node": ">=22.0.0",

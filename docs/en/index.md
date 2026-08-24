@@ -11,7 +11,7 @@ termIds: []
 sources: []
 ---
 
-# Thinking in F#
+# Thinking in F# {#overview}
 
 This book is for developers who can already program but have not yet studied functional programming systematically. It begins with expressions, values, types, and functions, then moves toward testable workflows, asynchronous and concurrent code, .NET interoperability, and a complete event-booking system.
 
