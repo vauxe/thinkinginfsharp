@@ -307,10 +307,10 @@
 
 ### B19 — .NET API 与空值边界 / .NET APIs and Null Boundaries
 
-- [ ] **依赖：** E19。
+- [x] **依赖：** E19。
 - **主要文件（4）：** `docs/{zh,en}/part-04/ch-19-dotnet-null-boundaries.md`、`docs/{zh,en}/solutions/ch-19-dotnet-null-boundaries.md`。
 - **验收：** 在实质 I/O 前完成构造、成员、重载、接口与完整空值模型；提供边界转换决策表和 `Some null` 反例。
-- **验证：** E19 契约测试；双语与内容检查；`pnpm build`。
+- **验证：** 中英文正文各 321 行、答案各 167 行且语义/结构对应；共享代码覆盖构造、成员、重载、接口、三种缺失表示、两组双向转换和 `Some null` 反例；答案片段在 `dotnet fsi --checknulls+` 下执行通过，6 项 E19 Release 契约测试、双语/内容检查与 `pnpm build` 通过。
 - **规模：** L。
 
 ### B20 — 函数式核心与副作用边界 / Functional Core and Effect Boundaries
