@@ -90,6 +90,14 @@ export const enLocale = {
           ]
         }
       ],
+      '/en/part-07/': [
+        {
+          text: 'Part VII · The ecosystem map',
+          items: [
+            { text: '39 · ASP.NET Core and the F# Web Ecosystem', link: '/en/part-07/ch-39-web-ecosystem' }
+          ]
+        }
+      ],
       '/en/solutions/': [
         {
           text: 'Solutions',
@@ -131,7 +139,8 @@ export const enLocale = {
             { text: 'Chapter 35', link: '/en/solutions/ch-35-ports-persistence-config' },
             { text: 'Chapter 36', link: '/en/solutions/ch-36-web-api-boundaries' },
             { text: 'Chapter 37', link: '/en/solutions/ch-37-consistency-idempotency' },
-            { text: 'Chapter 38', link: '/en/solutions/ch-38-integration-diagnostics-release' }
+            { text: 'Chapter 38', link: '/en/solutions/ch-38-integration-diagnostics-release' },
+            { text: 'Chapter 39', link: '/en/solutions/ch-39-web-ecosystem' }
           ]
         }
       ]

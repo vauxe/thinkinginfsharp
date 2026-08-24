@@ -1,0 +1,211 @@
+---
+title: "第 39 章练习答案"
+description: "为具体团队选择 Web 表面，设计保留契约的 Falco 试验，并可逆地迁移绑定框架的端点。"
+translationKey: solutions/ch-39-web-ecosystem
+kind: solution
+part: 7
+chapter: 39
+status: complete
+verifiedWith:
+  fsharp: "10"
+  dotnetSdk: "10.0.301"
+exampleIds:
+  - ecosystem-web-minimal-api
+  - foundation-contract-tests
+exerciseIds:
+  - ch39-exercise-01
+  - ch39-exercise-02
+  - ch39-exercise-03
+termIds: []
+sources:
+  - id: microsoft-aspnet-api-overview
+    url: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/apis?view=aspnetcore-10.0
+    checked: "2026-08-25"
+  - id: microsoft-aspnet-integration-tests
+    url: https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests?view=aspnetcore-10.0
+    checked: "2026-08-25"
+  - id: giraffe-nuget
+    url: https://www.nuget.org/packages/Giraffe/8.3.0
+    checked: "2026-08-25"
+  - id: falco-nuget
+    url: https://www.nuget.org/packages/Falco/5.2.0
+    checked: "2026-08-25"
+  - id: oxpecker-nuget
+    url: https://www.nuget.org/packages/Oxpecker/2.0.1
+    checked: "2026-08-25"
+  - id: saturn-nuget
+    url: https://www.nuget.org/packages/Saturn/0.17.0
+    checked: "2026-08-25"
+---
+
+# 第 39 章练习答案 {#overview}
+
+这些答案是带有明确反转证据的暂定工程决定。真实团队必须针对自己的认证、序列化器、部署与工作负载运行试验，而不是复制结论。
+
+[返回第 39 章](../part-07/ch-39-web-ecosystem)。
+
+## 练习 1：为三个团队作选择 {#exercise-01}
+
+### 团队 A：统一平台上的混合语言 {#exercise-01-team-a}
+
+从平台 Minimal API 开始。
+
+组织已经运维 ASP.NET Core，服务是小型内部 JSON API，而且 C# 与 F# 工程师都需要阅读边缘。直接端点路由能减少框架翻译，复用标准授权/诊断约定，并让 F# 差异集中于领域与工作流，而不是宿主。
+
+在两天试验中与 Falco 5.2.0 比较。如果直接实现中反复出现的请求/响应适配占据主体，而且 Falco 的端点词汇显著改善审阅，它就可能胜出。对两者运行相同 DTO、严格 JSON、策略授权、取消、OpenAPI、`TestServer` 与发布检查。如果必要的组织中间件或端点元数据需要无人负责的自定义桥接，就淘汰 Falco。
+
+会改变初始选择的证据包括：
+
+- 五个代表端点反复对抗委托重载或绑定行为；
+- Falco 在保留精确组织契约的同时减少边界代码；
+- 两种语言的维护者都能穿过 Falco 与 ASP.NET 两层调试；
+- 锁定包图通过组织的支持与漏洞策略；
+- 升级和事故练习仍然可理解。
+
+不要只因为 C# 工程师熟悉控制器就选择它们。只有真正存在控制器专属扩展——例如所需应用模型或 OData 路径——时才选择。Microsoft 的 [API 概述](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/apis?view=aspnetcore-10.0) 明确作出了这种区分。
+
+### 团队 B：F#、服务器 HTML 与 HTMX {#exercise-01-team-b}
+
+从 Giraffe 8.3.0 与 Oxpecker 2.0.1 的比较开始；只有其 `net10.0` 目标和较新生命周期通过团队支持门后，才暂定选择 Oxpecker。
+
+Oxpecker 对齐端点路由，暴露 `HttpContext -> Task` 终止处理器，并提供相关视图/HTMX 包。这些事实契合所需形状。Giraffe 仍是采用风险更低的对照候选，因为其处理器生态更长久，团队也可以使用独立的视图/HTMX 集成。
+
+试验必须超越一个计数按钮：
+
+- 转义动态 HTML，并刻意审阅原始 HTML；
+- 使用实际 Cookie/认证拓扑的防伪表单；
+- 为完整页面与 HTMX 请求渲染验证错误；
+- 认证质询与授权禁止行为；
+- 路由生成、布局、国际化、静态资源与 CSP 策略；
+- `TestServer` 加一项浏览器交互和可访问性检查；
+- 包升级与部署诊断。
+
+如果成熟度、现有知识或某项扩展超过 Oxpecker 的端点路由契合度，就选择 Giraffe。只有 Falco 5.2.0 的标记/HTMX 表面更契合模板时，才把它作为第三候选。不要同时组合三者。
+
+### 团队 C：现有 Saturn 服务 {#exercise-01-team-c}
+
+不要从重写开始。产品只要求迁移到 .NET 10 而不改变功能，因此先为 Saturn 0.17.0、其 `net6.0` 资产、Giraffe 依赖、认证包、生成器以及每条直接/传递警告建立兼容性清单。
+
+创建一个分支：
+
+1. 在警告即错误下以 `net10.0` 为目标；
+2. 从新审阅的锁文件还原；
+3. 运行所有现有契约与浏览器测试；
+4. 在类生产运行时镜像中发布并启动；
+5. 演练认证、错误处理、静态资源、诊断、关闭与负载；
+6. 记录不受支持或过时 API 用法及维护者证据。
+
+如果它在组织支持策略内通过，就单独交付运行时迁移，暂时保留 Saturn。一次成功运行时升级本身就是有价值证据，还能避免把平台风险与框架重写混在一起。
+
+如果它实质失败，则比较迁移到 Giraffe——最接近 Saturn 底层处理器模型——与迁移到 Minimal API——长期依赖表面最小。根据三个代表路由而不是全部 40 个估算。改善内部风格前，先保留公开契约与认证行为。
+
+## 练习 2：在试验中保留问候契约 {#exercise-02}
+
+### 限制 Falco 5.2.0 实验范围 {#exercise-02-scope}
+
+创建锁定 Falco 5.2.0 的临时项目或分支。其官方包元数据还会把 Falco.Markup 和 FSharp.Core 最低版本带入受审阅图。记录解析后的锁文件，而不是安装不受约束的版本。
+
+只有外层适配器可以变化：
+
+```text
+POST /api/greetings
+  -> Falco endpoint/handler
+  -> existing strict JsonSerializerOptions
+  -> existing boundary DTO and name validation
+  -> existing stable success/error writers
+```
+
+首次实现不强制使用 Falco 请求与响应辅助函数；契约保留才是实验对照。如果某个辅助函数无法按所需 `invalid_json` 形状拒绝属性大小写错误或未知 JSON 成员，就保留手工严格反序列化器，或明确记录拟议契约变化；不要默默削弱测试。
+
+处理器必须把请求取消令牌传给反序列化，并重新抛出客户端取消。它不能把已取消任务捕获成 `internal_error`，也必须保留“响应已经开始”的边界，或证明框架提供等价行为。
+
+### 使用同一套可执行证据 {#exercise-02-evidence}
+
+从 `WebSampleTests` 的副本引用试验，原样运行相同七个用例。只添加真正重要的框架专属断言，例如端点元数据或中间件顺序。然后运行：
+
+- 锁定还原与警告即错误的 Release 构建；
+- 未修改的 `TestServer` 契约；
+- 一个真实进程 `curl` 成功与格式错误请求；
+- 如果属于目标要求，则检查授权与诊断；
+- 针对预期部署目标的 `dotnet publish`；
+- 包漏洞/许可证审阅，以及一次兼容版本升级。
+
+比较：
+
+| 维度 | 直接样例基线 | Falco 试验问题 |
+|---|---|---|
+| 公开 HTTP 契约 | 七个通过用例 | 是否不变？ |
+| 概念 | `RequestDelegate`、端点路由 | 端点列表、处理器、请求/响应辅助函数 |
+| 直接依赖 | 只有共享框架 | Falco 加解析后的包图 |
+| 平台访问 | 直接 | 逃生口是否清晰？ |
+| 诊断 | 标准 ASP.NET 上下文 | 路由名/状态/相关值是否仍可见？ |
+| 维护 | Microsoft .NET 支持 | 内部谁负责 Falco 升级？ |
+
+如果试验在没有产品理由时改变契约、必要中间件需要自定义桥接、取消或诊断变得模糊、无法通过发布策略，或节省的重复代码不足以偿还第二套 API 生命周期，就删除它。如果胜出，只替换旧路由一次，记录约定，并让框架类型留在验证/应用模块之外。
+
+本设计刻意不声称试验已经通过：本仓库只验证直接 Minimal API 实现。
+
+## 练习 3：设计可逆迁移 {#exercise-03}
+
+### 先盘点行为，再盘点处理器 {#exercise-03-inventory}
+
+建立路由目录，包含方法、规范化模板、请求/响应模式、状态码、认证方案、授权策略、过滤器/中间件、流式/正文上限、OpenAPI 操作、诊断与当前契约测试。搜索 Web 项目之外的框架类型；那是耦合工作，不是路由重写。
+
+提取或确认三条中立接缝：
+
+- 边界 DTO 与严格序列化器/错误策略；
+- 输入和 `Result` 输出都不提 Web 框架的应用函数；
+- 由宿主配置拥有的 ASP.NET Core 认证/授权策略。
+
+不要创建一个试图为所有框架功能建模的巨型“通用处理器”抽象。小型应用端口加公开传输契约才是稳定接缝。
+
+### 迁移一条路由且不产生冲突 {#exercise-03-routing}
+
+维护一份机器审阅的所有权注册表：每个 `(method, route pattern)` 恰好属于一个旧或新映射器。迁移期间组合根安装两者，但构建/启动测试枚举端点数据源，并拒绝重复方法/模板对。
+
+选择一条风险较低、但仍涵盖 JSON、授权、一个应用结果和一个错误的代表路由。在新表面映射，并在同一变更中从旧映射移除，然后原样运行原契约测试。
+
+为了获得更多信心，可以在测试中用私有比较前缀分别托管新旧变体，送入相同请求，比较规范化状态、响应头与 JSON 语义。不要把两个前缀暴露到生产，也不要逐字节比较易变响应头。
+
+认证继续由 ASP.NET Core 方案与策略拥有。验证新端点携带等价策略元数据，并产生相同质询与禁止行为。带已认证夹具的成功 `200` 测试不能证明未认证与未授权路径。
+
+OpenAPI 比较应先规范化顺序和已知生成器元数据，再检测被删除操作、模式变化、状态变化与安全要求。审阅有意变化，不要自动覆盖基线。
+
+### 推出并移除旧包 {#exercise-03-rollout}
+
+按小组迁移路由，同时观察每模板流量、状态、延迟、取消与错误分类。部署支持时对同一个不可变产物做金丝雀。回滚保持在产物层；除非有已证明需求，不要按请求动态切换两个处理器实现。
+
+只有满足以下条件，才能移除旧框架：
+
+- 没有路由、中间件、视图、绑定类型或测试辅助函数使用它；
+- 没有应用/领域项目直接引用它，或按设计传递引用它；
+- 端点枚举只显示一次预期完整路由集；
+- 认证、OpenAPI、诊断、真实进程冒烟与发布测试通过；
+- 锁文件与部署产物不再包含该包；
+- 最后一个旧框架产物的回滚窗口已关闭。
+
+如果迁移停滞，就保持所有权显式。记录清楚的混合边界，比在隐藏辅助函数仍控制策略时假装旧包已消失更安全。
+
+## 答案回顾 {#solution-review}
+
+- 平台与团队约束比框架身份更适合确定起点。
+- 当直接 ASP.NET Core 集成很重要时，Minimal API 是强有力的混合团队默认值。
+- 服务器 HTML 与 HTMX 需要安全、浏览器和视图证据，而不是 Hello World 语法比较。
+- 现有 Saturn 服务应把 .NET 10 兼容迁移与任何重写分开。
+- 试验只改变 Web 适配器，并运行与基线相同的契约用例。
+- 稳定包版本和解析后的传递图是实验的一部分。
+- 便捷绑定不能默默削弱 JSON 或错误契约。
+- 迁移目录记录行为，而不仅是源码文件。
+- 迁移期间每个方法/模板对都只有一个所有者。
+- 认证与授权需要比较质询、禁止和成功路径。
+- 只有代码、路由、锁文件、产物、测试与回滚窗口一致后，才移除旧包。
+- 在所有答案中，“已设计”与“已验证”始终是不同状态。
+
+## 资料来源 {#sources}
+
+- [Microsoft Learn：API 概述](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/apis?view=aspnetcore-10.0)
+- [Microsoft Learn：ASP.NET Core 中的集成测试](https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests?view=aspnetcore-10.0)
+- [NuGet：Giraffe 8.3.0](https://www.nuget.org/packages/Giraffe/8.3.0)
+- [NuGet：Falco 5.2.0](https://www.nuget.org/packages/Falco/5.2.0)
+- [NuGet：Oxpecker 2.0.1](https://www.nuget.org/packages/Oxpecker/2.0.1)
+- [NuGet：Saturn 0.17.0](https://www.nuget.org/packages/Saturn/0.17.0)

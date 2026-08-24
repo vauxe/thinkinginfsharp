@@ -90,6 +90,14 @@ export const zhLocale = {
           ]
         }
       ],
+      '/zh/part-07/': [
+        {
+          text: '第七部分 · 生态地图',
+          items: [
+            { text: '第 39 章 · ASP.NET Core 与 F# Web 生态', link: '/zh/part-07/ch-39-web-ecosystem' }
+          ]
+        }
+      ],
       '/zh/solutions/': [
         {
           text: '练习答案',
@@ -131,7 +139,8 @@ export const zhLocale = {
             { text: '第 35 章', link: '/zh/solutions/ch-35-ports-persistence-config' },
             { text: '第 36 章', link: '/zh/solutions/ch-36-web-api-boundaries' },
             { text: '第 37 章', link: '/zh/solutions/ch-37-consistency-idempotency' },
-            { text: '第 38 章', link: '/zh/solutions/ch-38-integration-diagnostics-release' }
+            { text: '第 38 章', link: '/zh/solutions/ch-38-integration-diagnostics-release' },
+            { text: '第 39 章', link: '/zh/solutions/ch-39-web-ecosystem' }
           ]
         }
       ]

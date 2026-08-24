@@ -643,10 +643,10 @@
 
 ### B39 — ASP.NET Core 与 F# Web 生态 / ASP.NET Core and the F# Web Ecosystem
 
-- [ ] **依赖：** X39。
+- [x] **依赖：** X39。
 - **主要文件（4）：** `docs/{zh,en}/part-07/ch-39-web-ecosystem.md`、`docs/{zh,en}/solutions/ch-39-web-ecosystem.md`。
 - **验收：** 按问题类型比较平台原生 Minimal API 与主要 F# 选择；列优势、摩擦、互操作和选择条件；第三方信息含版本与官方来源。
-- **验证：** X39 聚焦检查；双语与内容检查；`pnpm build`。
+- **验证：** 正文严格保持 377/377 行，答案严格保持 211/211 行；中英逐段对齐从共享 ASP.NET Core 平台出发，结合 X39 的显式 DTO、严格 JSON、`HttpContext -> Task`/`RequestDelegate` 适配与 7 项 `TestServer` 契约，再按真实问题形状比较 Minimal API、控制器、Giraffe、Falco、Oxpecker 与 Saturn；把序列化、OpenAPI、HTML/HTMX、认证授权、依赖注入、测试、性能、安全、供应链和部署拆成独立决策，并以功能核心隔离、三速测试与有界采用试验约束框架选择和迁移。版本表明确标注 2026-08-25 检查日，引用 Microsoft 官方 .NET 10 文档及 NuGet/GitHub 官方项目资料，区分 Giraffe 8.3.0、Falco 5.2.0、Oxpecker 2.0.1、Saturn 0.17.0 的稳定版本、包目标与计算兼容性，也明确这些第三方框架只审阅了官方元数据而未在本仓库编译执行；答案覆盖三个团队的条件式选择、保留原七项 HTTP 契约的 Falco 试验，以及含路由唯一所有权、认证/OpenAPI 比较、产物级回滚和旧包移除门槛的可逆迁移。X39 聚焦测试 7/7，通过双语/内容检查与 VitePress 生产构建；真实 Chrome 验证英文正文到答案、答案同页切换中文、两类侧栏和语义标题，390×844 下正文与答案均无页面级横向溢出，宽代码保持内部滚动，控制台零消息，移动端 Lighthouse 可访问性、最佳实践、SEO 与可代理浏览均为 100。
 - **规模：** L。
 
 ### X40 — 数据、查询与类型提供器使用样例

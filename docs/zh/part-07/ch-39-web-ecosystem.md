@@ -1,0 +1,377 @@
+---
+title: "第 39 章：ASP.NET Core 与 F# Web 生态"
+description: "依据边界形状、团队需求和已核实的维护证据，在平台原生 Minimal API、控制器与函数式 F# Web 库之间作选择，而不是追逐潮流。"
+translationKey: part-07/ch-39-web-ecosystem
+kind: chapter
+part: 7
+chapter: 39
+status: complete
+verifiedWith:
+  fsharp: "10"
+  dotnetSdk: "10.0.301"
+exampleIds:
+  - ecosystem-web-minimal-api
+  - foundation-contract-tests
+exerciseIds:
+  - ch39-exercise-01
+  - ch39-exercise-02
+  - ch39-exercise-03
+termIds: []
+sources:
+  - id: microsoft-aspnet-api-overview
+    url: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/apis?view=aspnetcore-10.0
+    checked: "2026-08-25"
+  - id: microsoft-minimal-api-reference
+    url: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis?view=aspnetcore-10.0
+    checked: "2026-08-25"
+  - id: microsoft-aspnet-integration-tests
+    url: https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests?view=aspnetcore-10.0
+    checked: "2026-08-25"
+  - id: giraffe-nuget
+    url: https://www.nuget.org/packages/Giraffe/8.3.0
+    checked: "2026-08-25"
+  - id: falco-nuget
+    url: https://www.nuget.org/packages/Falco/5.2.0
+    checked: "2026-08-25"
+  - id: oxpecker-nuget
+    url: https://www.nuget.org/packages/Oxpecker/2.0.1
+    checked: "2026-08-25"
+  - id: saturn-nuget
+    url: https://www.nuget.org/packages/Saturn/0.17.0
+    checked: "2026-08-25"
+---
+
+# 第 39 章：ASP.NET Core 与 F# Web 生态 {#overview}
+
+F# 不需要一套独立 Web 服务器才能参与现代 .NET。F# 项目可以直接使用 ASP.NET Core 的 Kestrel、端点路由、依赖注入、配置、认证、授权、日志、指标与 `TestServer`。几个社区库则在同一平台上增加更符合 F# 形状的处理器、组合运算符、视图或约定。
+
+因此，实际问题并不是“哪个 F# 框架获胜”，而是“哪种边界形状能消除这个系统的实质摩擦，同时又不隐藏团队仍需理解的平台行为？”本章从一个经过验证的平台原生切片和当前一手包来源推导这项决定。
+
+## 学完本章后，你将能够 {#outcomes}
+
+学完本章后，你应该能够：
+
+- 识别哪些 Web 能力来自 ASP.NET Core，哪些来自 F# 库；
+- 在不依赖 C# 源码语法的情况下实现一个小型 F# Minimal API；
+- 按问题形状比较 Minimal API、控制器、Giraffe、Falco、Oxpecker 与 Saturn；
+- 区分端点处理器抽象与它背后的业务工作流；
+- 分别评估 JSON、验证、路由、视图、OpenAPI、认证与测试；
+- 谨慎阅读包的目标框架、稳定/预发布版本与维护证据；
+- 避免把下载量、模板或微基准当作项目决策；
+- 运行保留可执行 HTTP 契约测试的有界采用试验；
+- 选择适合团队和运维要求的最小 Web 表面。
+
+## 从共享平台开始 {#shared-platform}
+
+ASP.NET Core 拥有服务器和大多数横切运行时行为。无论端点表达为 Minimal API 委托、控制器操作、Giraffe `HttpHandler`、Falco 端点还是 Oxpecker 处理器，生产工作仍然包括：
+
+- 宿主启动、配置、依赖注入与生命周期；
+- Kestrel 或另一种受支持的服务器集成；
+- 中间件顺序与端点路由；
+- 认证方案与授权策略；
+- 请求上限、取消、超时、流式处理与响应开始语义；
+- 日志、指标、分布式追踪、健康行为与部署；
+- `HttpContext`、HTTP 语义、代理、TLS 与不可信输入。
+
+某个库可以为其中一些事项提供更安全的默认值或更易组合的 API，却不能让这些运维语义消失。理解平台是下面每种选择都可迁移的知识。
+
+Microsoft 的 [.NET 10 API 指南](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/apis?view=aspnetcore-10.0) 把 Minimal API 与基于控制器的 API 列为两种平台方案。它建议新 HTTP API 从 Minimal API 开始，同时指出高级模型绑定扩展、应用模型功能或 OData 等需求适合控制器。这是平台默认起点，并不是要求每个 F# 团队都避开社区库的命令。
+
+## 检查代表性 Minimal API {#representative-sample}
+
+X39 有意远小于预约收官项目。它只回答一个问题：当输入、输出与错误保持显式时，直接的 F# 端点是什么样？
+
+项目使用 `Microsoft.NET.Sdk.Web`、目标为 `net10.0`，没有第三方包引用。锁文件记录 `FSharp.Core` 10.1.301。公开 JSON 类型是普通 CLR 友好记录，而不是领域可辨识联合：
+
+<<< @/../examples/ecosystem/web/Program.fs#web-sample-contract{fsharp:line-numbers} [Program.fs]
+
+`GreetingRequestDto.Name` 接受 `null`，因为 JSON 是不可信边界。验证会先把这种表示转换成非空白局部 `name`，成功路径才继续。这重复了第六部分的核心教训：宽松的边界表示并不要求宽松的领域。
+
+### 显式完成框架适配 {#explicit-adaptation}
+
+处理器形状是 `HttpContext -> Task`，随后包装成 ASP.NET Core 的 `RequestDelegate`。它检查媒体类型，采用区分大小写且拒绝未知成员的严格 JSON，验证名称，并且只产生稳定错误代码与消息。
+
+<<< @/../examples/ecosystem/web/Program.fs#web-sample-handler{fsharp:line-numbers} [Program.fs]
+
+几个细节比代码行数更重要：
+
+- `RequestAborted` 传入反序列化，并在客户端取消时重新抛出；
+- 表示格式错误与必要业务输入缺失是不同错误；
+- 无效正文和意外异常都不会被返回；
+- 响应一旦开始，就不能安全地换成 JSON，因此会中止上下文；
+- 处理器返回 `RequestDelegate` 所需的非泛型 `Task`。
+
+F# 10 空值检查还迫使处理器先匹配 `value.Name`，然后才能调用 `Trim`。这种摩擦在此边界很有价值：编译器拒绝假装反序列化字符串一定非空。
+
+最终映射与宿主没有隐藏框架：
+
+<<< @/../examples/ecosystem/web/Program.fs#web-sample-map{fsharp:line-numbers} [Program.fs]
+
+这种映射风格比自动 Minimal API 参数绑定更底层。这是为了稳定教学契约而作的刻意选择，并非建议手工反序列化每个请求。[.NET 10 Minimal API 参考](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis?view=aspnetcore-10.0) 记录了内建绑定、验证、响应、过滤器、授权及其他平台功能。自动绑定契合契约时就使用它；兼容性或错误形状要求足以证明必要时再接管控制。
+
+### 精确说明测试证明了什么 {#sample-evidence}
+
+七个 `TestServer` 用例运行真实路由与处理器：
+
+- 一个有效正文会被修剪，并返回精确成功 JSON 形状；
+- 格式错误 JSON、名称缺失、名称空白、属性大小写错误和未知成员都会安全失败；
+- 非 JSON 媒体类型返回 `415`，不会进入处理器契约。
+
+完整解决方案以警告即错误的 Release 配置构建，样例也注册进示例清单。它没有测试真实套接字、代理、TLS、认证、速率限制、正文大小策略或部署；这些能力不会因为使用 Minimal API 就神秘出现。
+
+## 先选择抽象层次 {#abstraction-level}
+
+比较名称前，先决定团队想要哪类端点词汇。
+
+| 层次 | 典型单元 | 组合风格 | 主要权衡 |
+|---|---|---|---|
+| 平台 Minimal API | 映射到路由的委托或 `RequestDelegate` | 端点路由与中间件 | 直接访问平台；部分 API 与重载带有 C# 形状 |
+| 平台控制器 | 带特性的类/操作 | 过滤器、模型绑定、应用模型 | 扩展表面成熟；F# 中对象/特性仪式更多 |
+| 函数式微框架 | F# 处理器函数与组合器 | 管道、列表或端点 DSL | 符合 F# 习惯；多一套 API 与包生命周期 |
+| 有主张的应用框架 | 控制器/路由器/应用构建器或生成器 | 约定与结构化模块 | 约定契合时更快；升级与逃生口表面更大 |
+
+不要通过计算“Hello world”的源码行数作决定。认证失败、JSON 演进、流式取消、OpenAPI 定制、测试替换和部署诊断才会暴露真实抽象边界。
+
+## 平台原生 Minimal API {#minimal-apis}
+
+当团队已经理解 ASP.NET Core、希望依赖表面最小，或与 C# 服务共享约定和基础设施时，选择直接 Minimal API。每份平台文档、中间件包、宿主功能和诊断集成都可直接应用，无需经过包装翻译。
+
+优势包括：
+
+- 除 .NET 共享框架外没有社区框架依赖；
+- 直接使用端点路由、过滤器、结果、DI、认证与 OpenAPI 集成；
+- 易于和 C# 基础设施及示例互操作；
+- 可调用 F# 函数式核心的小型组合根；
+- 使用标准 ASP.NET 工具进行 `TestServer` 或 `WebApplicationFactory` 集成。
+
+常见 F# 摩擦包括委托重载推断、模型绑定边界的空值性、以特性为中心的示例以及 C# 优先文档。显式类型注解、`RequestDelegate`、小适配函数和边界 DTO 通常能把摩擦限制住。如果端点层逐渐长成一套私有处理器组合器，就应重新考虑某个维护良好的 F# 库是否已经提供所需词汇。
+
+## 基于控制器的 API {#controllers}
+
+控制器仍是平台原生替代方案。当需要的 ASP.NET 扩展点只存在于控制器、组织统一使用控制器过滤器与约定，或混合语言团队更重视统一类/操作表面而非 F# 函数式端点 DSL 时，可以选择它们。
+
+F# 能定义控制器类、特性、方法、任务与 CLR DTO。摩擦来自架构而不是互操作不可能：继承、可变绑定模型、特性、操作重载和框架约定可能会压过本来可以用函数与显式数据表达的代码。
+
+保持控制器纤薄。把边界 DTO 转换成有效领域输入，调用工作流，然后穷尽翻译结果。不要为了模仿 C# 教程而把领域状态移进可空控制器属性。
+
+## Giraffe：可组合的中间件式处理器 {#giraffe}
+
+[Giraffe](https://github.com/giraffe-fsharp/Giraffe) 自称函数式 ASP.NET Core 微框架。其核心 `HttpHandler` 模型组合处理器，并能短路或继续 ASP.NET Core 管道。对于希望把路由、绑定、响应与授权表达为可复用 F# 函数的团队，这套词汇很合适。
+
+选择它的理由：
+
+- 成熟的函数式处理器模型，以及大量示例与扩展；
+- 在 ASP.NET Core 内显式组合与复用；
+- 通过相关包支持 API 和服务器渲染 HTML；
+- 现有 Giraffe 与 SAFE 栈代码库熟悉的选择。
+
+需要评估的摩擦：
+
+- 团队需要学习延续形状的处理器类型和运算符；
+- 如果不执行边界，处理器专用抽象可能扩散进应用代码；
+- JSON/视图/授权扩展选择会增加各自的兼容矩阵；
+- 平台功能可能要求同时理解 Giraffe 顺序与 ASP.NET 中间件顺序。
+
+本书核对的稳定包是 2026 年 7 月发布的 [Giraffe 8.3.0](https://www.nuget.org/packages/Giraffe/8.3.0)。应锁定所选包，并在升级时阅读发布说明；本章没有编译 Giraffe 样例，因此不作更强兼容性主张。
+
+## Falco：面向端点的函数式工具箱 {#falco}
+
+[Falco](https://www.falcoframework.com/) 是 ASP.NET Core 上的函数式优先工具箱。其文档风格从路由与响应函数构建端点值，再把它们安装到 `WebApplication`。它还提供原生 F# 标记引擎及相关 OpenAPI/HTMX 包。
+
+选择它的理由：
+
+- 紧凑且接近 ASP.NET Core 的端点词汇；
+- 统一的请求读取与响应函数；
+- 产品需要时可使用服务器渲染 F# 标记；
+- 标准中间件仍然可用。
+
+需要评估的摩擦：
+
+- 生态更小，因此每项必要集成都值得试验；
+- 相关标记、OpenAPI 或 HTMX 包是独立版本决定；
+- 安全、宿主与运维仍要求平台知识；
+- 日后切换处理器词汇会修改外层 Web 层。
+
+这里核对的稳定包是 [Falco 5.2.0](https://www.nuget.org/packages/Falco/5.2.0)，包含 `net8.0`、`net9.0` 与 `net10.0` 资产。复核当天 NuGet 也列出 6.0 预发布版；本书不会默默把预发布版当成稳定推荐。
+
+## Oxpecker：端点路由之上的 F# 处理器 {#oxpecker}
+
+[Oxpecker](https://github.com/Lanayx/Oxpecker) 构建在 ASP.NET Core 端点路由之上，并继承 Giraffe 许多成功的 API 词汇。文档中的 `EndpointHandler` 是 `HttpContext -> Task`，`EndpointMiddleware` 则围绕下一个处理器组合。相关包覆盖视图、HTMX、OpenAPI 及其他全栈事项。
+
+选择它的理由：
+
+- 直接对齐端点路由，终止处理器类型也接近 `RequestDelegate`；
+- 包含类型化路由与响应辅助函数的 F# 优先组合 API；
+- 为服务器渲染与 HTMX 型应用提供集成选项；
+- 为熟悉 Giraffe 的团队提供迁移指南。
+
+需要评估的摩擦：
+
+- 它更年轻，因此 API 演进与生产证据规模不同于较老选择；
+- 包目标可能让服务更早绑定到较新的 .NET 运行时；
+- 广泛的全栈家族可能诱使团队采用不需要的功能；
+- 迁移时看起来相似，不代表每项 Giraffe 行为都相同。
+
+核对的稳定包是 [Oxpecker 2.0.1](https://www.nuget.org/packages/Oxpecker/2.0.1)，其包资产目标为 `net10.0`。这是运行时规划必须纳入的事实，并不是它天然更好或更差的证据。
+
+## Saturn：约定丰富的函数式 MVC {#saturn}
+
+[Saturn](https://github.com/SaturnFramework/Saturn) 在 Giraffe 之上提供有主张的服务器端函数式 MVC 模型，包含应用、路由器和控制器约定。当这些约定契合产品时，它可以减少装配工作，对现有 Saturn 或 SAFE 应用尤其如此。
+
+新 .NET 10 服务必须格外谨慎核对其维护与目标证据。核对的稳定包是 [Saturn 0.17.0](https://www.nuget.org/packages/Saturn/0.17.0)，发布于 2024 年 4 月，包含 `net6.0` 资产，并依赖 Giraffe 6.4 或更高版本。NuGet 会计算它与后续 TFM 兼容，但计算兼容性不能证明每个生成器、依赖、认证路径或部署行为都支持 .NET 10。
+
+所以，既不要把 Saturn 标成“已死”，也不要只看旧教程就选用它。现有系统可能因升级证据与约定价值而有理由继续使用；新系统则应把当前议题/发布活动、模板输出、传递图和所需功能与更简单的替代方案比较。
+
+## 让版本表保持诚实 {#version-table}
+
+下表是带日期的观察，不是永恒排名：
+
+| 选择 | 2026-08-25 核对的稳定表面 | 本仓库已验证 | 关键采用问题 |
+|---|---|---:|---|
+| ASP.NET Core Minimal API | .NET SDK/运行时 10.0.301 | 是，Release + 7 个 HTTP 用例 | 团队能否限制 C# 形状 API 的摩擦？ |
+| 控制器 API | ASP.NET Core 10 平台文档 | 否 | 必要的控制器扩展点是否值得这些仪式？ |
+| Giraffe | NuGet 8.3.0 | 否 | 延续式处理器组合是否契合团队？ |
+| Falco | NuGet 5.2.0 稳定版 | 否 | 聚焦端点与相关包能否覆盖必要集成？ |
+| Oxpecker | NuGet 2.0.1，`net10.0` 资产 | 否 | 较新的端点/全栈表面是否符合运维与升级要求？ |
+| Saturn | NuGet 0.17.0，`net6.0` 资产 | 否 | 约定价值是否超过所需的 .NET 10 兼容证明成本？ |
+
+“未在这里验证”含义很精确：审阅了官方包信息，但本仓库没有还原、编译、执行或安全测试该框架。这不是负面质量判断。
+
+## 分开那些经常被捆绑的决定 {#separate-decisions}
+
+一个框架名称不应默默替你决定所有 Web 事项。
+
+### API 契约与序列化 {#contract-serialization}
+
+决定外部 JSON 是映射 CLR DTO、通过具名转换器使用 F# 联合，还是遵循模式优先契约。明确大小写敏感性、未知成员、空值、版本、错误形状和大小上限。只有框架的便捷绑定器能产生预期契约时，它才真正有用。
+
+### OpenAPI 与客户端 {#openapi-clients}
+
+只有生成的 OpenAPI 文档经过真实路由与错误响应测试后，它才算证据。决定特性、端点元数据或独立模式哪个具有权威。至少保留一个消费者测试——例如收官项目的 C# 客户端——因为有效文档仍可能描述难以使用的 API。
+
+### HTML、HTMX 或独立前端 {#html-frontend}
+
+对于服务器渲染 HTML，应比较默认转义、类型化标记、布局、流式处理、表单、防伪、国际化与工具。Giraffe、Falco 和 Oxpecker 拥有不同视图生态。对于独立浏览器 SPA，后端选择无需决定前端语言；第 41 章会单独介绍 Fable。
+
+### 认证与授权 {#auth}
+
+除非某个包装带来具体且已验证的优势，否则优先使用 ASP.NET Core 认证方案与授权策略。确认中间件顺序、质询/禁止行为、端点元数据、测试替换以及代理/TLS 假设。函数式 `requiresRole` 辅助函数本身不会配置身份验证。
+
+### 依赖注入 {#dependency-injection}
+
+宿主容器在基础设施边界很实用。在组合时取得依赖，或通过显式处理器参数传入，再把小函数传进核心。在业务逻辑里到处访问 `HttpContext.RequestServices`，只是用隐藏依赖换掉构造器仪式。
+
+## 按场景而不是身份选择 {#scenario-guide}
+
+把下面内容当成待测试的起始假设：
+
+| 场景 | 首选候选 | 重新考虑的理由 |
+|---|---|---|
+| 混合 C#/F# 平台团队的小型 JSON 服务 | Minimal API | 重复委托/绑定适配器正在变成私有框架 |
+| F# 团队想要可复用的函数式 HTTP 管道 | Giraffe | 延续模型或扩展兼容带来的摩擦大于价值 |
+| 紧凑 API 或服务器渲染应用需要聚焦 F# 端点工具箱 | Falco | 必要集成缺少可信支持证据 |
+| 团队需要端点路由、Giraffe 式处理器和现代视图/HTMX 选项 | Oxpecker | 运行时目标或较新 API 生命周期与部署策略冲突 |
+| 现有约定丰富的 Saturn/SAFE 应用 | Saturn | 升级图或当前平台证据不足 |
+| API 要求控制器专属应用模型或 OData | 控制器 | 需求可用端点路由更简单地满足 |
+
+产品在迁移期间可以使用多个表面，但不要在没有归属的情况下永久暴露两种表达同一策略的方式。把函数式框架挂在平台端点旁边在技术上可行，代价则是重复的约定、过滤器、错误、元数据和测试。
+
+## 保护函数式核心免受框架变动 {#framework-boundary}
+
+第六部分的架构可以直接迁移：
+
+```text
+HTTP framework handler
+  -> parse and validate boundary representation
+  -> call a small application function
+  -> exhaustively map declared result
+  -> write stable transport representation
+```
+
+把 `HttpContext`、框架处理器类型、绑定特性和响应辅助函数留在 Web 项目。领域与应用项目不应仅因为可执行程序使用某个框架，就引用 Giraffe、Falco、Oxpecker、Saturn 或 ASP.NET Core。
+
+这种限制让框架变化保持有限，但不会让它免费：路由元数据、认证、流式处理、多部分输入、OpenAPI、过滤器和集成测试仍然位于边界。不过，业务不变量与效果协议可在适配器变化时保持稳定。
+
+## 用三种速度测试边界 {#testing-strategy}
+
+无论选择哪一种，都保留：
+
+1. 验证与工作流决策的纯测试；
+2. 只有在无框架调用有意义时才写聚焦处理器测试；
+3. 用 `TestServer` 集成测试绑定、路由、中间件、错误正文、认证元数据与取消；
+4. 用小型真实进程冒烟检查启动配置、套接字与部署打包。
+
+Microsoft 的[集成测试指南](https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests?view=aspnetcore-10.0) 建议把较宽测试聚焦于重要基础设施场景，因为它们比隔离测试昂贵。当中间件行为很重要时，特定于库的测试辅助工具应补充而不是替代 ASP.NET 管道测试。
+
+比较框架时，要让每个试验运行相同契约用例。否则，断言更少的框架可能只是因为遗漏需求测试而显得更简单。
+
+## 用真实路径评估性能与安全 {#performance-security}
+
+框架基准可以揭示开销模式，却不包含你的 JSON 形状、认证、日志、数据库、提供商延迟、响应大小、分配特征或失败路径。沿用第 31 章的测量纪律：定义工作负载与预算，剖析完整候选，然后优化测得的瓶颈。
+
+安全同样属于最终管道。测试正文和响应头上限、错误编码、认证质询/禁止、授权元数据、基于 Cookie 表单的 CSRF、输出编码、文件上传、重定向、代理头、速率限制、超时、日志和响应开始后的故障。不要从“函数式”“最小”或“类型化”推断安全。
+
+第三方包会扩大供应链与升级表面。锁定直接依赖、保留锁文件、检查传递变化、阅读发布说明并重新运行契约/安全测试。可复现项目设置中不要复制带 `*` 的安装命令。
+
+## 运行有边界的采用试验 {#adoption-spike}
+
+把候选比较限时在一个有代表性的垂直切片内：
+
+- 一个使用真实 DTO 和序列化策略的成功请求；
+- 一个验证失败和一个满足所需错误形状的意外失败；
+- 产品需要时加入认证和一条授权规则；
+- 取消穿过一个真实依赖；
+- OpenAPI/客户端生成（如果是需求）；
+- 一条诊断相关值穿过所选中间件；
+- Release 构建、`TestServer` 契约、真实进程启动与发布产物；
+- 升级到下一个兼容补丁或次版本的短练习。
+
+只有记录正确性缺口、陌生概念、包图、诊断质量、测试体验、文档时效和所有权后，才记录实现规模。删除落败试验；不要让比较代码变成三套受支持技术栈。
+
+## 避免常见生态错误 {#common-mistakes}
+
+- 把 ASP.NET Core 与 F# 库视为互斥选项，是对技术栈的误解。
+- 只按语法选择，会忽略中间件、运维与升级。
+- 不加注解地复制 C# Minimal API 重载，可能产生难懂的 F# 推断失败。
+- 直接序列化领域联合，会让线上契约跟随私有重构变化。
+- 把 `HttpContext` 移进核心，会让后续适配器变化昂贵。
+- 把计算得到的目标框架兼容结果称为主动支持，夸大了包证据。
+- 没有检查当前维护证据就称旧包已被放弃，同样草率。
+- 默认选择最新预发布版，会默默改变风险契约。
+- 把下载量或基准获胜者作为架构证据，会跳过产品需求。
+- 为了“灵活”安装多个 Web DSL，会制造多个需要保护和测试的策略表面。
+- 假定框架辅助函数会配置认证、上限、TLS 或遥测，会隐藏平台工作。
+- 在每个框架中重建预约收官项目，只会增加广度，不增加理解。
+
+## 练习 {#exercises}
+
+### 练习 1：为三个团队作选择 {#exercise-01}
+
+为每个场景选择一个起始 Web 表面，并说明哪些证据会改变你的选择：(a) 混合 C#/F# 团队在组织统一 ASP.NET 平台下构建小型内部 JSON API；(b) F# 团队用可复用函数式处理器与 HTMX 构建服务器渲染 HTML；(c) 一个现有 Saturn 服务迁移到 .NET 10，同时不增加产品功能。每个场景至少比较两个候选，并包含包与运维边界。
+
+### 练习 2：在试验中保留问候契约 {#exercise-02}
+
+选择 Giraffe、Falco 或 Oxpecker，勾勒一个只替换 `WebSample.map` 及其处理器的有界试验。保留精确成功/错误 JSON、严格成员策略、取消行为与七个 HTTP 用例。列出包版本、新传递表面、引入的框架概念，以及试验落败时的删除条件。不要为了框架而让 DTO 验证进入领域项目。
+
+### 练习 3：设计可逆迁移 {#exercise-03}
+
+一个包含 40 个端点的服务，其处理器、认证辅助函数、生成 OpenAPI 和集成测试都绑定到某个 F# 框架。请设计逐步迁移到平台 Minimal API 或另一函数式框架的方案。指出逐路由兼容接缝、共享错误/DTO 策略、认证所有权、冲突防止、契约比较、推出观察，以及删除旧框架包的条件。
+
+[阅读本章练习答案](../solutions/ch-39-web-ecosystem)。
+
+## 本章回顾 {#chapter-review}
+
+- ASP.NET Core 提供宿主、服务器、中间件、路由、安全集成、诊断与测试基础设施。
+- Minimal API 是平台为新 HTTP API 提供的默认起点；控制器仍有专门扩展价值。
+- 直接 F# Minimal API 可能需要显式委托与空值边界适配。
+- Giraffe 在 ASP.NET Core 上提供成熟的延续式函数处理器。
+- Falco 提供聚焦的端点与响应工具箱，以及相关标记集成。
+- Oxpecker 使用端点路由与终止式 F# 处理器模型，并拥有较新的全栈家族。
+- Saturn 提供更强约定，但新 .NET 10 采用需要显式兼容证据。
+- 版本观察是带日期的事实，不是永久排名或生产适用性证明。
+- JSON、OpenAPI、HTML、认证、DI、测试、性能与部署是可分开的决定。
+- 框架专用类型应留在外层适配器边界，而不是函数式核心。
+- 用同一个垂直切片与同一组契约断言比较候选。
+- 选择能减少已证明摩擦的最小表面，然后锁定并测试它。
+
+第 40 章会从 HTTP 边界转向数据访问、类型提供器、分析、可视化与机器学习——这是另一个问题形状胜过万能技术栈的领域。
