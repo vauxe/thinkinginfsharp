@@ -315,10 +315,10 @@
 
 ### B20 — 函数式核心与副作用边界 / Functional Core and Effect Boundaries
 
-- [ ] **依赖：** B19。
+- [x] **依赖：** B19。
 - **主要文件（5）：** `docs/{zh,en}/part-04/ch-20-functional-core-effects.md`、`docs/{zh,en}/solutions/ch-20-functional-core-effects.md`、`examples/scripts/ch20-functional-core-effects.fsx`。
 - **验收：** 将时间、随机数和环境显式化为数据或依赖；说明何时接口、函数参数或闭包分别合适。
-- **验证：** FSI 使用固定时钟/随机源断言确定结果；双语与内容检查；`pnpm build`。
+- **验证：** 中英文正文各 263 行、答案各 175 行且语义/结构对应；FSI 以固定时钟、固定抽取、映射设置和调用记录断言快照、调用顺序、后备策略、窗口边界与无额外效果的核心重放，六行输出由 manifest 精确校验；答案片段在 `--checknulls+` 下执行通过，双语/内容、全量示例与 `pnpm build` 通过。
 - **规模：** M。
 
 ### B21 — 异常、资源与 I/O / Exceptions, Resources, and I/O

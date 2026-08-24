@@ -53,7 +53,8 @@ export const enLocale = {
         {
           text: 'Part IV · Effects, asynchrony, and concurrency',
           items: [
-            { text: '19 · .NET APIs and Null Boundaries', link: '/en/part-04/ch-19-dotnet-null-boundaries' }
+            { text: '19 · .NET APIs and Null Boundaries', link: '/en/part-04/ch-19-dotnet-null-boundaries' },
+            { text: '20 · Functional Core and Effect Boundaries', link: '/en/part-04/ch-20-functional-core-effects' }
           ]
         }
       ],
@@ -79,7 +80,8 @@ export const enLocale = {
             { text: 'Chapter 16', link: '/en/solutions/ch-16-modules-namespaces-projects' },
             { text: 'Chapter 17', link: '/en/solutions/ch-17-signatures-encapsulation' },
             { text: 'Chapter 18', link: '/en/solutions/ch-18-workflow-validation' },
-            { text: 'Chapter 19', link: '/en/solutions/ch-19-dotnet-null-boundaries' }
+            { text: 'Chapter 19', link: '/en/solutions/ch-19-dotnet-null-boundaries' },
+            { text: 'Chapter 20', link: '/en/solutions/ch-20-functional-core-effects' }
           ]
         }
       ]

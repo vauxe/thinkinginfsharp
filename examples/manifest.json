@@ -273,6 +273,19 @@
       ]
     },
     {
+      "id": "ch20-functional-core-effects",
+      "kind": "script",
+      "path": "examples/scripts/ch20-functional-core-effects.fsx",
+      "expectedOutput": [
+        "Captured: time=2026-09-01T12:00:00.0000000+00:00 draw=7 region=eu-west",
+        "Decision: accepted:BOOK-eu-west-0007",
+        "Fallback: accepted:BOOK-global-0042",
+        "Window: early=not-open closed=closed",
+        "Effect order: clock -> random:10000 -> environment:BOOKING_REGION",
+        "Core replay: true effect-calls=3"
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",

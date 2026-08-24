@@ -53,7 +53,8 @@ export const zhLocale = {
         {
           text: '第四部分 · 副作用、异步与并发',
           items: [
-            { text: '第 19 章 · .NET API 与空值边界', link: '/zh/part-04/ch-19-dotnet-null-boundaries' }
+            { text: '第 19 章 · .NET API 与空值边界', link: '/zh/part-04/ch-19-dotnet-null-boundaries' },
+            { text: '第 20 章 · 函数式核心与副作用边界', link: '/zh/part-04/ch-20-functional-core-effects' }
           ]
         }
       ],
@@ -79,7 +80,8 @@ export const zhLocale = {
             { text: '第 16 章', link: '/zh/solutions/ch-16-modules-namespaces-projects' },
             { text: '第 17 章', link: '/zh/solutions/ch-17-signatures-encapsulation' },
             { text: '第 18 章', link: '/zh/solutions/ch-18-workflow-validation' },
-            { text: '第 19 章', link: '/zh/solutions/ch-19-dotnet-null-boundaries' }
+            { text: '第 19 章', link: '/zh/solutions/ch-19-dotnet-null-boundaries' },
+            { text: '第 20 章', link: '/zh/solutions/ch-20-functional-core-effects' }
           ]
         }
       ]
