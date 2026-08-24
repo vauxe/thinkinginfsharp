@@ -24,9 +24,16 @@ export default defineConfig({
   title: 'F# 思维 / Thinking in F#',
   description: 'A bilingual, F#-first book for learning and mastering F#.',
   lang: 'en',
+  head: [
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }]
+  ],
   cleanUrls: true,
   lastUpdated: true,
   markdown: {
+    theme: {
+      light: 'github-light-high-contrast',
+      dark: 'github-dark-high-contrast'
+    },
     // Stable custom ids keep translated headings on the same hash. VitePress
     // 1.6.4 includes the raw {#id} suffix in its default permalink label, so
     // the redundant inline permalink is disabled; outlines and deep links

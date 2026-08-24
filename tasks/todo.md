@@ -85,10 +85,10 @@
 
 ### B01 — 第一次 F# 会话 / A First F# Session
 
-- [ ] **依赖：** C0。
+- [x] **依赖：** C0。
 - **主要文件（5）：** `docs/{zh,en}/part-01/ch-01-first-session.md`、`docs/{zh,en}/solutions/ch-01-first-session.md`、`examples/scripts/ch01-first-session.fsx`。
 - **验收：** 从 FSI、脚本到最小项目建立准确心智模型；覆盖字面量、字符串、`unit`、运行方式与首个迁移练习；两种语言可独立阅读。
-- **验证：** `dotnet fsi --exec examples/scripts/ch01-first-session.fsx`；`pnpm check:parity`；`pnpm check:content`；`pnpm build`；人工验证同页语言切换。
+- **验证：** FSI 脚本输出与 manifest 断言一致；`pnpm test` 全链路通过；真实浏览器验证中英同页切换、答案往返、无控制台/网络错误及窄屏无溢出；移动端亮色与暗色 Lighthouse 四项均为 100。
 - **规模：** M；这是作者工作流纵向试点。
 
 ### CP — 纵向试点评审

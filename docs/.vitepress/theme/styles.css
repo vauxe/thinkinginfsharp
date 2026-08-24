@@ -5,6 +5,8 @@
   --vp-c-brand-1: #2457a7;
   --vp-c-brand-2: #17447f;
   --vp-c-brand-3: #123767;
+  --vp-code-lang-color: #555861;
+  --vp-code-line-number-color: #555861;
   --book-choice-bg: #f7f9fc;
   --book-choice-border: #c7d2e3;
 }
@@ -13,6 +15,8 @@
   --vp-c-brand-1: #8ab4f8;
   --vp-c-brand-2: #3f6fb5;
   --vp-c-brand-3: #285188;
+  --vp-code-lang-color: #b9c3d0;
+  --vp-code-line-number-color: #b9c3d0;
   --book-choice-bg: #20242b;
   --book-choice-border: #465365;
 }

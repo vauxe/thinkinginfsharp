@@ -41,6 +41,26 @@
         "definition": "A piece of code that is evaluated and, when it completes normally, produces a value."
       }
     },
+    "fsharp-interactive": {
+      "zh": {
+        "preferred": "F# Interactive",
+        "definition": "随 .NET SDK 提供的 F# 交互环境；它以读取、求值、打印、循环的方式执行提交，也可以运行 F# 脚本。"
+      },
+      "en": {
+        "preferred": "F# Interactive",
+        "definition": "The F# interactive environment included with the .NET SDK; it runs submissions in a read-evaluate-print loop and can also execute F# scripts."
+      }
+    },
+    "fsharp-script": {
+      "zh": {
+        "preferred": "F# 脚本",
+        "definition": "扩展名为 .fsx、通常由 F# Interactive 直接执行的源文件，适合实验、自动化和小型工具。"
+      },
+      "en": {
+        "preferred": "F# script",
+        "definition": "A source file with the .fsx extension, normally executed directly by F# Interactive for experiments, automation, and small tools."
+      }
+    },
     "function": {
       "zh": {
         "preferred": "函数",
@@ -49,6 +69,16 @@
       "en": {
         "preferred": "function",
         "definition": "A value that accepts input and computes a result; in F#, functions can be bound, passed, and returned like other values."
+      }
+    },
+    "literal": {
+      "zh": {
+        "preferred": "字面量",
+        "definition": "在源代码中直接写出的值表示，例如 40、true、\"hello\" 和 1.5m。"
+      },
+      "en": {
+        "preferred": "literal",
+        "definition": "A representation of a value written directly in source code, such as 40, true, \"hello\", or 1.5m."
       }
     },
     "partial-application": {
@@ -89,6 +119,16 @@
       "en": {
         "preferred": "type inference",
         "definition": "The compiler's deduction of static types from how expressions are used and from their context, without requiring annotations everywhere."
+      }
+    },
+    "unit": {
+      "zh": {
+        "preferred": "unit",
+        "definition": "只有一个值 () 的类型，用于表达某个表达式没有需要传递给后续计算的特定结果。"
+      },
+      "en": {
+        "preferred": "unit",
+        "definition": "A type with exactly one value, (), used when an expression has no specific result to pass to a later computation."
       }
     },
     "value": {

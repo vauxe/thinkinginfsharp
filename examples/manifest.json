@@ -2,6 +2,16 @@
   "schemaVersion": 1,
   "entries": [
     {
+      "id": "ch01-first-session",
+      "kind": "script",
+      "path": "examples/scripts/ch01-first-session.fsx",
+      "expectedOutput": [
+        "Functional Foundations: 22 seats remaining",
+        "Printing returned: ()",
+        "Lin booked 3 seats."
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",

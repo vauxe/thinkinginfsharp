@@ -5,7 +5,28 @@ export const zhLocale = {
   title: 'F# 思维',
   description: '从 F# 语言本身出发，学习函数式建模与生产级 .NET 工程。',
   themeConfig: {
-    nav: [{ text: '首页', link: '/zh/' }],
+    nav: [
+      { text: '首页', link: '/zh/' },
+      { text: '开始阅读', link: '/zh/part-01/ch-01-first-session' }
+    ],
+    sidebar: {
+      '/zh/part-01/': [
+        {
+          text: '第一部分 · 表达式与函数',
+          items: [
+            { text: '第 1 章 · 第一次 F# 会话', link: '/zh/part-01/ch-01-first-session' }
+          ]
+        }
+      ],
+      '/zh/solutions/': [
+        {
+          text: '练习答案',
+          items: [
+            { text: '第 1 章', link: '/zh/solutions/ch-01-first-session' }
+          ]
+        }
+      ]
+    },
     outline: { label: '本页目录', level: [2, 3] as [number, number] },
     lastUpdated: { text: '最后更新' },
     docFooter: { prev: '上一章', next: '下一章' },
