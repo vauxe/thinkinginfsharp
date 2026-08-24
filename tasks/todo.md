@@ -619,10 +619,10 @@
 
 ### B38 — 集成、诊断、C# 客户端与发布 / Integration, Diagnostics, C# Client, and Release
 
-- [ ] **依赖：** K12a、K12b。
+- [x] **依赖：** K12a、K12b。
 - **主要文件（4）：** `docs/{zh,en}/part-06/ch-38-integration-diagnostics-release.md`、`docs/{zh,en}/solutions/ch-38-integration-diagnostics-release.md`。
 - **验收：** 把运行、集成测试、诊断、C# 契约和发布检查收束成可复现闭环；列出保证、限制和下一步，不假装样例已是完整商业系统。
-- **验证：** `pnpm check:capstone`；双语与内容检查；`pnpm build`。
+- **验证：** 正文严格保持 355/355 行，答案严格保持 176/176 行；中英逐段对齐最终组合根、共享 HTTP 策略表面、纯函数—适配器—一致性—进程内 HTTP—真实进程证据阶梯、因果测试、只引用公开 Contracts 的 C# 客户端、相关 ID 的非身份边界、结构化日志脱敏、低基数计数器/直方图、可空内部子 Activity、插桩与收集的区别、单命令锁定还原/Release 构建/Booking 测试/真实 Kestrel/C# 冒烟/失败日志/有界清理、构建—发布—部署—运维区分、生产门与双向保证台账；答案把三个夸大主张改写为有拓扑和证据的窄主张，给出兼容 OpenTelemetry 的源/采样/脱敏/基数测试方案，并为依赖框架 Linux 容器设计同一摘要的发布、晋级、金丝雀、模式演进与条件回滚。引用 ASP.NET Core 集成测试、.NET 追踪/指标/日志与发布官方资料；`pnpm check:capstone` 通过真实客户端四阶段及成功/失败相关日志验证，完整 `pnpm test` 通过 22 项内容测试、双语/内容契约、锁定样例检查和 VitePress 生产构建。真实 Chrome 验证英文正文到答案、答案同页切换中文与两类侧栏；390×844 下无页面级横向溢出且宽表格内部滚动，控制台零消息，移动端 Lighthouse 可访问性、最佳实践、SEO 与可代理浏览均为 100。
 - **规模：** L。
 
 ### C6 — 贯穿项目检查点

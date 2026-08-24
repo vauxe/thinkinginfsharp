@@ -85,7 +85,8 @@ export const enLocale = {
             { text: '34 · The Pure Booking Workflow and Validation', link: '/en/part-06/ch-34-pure-booking-workflow' },
             { text: '35 · Ports, Persistence, Configuration, and Stubs', link: '/en/part-06/ch-35-ports-persistence-config' },
             { text: '36 · Web API, JSON, and Input Boundaries', link: '/en/part-06/ch-36-web-api-boundaries' },
-            { text: '37 · Consistency, Idempotency, Retries, and Partial Failure', link: '/en/part-06/ch-37-consistency-idempotency' }
+            { text: '37 · Consistency, Idempotency, Retries, and Partial Failure', link: '/en/part-06/ch-37-consistency-idempotency' },
+            { text: '38 · Integration, Diagnostics, C# Client, and Release Evidence', link: '/en/part-06/ch-38-integration-diagnostics-release' }
           ]
         }
       ],
@@ -129,7 +130,8 @@ export const enLocale = {
             { text: 'Chapter 34', link: '/en/solutions/ch-34-pure-booking-workflow' },
             { text: 'Chapter 35', link: '/en/solutions/ch-35-ports-persistence-config' },
             { text: 'Chapter 36', link: '/en/solutions/ch-36-web-api-boundaries' },
-            { text: 'Chapter 37', link: '/en/solutions/ch-37-consistency-idempotency' }
+            { text: 'Chapter 37', link: '/en/solutions/ch-37-consistency-idempotency' },
+            { text: 'Chapter 38', link: '/en/solutions/ch-38-integration-diagnostics-release' }
           ]
         }
       ]
