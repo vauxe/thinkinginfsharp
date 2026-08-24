@@ -755,10 +755,10 @@
 
 ### A01 — 附录 A：跨平台环境配置
 
-- [ ] **依赖：** C7。
+- [x] **依赖：** C7。
 - **主要文件（2）：** `docs/zh/appendices/a-setup.md`、`docs/en/appendices/a-setup.md`。
 - **验收：** Windows/macOS/Linux 安装、版本检查、编辑器和故障排查准确；区分必需工具与可选工具。
-- **验证：** 双语与内容检查；在当前平台逐命令复核，其他平台依据官方文档审阅；`pnpm build`。
+- **验证：** 中英文严格保持 279/279 行与同锨结构，把“只阅读静态书”、“运行核心 F#”、“维护本仓库”与“面向移动/Unity/云平台”拆成不同工具合同，明确 SDK 已包含 F# Interactive 和对应运行时，核心学习不需额外 workload、云账号或特定编辑器。Windows 覆盖官方安装器/WinGet、架构与 Visual Studio 边界；macOS 覆盖 Arm64/x64、安装根冲突及 Visual Studio for Mac 退役；Linux 按发行版分流，只把 `dotnet-sdk-10.0` 写为 Ubuntu 条件示例。还区分 VS Code/Ionide、Windows Visual Studio 与商业 Rider，并以命令发现、SDK 选择、架构、锁定还原、编辑器状态、workload/证书六层故障树收尾。安装与工具资料全部来自 Microsoft 或 JetBrains 官方页并带 2026-08-25 复核日。当前 macOS 26.3 Arm64 逐命令验证 `dotnet --version/--list-sdks/--info`、FSI help、Git、Node 与 pnpm；实际选中 SDK 10.0.301/F# 10，无额外 workload，且全新临时 `dotnet new console --language F#` 项目真实运行并输出 `Hello from F#`，随后清理。Windows/Linux 命令与 Visual Studio/Rider 只标记官方资料审阅，未伪称本机执行。双语、内容与 VitePress 生产构建通过。
 - **规模：** M。
 
 ### A02 — 附录 B：语法与运算符速查
