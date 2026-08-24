@@ -1,0 +1,26 @@
+# JavaScript and VitePress
+node_modules/
+.pnpm-store/
+docs/.vitepress/cache/
+docs/.vitepress/dist/
+dist/
+
+# .NET
+**/bin/
+**/obj/
+TestResults/
+BenchmarkDotNet.Artifacts/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.pfx
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+*.user
+*.suo
