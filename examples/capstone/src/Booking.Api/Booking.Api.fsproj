@@ -4,6 +4,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="Diagnostics.fs" />
     <Compile Include="Endpoints.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>

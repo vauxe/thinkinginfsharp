@@ -439,6 +439,7 @@
       "kind": "compile",
       "path": "examples/capstone/src/Booking.Api/Booking.Api.fsproj",
       "sources": [
+        "examples/capstone/src/Booking.Api/Diagnostics.fs",
         "examples/capstone/src/Booking.Api/Endpoints.fs",
         "examples/capstone/src/Booking.Api/Program.fs"
       ]

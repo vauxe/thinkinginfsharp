@@ -606,15 +606,15 @@
 - [x] **依赖：** B37、K11、E27。
 - **主要文件（≤5）：** `examples/capstone/clients/Booking.CSharpClient/Booking.CSharpClient.csproj`、`Program.cs`、`tests/ContractTests/BookingEndToEndTests.fs`、`tests/ContractTests/ContractTests.fsproj`、`ThinkingInFSharp.slnx`。
 - **验收：** C# 客户端通过已发布 DTO/API 表面完成预约；端到端测试覆盖成功、重复、冲突和无效 JSON；不引用领域内部类型。
-- **验证：** 先由缺失 `BookingEndpoints.mapConsistent` 得到预期 FS0039 红灯；保留 K10 的旧端口级 `map` 契约测试，同时新增最终 `mapConsistent` 组合路径，共享同一套 16 KiB/严格 JSON/DTO/验证/安全异常边界，并把聚合容量、幂等冲突、前序操作未完成、拒付、支付结果未知、依赖与存储故障映射为稳定且不泄密的 HTTP 结果；实际 `Program.fs` 已使用 `AtomicBookingStore`、`IdempotentBookingService` 和受控支付/通知替身。3 项 `BookingEndToEnd` 测试以真实 `TestServer`、原子快照和一致性服务覆盖首次 `201`、规范化等价重复的同结果重放、同键异载荷 `idempotency_conflict`、效果计数不重复、GET 当前状态、无效 JSON 在存储/外部效果前失败，以及支付故障后精确重试返回 `payment_outcome_unknown` 且不盲目重复扣款。C# 客户端只直接引用 `Booking.Contracts`，通过 `HttpClient` 和公开 DTO 执行放置—重放—确认—读取；Release 构建 0 警告/0 错误，并针对真实 Kestrel 独立进程输出 `Placed`、`Replay: status=201 same-body=True`、`Confirmed` 与 `Loaded: status=200 same-body=True`。完整锁定 `pnpm check:examples` 通过解决方案还原、构建、全部测试和已注册样例检查。
+- **验证：** 先由缺失 `BookingEndpoints.mapConsistent` 得到预期 FS0039 红灯；保留 K10 的旧端口级 `map` 契约测试，同时新增最终 `mapConsistent` 组合路径，共享同一套 16 KiB/严格 JSON/DTO/验证/安全异常边界，并把聚合容量、幂等冲突、前序操作未完成、拒付、支付结果未知、依赖与存储故障映射为稳定且不泄密的 HTTP 结果；实际 `Program.fs` 已使用 `AtomicBookingStore`、`IdempotentBookingService` 和受控支付/通知替身。4 项 `BookingEndToEnd` 测试以真实 `TestServer`、原子快照和一致性服务覆盖首次 `201`、规范化等价重复的同结果重放、同键异载荷 `idempotency_conflict`、效果计数不重复、GET 当前状态、无效 JSON 在存储/外部效果前失败、支付故障后精确重试返回 `payment_outcome_unknown` 且不盲目重复扣款，以及相关响应头、低基数指标与内部子 Activity。C# 客户端只直接引用 `Booking.Contracts`，通过 `HttpClient` 和公开 DTO 执行放置—重放—确认—读取；Release 构建 0 警告/0 错误，并针对真实 Kestrel 独立进程输出 `Placed`、`Replay: status=201 same-body=True`、`Confirmed` 与 `Loaded: status=200 same-body=True`。完整锁定 `pnpm check:examples` 通过解决方案还原、构建、全部测试和已注册样例检查。
 - **规模：** L。
 
 ### K12b — 诊断、运行说明与发布检查
 
-- [ ] **依赖：** K12a、E32。
+- [x] **依赖：** K12a、E32。
 - **主要文件（≤5）：** `examples/capstone/src/Booking.Api/Diagnostics.fs`、`Program.fs`、`examples/capstone/README.md`、`scripts/check-capstone.mjs`、`package.json`。
 - **验收：** 日志含相关 ID 而不泄露机密；最小指标/追踪位置可解释；一条命令执行 capstone 构建、测试和本地冒烟；运行说明从干净状态可复现。
-- **验证：** `pnpm check:capstone`；人工检查日志的成功与失败路径。
+- **验证：** 先由 `pnpm check:capstone` 在真实 Kestrel 失败于缺失 32 位 W3C 相关 ID 得到预期红灯；`BookingRequestDiagnostics` 现把 ASP.NET Core TraceId 放入 `X-Correlation-ID`、事件 1000 的结构化完成日志与日志作用域，只记录方法、路由模板、状态、低基数结果和耗时，不记录请求/响应体、请求 ID、确认码、提供商交易文本、异常消息或快照路径。`booking.http.requests` 计数器与 `booking.http.duration` 直方图只使用有界 `outcome` 维度；`ThinkingInFSharp.Booking.Api` 的 `booking.http.request` Activity 作为服务器 Activity 的内部子活动，并正确容忍无监听器时的 `null`。第 4 项 `BookingEndToEnd` 通过 `MeterListener` 与 `ActivityListener` 证明响应相关 ID、两项测量和停止的子 Activity 对齐。`scripts/check-capstone.mjs` 无 shell 拼接地执行锁定还原、Release 构建、全部 Booking 测试、动态回环端口真实 API、独立 C# 客户端、无效 JSON 契约、成功/失败相关日志和禁用文本断言，并在 `finally` 停止进程、清除唯一临时目录；`examples/capstone/README.md` 提供一条命令及 Bash/PowerShell 手工复现、配置、端点、诊断信号、保证和明确非生产边界。最终 `pnpm check:capstone` 输出客户端四阶段成功与 `Diagnostics: success=true client-error=true ... secrets=false`；人工日志核对响应 ID 与失败日志一致，成功/失败行仅含受控字段；完整 `pnpm check:examples` 通过。
 - **规模：** M。
 
 ### B38 — 集成、诊断、C# 客户端与发布 / Integration, Diagnostics, C# Client, and Release

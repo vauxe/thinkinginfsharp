@@ -7,6 +7,7 @@ open Booking.Infrastructure
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
 open Microsoft.AspNetCore.Server.Kestrel.Core
+open Microsoft.Extensions.Logging
 
 type private StartupConfiguration =
     { Store: BookingStoreConfiguration
@@ -71,6 +72,9 @@ module Program =
         | Ok configuration ->
             let builder = WebApplication.CreateBuilder arguments
 
+            builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning) |> ignore
+            BookingDiagnostics.add builder.Services
+
             builder.WebHost.ConfigureKestrel(
                 Action<KestrelServerOptions>(fun options ->
                     options.AddServerHeader <- false
@@ -86,6 +90,8 @@ module Program =
                 IdempotentBookingService(configuration.Activity, store, payment.Invoke, notification.Invoke)
 
             use application = builder.Build()
+
+            BookingDiagnostics.useMiddleware application
 
             BookingEndpoints.mapConsistent
                 application

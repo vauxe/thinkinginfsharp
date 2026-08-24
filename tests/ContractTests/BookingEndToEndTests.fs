@@ -1,6 +1,8 @@
 namespace ThinkingInFSharp.ContractTests
 
 open System
+open System.Diagnostics
+open System.Diagnostics.Metrics
 open System.IO
 open System.Net
 open System.Net.Http
@@ -71,11 +73,15 @@ module BookingEndToEndTests =
         let service = IdempotentBookingService(activity, store, charge, notify)
         let builder = WebApplication.CreateBuilder([||])
 
-        do builder.WebHost.UseTestServer() |> ignore
+        do
+            builder.WebHost.UseTestServer() |> ignore
+            BookingDiagnostics.add builder.Services
 
         let application = builder.Build()
 
         do
+            BookingDiagnostics.useMiddleware application
+
             BookingEndpoints.mapConsistent
                 application
                 { Execute = fun command token -> service.Execute(command, token)
@@ -197,3 +203,70 @@ module BookingEndToEndTests =
         Assert.Equal("payment_outcome_unknown", (readError retry).Code)
         Assert.Equal(1, api.PaymentCalls)
         Assert.Equal(0, api.NotificationCalls)
+
+    [<Fact>]
+    let ``request diagnostics emit bounded metrics and one correlated child activity`` () =
+        let measurements = ResizeArray<string * string>()
+        let completedActivities = ResizeArray<Activity>()
+
+        use meterListener = new MeterListener()
+
+        meterListener.InstrumentPublished <-
+            fun instrument listener ->
+                if instrument.Meter.Name = BookingDiagnosticNames.MeterName then
+                    listener.EnableMeasurementEvents instrument
+
+        meterListener.SetMeasurementEventCallback<int64>(fun instrument _ tags _ ->
+            let outcome =
+                tags.ToArray()
+                |> Array.tryPick (fun tag ->
+                    if tag.Key = "outcome" then
+                        Some(string tag.Value)
+                    else
+                        None)
+                |> Option.defaultValue "missing"
+
+            measurements.Add(instrument.Name, outcome))
+
+        meterListener.SetMeasurementEventCallback<double>(fun instrument _ tags _ ->
+            let outcome =
+                tags.ToArray()
+                |> Array.tryPick (fun tag ->
+                    if tag.Key = "outcome" then
+                        Some(string tag.Value)
+                    else
+                        None)
+                |> Option.defaultValue "missing"
+
+            measurements.Add(instrument.Name, outcome))
+
+        meterListener.Start()
+
+        use activityListener = new ActivityListener()
+        activityListener.ShouldListenTo <- fun source -> source.Name = BookingDiagnosticNames.ActivitySourceName
+        activityListener.Sample <- fun _ -> ActivitySamplingResult.AllDataAndRecorded
+        activityListener.ActivityStopped <- Action<Activity>(completedActivities.Add)
+        ActivitySource.AddActivityListener activityListener
+
+        use temporary = new TemporaryDirectory()
+        use api = new TestApi(Path.Combine(temporary.Path, "bookings.json"), authorize)
+        use response = sendJson api.Client "/api/bookings/place" "{not-json"
+
+        let correlation = response.Headers.GetValues("X-Correlation-ID") |> Seq.exactlyOne
+        Assert.Matches("^[0-9a-f]{32}$", correlation)
+
+        Assert.Contains(
+            (BookingDiagnosticNames.RequestCounterName, "client_error"),
+            measurements
+        )
+
+        Assert.Contains(
+            (BookingDiagnosticNames.RequestDurationName, "client_error"),
+            measurements
+        )
+
+        let activity = Assert.Single completedActivities
+        Assert.Equal(BookingDiagnosticNames.RequestActivityName, activity.DisplayName)
+        Assert.Equal(correlation, string (activity.GetTagItem "booking.correlation_id"))
+        Assert.Equal("HTTP: POST /api/bookings/place", string (activity.GetTagItem "http.route"))
+        Assert.Equal("client_error", string (activity.GetTagItem "booking.outcome"))

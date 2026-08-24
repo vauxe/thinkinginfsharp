@@ -11,6 +11,7 @@
     "check:parity": "node scripts/check-parity.mjs",
     "check:content": "node scripts/check-content.mjs",
     "check:examples": "node scripts/check-examples.mjs",
+    "check:capstone": "node scripts/check-capstone.mjs",
     "test:content": "node --test scripts/content-contract.test.mjs scripts/markdown.test.mjs scripts/content-checks.test.mjs scripts/example-checks.test.mjs",
     "test": "pnpm test:content && pnpm check:parity && pnpm check:content && pnpm check:examples && pnpm build"
   },
