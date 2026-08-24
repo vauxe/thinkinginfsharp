@@ -715,10 +715,10 @@
 
 ### B43 — Avalonia、桌面与移动端 / Avalonia, Desktop, and Mobile
 
-- [ ] **依赖：** X43。
+- [x] **依赖：** X43。
 - **主要文件（4）：** `docs/{zh,en}/part-07/ch-43-avalonia-desktop-mobile.md`、`docs/{zh,en}/solutions/ch-43-avalonia-desktop-mobile.md`。
 - **验收：** 提供桌面/移动决策地图，准确区分共享 .NET 能力、平台工具链和 F# 模板/绑定摩擦；不把桌面构建等同全平台验证。
-- **验证：** X43 构建；双语与内容检查；`pnpm build`。
+- **验证：** 中英文正文严格保持 501/501 行、解答严格保持 300/300 行；章节从领域/持久数据、纯展示状态转换、UI 工具包、平台宿主、签名安装更新五层契约出发，区分共享逻辑、共享 UI 与共享验证证据，并比较 Avalonia、WPF/WinUI、.NET MAUI、Fable/Web 和薄原生壳。X43 的 `Counter.update`、AXAML 与桌面宿主构成唯一已编译切片；正文同时覆盖手写 MVU、MVVM 适配、code-behind、code-only/FuncUI、效果消息、编译绑定与 F# 类型适配、UI 线程/取消/陈旧结果、平台服务端口、Windows/macOS/Linux 后端、Android/iOS 项目图与生命周期、无障碍、打包、运行时交付、更新回退和验证阶梯。所有易变能力注明截至 2026-08-25，并明确 Avalonia 12.1.1/.NET 10 的仓库证据、官方资料审阅与未执行移动端/Player 证据三者边界；真实 macOS 启动的 CoreVideo RenderTimer `-6661` 环境限制也原样记录，不把桌面构建冒充窗口或全平台验证。三道双语答案分别完成既有 WPF、跨平台桌面和移动产品的边界选择，设计桌面发布切片与 Core/Desktop/Android/iOS 项目图，并给出可推翻的证据矩阵和撤回条件。双语、内容检查和 VitePress 生产构建通过；真实 Chrome 验证英文正文到解答、真实语言菜单切换中文解答并返回中文正文，两套侧栏和链接均正确；390×844 下无页面级横向溢出，宽表格与代码块只在自身容器内滚动，控制台零警告/错误，移动端 Lighthouse 的可访问性、最佳实践、SEO 与可代理浏览均为 100。
 - **规模：** L。
 
 ### X44 — Unity 6.3 LTS F# 插件与 C# 适配层
