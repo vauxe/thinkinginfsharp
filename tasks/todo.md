@@ -61,10 +61,10 @@
 
 ### F06 — 建立 F# 解决方案与基础测试工程
 
-- [ ] **依赖：** F01。
+- [x] **依赖：** F01。
 - **主要文件（5）：** `ThinkingInFSharp.slnx`、`Directory.Build.props`、`.editorconfig`、`tests/ExampleTests/ExampleTests.fsproj`、`tests/ExampleTests/SmokeTests.fs`。
 - **验收：** F# 10/`net10.0`、nullable 和警告即错误策略集中定义；xUnit 冒烟测试进入解决方案；Release 构建无警告。
-- **验证：** `dotnet restore ThinkingInFSharp.slnx`；`dotnet build ThinkingInFSharp.slnx -c Release --no-restore`；`dotnet test ThinkingInFSharp.slnx -c Release --no-build`。
+- **验证：** `dotnet restore ThinkingInFSharp.slnx --locked-mode`；Release 构建 0 警告、0 错误；xUnit 冒烟测试 1 项通过；NuGet 直接与传递依赖无已知漏洞。
 - **规模：** S。
 
 ### F07 — 建立契约测试与统一示例检查器

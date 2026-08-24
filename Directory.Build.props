@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion Condition="'$(MSBuildProjectExtension)' == '.fsproj'">10.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Deterministic>true</Deterministic>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+</Project>
