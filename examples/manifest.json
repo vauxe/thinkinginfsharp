@@ -146,6 +146,18 @@
       ]
     },
     {
+      "id": "ch12-making-illegal-states-unrepresentable",
+      "kind": "script",
+      "path": "examples/scripts/ch12-making-illegal-states-unrepresentable.fsx",
+      "expectedOutput": [
+        "Capacity: accepted=40",
+        "Capacity rejection: capacity must be positive: 0",
+        "Request: event=EVT-42 seats=3",
+        "Request rejection: event id is blank",
+        "Request rejection: seat count must be positive: 0"
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",

@@ -195,10 +195,10 @@
 
 ### B12 — 让非法状态无法表示 / Making Illegal States Unrepresentable
 
-- [ ] **依赖：** B11。
+- [x] **依赖：** B11。
 - **主要文件（5）：** `docs/{zh,en}/part-02/ch-12-making-illegal-states-unrepresentable.md`、`docs/{zh,en}/solutions/ch-12-making-illegal-states-unrepresentable.md`、`examples/scripts/ch12-making-illegal-states-unrepresentable.fsx`。
 - **验收：** 私有表示、伴生模块、智能构造函数、必要访问控制与不变量形成完整模式；解释同文件/跨文件可见性。
-- **验证：** FSI 验证合法构造和预期拒绝路径；双语与内容检查；`pnpm build`。
+- **验证：** FSI 的 5 行确定性输出覆盖合法构造、规范化和三条拒绝路径；直接私有案例构造已验证为 FS1093；临时 `.fsi`/`.fs`/消费者三文件探针在 Release 零警告编译后清理；`pnpm test` 全链路通过。
 - **规模：** L。
 
 ### K02 — 预约领域模型与不变量

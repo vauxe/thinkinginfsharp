@@ -31,7 +31,8 @@ export const zhLocale = {
             { text: '第 8 章 · 可辨识联合与状态建模', link: '/zh/part-02/ch-08-discriminated-unions' },
             { text: '第 9 章 · 缺失与预期失败', link: '/zh/part-02/ch-09-option-result' },
             { text: '第 10 章 · 递归类型与结构递归', link: '/zh/part-02/ch-10-recursive-types' },
-            { text: '第 11 章 · 泛型、约束与度量单位', link: '/zh/part-02/ch-11-generics-constraints' }
+            { text: '第 11 章 · 泛型、约束与度量单位', link: '/zh/part-02/ch-11-generics-constraints' },
+            { text: '第 12 章 · 让非法状态无法表示', link: '/zh/part-02/ch-12-making-illegal-states-unrepresentable' }
           ]
         }
       ],
@@ -49,7 +50,8 @@ export const zhLocale = {
             { text: '第 8 章', link: '/zh/solutions/ch-08-discriminated-unions' },
             { text: '第 9 章', link: '/zh/solutions/ch-09-option-result' },
             { text: '第 10 章', link: '/zh/solutions/ch-10-recursive-types' },
-            { text: '第 11 章', link: '/zh/solutions/ch-11-generics-constraints' }
+            { text: '第 11 章', link: '/zh/solutions/ch-11-generics-constraints' },
+            { text: '第 12 章', link: '/zh/solutions/ch-12-making-illegal-states-unrepresentable' }
           ]
         }
       ]

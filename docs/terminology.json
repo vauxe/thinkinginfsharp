@@ -11,6 +11,16 @@
         "definition": "A value threaded into the next recursive or folding step that represents the result completed so far."
       }
     },
+    "access-control": {
+      "zh": {
+        "preferred": "访问控制",
+        "definition": "用 public、internal、private 或签名文件规定哪些代码位置能够使用某个程序实体的机制。"
+      },
+      "en": {
+        "preferred": "access control",
+        "definition": "The mechanism for specifying which code locations may use a program entity through public, internal, private, or a signature file."
+      }
+    },
     "argument": {
       "zh": {
         "preferred": "实参",
@@ -301,6 +311,16 @@
         "definition": "A type-level parameter representing an as-yet unspecified type within a definition and replaced consistently by a type argument at each concrete use."
       }
     },
+    "invariant": {
+      "zh": {
+        "preferred": "不变量",
+        "definition": "对一个受保护类型的每个可公开获得值都应持续成立的条件。"
+      },
+      "en": {
+        "preferred": "invariant",
+        "definition": "A condition intended to remain true for every publicly obtainable value of a protected type."
+      }
+    },
     "option": {
       "zh": {
         "preferred": "option",
@@ -359,6 +379,16 @@
       "en": {
         "preferred": "pipeline",
         "definition": "Using |> to pass the result on the left as the final argument of the function application on the right, expressing transformations in data-flow order."
+      }
+    },
+    "private-representation": {
+      "zh": {
+        "preferred": "私有表示",
+        "definition": "调用方能够使用类型本身，却不能直接使用其底层联合案例、记录字段构造或其他表示细节的设计。"
+      },
+      "en": {
+        "preferred": "private representation",
+        "definition": "A design in which callers can use a type but cannot directly use its underlying union cases, record construction, or other representation details."
       }
     },
     "recursive-type": {
@@ -429,6 +459,26 @@
       "en": {
         "preferred": "short-circuit",
         "definition": "Stopping a composition at a None or Error that cannot continue, preserving that result without running later dependent steps."
+      }
+    },
+    "signature-file": {
+      "zh": {
+        "preferred": "签名文件",
+        "definition": "扩展名为 .fsi、位于对应 .fs 实现之前并声明其他文件可见公开表面的 F# 文件。"
+      },
+      "en": {
+        "preferred": "signature file",
+        "definition": "An F# .fsi file placed before its corresponding .fs implementation that declares the public surface visible to other files."
+      }
+    },
+    "smart-constructor": {
+      "zh": {
+        "preferred": "智能构造函数",
+        "definition": "在产生受保护领域值之前执行验证或规范化，并以显式返回类型报告拒绝原因的函数。"
+      },
+      "en": {
+        "preferred": "smart constructor",
+        "definition": "A function that validates or normalizes input before producing a protected domain value and reports rejection through an explicit return type."
       }
     },
     "statically-resolved-type-parameter": {
