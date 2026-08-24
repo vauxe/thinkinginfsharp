@@ -96,6 +96,18 @@
       ]
     },
     {
+      "id": "ch08-discriminated-unions",
+      "kind": "script",
+      "path": "examples/scripts/ch08-discriminated-unions.fsx",
+      "expectedOutput": [
+        "Flag model contradiction: pending=true confirmed=true cancelled=false",
+        "Statuses: [\"pending\"; \"confirmed:C-42\"; \"cancelled:duplicate\"]",
+        "Confirmed case carries code: C-42",
+        "Transition: pending -> confirmed:C-99",
+        "All descriptions: 3"
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",

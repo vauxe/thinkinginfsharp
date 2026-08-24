@@ -163,10 +163,10 @@
 
 ### B08 — 可辨识联合与状态建模 / Discriminated Unions and State Modeling
 
-- [ ] **依赖：** B07。
+- [x] **依赖：** B07。
 - **主要文件（5）：** `docs/{zh,en}/part-02/ch-08-discriminated-unions.md`、`docs/{zh,en}/solutions/ch-08-discriminated-unions.md`、`examples/scripts/ch08-discriminated-unions.fsx`。
 - **验收：** 用联合类型替代标志组合，教授构造/解构与完整匹配；预期不穷尽示例只作诊断引用，不污染有效脚本。
-- **验证：** 聚焦 FSI；双语与内容检查；`pnpm build`。
+- **验证：** FSI 的 5 行输出覆盖标志矛盾、三案例构造/穷尽解构、案例数据与纯转换；非穷尽版本仅作 FS0025 诊断说明；`pnpm test` 全链路通过。
 - **规模：** M。
 
 ### B09 — `option` 与 `Result` / `option` and `Result`

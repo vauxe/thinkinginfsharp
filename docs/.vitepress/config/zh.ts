@@ -27,7 +27,8 @@ export const zhLocale = {
         {
           text: '第二部分 · 用类型建立模型',
           items: [
-            { text: '第 7 章 · 记录、更新、相等与比较', link: '/zh/part-02/ch-07-records-equality' }
+            { text: '第 7 章 · 记录、更新、相等与比较', link: '/zh/part-02/ch-07-records-equality' },
+            { text: '第 8 章 · 可辨识联合与状态建模', link: '/zh/part-02/ch-08-discriminated-unions' }
           ]
         }
       ],
@@ -41,7 +42,8 @@ export const zhLocale = {
             { text: '第 4 章', link: '/zh/solutions/ch-04-branching-patterns' },
             { text: '第 5 章', link: '/zh/solutions/ch-05-lists-pipelines' },
             { text: '第 6 章', link: '/zh/solutions/ch-06-recursion-folds' },
-            { text: '第 7 章', link: '/zh/solutions/ch-07-records-equality' }
+            { text: '第 7 章', link: '/zh/solutions/ch-07-records-equality' },
+            { text: '第 8 章', link: '/zh/solutions/ch-08-discriminated-unions' }
           ]
         }
       ]

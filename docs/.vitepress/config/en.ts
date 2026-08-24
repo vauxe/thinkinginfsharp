@@ -27,7 +27,8 @@ export const enLocale = {
         {
           text: 'Part II · Modeling with types',
           items: [
-            { text: '7 · Records, Updates, Equality, and Comparison', link: '/en/part-02/ch-07-records-equality' }
+            { text: '7 · Records, Updates, Equality, and Comparison', link: '/en/part-02/ch-07-records-equality' },
+            { text: '8 · Discriminated Unions and State Modeling', link: '/en/part-02/ch-08-discriminated-unions' }
           ]
         }
       ],
@@ -41,7 +42,8 @@ export const enLocale = {
             { text: 'Chapter 4', link: '/en/solutions/ch-04-branching-patterns' },
             { text: 'Chapter 5', link: '/en/solutions/ch-05-lists-pipelines' },
             { text: 'Chapter 6', link: '/en/solutions/ch-06-recursion-folds' },
-            { text: 'Chapter 7', link: '/en/solutions/ch-07-records-equality' }
+            { text: 'Chapter 7', link: '/en/solutions/ch-07-records-equality' },
+            { text: 'Chapter 8', link: '/en/solutions/ch-08-discriminated-unions' }
           ]
         }
       ]

@@ -461,6 +461,16 @@
         "definition": "A type with exactly one value, (), used when an expression has no specific result to pass to a later computation."
       }
     },
+    "union-case": {
+      "zh": {
+        "preferred": "联合案例",
+        "definition": "可辨识联合中一种有名称的可能形状，可不携带数据，也可携带只对该形状有意义的字段。"
+      },
+      "en": {
+        "preferred": "union case",
+        "definition": "One named possible shape of a discriminated union, carrying either no data or fields meaningful only for that shape."
+      }
+    },
     "value": {
       "zh": {
         "preferred": "值",
