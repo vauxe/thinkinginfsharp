@@ -739,10 +739,10 @@
 
 ### B45 — 脚本、自动化、包生态与继续学习 / Scripting, Automation, Packages, and What Comes Next
 
-- [ ] **依赖：** B44。
+- [x] **依赖：** B44。
 - **主要文件（5）：** `docs/{zh,en}/part-07/ch-45-scripting-packages-next.md`、`docs/{zh,en}/solutions/ch-45-scripting-packages-next.md`、`examples/scripts/ch45-scripting-packages-next.fsx`。
 - **验收：** 展示一个真实本地自动化脚本、包选择/锁定原则和继续学习地图；quotations、SRTP、灵活类型、byref/Span 只做识别并链接 A08。
-- **验证：** FSI 在临时夹具上执行自动化且幂等；双语与内容检查；`pnpm build`。
+- **验证：** 先在示例 manifest 登记尚不存在的 `ch45-scripting-packages-next.fsx`，得到精确缺文件红灯；首版脚本又因 .NET 现代 `Path.GetDirectoryName` 的 `string`/`ReadOnlySpan<char>` 重载无法唯一推断而真实编译失败，补清边界类型并消除保留字警告后通过 Fantomas。最终 X45 只用 BCL 建立版本 1 SHA-256 JSON 产物清单：解析完整路径、拒绝链接根、递归跳过 reparse point、排除输出自身、统一 `/`、ordinal 排序、固定 JSON 属性/UTF-8/换行，并先生成完整期望文本；`write` 仅在字节不同后以同目录临时文件替换，`check` 只读且用退出码区分 stale 与故障。无参数 FSI 在唯一临时夹具上严格观察首次 `Updated`、第二次 `Unchanged`、只读 `Current`、2 个规范化路径、哨兵时间戳未变化和最终清理；统一示例门完整通过。另用真实 CLI 参数对 23 个脚本文件执行 `write → check → write`，依次得到 updated/current/unchanged，随后删除任务专属临时目录。中英文正文严格保持 499/499 行、解答严格保持 280/280 行，覆盖 REPL/脚本/项目/本地工具/FAKE 的升级判断、FSI 参数与指令、确定性和幂等自动化、路径/进程/安全边界、包适配评估、`#r "nuget:"` 与完整锁图的差异、PackageReference locked mode、源映射/审计、Paket/FAKE 分工及项目式继续学习地图；高级 quotations、SRTP、灵活类型、byref/Span 只作识别并链接 167/167 行的附录 H 评审版。官方当前 SRTP 资料还揭示并修正了第 11 章旧式“只看 `^T`”表述：F# 7+ 常用简化语法可用 `'T`，应由 `inline` 加成员约束共同识别。解答以截至 2026-08-25 的 NuGet 官方页比较 Argu 6.2.5、System.CommandLine 2.0.11 与手写解析，并明确这些是资料审阅而非仓库运行证据。双语、内容与 VitePress 生产构建通过；真实 Chrome 走通英文正文、附录 H、英文解答、语言菜单中文解答及返回中文正文，两套第 45 章侧栏和互链正确；390×844 无页面级横向溢出，宽表格与代码只在自身容器滚动，控制台零警告/错误，移动端 Lighthouse 的可访问性、最佳实践、SEO 与可代理浏览均为 100。
 - **规模：** M。
 
 ### C7 — 生态地图检查点

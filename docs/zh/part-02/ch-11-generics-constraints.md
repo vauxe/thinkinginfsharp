@@ -34,6 +34,9 @@ sources:
   - id: microsoft-generic-constraints
     url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/constraints
     checked: "2026-08-24"
+  - id: microsoft-srtp
+    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/statically-resolved-type-parameters
+    checked: "2026-08-25"
   - id: microsoft-units-of-measure
     url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/units-of-measure
     checked: "2026-08-24"
@@ -58,7 +61,7 @@ sources:
 - 在类型标注、显式参数与接收 unit 的工厂之间选择；
 - 读写 `'T : equality` 与 `'T : comparison` 约束；
 - 解释记录、元组、列表和联合的能力怎样依赖组成类型；
-- 区分普通 `'T` 泛型与静态解析的 `^T` 参数；
+- 区分普通泛型与静态解析参数及其内联成员约束；
 - 用度量单位在编译期拒绝量纲无效的算术；
 - 说明度量单位不验证什么，以及它在运行时会怎样。
 
@@ -203,14 +206,14 @@ let invalid = functionEnvelope = functionEnvelope
 
 本书大多数泛型 F# 代码使用写作 `'T` 的普通参数：`duplicate`、`mapTree`、`same` 和 `comesBefore`。相等与比较是能用于这些普通泛型签名的特殊 F# 约束。
 
-泛化运算符的代码可能会出现带 `inline`、`^T` 和静态成员约束的签名：
+泛化运算符的代码可能会出现带 `inline` 和静态成员约束的签名：
 
 ```fsharp
 let inline add left right = left + right
-// 带 ^ 前缀的操作数类型通过静态 (+) 成员约束解析。
+// 推断出的签名是内联的，并携带静态 (+) 成员约束。
 ```
 
-根据可用的 `+` 成员，精确推断签名可能为两个操作数使用不同的 ^ 前缀类型，并使用另一个结果类型。`^T` 这样的参数是**静态解析类型参数**（SRTP），属于另一套 F# 机制，在内联调用点解析。它适合少数泛型数值和基于成员的抽象，却不是普通泛型编程的前提。不要仅仅因为 `map`、相等检查或领域函数的签名含有类型变量，就给它们添加 `inline` 与 ^ 前缀参数。
+在当前 F# 中，**静态解析类型参数**（SRTP）的简化语法通常使用 `'T` 这样的撇号前缀名称；旧资料和某些复杂显式分派形式仍使用 `^T`。因此，标点本身已经不能区分 SRTP 与普通泛型参数。应组合识别这些信号：`inline` 定义、编译期特化，以及 `static member (+)` 这样的成员约束。SRTP 适合少数泛型数值和基于成员的抽象，却不是普通泛型编程的前提。不要仅仅因为 `map`、相等检查或领域函数的签名含有类型变量，就给它们添加 `inline` 与成员约束。
 
 共享脚本中的带度量加法有意把表示固定为 `int`，只改变度量，因此无需自定义 SRTP 机制。附录 H 会给出识别规则与高级官方入口；对领域 API 而言，具体数值类型通常更清楚。
 
@@ -303,7 +306,7 @@ let keepAll = List.filter (fun _ -> true)
 - 值限制防止一个不可泛化的值被用成彼此不相容的构造类型。
 - 类型标注会专门化一个值；显式参数会公开泛型函数；`()` 可以建立每次生成新值的工厂。
 - 相等与比较约束来自操作，并通过结构字段组合。
-- 普通 `'T` 泛型不需要 SRTP；带 `inline` 的 `^T` 是另一套高级机制。
+- 普通泛型不需要 SRTP；应通过 `inline` 加成员约束来识别 SRTP，而不是只看 `'T` 与 `^T` 标点。
 - 度量单位在编译期拒绝量纲错误，在运行时擦除，而且不会强制数值范围不变量。
 
 第 12 章会有意运用这些类型能力：私有表示与智能构造函数将阻止调用方构造无效领域值。

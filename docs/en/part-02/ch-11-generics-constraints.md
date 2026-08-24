@@ -34,6 +34,9 @@ sources:
   - id: microsoft-generic-constraints
     url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/constraints
     checked: "2026-08-24"
+  - id: microsoft-srtp
+    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/statically-resolved-type-parameters
+    checked: "2026-08-25"
   - id: microsoft-units-of-measure
     url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/units-of-measure
     checked: "2026-08-24"
@@ -58,7 +61,7 @@ By the end of this chapter, you should be able to:
 - choose among an annotation, an explicit parameter, and a unit-taking factory;
 - read and write `'T : equality` and `'T : comparison` constraints;
 - explain how record, tuple, list, and union capabilities depend on component types;
-- distinguish ordinary `'T` generics from statically resolved `^T` parameters;
+- distinguish ordinary generics from statically resolved parameters and their inline member constraints;
 - use units of measure to reject dimensionally invalid arithmetic at compile time;
 - state what units do not validate and what happens to them at runtime.
 
@@ -203,14 +206,14 @@ This connects directly to Chapter 7. Equal records get compatible hashes because
 
 Most generic F# code in this book uses ordinary parameters written `'T`: `duplicate`, `mapTree`, `same`, and `comesBefore`. Equality and comparison are special F# constraints that work with these ordinary generic signatures.
 
-Operator-general code can instead reveal a signature involving `inline`, `^T`, and a static-member constraint:
+Operator-general code can instead reveal a signature involving `inline` and a static-member constraint:
 
 ```fsharp
 let inline add left right = left + right
-// Caret-prefixed operand types are resolved through a static (+) member constraint.
+// The inferred signature is inline and carries a static (+) member constraint.
 ```
 
-The exact inferred signature may use separate caret-prefixed types for the two operands and another result type, according to the available `+` member. A parameter such as `^T` is a **statically resolved type parameter** (SRTP), part of a separate F# mechanism resolved at inline call sites. It is useful for selected generic numeric and member-based abstractions, but it is not a prerequisite for ordinary generic programming. Do not add `inline` and caret-prefixed parameters to `map`, equality checks, or domain functions merely because their signatures contain type variables.
+In current F#, the simplified syntax for a **statically resolved type parameter** (SRTP) commonly uses apostrophe-prefixed names such as `'T`; older material and some complex explicit dispatch forms use `^T`. Punctuation alone therefore does not distinguish an SRTP from an ordinary generic parameter. Recognize the combined signals: an `inline` definition, compile-time specialization, and a member constraint such as `static member (+)`. SRTP is useful for selected generic numeric and member-based abstractions, but it is not a prerequisite for ordinary generic programming. Do not add `inline` and member constraints to `map`, equality checks, or domain functions merely because their signatures contain type variables.
 
 The shared measured addition deliberately fixes the representation as `int` and varies only the measure. It needs no custom SRTP machinery. Appendix H provides recognition rules and the advanced official entry point; concrete numeric types are usually clearer for domain APIs.
 
@@ -303,7 +306,7 @@ Explain what measure information remains after serialization and name one bookin
 - The value restriction prevents one nongeneralizable value from being used as incompatible constructed types.
 - An annotation specializes one value; an explicit parameter exposes a generic function; `()` can make a fresh-value factory.
 - Equality and comparison constraints arise from operations and compose through structural fields.
-- Ordinary `'T` generics do not require SRTP; `^T` with `inline` is a separate advanced mechanism.
+- Ordinary generics do not require SRTP; recognize SRTP by `inline` plus member constraints, not by `'T` versus `^T` punctuation alone.
 - Units of measure reject dimensional mistakes at compile time, are erased at runtime, and do not enforce value-range invariants.
 
 Chapter 12 now uses these type capabilities deliberately: private representations and smart constructors will prevent callers from constructing invalid domain values.
