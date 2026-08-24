@@ -11,6 +11,7 @@
     <Compile Include="BookingDomainTests.fs" />
     <Compile Include="Ch16ProjectTests.fs" />
     <Compile Include="Ch17SignatureTests.fs" />
+    <Compile Include="BookingWorkflowTests.fs" />
   </ItemGroup>
 
   <ItemGroup>

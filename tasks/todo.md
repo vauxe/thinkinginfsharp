@@ -283,10 +283,10 @@
 
 ### K03 — 预约纯工作流与验证累积
 
-- [ ] **依赖：** B18、K02。
+- [x] **依赖：** B18、K02。
 - **主要文件（≤5）：** `examples/capstone/src/Booking.Domain/Validation.fs`、`Workflow.fs`、`Booking.Domain.fsproj`、`tests/ExampleTests/BookingWorkflowTests.fs`、`examples/manifest.json`。
 - **验收：** 纯工作流输入命令与当前状态，输出事件或错误；可并行检查的输入错误全部累积，依赖前序状态的业务失败短路。
-- **验证：** `dotnet test ThinkingInFSharp.slnx --configuration Release --filter FullyQualifiedName~BookingWorkflow`；Release 构建；`pnpm check:examples`。
+- **验证：** 先以缺失 `Validation`/`Workflow` API 获得 `FS0039` 编译红灯，再由 5 项 `BookingWorkflow` 测试覆盖双字段错误有序累积、成功事件/状态演进、容量拒绝、已有状态优先短路及无效输入优先级；外部 FSI 复核公开签名为命令/状态到事件或错误的纯函数；Release 全解决方案构建/测试与 `pnpm check:examples` 通过。
 - **规模：** M。
 
 ### C3 — 第三部分检查点

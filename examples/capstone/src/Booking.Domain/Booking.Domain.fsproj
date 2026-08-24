@@ -5,5 +5,7 @@
 
   <ItemGroup>
     <Compile Include="Domain.fs" />
+    <Compile Include="Validation.fs" />
+    <Compile Include="Workflow.fs" />
   </ItemGroup>
 </Project>
