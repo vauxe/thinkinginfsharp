@@ -1,6 +1,6 @@
 export const enLocale = {
   label: 'English',
-  lang: 'en-US',
+  lang: 'en',
   link: '/en/',
   title: 'Thinking in F#',
   description: 'Learn functional modeling and production .NET engineering from F# itself.',

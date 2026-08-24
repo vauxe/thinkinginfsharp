@@ -17,11 +17,6 @@
   --book-choice-border: #465365;
 }
 
-.stable-anchor {
-  display: block;
-  scroll-margin-top: calc(var(--vp-nav-height) + 1rem);
-}
-
 :focus-visible {
   outline: 3px solid var(--vp-c-brand-1);
   outline-offset: 3px;

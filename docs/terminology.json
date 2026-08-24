@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "terms": {
+    "binding": {
+      "zh": {
+        "preferred": "绑定",
+        "definition": "由 let 等模式建立的名称与值之间的关联；它不是一个可随意改写的存储槽。"
+      },
+      "en": {
+        "preferred": "binding",
+        "definition": "An association, introduced by a pattern such as let, between a name and a value; it is not an implicitly rewritable storage slot."
+      }
+    },
+    "computation-expression": {
+      "zh": {
+        "preferred": "计算表达式",
+        "definition": "由构建器成员解释的 F# 语法，用来组合带有特定上下文或控制流的计算。"
+      },
+      "en": {
+        "preferred": "computation expression",
+        "definition": "F# syntax interpreted through builder members to compose computations with a particular context or control flow."
+      }
+    },
+    "discriminated-union": {
+      "zh": {
+        "preferred": "可辨识联合",
+        "definition": "一种由若干具名用例组成的类型；一个值恰属其中一个用例，每个用例还可以携带数据。"
+      },
+      "en": {
+        "preferred": "discriminated union",
+        "definition": "A type made of named cases; each value belongs to exactly one case, and a case may carry additional data."
+      }
+    },
+    "expression": {
+      "zh": {
+        "preferred": "表达式",
+        "definition": "一段会被求值，并在正常完成时产生值的代码。"
+      },
+      "en": {
+        "preferred": "expression",
+        "definition": "A piece of code that is evaluated and, when it completes normally, produces a value."
+      }
+    },
+    "function": {
+      "zh": {
+        "preferred": "函数",
+        "definition": "接收输入并计算结果的值；在 F# 中，函数可以像其他值一样被绑定、传递和返回。"
+      },
+      "en": {
+        "preferred": "function",
+        "definition": "A value that accepts input and computes a result; in F#, functions can be bound, passed, and returned like other values."
+      }
+    },
+    "partial-application": {
+      "zh": {
+        "preferred": "部分应用",
+        "definition": "只向柯里化函数提供一部分参数，从而得到一个等待其余参数的新函数。"
+      },
+      "en": {
+        "preferred": "partial application",
+        "definition": "Supplying only some arguments to a curried function to obtain a new function that awaits the remaining arguments."
+      }
+    },
+    "pattern-matching": {
+      "zh": {
+        "preferred": "模式匹配",
+        "definition": "按值的形状选择匹配分支，并可同时为其组成部分建立绑定。"
+      },
+      "en": {
+        "preferred": "pattern matching",
+        "definition": "Selecting a branch by the shape of a value while optionally binding names to its constituent parts."
+      }
+    },
+    "pipeline": {
+      "zh": {
+        "preferred": "管道",
+        "definition": "用 |> 把左侧结果作为最末参数交给右侧函数调用，从而按数据流顺序书写变换。"
+      },
+      "en": {
+        "preferred": "pipeline",
+        "definition": "Using |> to pass the result on the left as the final argument of the function application on the right, expressing transformations in data-flow order."
+      }
+    },
+    "type-inference": {
+      "zh": {
+        "preferred": "类型推断",
+        "definition": "编译器根据表达式的使用方式和上下文推导静态类型，而不要求处处写出类型标注。"
+      },
+      "en": {
+        "preferred": "type inference",
+        "definition": "The compiler's deduction of static types from how expressions are used and from their context, without requiring annotations everywhere."
+      }
+    },
+    "value": {
+      "zh": {
+        "preferred": "值",
+        "definition": "求值正常完成时得到、并可供其他表达式使用的结果；函数本身也是值。"
+      },
+      "en": {
+        "preferred": "value",
+        "definition": "A result produced when evaluation completes normally and available to other expressions; a function is itself a value."
+      }
+    }
+  }
+}

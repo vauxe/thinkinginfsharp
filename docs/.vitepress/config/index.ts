@@ -1,6 +1,21 @@
+import { readFileSync } from 'node:fs'
 import { defineConfig } from 'vitepress'
+import {
+  assertPageFrontmatter,
+  validateTerminology
+} from '../../../scripts/lib/content-contract.mjs'
 import { enLocale } from './en'
 import { zhLocale } from './zh'
+
+const terminologyPath = new URL('../../terminology.json', import.meta.url)
+const terminology = JSON.parse(readFileSync(terminologyPath, 'utf8'))
+const terminologyErrors = validateTerminology(terminology, 'docs/terminology.json')
+
+if (terminologyErrors.length > 0) {
+  throw new Error(
+    ['Invalid terminology metadata:', ...terminologyErrors].join('\n- ')
+  )
+}
 
 // VitePress 1.6.4 resolves config/index.ts directly, which keeps each locale
 // small and independently reviewable.
@@ -8,9 +23,24 @@ import { zhLocale } from './zh'
 export default defineConfig({
   title: 'F# 思维 / Thinking in F#',
   description: 'A bilingual, F#-first book for learning and mastering F#.',
-  lang: 'en-US',
+  lang: 'en',
   cleanUrls: true,
   lastUpdated: true,
+  markdown: {
+    // Stable custom ids keep translated headings on the same hash. VitePress
+    // 1.6.4 includes the raw {#id} suffix in its default permalink label, so
+    // the redundant inline permalink is disabled; outlines and deep links
+    // still use the generated heading id.
+    anchor: { permalink: false }
+  },
+  // transformPageData runs in development and production builds in VitePress
+  // 1.6.4, so invalid book metadata fails at the same boundary as rendering.
+  // Source: https://github.com/vuejs/vitepress/blob/v1.6.4/docs/en/reference/site-config.md#transformpagedata
+  transformPageData(pageData) {
+    if (/^(?:zh|en)\//.test(pageData.relativePath)) {
+      assertPageFrontmatter(pageData.frontmatter, pageData.relativePath)
+    }
+  },
   locales: {
     zh: zhLocale,
     en: enLocale

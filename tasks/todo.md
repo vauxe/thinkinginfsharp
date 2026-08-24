@@ -45,10 +45,10 @@
 
 ### F04 — 定义页面、术语与共享示例内容契约
 
-- [ ] **依赖：** F03。
-- **主要文件（5）：** `scripts/lib/content-contract.mjs`、`docs/terminology.json`、`docs/zh/index.md`、`docs/en/index.md`、`docs/.vitepress/config/index.ts`。
-- **验收：** frontmatter 明确定义 `translationKey`、类型、章节/练习/示例编号、状态和来源字段；术语以稳定键映射中英表达；代码引用只能指向 `examples/` 的共享区域。
-- **验证：** 使用有效与缺字段页面调用契约解析器；`pnpm build`。
+- [x] **依赖：** F03。
+- **主要文件：** `scripts/lib/content-contract.mjs`、`scripts/content-contract.test.mjs`、`docs/terminology.json`、`docs/{zh,en}/index.md`、`docs/.vitepress/config/index.ts`。
+- **验收：** frontmatter 明确定义 `translationKey`、类型、章节/练习/示例/术语编号、状态和可复核来源；术语以稳定键映射自足的中英定义；代码引用只能使用规范化的 `@/../examples/` 共享路径；VitePress 开发与构建阶段直接执行契约。
+- **验证：** `node --test scripts/content-contract.test.mjs`（7 项通过，含有效、缺字段、路径错配、重复 ID、来源、代码越界及真实术语表）；`pnpm build`。
 - **规模：** M。
 
 ### F05 — 实现双语与内容静态检查

@@ -1,6 +1,6 @@
 export const zhLocale = {
   label: '简体中文',
-  lang: 'zh-CN',
+  lang: 'zh-Hans',
   link: '/zh/',
   title: 'F# 思维',
   description: '从 F# 语言本身出发，学习函数式建模与生产级 .NET 工程。',
