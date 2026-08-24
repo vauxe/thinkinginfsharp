@@ -298,6 +298,19 @@
       ]
     },
     {
+      "id": "ch22-async-task",
+      "kind": "script",
+      "path": "examples/scripts/ch22-async-task.fsx",
+      "expectedOutput": [
+        "Async before start: entered=false",
+        "Async after StartAsTask: entered=true completed=false",
+        "Async result: async-done",
+        "Task after call: entered=true completed=false",
+        "Task result: task-done",
+        "Interop: async-to-task=21 task-to-async=42"
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",

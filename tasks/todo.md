@@ -331,10 +331,10 @@
 
 ### B22 — `Async<'T>` 与 `Task<'T>` / `Async<'T>` and `Task<'T>`
 
-- [ ] **依赖：** B21。
+- [x] **依赖：** B21。
 - **主要文件（5）：** `docs/{zh,en}/part-04/ch-22-async-task.md`、`docs/{zh,en}/solutions/ch-22-async-task.md`、`examples/scripts/ch22-async-task.fsx`。
 - **验收：** 在问题上下文中教授 `async {}` 与 `task {}`；由可观察门闩证明 `Async` 描述待启动工作而 `task {}` 立即开始；给出互操作和选择准则，不用任意 sleep 判定。
-- **验证：** FSI 启动时机自测；双语与内容检查；`pnpm build`。
+- **验证：** 中英文正文各 254 行、答案各 209 行且语义/结构对应；FSI 以 `TaskCompletionSource` 门闩证明 `Async<'T>` 构造后未进入、`StartAsTask` 后进入但未完成，以及 F# `task {}` 调用时立即运行到首个未完成等待，六行输出由 manifest 精确校验；答案的计数探针、Task/Async 直接组合与单航班协调器在 `--checknulls+` 下执行通过，双语/内容与 `pnpm build` 通过。
 - **规模：** L。
 
 ### B23 — 取消、超时、故障与释放 / Cancellation, Timeouts, Faults, and Disposal
