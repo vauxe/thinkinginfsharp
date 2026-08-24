@@ -62,6 +62,14 @@ export const enLocale = {
           ]
         }
       ],
+      '/en/part-05/': [
+        {
+          text: 'Part V · .NET interop and engineering quality',
+          items: [
+            { text: '25 · Defining Objects in F#', link: '/en/part-05/ch-25-objects-interfaces' }
+          ]
+        }
+      ],
       '/en/solutions/': [
         {
           text: 'Solutions',
@@ -89,7 +97,8 @@ export const enLocale = {
             { text: 'Chapter 21', link: '/en/solutions/ch-21-exceptions-resources-io' },
             { text: 'Chapter 22', link: '/en/solutions/ch-22-async-task' },
             { text: 'Chapter 23', link: '/en/solutions/ch-23-cancellation-timeouts' },
-            { text: 'Chapter 24', link: '/en/solutions/ch-24-concurrency-agents-state' }
+            { text: 'Chapter 24', link: '/en/solutions/ch-24-concurrency-agents-state' },
+            { text: 'Chapter 25', link: '/en/solutions/ch-25-objects-interfaces' }
           ]
         }
       ]

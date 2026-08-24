@@ -379,10 +379,10 @@
 
 ### B25 — 在 F# 中定义对象 / Defining Objects in F#
 
-- [ ] **依赖：** E25。
+- [x] **依赖：** E25。
 - **主要文件（4）：** `docs/{zh,en}/part-05/ch-25-objects-interfaces.md`、`docs/{zh,en}/solutions/ch-25-objects-interfaces.md`。
 - **验收：** 准确呈现对象特性与函数/记录/联合类型的选择边界；不把类包装当作默认“工程化”。
-- **验证：** E25 聚焦检查；双语与内容检查；`pnpm build`。
+- **验证：** E25 的 6 项 `Ch25Object` 聚焦测试通过；三段答案代码由 F# 10 执行通过；实际程序集反射确认自动打开模块中的可选扩展不成为 `Quote` 属性；中英正文/答案分别严格保持 239/239 与 173/173 行，双语、内容检查及 VitePress 生产构建通过。
 - **规模：** M。
 
 ### B26 — 深入 .NET 边界 / Deeper .NET Boundaries
