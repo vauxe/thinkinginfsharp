@@ -2,6 +2,7 @@ namespace ThinkingInFSharp.Ch27
 
 open System
 
+// #region public-request
 /// <summary>Identifies whether a booking request was accepted or rejected.</summary>
 type BookingOutcome =
     /// <summary>No booking outcome has been assigned.</summary>
@@ -15,6 +16,7 @@ type BookingOutcome =
 /// <param name="requestId">A non-null request identifier. Blank identifiers are rejected by <c>Evaluate</c>.</param>
 /// <param name="attendee">A non-null attendee name. Blank names are rejected by <c>Evaluate</c>.</param>
 /// <param name="seats">The number of seats requested.</param>
+/// <exception cref="System.ArgumentNullException"><paramref name="requestId"/> or <paramref name="attendee"/> is <see langword="null"/>.</exception>
 [<Sealed>]
 type BookingRequest(requestId: string, attendee: string, seats: int) =
     do
@@ -29,7 +31,9 @@ type BookingRequest(requestId: string, attendee: string, seats: int) =
 
     /// <summary>Gets the requested seat count.</summary>
     member _.Seats = seats
+// #endregion public-request
 
+// #region internal-model
 type internal Decision =
     | Accepted of confirmationCode: string * remainingSeats: int
     | Rejected of message: string * suggestedSeats: int option
@@ -52,7 +56,9 @@ module internal Decision =
         else
             let normalizedRequestId = request.RequestId.Trim().ToUpperInvariant()
             Accepted($"CONF-{normalizedRequestId}", capacity - request.Seats)
+// #endregion internal-model
 
+// #region public-response
 /// <summary>A C#-friendly projection of the internal F# booking decision.</summary>
 /// <remarks>
 /// Accepted responses have a confirmation code and remaining-seat count.
@@ -83,7 +89,9 @@ type BookingResponse internal (
 
     /// <summary>Gets a capacity-based suggestion when available; otherwise <see langword="null"/>.</summary>
     member _.SuggestedSeats = suggestedSeats
+// #endregion public-response
 
+// #region boundary-adapter
 module internal ResponseAdapter =
     let fromDecision decision =
         match decision with
@@ -108,7 +116,9 @@ module internal ResponseAdapter =
                 message,
                 suggestion
             )
+// #endregion boundary-adapter
 
+// #region public-api
 /// <summary>Provides the stable .NET entry point for booking decisions.</summary>
 [<AbstractClass; Sealed>]
 type BookingApi private () =
@@ -116,6 +126,8 @@ type BookingApi private () =
     /// <param name="capacity">Available seats. Negative capacity is invalid configuration.</param>
     /// <param name="request">A non-null request to evaluate.</param>
     /// <returns>A response projected into ordinary .NET enum, class, string, and nullable-value members.</returns>
+    /// <exception cref="System.ArgumentNullException"><paramref name="request"/> is <see langword="null"/>.</exception>
+    /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="capacity"/> is negative.</exception>
     static member Evaluate(capacity: int, request: BookingRequest) =
         ArgumentNullException.ThrowIfNull(request, nameof request)
 
@@ -131,3 +143,4 @@ type BookingApi private () =
         request
         |> Decision.evaluate capacity
         |> ResponseAdapter.fromDecision
+// #endregion public-api

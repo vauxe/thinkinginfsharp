@@ -403,10 +403,10 @@
 
 ### B27 — 为 C# 设计 F# API / Designing F# APIs for C#
 
-- [ ] **依赖：** E27。
+- [x] **依赖：** E27。
 - **主要文件（4）：** `docs/{zh,en}/part-05/ch-27-fsharp-api-for-csharp.md`、`docs/{zh,en}/solutions/ch-27-fsharp-api-for-csharp.md`。
 - **验收：** 解释公共表示、命名、属性、重载、文档和兼容性；明确 F# 内部模型不应直接泄露为 C#/JSON 契约。
-- **验证：** E27 客户端构建/运行；双语与内容检查；`pnpm build`。
+- **验证：** E27 的 F# 库与 C# 客户端在 Release 警告即错误下以 0 警告构建并运行全部契约断言；两段答案代码由 F# 10 在 `--checknulls+ --warnaserror+` 下执行通过；中英正文与答案严格保持 264/264 和 196/196 行；22 项内容测试、双语/内容/完整示例门及 VitePress 生产构建通过。
 - **规模：** L。
 
 ### E28 — 单元、替身与边界测试样例

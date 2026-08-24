@@ -52,6 +52,7 @@ static IEnumerable<Type> GetPublicSignatureTypes(Type type)
     }
 }
 
+// #region accepted-call
 var accepted = BookingApi.Evaluate(
     capacity: 5,
     request: new BookingRequest(requestId: "REQ-27", attendee: "Lin", seats: 2));
@@ -66,7 +67,9 @@ Require(accepted.SuggestedSeats is null, "accepted suggestion must be null");
 
 Console.WriteLine(
     $"Accepted: outcome={accepted.Outcome} code={accepted.ConfirmationCode} remaining={accepted.RemainingSeats}");
+// #endregion accepted-call
 
+// #region rejected-call
 var rejected = BookingApi.Evaluate(
     capacity: 5,
     request: new BookingRequest(requestId: "REQ-28", attendee: "Ada", seats: 8));
@@ -80,6 +83,7 @@ Require(rejected.SuggestedSeats == 5, "capacity suggestion");
 
 Console.WriteLine(
     $"Rejected: outcome={rejected.Outcome} message={rejected.ErrorMessage} suggested={rejected.SuggestedSeats}");
+// #endregion rejected-call
 
 var invalid = BookingApi.Evaluate(
     capacity: 5,
@@ -133,6 +137,7 @@ Require(requestGuarded, "request null guard");
 Require(capacityGuarded, "capacity range guard");
 Console.WriteLine("Guards: request-id=true request=true capacity=true");
 
+// #region public-surface-contract
 var publicTypes = typeof(BookingApi).Assembly.GetExportedTypes();
 
 var publicTypeNames = publicTypes
@@ -171,3 +176,4 @@ Require(File.Exists(documentationPath), "XML documentation sidecar");
 var documentation = File.ReadAllText(documentationPath);
 Require(documentation.Contains("BookingApi.Evaluate", StringComparison.Ordinal), "Evaluate XML documentation");
 Console.WriteLine("XML docs: evaluate=true");
+// #endregion public-surface-contract
