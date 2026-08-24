@@ -230,6 +230,28 @@ test('requires script output and an actual expected compiler failure', (t) => {
   assert.ok(errors.some((error) => error.includes('was expected to fail')))
 })
 
+test('requires expected script output to appear in manifest order', (t) => {
+  const root = createFixture(t)
+  write(
+    root,
+    'examples/scripts/ordered.fsx',
+    'printfn "first"\nprintfn "second"\n'
+  )
+  writeManifest(root, [
+    {
+      id: 'ordered',
+      kind: 'script',
+      path: 'examples/scripts/ordered.fsx',
+      expectedOutput: ['first', 'second']
+    }
+  ])
+
+  const runner = () => ({ status: 0, stdout: 'second\nfirst\n', stderr: '' })
+  const errors = runExampleChecks({ repoRoot: root, runner })
+
+  assert.ok(errors.some((error) => error.includes('out of order')))
+})
+
 test('rejects traversal paths and the CLI reports manifest failures', (t) => {
   const root = createFixture(t)
   writeManifest(root, [

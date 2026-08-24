@@ -5,7 +5,7 @@ translationKey: solutions/ch-01-first-session
 kind: solution
 part: 1
 chapter: 1
-status: review
+status: complete
 verifiedWith:
   fsharp: "10"
   dotnetSdk: "10.0.301"
@@ -31,7 +31,7 @@ sources:
 
 [返回第 1 章](../part-01/ch-01-first-session)。
 
-## 练习 1：先预测再运行 {#exercise-01}
+## 练习 1：解释运行结果 {#exercise-01}
 
 类型分别是：
 

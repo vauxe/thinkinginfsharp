@@ -5,7 +5,7 @@ translationKey: solutions/ch-01-first-session
 kind: solution
 part: 1
 chapter: 1
-status: review
+status: complete
 verifiedWith:
   fsharp: "10"
   dotnetSdk: "10.0.301"
@@ -31,7 +31,7 @@ Complete your own reasoning before comparing it with the process below. Matching
 
 [Return to Chapter 1](../part-01/ch-01-first-session).
 
-## Exercise 1: predict, then run {#exercise-01}
+## Exercise 1: explain the run {#exercise-01}
 
 The types are:
 

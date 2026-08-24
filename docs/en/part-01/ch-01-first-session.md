@@ -5,7 +5,7 @@ translationKey: part-01/ch-01-first-session
 kind: chapter
 part: 1
 chapter: 1
-status: review
+status: complete
 verifiedWith:
   fsharp: "10"
   dotnetSdk: "10.0.301"
@@ -136,7 +136,7 @@ The compiler infers a set of static types from these uses:
 | Name | Inferred type | Evidence |
 | --- | --- | --- |
 | `eventName` | `string` | The right side is a string literal |
-| `capacity`, `booked`, `remaining` | `int` | Unsuffixed integers form the `int` arithmetic required here |
+| `capacity`, `booked`, `remaining` | `int` | No other context selects a numeric type, so the unsuffixed integer literals are interpreted as `int` and the subtraction is an `int` operation |
 | `hasSeats` | `bool` | A `>` comparison produces true or false |
 | `summary` | `string` | String interpolation produces text |
 
@@ -183,17 +183,17 @@ A productive rhythm is to send the smallest expression to FSI, understand its ty
 
 ## Exercises {#exercises}
 
-Write down each prediction before running or editing a local copy. The answer is useful when it lets you compare reasoning, not merely final text.
+Answer independently before running or editing a local copy. The solution is useful when it lets you compare reasoning, not merely final text.
 
-### Exercise 1: predict, then run {#exercise-01}
+### Exercise 1: explain the run {#exercise-01}
 
-Without executing the code, answer these questions:
+Use the output you just observed to answer these questions:
 
 1. What are the types of `remaining`, `hasSeats`, `summary`, and `printResult`?
 2. In what order do the four output lines appear? Why does the summary appear before `printResult` is printed?
-3. If `booked` changes to `40`, which values change, and how should the output change?
+3. Before editing, predict: if `booked` changes to `40`, which values change, and how should the output change?
 
-Then copy the script to a temporary location and test the prediction. Do not edit the repository's shared answer.
+Then copy the script to a temporary location and test the prediction in question 3. Do not edit the repository's shared answer.
 
 ### Exercise 2: migrate a small program {#exercise-02}
 

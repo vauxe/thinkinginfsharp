@@ -7,6 +7,7 @@
       "path": "examples/scripts/ch01-first-session.fsx",
       "expectedOutput": [
         "Functional Foundations: 22 seats remaining",
+        "Seats available: true",
         "Printing returned: ()",
         "Lin booked 3 seats."
       ]

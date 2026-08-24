@@ -621,8 +621,17 @@ export function runExampleChecks({ runner = spawnSync, ...options } = {}) {
   for (const entry of parsed.entries.filter(({ kind }) => kind === 'script')) {
     const result = run(entry.path, ['fsi', '--exec', entry.path])
     if (!result.error && result.status === 0) {
+      const output = String(result.stdout ?? '')
+      let searchFrom = 0
       for (const expected of entry.expectedOutput) {
-        if (!String(result.stdout ?? '').includes(expected)) {
+        const index = output.indexOf(expected, searchFrom)
+        if (index >= 0) {
+          searchFrom = index + expected.length
+        } else if (output.includes(expected)) {
+          errors.push(
+            `${entry.path}: expected output appears out of order ${JSON.stringify(expected)}`
+          )
+        } else {
           errors.push(`${entry.path}: missing expected output ${JSON.stringify(expected)}`)
         }
       }

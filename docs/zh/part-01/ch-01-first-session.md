@@ -5,7 +5,7 @@ translationKey: part-01/ch-01-first-session
 kind: chapter
 part: 1
 chapter: 1
-status: review
+status: complete
 verifiedWith:
   fsharp: "10"
   dotnetSdk: "10.0.301"
@@ -136,7 +136,7 @@ dotnet run --project HelloFSharp
 | 名称 | 推断类型 | 依据 |
 | --- | --- | --- |
 | `eventName` | `string` | 右侧是字符串字面量 |
-| `capacity`、`booked`、`remaining` | `int` | 无后缀整数默认形成这里所需的 `int` 运算 |
+| `capacity`、`booked`、`remaining` | `int` | 没有其他上下文指定数值类型，因此无后缀整数按 `int` 解释，减法也成为 `int` 运算 |
 | `hasSeats` | `bool` | `>` 比较产生真假值 |
 | `summary` | `string` | 字符串插值产生文本 |
 
@@ -183,17 +183,17 @@ FSI 在交互模式下会主动显示提交的值和类型；以 `--exec` 运行
 
 ## 练习 {#exercises}
 
-先写下预测，再运行或修改自己的脚本。答案的价值在于比较推理过程，而不只是核对最终文本。
+先独立作答，再运行或修改自己的脚本。答案的价值在于比较推理过程，而不只是核对最终文本。
 
-### 练习 1：先预测再运行 {#exercise-01}
+### 练习 1：解释运行结果 {#exercise-01}
 
-不执行代码，回答以下问题：
+根据刚才的运行结果，回答以下问题：
 
 1. `remaining`、`hasSeats`、`summary` 和 `printResult` 的类型分别是什么？
 2. 四行输出按什么顺序出现？为什么摘要会在打印 `printResult` 之前出现？
-3. 把 `booked` 改为 `40` 后，哪些值会变化，预期输出怎样变化？
+3. 在实际修改前预测：把 `booked` 改为 `40` 后，哪些值会变化，输出怎样变化？
 
-然后复制脚本到临时位置验证预测，不要修改仓库中的共享答案。
+然后复制脚本到临时位置验证第 3 问的预测，不要修改仓库中的共享答案。
 
 ### 练习 2：迁移一个小程序 {#exercise-02}
 
