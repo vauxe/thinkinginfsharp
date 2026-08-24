@@ -39,6 +39,7 @@ module Validation =
         let reason (command: ValidCancelBooking) = command.Reason
     // #endregion validated-lifecycle-commands
 
+    // #region validation-accumulation
     let private applyValidation valueResult functionResult =
         match functionResult, valueResult with
         | Ok mapping, Ok value -> Ok(mapping value)
@@ -69,6 +70,7 @@ module Validation =
         Ok createValidCommand
         |> applyValidation (validateRequestId command.RequestId)
         |> applyValidation (validateSeatCount command.Seats)
+    // #endregion validation-accumulation
 
     // #region lifecycle-validation
     let private createValidConfirmCommand requestId confirmationCode : ValidConfirmBooking =

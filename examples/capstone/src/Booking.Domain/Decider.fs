@@ -21,6 +21,7 @@ module Decider =
         | PlaceBookingError.BookingCreationFailed creationError ->
             BookingDecisionError.BookingCreationFailed creationError
 
+    // #region lifecycle-decisions
     let private requireBooking requestId state =
         match state with
         | NotBooked -> Error BookingDecisionError.BookingDoesNotExist
@@ -40,6 +41,7 @@ module Decider =
             Booking.cancel (ValidCancelBooking.reason command) booking
             |> Result.map BookingCancelled
             |> Result.mapError BookingDecisionError.BookingTransitionFailed)
+    // #endregion lifecycle-decisions
 
     // #region decide
     let decide

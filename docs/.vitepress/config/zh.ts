@@ -81,7 +81,8 @@ export const zhLocale = {
         {
           text: '第六部分 · 活动预约系统',
           items: [
-            { text: '第 33 章 · 业务语言、命令、事件与模型', link: '/zh/part-06/ch-33-domain-language-model' }
+            { text: '第 33 章 · 业务语言、命令、事件与模型', link: '/zh/part-06/ch-33-domain-language-model' },
+            { text: '第 34 章 · 纯预约工作流与验证', link: '/zh/part-06/ch-34-pure-booking-workflow' }
           ]
         }
       ],
@@ -121,7 +122,8 @@ export const zhLocale = {
             { text: '第 30 章', link: '/zh/solutions/ch-30-diagnostics-tooling-builds' },
             { text: '第 31 章', link: '/zh/solutions/ch-31-measure-before-optimizing' },
             { text: '第 32 章', link: '/zh/solutions/ch-32-functions-to-applications' },
-            { text: '第 33 章', link: '/zh/solutions/ch-33-domain-language-model' }
+            { text: '第 33 章', link: '/zh/solutions/ch-33-domain-language-model' },
+            { text: '第 34 章', link: '/zh/solutions/ch-34-pure-booking-workflow' }
           ]
         }
       ]
