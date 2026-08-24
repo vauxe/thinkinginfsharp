@@ -9,6 +9,7 @@
     <Compile Include="Events.fs" />
     <Compile Include="Validation.fs" />
     <Compile Include="Workflow.fs" />
+    <Compile Include="Decider.fs" />
     <Compile Include="PublicApi.fs" />
     <Compile Include="Ports.fs" />
     <Compile Include="Fakes.fs" />

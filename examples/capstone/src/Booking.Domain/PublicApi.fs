@@ -81,6 +81,8 @@ module PublicApi =
         match error with
         | InvalidRequestId BlankRequestId -> BookingError.BlankRequestId
         | InvalidSeatCount(NonPositiveSeatCount actual) -> BookingError.NonPositiveSeatCount actual
+        | InvalidConfirmationCode BlankConfirmationCode -> BookingError.BlankConfirmationCode
+        | InvalidCancellationReason BlankCancellationReason -> BookingError.BlankCancellationReason
 
     let private mapPlaceError error =
         match error with

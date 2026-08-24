@@ -523,10 +523,10 @@
 
 ### K07 — 组装纯预约工作流
 
-- [ ] **依赖：** B33、K03、K06。
+- [x] **依赖：** B33、K03、K06。
 - **主要文件（≤5）：** `examples/capstone/src/Booking.Domain/Validation.fs`、`Workflow.fs`、`Decider.fs`、`Booking.Domain.fsproj`、`tests/ExampleTests/BookingDeciderTests.fs`。
 - **验收：** 纯决策函数连接验证、状态和事件；覆盖成功、容量不足、重复或非法命令；同一规则只有一个权威实现。
-- **验证：** 精确过滤 BookingDecider；Release build；`pnpm check:examples`。
+- **验证：** 先由缺失 `Decider`/`BookingDecisionError` 得到预期 FS0039 红灯；扩展统一验证错误后，编译器又以 FS0025 揭示旧公共错误投影遗漏确认码与取消原因，补为显式穷尽映射；`Decider.decide` 统一接收活动、状态和三种命令，预约复用 `decidePlaceBooking`，确认/取消复用 `Booking.confirm`/`Booking.cancel`，不复制领域规则；聚焦测试 10/10 覆盖三类独立错误有序累积、成功事件与演化、容量拒绝、重复短路、缺失/不匹配预约及终态拒绝，全部预约领域回归 27/27 通过；Fantomas 全仓检查与完整锁定还原、Release 构建、全测试、脚本及预期诊断门通过。
 - **规模：** M。
 
 ### B34 — 纯预约工作流与验证 / The Pure Booking Workflow and Validation

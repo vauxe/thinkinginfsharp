@@ -4,6 +4,8 @@ module Validation =
     type CommandValidationError =
         | InvalidRequestId of RequestIdError
         | InvalidSeatCount of SeatCountError
+        | InvalidConfirmationCode of ConfirmationCodeError
+        | InvalidCancellationReason of CancellationReasonError
 
     // Compatibility name for the earlier teaching slice; no second runtime type is created.
     type PlaceBookingCommand = PlaceBooking
@@ -16,6 +18,26 @@ module Validation =
     module ValidPlaceBooking =
         let requestId (command: ValidPlaceBooking) = command.RequestId
         let seats (command: ValidPlaceBooking) = command.Seats
+
+    // #region validated-lifecycle-commands
+    type ValidConfirmBooking =
+        private
+            { RequestId: RequestId
+              ConfirmationCode: ConfirmationCode }
+
+    module ValidConfirmBooking =
+        let requestId (command: ValidConfirmBooking) = command.RequestId
+        let confirmationCode (command: ValidConfirmBooking) = command.ConfirmationCode
+
+    type ValidCancelBooking =
+        private
+            { RequestId: RequestId
+              Reason: CancellationReason }
+
+    module ValidCancelBooking =
+        let requestId (command: ValidCancelBooking) = command.RequestId
+        let reason (command: ValidCancelBooking) = command.Reason
+    // #endregion validated-lifecycle-commands
 
     let private applyValidation valueResult functionResult =
         match functionResult, valueResult with
@@ -32,6 +54,14 @@ module Validation =
         SeatCount.create raw
         |> Result.mapError (fun error -> [ InvalidSeatCount error ])
 
+    let private validateConfirmationCode raw =
+        ConfirmationCode.create raw
+        |> Result.mapError (fun error -> [ InvalidConfirmationCode error ])
+
+    let private validateCancellationReason raw =
+        CancellationReason.create raw
+        |> Result.mapError (fun error -> [ InvalidCancellationReason error ])
+
     let private createValidCommand (requestId: RequestId) (seats: SeatCount) : ValidPlaceBooking =
         { RequestId = requestId; Seats = seats }
 
@@ -39,3 +69,23 @@ module Validation =
         Ok createValidCommand
         |> applyValidation (validateRequestId command.RequestId)
         |> applyValidation (validateSeatCount command.Seats)
+
+    // #region lifecycle-validation
+    let private createValidConfirmCommand requestId confirmationCode : ValidConfirmBooking =
+        { RequestId = requestId
+          ConfirmationCode = confirmationCode }
+
+    let validateConfirmBooking (command: ConfirmBooking) =
+        Ok createValidConfirmCommand
+        |> applyValidation (validateRequestId command.RequestId)
+        |> applyValidation (validateConfirmationCode command.ConfirmationCode)
+
+    let private createValidCancelCommand requestId reason : ValidCancelBooking =
+        { RequestId = requestId
+          Reason = reason }
+
+    let validateCancelBooking (command: CancelBooking) =
+        Ok createValidCancelCommand
+        |> applyValidation (validateRequestId command.RequestId)
+        |> applyValidation (validateCancellationReason command.Reason)
+// #endregion lifecycle-validation

@@ -12,6 +12,7 @@ module Workflow =
     // Compatibility name for callers of the earlier workflow module.
     type BookingEvent = Booking.Domain.BookingEvent
 
+    // #region place-decision
     type PlaceBookingError =
         | InvalidCommand of CommandValidationError list
         | BookingAlreadyExists of existingRequestId: RequestId
@@ -27,6 +28,7 @@ module Workflow =
                 Booking.create event (ValidPlaceBooking.requestId validCommand) (ValidPlaceBooking.seats validCommand)
                 |> Result.map BookingPlaced
                 |> Result.mapError BookingCreationFailed
+    // #endregion place-decision
 
     // #region evolve
     let evolve (_: BookingState) (event: BookingEvent) =
