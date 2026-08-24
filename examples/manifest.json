@@ -60,6 +60,18 @@
       ]
     },
     {
+      "id": "ch06-recursion-folds",
+      "kind": "script",
+      "path": "examples/scripts/ch06-recursion-folds.fsx",
+      "expectedOutput": [
+        "Sums: recursive=9 tail=9 fold=9",
+        "Empty sums: 0, 0, 0",
+        "Singleton sums: 5, 5, 5",
+        "Tail-recursive count: 100000",
+        "Fold order: left=-6 right=2"
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",

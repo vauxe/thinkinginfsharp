@@ -1,6 +1,16 @@
 {
   "schemaVersion": 1,
   "terms": {
+    "accumulator": {
+      "zh": {
+        "preferred": "累加器",
+        "definition": "在递归或折叠的每一步携带到下一步、表示截至当前已完成结果的值。"
+      },
+      "en": {
+        "preferred": "accumulator",
+        "definition": "A value threaded into the next recursive or folding step that represents the result completed so far."
+      }
+    },
     "argument": {
       "zh": {
         "preferred": "实参",
@@ -139,6 +149,16 @@
       "en": {
         "preferred": "F# script",
         "definition": "A source file with the .fsx extension, normally executed directly by F# Interactive for experiments, automation, and small tools."
+      }
+    },
+    "fold": {
+      "zh": {
+        "preferred": "折叠",
+        "definition": "按确定顺序用折叠函数把集合元素逐项并入累加器，最终返回累加状态的高阶操作。"
+      },
+      "en": {
+        "preferred": "fold",
+        "definition": "A higher-order operation that combines collection elements into an accumulator in a defined order and returns the final state."
       }
     },
     "function": {
@@ -291,6 +311,16 @@
         "definition": "Using |> to pass the result on the left as the final argument of the function application on the right, expressing transformations in data-flow order."
       }
     },
+    "recursion": {
+      "zh": {
+        "preferred": "递归",
+        "definition": "函数直接或间接调用自身，以更小或更接近终止条件的问题继续计算。"
+      },
+      "en": {
+        "preferred": "recursion",
+        "definition": "A function calling itself directly or indirectly to continue with a smaller problem or one closer to a termination condition."
+      }
+    },
     "shadowing": {
       "zh": {
         "preferred": "遮蔽",
@@ -299,6 +329,36 @@
       "en": {
         "preferred": "shadowing",
         "definition": "Introducing a new binding with the same name in an inner or later scope so that the old binding can no longer be reached by that name there; it does not mutate the old value."
+      }
+    },
+    "structural-recursion": {
+      "zh": {
+        "preferred": "结构递归",
+        "definition": "按数据类型的构造形状分支，并在递归分支中处理结构上更小组成部分的递归。"
+      },
+      "en": {
+        "preferred": "structural recursion",
+        "definition": "Recursion that branches on a data type's construction shape and recursively processes a structurally smaller component."
+      }
+    },
+    "tail-call": {
+      "zh": {
+        "preferred": "尾调用",
+        "definition": "函数分支返回前执行的最后操作调用；调用结果无需再由当前栈帧继续加工。"
+      },
+      "en": {
+        "preferred": "tail call",
+        "definition": "A call made as the last operation before a function branch returns, whose result needs no further processing by the current stack frame."
+      }
+    },
+    "tail-recursion": {
+      "zh": {
+        "preferred": "尾递归",
+        "definition": "所有递归路径都把递归调用置于尾位置的递归形式，使编译器有机会消除递归栈增长。"
+      },
+      "en": {
+        "preferred": "tail recursion",
+        "definition": "Recursion whose recursive paths place the recursive call in tail position, allowing the compiler an opportunity to eliminate recursive stack growth."
       }
     },
     "type-annotation": {

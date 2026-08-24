@@ -131,10 +131,10 @@
 
 ### B06 — 递归、尾递归与折叠 / Recursion, Tail Calls, and Folds
 
-- [ ] **依赖：** B05。
+- [x] **依赖：** B05。
 - **主要文件（5）：** `docs/{zh,en}/part-01/ch-06-recursion-folds.md`、`docs/{zh,en}/solutions/ch-06-recursion-folds.md`、`examples/scripts/ch06-recursion-folds.fsx`。
 - **验收：** 从结构递减推导递归，区分普通/尾递归，并以 `fold` 重写至少一个累积问题；不宣称所有递归都会优化。
-- **验证：** 聚焦 FSI 自测含边界输入；双语与内容检查；`pnpm build`。
+- **验证：** FSI 覆盖直接/尾递归、空/单项/普通/100,000 项边界与左右折叠顺序，5 行输出按 manifest 通过；`pnpm test` 全链路通过。
 - **规模：** M。
 
 ### K01 — 预约系统第一部分纯脚本切片

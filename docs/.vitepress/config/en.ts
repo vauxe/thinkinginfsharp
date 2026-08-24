@@ -18,7 +18,8 @@ export const enLocale = {
             { text: '2 · Values, Bindings, and Expressions', link: '/en/part-01/ch-02-values-bindings-expressions' },
             { text: '3 · Functions Are Values', link: '/en/part-01/ch-03-functions-as-values' },
             { text: '4 · Branching and Basic Patterns', link: '/en/part-01/ch-04-branching-patterns' },
-            { text: '5 · Lists, Pipelines, and Data Flow', link: '/en/part-01/ch-05-lists-pipelines' }
+            { text: '5 · Lists, Pipelines, and Data Flow', link: '/en/part-01/ch-05-lists-pipelines' },
+            { text: '6 · Recursion, Tail Calls, and Folds', link: '/en/part-01/ch-06-recursion-folds' }
           ]
         }
       ],
@@ -30,7 +31,8 @@ export const enLocale = {
             { text: 'Chapter 2', link: '/en/solutions/ch-02-values-bindings-expressions' },
             { text: 'Chapter 3', link: '/en/solutions/ch-03-functions-as-values' },
             { text: 'Chapter 4', link: '/en/solutions/ch-04-branching-patterns' },
-            { text: 'Chapter 5', link: '/en/solutions/ch-05-lists-pipelines' }
+            { text: 'Chapter 5', link: '/en/solutions/ch-05-lists-pipelines' },
+            { text: 'Chapter 6', link: '/en/solutions/ch-06-recursion-folds' }
           ]
         }
       ]
