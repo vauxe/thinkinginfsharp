@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Endpoints.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Booking.Domain/Booking.Domain.fsproj" />
+    <ProjectReference Include="../Booking.Contracts/Booking.Contracts.fsproj" />
+    <ProjectReference Include="../Booking.Infrastructure/Booking.Infrastructure.fsproj" />
+  </ItemGroup>
+</Project>

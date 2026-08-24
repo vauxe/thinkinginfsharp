@@ -433,6 +433,15 @@
       ]
     },
     {
+      "id": "capstone-booking-api",
+      "kind": "compile",
+      "path": "examples/capstone/src/Booking.Api/Booking.Api.fsproj",
+      "sources": [
+        "examples/capstone/src/Booking.Api/Endpoints.fs",
+        "examples/capstone/src/Booking.Api/Program.fs"
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",
@@ -442,7 +451,8 @@
         "tests/ContractTests/Ch19NullTests.fs",
         "tests/ContractTests/Ch28BoundaryTests.fs",
         "tests/ContractTests/BookingJsonContractTests.fs",
-        "tests/ContractTests/BookingStoreContractTests.fs"
+        "tests/ContractTests/BookingStoreContractTests.fs",
+        "tests/ContractTests/BookingApiTests.fs"
       ]
     },
     {

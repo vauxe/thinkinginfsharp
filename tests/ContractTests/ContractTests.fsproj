@@ -12,6 +12,7 @@
     <Compile Include="Ch28BoundaryTests.fs" />
     <Compile Include="BookingJsonContractTests.fs" />
     <Compile Include="BookingStoreContractTests.fs" />
+    <Compile Include="BookingApiTests.fs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -19,10 +20,12 @@
     <ProjectReference Include="../../examples/capstone/src/Booking.Domain/Booking.Domain.fsproj" />
     <ProjectReference Include="../../examples/capstone/src/Booking.Contracts/Booking.Contracts.fsproj" />
     <ProjectReference Include="../../examples/capstone/src/Booking.Infrastructure/Booking.Infrastructure.fsproj" />
+    <ProjectReference Include="../../examples/capstone/src/Booking.Api/Booking.Api.fsproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.0.9" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

@@ -4,6 +4,7 @@
   <Project Path="examples/capstone/src/Booking.Domain/Booking.Domain.fsproj" />
   <Project Path="examples/capstone/src/Booking.Contracts/Booking.Contracts.fsproj" />
   <Project Path="examples/capstone/src/Booking.Infrastructure/Booking.Infrastructure.fsproj" />
+  <Project Path="examples/capstone/src/Booking.Api/Booking.Api.fsproj" />
   <Project Path="examples/chapters/ch16/Ch16.fsproj" />
   <Project Path="examples/chapters/ch17/Ch17.fsproj" />
   <Project Path="examples/chapters/ch19/Ch19.fsproj" />

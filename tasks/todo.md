@@ -571,10 +571,10 @@
 
 ### K10 — ASP.NET Core Web API 边界
 
-- [ ] **依赖：** B35。
+- [x] **依赖：** B35。
 - **主要文件（≤5）：** `examples/capstone/src/Booking.Api/Booking.Api.fsproj`、`Program.fs`、`Endpoints.fs`、`tests/ContractTests/BookingApiTests.fs`、`ThinkingInFSharp.slnx`。
 - **验收：** API 只接收/返回边界 DTO；输入验证、JSON、错误映射、异步与请求取消正确；机密配置不进入响应/日志；测试进程内运行。
-- **验证：** 精确过滤 BookingApi；Release build；本地启动后最小 HTTP 冒烟；`pnpm check:examples`。
+- **验证：** 先由缺失 `Booking.Api` 得到预期 FS0039 红灯；实现以 `PlaceBookingDto`、`ConfirmBookingDto`、`CancelBookingDto` 和 `BookingDto` 固定四个 HTTP 路由，另用稳定 `ApiErrorDto` 映射传输、验证、领域、支付、存储与未知故障，响应不回显异常消息、支付结果或配置路径；严格 JSON 继续拒绝错误大小写与未知字段，命令体在 Kestrel 和进程内测试宿主中都限制为 16 KiB，请求的 `CancellationToken` 原样贯穿加载、支付、追加与通知；放置流程明确暴露“支付在提交前、通知在提交后”的阶段性部分失败窗口，留给 K11 解决幂等与恢复而不伪称事务；官方 `Microsoft.AspNetCore.TestHost` 10.0.9 锁定到与本机 ASP.NET Core 运行时一致的版本，精确 `BookingApi` 过滤 15/15 覆盖成功、生命周期、严格输入、有界读取、错误状态、机密脱敏、提交前后故障和无 sleep 取消；全解决方案 Release 构建 0 警告/0 错误，真实 Kestrel 回环冒烟得到 `201`/`Location`、持久化后的 `200` 与严格 JSON `400`，最终宿主关闭 `Server` 响应头，默认日志没有请求体、支付标识或存储路径；Fantomas、示例清单单测与完整锁定 `pnpm check:examples` 通过，临时快照已删除。
 - **规模：** L。
 
 ### B36 — Web API、JSON 与输入边界 / Web API, JSON, and Input Boundaries
