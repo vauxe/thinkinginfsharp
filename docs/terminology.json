@@ -1,6 +1,36 @@
 {
   "schemaVersion": 1,
   "terms": {
+    "argument": {
+      "zh": {
+        "preferred": "实参",
+        "definition": "调用函数时实际提供给参数的值或表达式。"
+      },
+      "en": {
+        "preferred": "argument",
+        "definition": "A value or expression actually supplied for a parameter when a function is applied."
+      }
+    },
+    "anonymous-function": {
+      "zh": {
+        "preferred": "匿名函数",
+        "definition": "用 fun 参数 -> 主体 表达式直接创建、无需先给函数本身命名的函数值。"
+      },
+      "en": {
+        "preferred": "anonymous function",
+        "definition": "A function value created directly with a fun parameter -> body expression without first naming the function itself."
+      }
+    },
+    "automatic-generalization": {
+      "zh": {
+        "preferred": "自动泛化",
+        "definition": "编译器在安全且不依赖具体类型时，把推断类型中的未知类型提升为可由多种类型实例化的类型参数。"
+      },
+      "en": {
+        "preferred": "automatic generalization",
+        "definition": "The compiler's promotion of inferred unknown types to type parameters that can be instantiated with multiple types when doing so is safe and the definition does not depend on one concrete type."
+      }
+    },
     "binding": {
       "zh": {
         "preferred": "绑定",
@@ -9,6 +39,16 @@
       "en": {
         "preferred": "binding",
         "definition": "An association, introduced by a pattern such as let, between a name and a value; it is not an implicitly rewritable storage slot."
+      }
+    },
+    "closure": {
+      "zh": {
+        "preferred": "闭包",
+        "definition": "函数值连同它从定义位置捕获、并在以后调用时仍需使用的周围值。"
+      },
+      "en": {
+        "preferred": "closure",
+        "definition": "A function value together with surrounding values captured at its definition site and retained for later calls."
       }
     },
     "computation-expression": {
@@ -29,6 +69,16 @@
       "en": {
         "preferred": "discriminated union",
         "definition": "A type made of named cases; each value belongs to exactly one case, and a case may carry additional data."
+      }
+    },
+    "currying": {
+      "zh": {
+        "preferred": "柯里化",
+        "definition": "把多参数计算表示为连续接收单个参数并返回下一函数的形式；F# 的 let 绑定函数通常使用这种表示。"
+      },
+      "en": {
+        "preferred": "currying",
+        "definition": "Representing a multi-parameter computation as successive single-parameter functions that return the next function; this is the usual form of F# let-bound functions."
       }
     },
     "expression": {
@@ -71,6 +121,26 @@
         "definition": "A value that accepts input and computes a result; in F#, functions can be bound, passed, and returned like other values."
       }
     },
+    "function-application": {
+      "zh": {
+        "preferred": "函数应用",
+        "definition": "向函数值提供实参并求值其函数主体，以产生结果。"
+      },
+      "en": {
+        "preferred": "function application",
+        "definition": "Supplying an argument to a function value and evaluating its body to produce a result."
+      }
+    },
+    "higher-order-function": {
+      "zh": {
+        "preferred": "高阶函数",
+        "definition": "至少接收一个函数值作为参数，或把函数值作为结果返回的函数。"
+      },
+      "en": {
+        "preferred": "higher-order function",
+        "definition": "A function that accepts at least one function value as a parameter or returns a function value as its result."
+      }
+    },
     "immutability": {
       "zh": {
         "preferred": "不可变性",
@@ -99,6 +169,16 @@
       "en": {
         "preferred": "numeric conversion",
         "definition": "Explicitly producing a value of one numeric type from another, such as using decimal to obtain a decimal from an int."
+      }
+    },
+    "parameter": {
+      "zh": {
+        "preferred": "形参",
+        "definition": "函数定义中用于接收调用方实参的名称或模式。"
+      },
+      "en": {
+        "preferred": "parameter",
+        "definition": "A name or pattern in a function definition that receives an argument supplied by a caller."
       }
     },
     "partial-application": {
@@ -159,6 +239,16 @@
       "en": {
         "preferred": "type inference",
         "definition": "The compiler's deduction of static types from how expressions are used and from their context, without requiring annotations everywhere."
+      }
+    },
+    "tuple": {
+      "zh": {
+        "preferred": "元组",
+        "definition": "按固定位置组合若干值的类型；组成部分可以具有不同类型，类型签名中用星号连接。"
+      },
+      "en": {
+        "preferred": "tuple",
+        "definition": "A type that combines a fixed number of positional values, whose component types may differ and are joined by an asterisk in a type signature."
       }
     },
     "unit": {

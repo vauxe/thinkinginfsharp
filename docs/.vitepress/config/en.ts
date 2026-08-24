@@ -15,7 +15,8 @@ export const enLocale = {
           text: 'Part I · Expressions and functions',
           items: [
             { text: '1 · A First F# Session', link: '/en/part-01/ch-01-first-session' },
-            { text: '2 · Values, Bindings, and Expressions', link: '/en/part-01/ch-02-values-bindings-expressions' }
+            { text: '2 · Values, Bindings, and Expressions', link: '/en/part-01/ch-02-values-bindings-expressions' },
+            { text: '3 · Functions Are Values', link: '/en/part-01/ch-03-functions-as-values' }
           ]
         }
       ],
@@ -24,7 +25,8 @@ export const enLocale = {
           text: 'Solutions',
           items: [
             { text: 'Chapter 1', link: '/en/solutions/ch-01-first-session' },
-            { text: 'Chapter 2', link: '/en/solutions/ch-02-values-bindings-expressions' }
+            { text: 'Chapter 2', link: '/en/solutions/ch-02-values-bindings-expressions' },
+            { text: 'Chapter 3', link: '/en/solutions/ch-03-functions-as-values' }
           ]
         }
       ]

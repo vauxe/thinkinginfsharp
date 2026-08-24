@@ -24,6 +24,19 @@
       ]
     },
     {
+      "id": "ch03-functions-as-values",
+      "kind": "script",
+      "path": "examples/scripts/ch03-functions-as-values.fsx",
+      "expectedOutput": [
+        "Curried total: 58.50",
+        "Tupled total: 58.50",
+        "Named and anonymous: 4, 4",
+        "Applied twice: 5",
+        "With service fee: 60.50",
+        "Identity values: 42, F#"
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",

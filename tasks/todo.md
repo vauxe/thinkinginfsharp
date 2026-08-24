@@ -107,10 +107,10 @@
 
 ### B03 — 函数也是值 / Functions Are Values
 
-- [ ] **依赖：** B02。
+- [x] **依赖：** B02。
 - **主要文件（5）：** `docs/{zh,en}/part-01/ch-03-functions-as-values.md`、`docs/{zh,en}/solutions/ch-03-functions-as-values.md`、`examples/scripts/ch03-functions-as-values.fsx`。
 - **验收：** 覆盖命名/匿名函数、应用、高阶函数、柯里化、元组参数和部分应用；只建立自动泛化直觉，不提前教授值限制。
-- **验证：** 聚焦 FSI 脚本；双语与内容检查；`pnpm build`。
+- **验证：** FSI 脚本 6 行输出与 manifest 顺序一致，交互加载核对全部推断签名；`pnpm test` 的 22 项内容测试、双语/内容/示例门与生产构建全部通过。
 - **规模：** M。
 
 ### B04 — 分支与基本模式 / Branching and Basic Patterns
