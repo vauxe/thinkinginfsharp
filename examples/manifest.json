@@ -484,6 +484,24 @@
       ]
     },
     {
+      "id": "ecosystem-unity-fsharp-plugin",
+      "kind": "unity-plugin",
+      "path": "examples/ecosystem/unity/FSharpGameplay/FSharpGameplay.fsproj",
+      "sources": [
+        "examples/ecosystem/unity/FSharpGameplay/Gameplay.fs"
+      ],
+      "documentation": "examples/ecosystem/unity/FSharpGameplay/README.md"
+    },
+    {
+      "id": "ecosystem-unity-csharp-adapter",
+      "kind": "illustrative",
+      "path": "examples/ecosystem/unity/FSharpGameplay/UnityAdapter.cs",
+      "reason": "The adapter intentionally compiles inside Unity because it depends on UnityEngine and the imported F# plug-in.",
+      "documentedIn": [
+        "examples/ecosystem/unity/FSharpGameplay/README.md"
+      ]
+    },
+    {
       "id": "capstone-booking-api",
       "kind": "compile",
       "path": "examples/capstone/src/Booking.Api/Booking.Api.fsproj",

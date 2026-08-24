@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>FSharpGameplay</AssemblyName>
+    <RootNamespace>ThinkingInFSharp.UnitySample</RootNamespace>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Gameplay.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="FSharp.Core" Version="10.1.301" />
+  </ItemGroup>
+
+  <Target Name="VerifyUnityPluginOutput" AfterTargets="Build">
+    <Error
+      Condition="!Exists('$(TargetPath)')"
+      Text="The Unity plug-in assembly was not produced at $(TargetPath)." />
+    <Error
+      Condition="!Exists('$(TargetDir)FSharp.Core.dll')"
+      Text="FSharp.Core.dll must be copied beside FSharpGameplay.dll for Unity import." />
+  </Target>
+</Project>

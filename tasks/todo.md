@@ -723,10 +723,10 @@
 
 ### X44 — Unity 6.3 LTS F# 插件与 C# 适配层
 
-- [ ] **依赖：** B43。
+- [x] **依赖：** B43。
 - **主要文件（≤5）：** `examples/ecosystem/unity/FSharpGameplay/FSharpGameplay.fsproj`、`Gameplay.fs`、`UnityAdapter.cs`、`link.xml`、`README.md`。
 - **验收：** F# 库目标 `netstandard2.1`；记录并验证 `FSharp.Core` 装配；C# 薄层隔离 Unity 序列化/API；文档区分编译、编辑器导入、IL2CPP/裁剪和 Player 构建。
-- **验证：** Release 编译插件；检查产物与依赖；`pnpm check:examples`；Unity 6.3 指定补丁版本人工导入和代表性 Player 构建另行记录。
+- **验证：** 先将解决方案、清单和测试指向尚不存在的 Unity 插件，得到项目、F# 源、C# 适配器和 README 五项预期红灯；随后依据截至 2026-08-25 的 Unity 6.3 LTS、.NET profile、托管插件、序列化、IL2CPP、UnityLinker 与 F# 组件设计官方资料实现恰好 5 个主要文件。`FSharpGameplay` 目标为 `netstandard2.1`，显式把 F# SDK 的隐式 `FSharp.Core` 更新并锁到与本仓库 .NET SDK 10.0.301 对应的包 10.1.301；首次误用第二个 `Include` 触发 NU1504 重复引用红灯，最终用 `Update` 保留唯一依赖。构建后的 8,192 字节 `FSharpGameplay.dll` 声明 `FSharp.Core, Version=10.1.0.0`，2,407,760 字节的精确 `FSharp.Core.dll` 被复制到同目录，项目的后置目标会在任一文件缺失时失败。纯 `Gameplay.Step` 不引用 UnityEngine，输入夹紧、位置/速度转换与非有限值防线均在 F#；公开签名只暴露普通 CLR 类、属性和静态方法，聚焦测试还通过反射拒绝 `Microsoft.FSharp.*` 类型泄漏。`UnityAdapter.cs` 只保留 `MonoBehaviour`、`SerializeField`、生命周期、Time 与 Transform，并用 `SetHorizontal(float)` 避免绑定某一输入包；该文件准确登记为必须在 Unity 中编译的说明性适配器，而不是用伪 UnityEngine 声称宿主验证。窄 `link.xml` 的 XML 格式检查通过且不粗暴保留整个 FSharp.Core。locked-mode 解决方案还原、Release 全编译均为 0 警告/0 错误，Unity 聚焦测试 1/1、ExampleTests 69/69、Fantomas 和 `pnpm check:examples`（含 Fable 生产构建及 Chrome 冒烟）均通过。目标人工矩阵锁定 Unity 6000.3.22f1；本机实际不存在 `/Applications/Unity/Hub/Editor`，因此插件导入、C# Play Mode 与 macOS ARM64 IL2CPP Player 构建/启动在 README 中逐项记为“未运行—Editor/模块缺失”，没有把 .NET 编译改写成 Unity 证据。
 - **规模：** L。
 
 ### B44 — Unity 6.3 LTS 与 F# / Unity 6.3 LTS and F#

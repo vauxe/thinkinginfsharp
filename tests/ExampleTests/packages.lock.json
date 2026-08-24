@@ -439,6 +439,12 @@
           "FSharp.Data": "[8.2.0, )"
         }
       },
+      "fsharpgameplay": {
+        "type": "Project",
+        "dependencies": {
+          "FSharp.Core": "[10.1.301, )"
+        }
+      },
       "ThinkingInFSharp.AvaloniaSample": {
         "type": "Project",
         "dependencies": {
