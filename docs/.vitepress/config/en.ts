@@ -94,7 +94,8 @@ export const enLocale = {
         {
           text: 'Part VII · The ecosystem map',
           items: [
-            { text: '39 · ASP.NET Core and the F# Web Ecosystem', link: '/en/part-07/ch-39-web-ecosystem' }
+            { text: '39 · ASP.NET Core and the F# Web Ecosystem', link: '/en/part-07/ch-39-web-ecosystem' },
+            { text: '40 · Data, Type Providers, Analytics, and ML', link: '/en/part-07/ch-40-data-analytics' }
           ]
         }
       ],
@@ -140,7 +141,8 @@ export const enLocale = {
             { text: 'Chapter 36', link: '/en/solutions/ch-36-web-api-boundaries' },
             { text: 'Chapter 37', link: '/en/solutions/ch-37-consistency-idempotency' },
             { text: 'Chapter 38', link: '/en/solutions/ch-38-integration-diagnostics-release' },
-            { text: 'Chapter 39', link: '/en/solutions/ch-39-web-ecosystem' }
+            { text: 'Chapter 39', link: '/en/solutions/ch-39-web-ecosystem' },
+            { text: 'Chapter 40', link: '/en/solutions/ch-40-data-analytics' }
           ]
         }
       ]
