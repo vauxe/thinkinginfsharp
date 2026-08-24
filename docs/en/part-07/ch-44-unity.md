@@ -240,7 +240,7 @@ As of 2026-08-25, X44 records:
 | --- | --- | --- |
 | Locked .NET restore | Pass | `netstandard2.1` graph resolves to FSharp.Core package 10.1.301 |
 | Release plug-in build | Pass, 0 warnings/errors | F# source compiles on .NET SDK 10.0.301 |
-| Output inspection | Pass | 8,192-byte plug-in and 2,407,760-byte FSharp.Core are adjacent; assembly reference is present |
+| Output inspection | Pass | 8,704-byte plug-in and 2,407,760-byte FSharp.Core are adjacent; assembly reference is present |
 | Focused rule/API test | Pass, 1/1 | Clamp/step behavior, struct state, FSharp.Core reference, and no F#-specific public signature types |
 | Repository example matrix | Pass | Locked solution, 69 ExampleTests, other examples, Fable build, and browser smoke remain green |
 | Unity 6000.3.22f1 import | Not run | Editor is absent from this machine |

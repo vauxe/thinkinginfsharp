@@ -726,7 +726,7 @@
 - [x] **依赖：** B43。
 - **主要文件（≤5）：** `examples/ecosystem/unity/FSharpGameplay/FSharpGameplay.fsproj`、`Gameplay.fs`、`UnityAdapter.cs`、`link.xml`、`README.md`。
 - **验收：** F# 库目标 `netstandard2.1`；记录并验证 `FSharp.Core` 装配；C# 薄层隔离 Unity 序列化/API；文档区分编译、编辑器导入、IL2CPP/裁剪和 Player 构建。
-- **验证：** 先将解决方案、清单和测试指向尚不存在的 Unity 插件，得到项目、F# 源、C# 适配器和 README 五项预期红灯；随后依据截至 2026-08-25 的 Unity 6.3 LTS、.NET profile、托管插件、序列化、IL2CPP、UnityLinker 与 F# 组件设计官方资料实现恰好 5 个主要文件。`FSharpGameplay` 目标为 `netstandard2.1`，显式把 F# SDK 的隐式 `FSharp.Core` 更新并锁到与本仓库 .NET SDK 10.0.301 对应的包 10.1.301；首次误用第二个 `Include` 触发 NU1504 重复引用红灯，最终用 `Update` 保留唯一依赖。构建后的 8,192 字节 `FSharpGameplay.dll` 声明 `FSharp.Core, Version=10.1.0.0`，2,407,760 字节的精确 `FSharp.Core.dll` 被复制到同目录，项目的后置目标会在任一文件缺失时失败。纯 `Gameplay.Step` 不引用 UnityEngine，输入夹紧、位置/速度转换与非有限值防线均在 F#；公开签名只暴露普通 CLR 值类型、属性和静态方法，聚焦测试还通过反射拒绝 `Microsoft.FSharp.*` 类型泄漏。性能复核先用 `IsValueType` 回归测试准确抓到每次 FixedUpdate 分配一个状态类的问题，再把 `MotionState` 改为私有字段、内部构造器、公开只读属性的显式 F# struct，保持 C# 读取面且消除该类分配。`UnityAdapter.cs` 只保留 `MonoBehaviour`、`SerializeField`、生命周期、Time 与 Transform，并用 `SetHorizontal(float)` 避免绑定某一输入包；该文件准确登记为必须在 Unity 中编译的说明性适配器，而不是用伪 UnityEngine 声称宿主验证。窄 `link.xml` 的 XML 格式检查通过且不粗暴保留整个 FSharp.Core。locked-mode 解决方案还原、Release 全编译均为 0 警告/0 错误，Unity 聚焦测试 1/1、ExampleTests 69/69、Fantomas 和 `pnpm check:examples`（含 Fable 生产构建及 Chrome 冒烟）均通过。目标人工矩阵锁定 Unity 6000.3.22f1；本机实际不存在 `/Applications/Unity/Hub/Editor`，因此插件导入、C# Play Mode 与 macOS ARM64 IL2CPP Player 构建/启动在 README 中逐项记为“未运行—Editor/模块缺失”，没有把 .NET 编译改写成 Unity 证据。
+- **验证：** 先将解决方案、清单和测试指向尚不存在的 Unity 插件，得到项目、F# 源、C# 适配器和 README 五项预期红灯；随后依据截至 2026-08-25 的 Unity 6.3 LTS、.NET profile、托管插件、序列化、IL2CPP、UnityLinker 与 F# 组件设计官方资料实现恰好 5 个主要文件。`FSharpGameplay` 目标为 `netstandard2.1`，显式把 F# SDK 的隐式 `FSharp.Core` 更新并锁到与本仓库 .NET SDK 10.0.301 对应的包 10.1.301；首次误用第二个 `Include` 触发 NU1504 重复引用红灯，最终用 `Update` 保留唯一依赖。构建后的 8,704 字节 `FSharpGameplay.dll` 声明 `FSharp.Core, Version=10.1.0.0`，2,407,760 字节的精确 `FSharp.Core.dll` 被复制到同目录，项目的后置目标会在任一文件缺失时失败。纯 `Gameplay.Step` 不引用 UnityEngine，输入夹紧、位置/速度转换与非有限值防线均在 F#；公开签名只暴露普通 CLR 值类型、属性和静态方法，聚焦测试还通过反射拒绝 `Microsoft.FSharp.*` 类型泄漏。性能复核先用 `IsValueType` 回归测试准确抓到每次 FixedUpdate 分配一个状态类的问题，再把 `MotionState` 改为私有字段、内部构造器、公开只读属性的显式 F# struct，保持 C# 读取面且消除该类分配。`UnityAdapter.cs` 只保留 `MonoBehaviour`、`SerializeField`、生命周期、Time 与 Transform，并用 `SetHorizontal(float)` 避免绑定某一输入包；该文件准确登记为必须在 Unity 中编译的说明性适配器，而不是用伪 UnityEngine 声称宿主验证。窄 `link.xml` 的 XML 格式检查通过且不粗暴保留整个 FSharp.Core。locked-mode 解决方案还原、Release 全编译均为 0 警告/0 错误，Unity 聚焦测试 1/1、ExampleTests 69/69、Fantomas 和 `pnpm check:examples`（含 Fable 生产构建及 Chrome 冒烟）均通过。目标人工矩阵锁定 Unity 6000.3.22f1；本机实际不存在 `/Applications/Unity/Hub/Editor`，因此插件导入、C# Play Mode 与 macOS ARM64 IL2CPP Player 构建/启动在 README 中逐项记为“未运行—Editor/模块缺失”，没有把 .NET 编译改写成 Unity 证据。
 - **规模：** L。
 
 ### B44 — Unity 6.3 LTS 与 F# / Unity 6.3 LTS and F#
@@ -747,9 +747,9 @@
 
 ### C7 — 生态地图检查点
 
-- [ ] **依赖：** B45。
+- [x] **依赖：** B45。
 - **验收：** 每章均含问题、选择、优势、摩擦、代表例和继续学习；版本、官方来源、自动/人工证据和未验证边界清楚；无专有账号依赖。
-- **验证：** `pnpm test`；分别执行 X39、X40、X41a/b、X42、X43、X44 的聚焦构建；审查 Unity 人工记录是否真实完成而非占位。
+- **验证：** 逐章审查中英文第 39–45 章：每章都从问题/边界出发，给出候选选择、强项或适用条件、摩擦/取舍、唯一已验证切片、有界采用试验与后续章节/项目学习路径；所有易变版本和官方来源均带 2026-08-25 审阅日，表格与正文把仓库已执行、官方资料审阅和未验证平台明确分开。聚焦验证分别重跑：X39 Release 构建 0 警告/0 错误且 `WebSampleTests` 7/7；X40 同样无警告且 `DataSampleTests` 2/2；X41a/b 重新锁定还原，Fable 5.13.0 编译、Vite 6.4.3 转换 15 个模块，真实 Chrome 完成 `0 → 3 → 0` 且无运行错误/溢出；X42 的 F# 服务与 C# AppHost 均 0 警告/0 错误；X43 Avalonia 构建无警告且纯转换测试 1/1；X44 Unity 插件构建无警告且 CLR 边界/值类型测试 1/1。生态样例源码只使用本地夹具、公开包和回环/本机边界，无云、数据库或专有账号才能通过的验收项。Unity 目录现场检查再次证实 `/Applications/Unity/Hub/Editor` 不存在；README 的导入、Play Mode 和 IL2CPP Player 三项均是带精确目标的 `Not run — Editor/module absent`，而非占位通过。该复核还发现 struct 优化后插件实际为 8,704 字节，已同步更正第 44 章中英文和 X44 旧的 8,192 字节记录。最终 `pnpm test` 全量通过：22 项内容工具测试、双语一致性、内容契约、全部样例与 Fable Chrome 冒烟、VitePress 生产构建均为绿色。
 
 ## 8. 前言、附录与全站装配
 
