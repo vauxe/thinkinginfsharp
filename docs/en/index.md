@@ -15,12 +15,14 @@ termIds: []
 sources:
   - id: dotnet-10-download
     url: https://dotnet.microsoft.com/en-us/download/dotnet/10.0
-    checked: "2026-08-24"
+    checked: "2026-08-25"
 ---
 
 # Thinking in F# {#overview}
 
 This book is for developers who can already program but have not yet studied functional programming systematically. It begins with expressions, values, types, and functions, then moves toward testable workflows, asynchronous and concurrent code, .NET interoperability, and a complete event-booking system.
+
+[Read the preface](./preface/) to choose one of three routes: a six-chapter quick start, systematic study, or a C#/.NET transition path. Each route uses the same complete English edition; Chinese is never required.
 
 ## What you will learn to do {#capabilities}
 
@@ -33,7 +35,7 @@ Every valid code sample comes from executable source shared by both editions.
 
 ## The shortest route in {#quick-start}
 
-The book assumes basic programming experience, but neither functional programming nor Chinese. With the repository and [.NET SDK 10.0.301](https://dotnet.microsoft.com/en-us/download/dotnet/10.0) ready, verify the toolchain from the repository root:
+The book assumes basic programming experience, but neither functional programming nor Chinese. With the repository and its [.NET SDK 10.0.301 reproduction baseline](https://dotnet.microsoft.com/en-us/download/dotnet/10.0) ready, verify the toolchain from the repository root:
 
 ```console
 dotnet --version

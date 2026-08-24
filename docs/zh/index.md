@@ -15,12 +15,14 @@ termIds: []
 sources:
   - id: dotnet-10-download
     url: https://dotnet.microsoft.com/en-us/download/dotnet/10.0
-    checked: "2026-08-24"
+    checked: "2026-08-25"
 ---
 
 # F# 思维 {#overview}
 
 本书面向已有编程经验、但尚未系统学习函数式编程的开发者。它从表达式、值、类型和函数出发，逐步抵达可测试的工作流、异步与并发、.NET 互操作，以及一个完整的活动预约系统。
+
+[阅读前言](./preface/)可在六章快速入门、系统学习和 C#/.NET 转向 F# 三条路线中选择。每条路线都使用完整的中文版，不要求读者懂英文。
 
 ## 你将形成的能力 {#capabilities}
 
@@ -33,7 +35,7 @@ sources:
 
 ## 最短起步路线 {#quick-start}
 
-本书假设你已有基本编程经验，但不假设你会函数式编程或英文。准备好仓库与 [.NET SDK 10.0.301](https://dotnet.microsoft.com/en-us/download/dotnet/10.0) 后，从仓库根目录确认工具链：
+本书假设你已有基本编程经验，但不假设你会函数式编程或英文。准备好仓库与其 [.NET SDK 10.0.301 复现基线](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)后，从仓库根目录确认工具链：
 
 ```console
 dotnet --version

@@ -7,14 +7,16 @@ description: A bilingual, F#-first book for learning and mastering F#.
 
 <main class="language-landing__content">
 
-<h1><span lang="zh-Hans">F# 思维</span><span aria-hidden="true"> / </span><span lang="en">Thinking in F#</span></h1>
+<h1 aria-label="F# 思维 / Thinking in F#"><span lang="zh-Hans">F# 思维</span><span aria-hidden="true"> / </span><span lang="en">Thinking in F#</span></h1>
 
 <p lang="zh-Hans">
 一本从 F# 语言本身出发，帮助开发者建立函数式建模与工程能力的双语书。
+中文与英文版本内容对等、各自完整；请选择你最容易持续阅读的语言。
 </p>
 
 <p lang="en">
 A bilingual, F#-first book about functional modeling and production engineering.
+The Chinese and English editions are equivalent and independently complete; choose the language you can read most comfortably.
 </p>
 
 <nav class="language-choice" aria-label="Language / 语言">
