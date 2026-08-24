@@ -1,0 +1,289 @@
+---
+title: "第 31 章：先测量再优化"
+description: "从用户可见的性能需求出发，经过剖析与受控的 F# 基准，得到保持等价且经过测量的修改，同时不把局部结果冒充普遍规律。"
+translationKey: part-05/ch-31-measure-before-optimizing
+kind: chapter
+part: 5
+chapter: 31
+status: complete
+verifiedWith:
+  fsharp: "10"
+  dotnetSdk: "10.0.301"
+exampleIds:
+  - ch31-measure-before-optimizing
+exerciseIds:
+  - ch31-exercise-01
+  - ch31-exercise-02
+  - ch31-exercise-03
+termIds: []
+sources:
+  - id: benchmarkdotnet-getting-started
+    url: https://benchmarkdotnet.org/articles/guides/getting-started.html
+    checked: "2026-08-24"
+  - id: benchmarkdotnet-good-practices
+    url: https://benchmarkdotnet.org/articles/guides/good-practices.html
+    checked: "2026-08-24"
+  - id: benchmarkdotnet-diagnosers
+    url: https://benchmarkdotnet.org/articles/configs/diagnosers.html
+    checked: "2026-08-24"
+  - id: microsoft-dotnet-diagnostics
+    url: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/
+    checked: "2026-08-24"
+  - id: microsoft-fsharp-inline-functions
+    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/inline-functions
+    checked: "2026-08-24"
+  - id: microsoft-fsharp-value-options
+    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/value-options
+    checked: "2026-08-24"
+  - id: microsoft-fsharp-byrefs
+    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/byrefs
+    checked: "2026-08-24"
+  - id: microsoft-memory-span-guidelines
+    url: https://learn.microsoft.com/en-us/dotnet/standard/memory-and-spans/memory-t-usage-guidelines
+    checked: "2026-08-24"
+  - id: microsoft-dotnet-trimming
+    url: https://learn.microsoft.com/en-us/dotnet/core/deploying/trimming/trim-self-contained
+    checked: "2026-08-24"
+  - id: microsoft-dotnet-native-aot
+    url: https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/
+    checked: "2026-08-24"
+---
+
+# 第 31 章：先测量再优化 {#overview}
+
+性能是在某种环境中、某项工作负载之下，相对于一个需求表现出来的行为。“这段代码看起来很快”不是证据；一个秒表结果、一张剖析器截图或从另一台机器复制来的微基准也不是。先明确用户或运维人员需要什么，再定位昂贵路径、改变一个原因，并重新测量同一可观察量。
+
+F# 要高效，并不要求放弃表达式、不可变性或领域类型。清晰代码正是检验优化假设的基线。当证据找出热点循环时，严格局限于局部的可变状态或较低层表示可以适用。公开边界仍应保持需求所允许的简单与真实。
+
+## 学完本章你将能够做什么 {#outcomes}
+
+学完本章后，你应该能够：
+
+- 把“让它更快”转化成工作负载、环境、可观察量和目标；
+- 区分端到端测量、剖析、计数器、追踪和微基准；
+- 遵循“基线 → 剖析 → 假设 → 修改 → 等价性 → 复测”循环；
+- 设计一个隔离待测工作并返回结果的 BenchmarkDotNet 基准；
+- 谨慎解读均值、误差、标准差、比率、分配和 GC 列；
+- 解释为何一次采集的基准无法给 F# 集合做普遍排名；
+- 使用局部可变状态，而不让它越过 API 泄漏；
+- 识别 `inline`、`voption`、`Span<'T>` 和 byref 何时值得实验；
+- 区分稳态吞吐量与启动、内存及部署大小；
+- 把裁剪和 Native AOT 看作带兼容性成本的部署模型，而不是神奇加速开关。
+
+## 先定义性能问题 {#performance-question}
+
+有用的性能陈述包含四部分：
+
+| 部分 | 示例 | 缺失这一部分的后果 |
+|---|---|---|
+| 工作负载 | 以实际观察到的值分布聚合 4,096 个请求 | 过小或人造的数据形态可能优化错路径 |
+| 环境 | .NET 10、arm64、Release、工作站或指定生产机器类别 | 运行时、JIT、CPU、GC 和电源行为均会不同 |
+| 可观察量 | p95 请求延迟、每秒操作数、分配字节、启动时间或发布大小 | “更快”把互不相同的结果混在一起 |
+| 目标 | 每秒 200 个请求时 p95 低于 150 ms | 任何修改都能被称为成功 |
+
+选择与需求处于同一边界的可观察量。若用户报告 HTTP 请求缓慢，应先看端到端请求延迟与吞吐量，而不是某个列表函数的纳秒数。若容器重启过慢，就测量进程就绪时间。若 GC 暂停占主导，就测量分配率、堆行为和暂停，而不只是 CPU 时间。
+
+当分布尾部重要时，应使用百分位数。平均值可能改善，而 p99 反而变差。随结果记录并发量、数据形态、缓存状态、运行时配置及外部依赖。没有这些输入的基准，只是一个没有主张的数字。
+
+## 遵循证据阶梯 {#evidence-ladder}
+
+可靠的优化循环具有明确顺序：
+
+1. 复现相关工作负载，并在用户可见边界记录基线。
+2. 用计数器或剖析器定位时间、分配、争用或 I/O 聚集在哪里。
+3. 陈述一个因果假设，包括它预测会变化的可观察量。
+4. 若可疑工作很小且确定，就把它隔离在微基准中。
+5. 用示例、性质或可信参考实现保持功能等价。
+6. 做一次聚焦修改，并在可比条件下重跑同一基准。
+7. 重跑端到端工作负载；若局部更快却没有改善需求，就拒绝这项修改。
+
+剖析回答“进程把资源花在哪里？”微基准回答“在这个隔离设置下，这些实现如何比较？”端到端测量回答“系统结果改善了吗？”三者不能相互替代。
+
+达到目标，或测得的收益已不足以抵偿复杂度时，就应停止。优化会带来维护、可移植性、代码大小和调试成本。一项路径只占请求时间百分之一时，即使局部快百分之五，也无法实质修复整个请求。
+
+## 案例：移除一次测得的中间分配 {#case-study}
+
+样例对不大于配置上限的正座位值求和。基线是惯用的数组管道；候选实现以一次遍历完成同样的判断与加法：
+
+<<< @/../examples/chapters/ch31/Benchmarks.fs#aggregation-implementations{fsharp:line-numbers} [Benchmarks.fs]
+
+`arrayPipeline` 清楚表达意图：选择符合条件的元素，再把它们转换为 `int64` 后求和。它也会在第二次遍历前物化筛选数组。若不处于热点，这项成本可能无关紧要；因此没有测量指向它时，管道仍是良好默认选择。
+
+`singlePass` 把可变累加器封闭在一个函数里。没有可变引用逸出，可观察结果仍是值。局部可变状态是一种实现技术，并不要求领域模型变成可变。两种计算期间，数组本身仍不得被并发修改。
+
+候选实现改变了遍历结构，因此带来正确性风险。第一个有意写错的版本使用 `< maxSeats`，而不是 `<= maxSeats`；上限为 4、输入为 `[1; 4; 5; 0; -1; 2]` 时，基线返回 7，候选只返回 3。在修复这个语义差异之前，不应开始测量。
+
+## 计时前先提供足够的等价证据 {#equivalence}
+
+任何基准开始前，样例都会检查四个具名案例与 256 个确定性生成案例：
+
+<<< @/../examples/chapters/ch31/Benchmarks.fs#equivalence{fsharp:line-numbers} [Benchmarks.fs]
+
+参考实现与候选实现具有独立结构，因此比较有意义。案例覆盖空输入、精确边界、被拒绝值、负值和不同长度。260 个案例通过是证据，并非数学证明；生产规则可能还需要更多性质、溢出案例或领域级测试。
+
+编辑期间只运行语义关卡：
+
+```console
+dotnet run --project examples/chapters/ch31/Ch31.Benchmarks.fsproj \
+  --configuration Release --no-restore -- --verify-only
+```
+
+不要在这个检查中写入容易抖动的时间限制。正确性关卡应当确定。性能历史可以帮助发现疑似退化，但在阈值进入 CI 之前，需要受控执行器、重复证据以及处理方差的策略。
+
+## 设计能隔离假设的基准 {#benchmark-design}
+
+基准夹具把确定性输入构造移入 `GlobalSetup`，返回每次求和结果，测试两种数据规模，把管道标为基线，并启用托管分配报告：
+
+<<< @/../examples/chapters/ch31/Benchmarks.fs#benchmark{fsharp:line-numbers} [Benchmarks.fs]
+
+每个选择都堵住一个常见漏洞：
+
+- 设置耗时不计入被比较的操作；
+- 固定种子让两个方法看到可复现的数据形态；
+- 返回结果可阻止死代码消除；
+- 参数能揭示这种关系是否随输入规模改变；
+- `Baseline = true` 给出每个参数组内部的比率；
+- `MemoryDiagnoser` 报告每次操作的托管分配与 GC 频率。
+
+项目锁定了 BenchmarkDotNet 0.15.8 及全部已解析依赖。应在没有附加调试器的情况下，从命令行以 Release 运行。BenchmarkDotNet 会构建生成的基准可执行文件，执行预热和测量迭代，并报告运行时环境；手写 `Stopwatch` 循环则需要重新发现这些控制。
+
+快速模式只是执行检查：
+
+```console
+dotnet run --project examples/chapters/ch31/Ch31.Benchmarks.fsproj \
+  --configuration Release --no-restore -- --smoke
+```
+
+它使用只有一次冷启动测量的 Dry 作业，其均值与比率不能作为基线。不提供本章专用参数时会使用 ShortRun；当重要决策需要更严格证据时，应在受控机器上使用更长作业。
+
+## 解读采集结果而不夸大 {#read-results}
+
+已提交基线记录了精确的工具、作业、OS、运行时、架构、GC、配置、种子、工作负载和限制。在那一台开发者工作站上，ShortRun 摘要为：
+
+| 方法 | 数量 | 均值 | 误差（99.9% 置信区间半宽） | 标准差 | 比率 | 已分配 |
+|---|---:|---:|---:|---:|---:|---:|
+| `ArrayPipeline` | 256 | 339.9 ns | 27.92 ns | 1.53 ns | 1.00 | 520 B |
+| `SinglePass` | 256 | 147.3 ns | 6.25 ns | 0.34 ns | 0.43 | 报告为 0 B |
+| `ArrayPipeline` | 4,096 | 5,777.7 ns | 691.47 ns | 37.90 ns | 1.00 | 7,504 B |
+| `SinglePass` | 4,096 | 2,475.9 ns | 70.92 ns | 3.89 ns | 0.43 | 报告为 0 B |
+
+可辩护的结论很窄：在这次采集的环境和输入生成器上，单遍候选保持了全部已检查结果，在两种测试规模下测得的均值约为管道的 0.43，并避免了 MemoryDiagnoser 所报告的中间数组分配。
+
+它不能证明循环总比管道快、数组比列表快、一般情况下应偏好可变状态，或该比率会延续到另一个运行时或 CPU。处理器查询遭拒，工作站的电源状态与后台负载也未受控。ShortRun 只有三次测量迭代，因此尤其应谨慎看待其较宽置信区间。
+
+均值是各次测得操作的算术平均数；标准差描述观察到的离散程度。显示的误差是 BenchmarkDotNet 所声明置信区间的一半，并非所有未来运行的边界。比率只比较相应 `Count` 组内的方法。“报告为 0 B”表示诊断器在其分辨率下没有观察到每次操作的托管分配，并不表示进程完全不用内存。
+
+## 理解分配假设 {#allocation}
+
+在这个样例中，`Array.filter` 创建包含已接受值的中间数组，随后 `Array.sumBy` 遍历它。分配量随匹配数量增长。单遍实现读取源数组并累加 `int64`，不构造该结果数组。测量结果与这个具体因果解释一致。
+
+分配并不自动等于缺陷。物化值可能简化所有权、支持复用，或避免重复的延迟工作。短命分配可能很便宜，直到其速率形成 GC 压力。应在剖析或测得的分配率显示它影响需求时优化，而不是因为代码中出现“分配”一词。
+
+不存在脱离上下文的“最快 F# 集合”：
+
+| 需求 | 待测候选 | 重要成本 |
+|---|---|---|
+| 持久的头部更新与结构共享 | `list<'T>` | 随机索引差，且每个节点有开销 |
+| 稠密索引、批量遍历、.NET 互操作 | `'T array` | 可变存储；结构变化时要复制整个数组 |
+| 延迟或流式遍历 | `seq<'T>` | 枚举器/闭包开销，以及再次枚举时重复工作 |
+| 保持顺序的键查找 | `Map<'K,'V>` | 树比较，以及更新时的分配 |
+| 不要求顺序的键查找 | `Dictionary<'K,'V>` | 可变性、比较器质量、容量和扩容行为 |
+
+先从语义选择，再剖析有代表性的操作和规模。更换集合可能改变顺序、相等性、可变性、惰性、线程安全与内存所有权，而不仅是速度。
+
+## 剖析应用，而不只是一个函数 {#profiling}
+
+.NET 诊断工具可以观察实时或已记录进程。运行时计数器能快速展示 CPU 使用、分配率、GC 活动、线程池行为和异常；采样追踪可以把 CPU 时间与分配归因到调用栈；堆工具则回答分配微基准无法回答的保留问题。
+
+应使用有代表性的流量，并保留运行上下文。微基准有意排除网络延迟、序列化、数据库等待、争用、排队、JIT 启动和应用组合。剖析找出某个热点函数后，它可以解释该函数，却无法单独预测 p95 请求延迟。
+
+同理，一个函数出现在 CPU 剖析顶部，也不能单凭这一点证明因果。它可能因为上游设计而被频繁调用，或在归因到别处的操作内等待。应提出假设、改变一个原因，再同时确认剖析与端到端可观察量。
+
+## 依据证据识别较低层 F# 工具 {#lower-level-tools}
+
+较低层特性用便利性与通用性换取表示或调用点控制。应把它们引入狭窄边界，并对精确用例做基准。
+
+### `inline` 不是通用加速标记 {#inline}
+
+F# 的 `inline` 函数会集成到调用点，并可使用静态解析类型参数。有时类型系统角色要求这样做；普通泛型函数不需要它。编译器与 JIT 也能按自己的规则内联未标记代码。
+
+给函数标记 `inline` 可能消除调用或 lambda 开销、暴露进一步优化、毫无作用，或增大生成代码并增加指令缓存压力。它也会让调用方对实现变化更敏感。应保留等价的非内联基线并测量整体行为，不要按审美规则在小函数上到处添加 `inline`。
+
+### `voption` 用值复制换取包装器分配 {#voption}
+
+`option<'T>` 是可选数据的自然模型。`voption<'T>` 是带 `ValueSome` 与 `ValueNone` 的结构体可辨识联合。它可以在热点中避免分配 option 包装器，尤其是载荷较小时；但复制大型结构体可能更贵，装箱或经由泛型/接口使用也可能抹去预期收益。
+
+把 `option` 改为 `voption` 会改变公开类型及其分支名称。应测量分配敏感路径，同时包含有值与无值两种分布，保留行为测试；除非调用方确实从该契约受益，否则把值选项留在内部。F# 10 也支持结构体支持的可选成员参数，但同样需要证据。
+
+### Span 与 byref 会施加生命周期规则 {#span-byref}
+
+`byref<'T>`、`inref<'T>` 与 `outref<'T>` 是托管指针。`Span<'T>` 和 `ReadOnlySpan<'T>` 是连续内存上的 byref-like 视图；即便底层内存位于托管或非托管区域，视图本身也受栈约束。编译期逸出规则禁止把这些值存入普通堆对象，或在 lambda 与异步工作流中捕获它们。
+
+在同步代码中，Span 可以消除切片复制，并高效适配面向缓冲区的 .NET API。它不是每个数组或列表的替代品。当工作必须跨越异步边界或活得比调用更久时，应使用 `Memory<'T>`/`ReadOnlyMemory<'T>` 或数组等具有所有权的表示，并明确所有权。只有剖析确认复制或边界转换实质影响性能后，才添加 Span/byref。
+
+## 区分运行时优化与部署优化 {#deployment}
+
+裁剪与 Native AOT 会改变应用的发布方式。应通过启动时间、工作集、包大小、兼容性、构建时间和目标运行时标识符来评估它们，而不能从这个聚合微基准推断。
+
+裁剪会从自包含发布中移除静态不可达代码，以减小部署大小。反射等动态模式可能向分析隐藏必要代码，因此裁剪警告属于正确性证据。应解决警告并测试发布产物；只是为了产生更小包而压制警告，可能造成运行时失败。
+
+Native AOT 在发布时把 IL 编译成平台专属原生代码，并去除运行时 JIT 依赖。它可改善适合应用的启动时间与内存占用，但会增加构建时间，并限制动态加载、运行时代码生成、重度反射库和部署目标。它不承诺每种工作负载的稳态吞吐量都会提高。
+
+应在相同启动或服务工作负载下比较实际 JIT 与 AOT 产物。对每个受支持 RID 都应包含发布大小与功能冒烟测试。除非应用的部署需求提出这个问题，普通基准项目不必变成 AOT 兼容。
+
+## 记录决策，而不是奖杯数字 {#decision-record}
+
+有用的性能记录会说明：
+
+- 需求及用户可见基线；
+- 精确修订、命令、输入分布、环境和作业；
+- 定位可疑成本的剖析证据；
+- 假设与语义等价证据；
+- 原始摘要统计与分配数据，而不只是最好的一次运行；
+- 修改后的端到端结果；
+- 已知限制、被拒绝方案和回滚条件。
+
+把历史结果保存为证据，而不是永久的通过/失败阈值。运行时、依赖、硬件、工作负载或基准代码变化后，应有意重新建立基线。环境不同时，应先在同一次运行内比较新候选，再跨历史比较绝对值。
+
+## 练习 {#exercises}
+
+### 练习 1：只陈述证据支持的结论 {#exercise-01}
+
+利用采集表格，写出三项证据支持的结论和三项证据不支持的主张。解释为什么 Dry 冒烟输出不能替代 ShortRun 基线。
+
+### 练习 2：设计 `option` 与 `voption` 实验 {#exercise-02}
+
+剖析器把大量分配归因于一个每秒数百万次返回 `Some smallStruct` 或 `None` 的查找。为 `option<'T>` 与 `voption<'T>` 实现设计基准与等价性关卡。说明有值/无值分布、设置、返回结果、分配观察和混杂因素。
+
+### 练习 3：选择下一项测量 {#exercise-03}
+
+对每种症状——API 的 p95 延迟高、已知聚合调用栈的分配率高、命令行启动缓慢——选择下一项端到端、剖析器、计数器或微基准观察。说明什么结果能支持实现实验，以及此后必须复测什么。
+
+[阅读本章练习答案](../solutions/ch-31-measure-before-optimizing)。
+
+## 模型回顾 {#model-review}
+
+- 性能主张需要工作负载、环境、可观察量和目标。
+- 隔离可疑函数前，应先剖析有代表性的系统。
+- 比较性能前，应保持语义等价。
+- Release、无调试器、受控设置、被消费的结果和已记录上下文，才能让微基准可解释。
+- Dry 是执行冒烟，而不是测量基线。
+- 比率与分配只支持已测试的方法、输入、运行时和环境。
+- 局部可变状态可以移除已测分配，而不让公开模型变成可变。
+- 集合选择先从语义开始；随后测量有代表性的操作。
+- `inline`、`voption` 和 Span/byref 是带表示与维护成本的假设。
+- 裁剪与 Native AOT 优化部署维度，并需要发布产物测试。
+- 只有端到端需求也得到改善时，微基准改进才有意义。
+
+## 来源 {#sources}
+
+- [BenchmarkDotNet：入门与 Release 执行](https://benchmarkdotnet.org/articles/guides/getting-started.html)
+- [BenchmarkDotNet：良好实践与外推限制](https://benchmarkdotnet.org/articles/guides/good-practices.html)
+- [BenchmarkDotNet：诊断器与分配报告](https://benchmarkdotnet.org/articles/configs/diagnosers.html)
+- [Microsoft Learn：.NET 诊断、计数器、追踪与剖析器](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/)
+- [Microsoft Learn：F# 内联函数](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/inline-functions)
+- [Microsoft Learn：F# 值选项](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/value-options)
+- [Microsoft Learn：F# byref 与 byref-like 结构体](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/byrefs)
+- [Microsoft Learn：`Memory<'T>` 与 `Span<'T>` 使用指南](https://learn.microsoft.com/en-us/dotnet/standard/memory-and-spans/memory-t-usage-guidelines)
+- [Microsoft Learn：裁剪自包含应用](https://learn.microsoft.com/en-us/dotnet/core/deploying/trimming/trim-self-contained)
+- [Microsoft Learn：Native AOT 部署](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/)

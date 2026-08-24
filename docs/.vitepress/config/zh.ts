@@ -71,7 +71,8 @@ export const zhLocale = {
             { text: '第 27 章 · 为 C# 设计 F# API', link: '/zh/part-05/ch-27-fsharp-api-for-csharp' },
             { text: '第 28 章 · 示例测试、替身与边界测试', link: '/zh/part-05/ch-28-testing-boundaries' },
             { text: '第 29 章 · 使用 FsCheck 进行性质测试', link: '/zh/part-05/ch-29-property-testing' },
-            { text: '第 30 章 · 诊断、工具与可复现构建', link: '/zh/part-05/ch-30-diagnostics-tooling-builds' }
+            { text: '第 30 章 · 诊断、工具与可复现构建', link: '/zh/part-05/ch-30-diagnostics-tooling-builds' },
+            { text: '第 31 章 · 先测量再优化', link: '/zh/part-05/ch-31-measure-before-optimizing' }
           ]
         }
       ],
@@ -108,7 +109,8 @@ export const zhLocale = {
             { text: '第 27 章', link: '/zh/solutions/ch-27-fsharp-api-for-csharp' },
             { text: '第 28 章', link: '/zh/solutions/ch-28-testing-boundaries' },
             { text: '第 29 章', link: '/zh/solutions/ch-29-property-testing' },
-            { text: '第 30 章', link: '/zh/solutions/ch-30-diagnostics-tooling-builds' }
+            { text: '第 30 章', link: '/zh/solutions/ch-30-diagnostics-tooling-builds' },
+            { text: '第 31 章', link: '/zh/solutions/ch-31-measure-before-optimizing' }
           ]
         }
       ]

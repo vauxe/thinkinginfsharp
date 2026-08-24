@@ -467,10 +467,10 @@
 
 ### B31 — 先测量再优化 / Measure Before Optimizing
 
-- [ ] **依赖：** E31。
+- [x] **依赖：** E31。
 - **主要文件（4）：** `docs/{zh,en}/part-05/ch-31-measure-before-optimizing.md`、`docs/{zh,en}/solutions/ch-31-measure-before-optimizing.md`。
 - **验收：** 给出基线、剖析、假设、修改、复测流程；清楚区分微基准与端到端性能；不提供脱离证据的“最快集合”清单。
-- **验证：** E31 基准 smoke；双语与内容检查；`pnpm build`。
+- **验证：** E31 的 260 个等价案例、4 组合 Dry smoke 与环境化 ShortRun 基线均复核；答案中的 `option`/`voption` 校验和代码由 F# 10 在 `--checknulls+ --warnaserror+` 下执行通过；中英正文与答案严格保持 289/289 和 148/148 行；Fantomas 只读检查、22 项内容测试、双语/内容检查、完整示例门及 VitePress 生产构建通过。
 - **规模：** M。
 
 ### E32 — 从函数到应用的最小宿主

@@ -3,6 +3,7 @@ namespace ThinkingInFSharp.Ch31
 open System
 open BenchmarkDotNet.Attributes
 
+// #region aggregation-implementations
 module RequestAggregation =
     let arrayPipeline maxSeats (requests: int array) =
         requests
@@ -17,7 +18,9 @@ module RequestAggregation =
                 total <- total + int64 seats
 
         total
+// #endregion aggregation-implementations
 
+// #region equivalence
 module Equivalence =
     let private fixedCases =
         [| 0, [||]
@@ -48,7 +51,9 @@ module Equivalence =
                     actual)
 
         fixedCases.Length + generatedCases.Length
+// #endregion equivalence
 
+// #region benchmark
 [<MemoryDiagnoser>]
 type RequestAggregationBenchmarks() =
     let mutable requests = Array.empty<int>
@@ -68,3 +73,4 @@ type RequestAggregationBenchmarks() =
     [<Benchmark>]
     member _.SinglePass() =
         RequestAggregation.singlePass 6 requests
+// #endregion benchmark

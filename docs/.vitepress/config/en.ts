@@ -71,7 +71,8 @@ export const enLocale = {
             { text: '27 · Designing F# APIs for C#', link: '/en/part-05/ch-27-fsharp-api-for-csharp' },
             { text: '28 · Example Tests, Doubles, and Boundary Tests', link: '/en/part-05/ch-28-testing-boundaries' },
             { text: '29 · Property Testing with FsCheck', link: '/en/part-05/ch-29-property-testing' },
-            { text: '30 · Diagnostics, Tooling, and Reproducible Builds', link: '/en/part-05/ch-30-diagnostics-tooling-builds' }
+            { text: '30 · Diagnostics, Tooling, and Reproducible Builds', link: '/en/part-05/ch-30-diagnostics-tooling-builds' },
+            { text: '31 · Measure Before Optimizing', link: '/en/part-05/ch-31-measure-before-optimizing' }
           ]
         }
       ],
@@ -108,7 +109,8 @@ export const enLocale = {
             { text: 'Chapter 27', link: '/en/solutions/ch-27-fsharp-api-for-csharp' },
             { text: 'Chapter 28', link: '/en/solutions/ch-28-testing-boundaries' },
             { text: 'Chapter 29', link: '/en/solutions/ch-29-property-testing' },
-            { text: 'Chapter 30', link: '/en/solutions/ch-30-diagnostics-tooling-builds' }
+            { text: 'Chapter 30', link: '/en/solutions/ch-30-diagnostics-tooling-builds' },
+            { text: 'Chapter 31', link: '/en/solutions/ch-31-measure-before-optimizing' }
           ]
         }
       ]
