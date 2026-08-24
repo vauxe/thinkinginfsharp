@@ -11,12 +11,14 @@
     <Compile Include="Ch19NullTests.fs" />
     <Compile Include="Ch28BoundaryTests.fs" />
     <Compile Include="BookingJsonContractTests.fs" />
+    <Compile Include="BookingStoreContractTests.fs" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="../../examples/chapters/ch19/Ch19.fsproj" />
     <ProjectReference Include="../../examples/capstone/src/Booking.Domain/Booking.Domain.fsproj" />
     <ProjectReference Include="../../examples/capstone/src/Booking.Contracts/Booking.Contracts.fsproj" />
+    <ProjectReference Include="../../examples/capstone/src/Booking.Infrastructure/Booking.Infrastructure.fsproj" />
   </ItemGroup>
 
   <ItemGroup>

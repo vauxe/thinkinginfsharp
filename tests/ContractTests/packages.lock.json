@@ -112,6 +112,14 @@
           "FSharp.Core": "[10.1.301, )"
         }
       },
+      "booking.infrastructure": {
+        "type": "Project",
+        "dependencies": {
+          "Booking.Contracts": "[1.0.0, )",
+          "Booking.Domain": "[1.0.0, )",
+          "FSharp.Core": "[10.1.301, )"
+        }
+      },
       "ch19": {
         "type": "Project",
         "dependencies": {

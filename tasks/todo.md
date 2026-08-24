@@ -547,10 +547,10 @@
 
 ### K08b — 无外部账号的本地持久化适配器
 
-- [ ] **依赖：** K08a。
+- [x] **依赖：** K08a。
 - **主要文件（≤5）：** `examples/capstone/src/Booking.Infrastructure/Booking.Infrastructure.fsproj`、`FileStore.fs`、`Configuration.fs`、`tests/ContractTests/BookingStoreContractTests.fs`、`ThinkingInFSharp.slnx`。
 - **验收：** 使用本地真实持久化保存并恢复 DTO；原子替换与损坏输入有明确处理；路径可配置且测试只用临时目录。
-- **验证：** 精确过滤 BookingStoreContract；Release build；`pnpm check:examples`。
+- **验证：** 先由缺失 `Booking.Infrastructure` 得到预期 FS0039 红灯；实现以受保护的绝对文件路径配置单一快照，领域值经版本化 DTO/JSON 落盘，写入同目录唯一临时文件、刷新中间缓冲区后用覆盖移动提交，并在成功、失败或取消后清理临时文件；读取最多接受 64 KiB，严格校验 UTF-8（兼容可选 BOM），把无效编码、无效 JSON 与无法映射到领域的不可能状态分别报告，缺失文件明确为 `Ok None`；聚焦契约测试 8/8 仅使用唯一系统临时目录，覆盖配置、真实 JSON 往返、完整替换、无残留、缺失文件、三类损坏、大小上限和取消前保留旧快照；全解决方案 Release 构建 0 警告/0 错误，完整锁定示例门通过，且未新增第三方包。这里保证单个文件的同卷替换边界，不提前声称解决 K11 的跨请求容量原子性。
 - **规模：** L。
 
 ### K09 — 支付、通知替身与生命周期
