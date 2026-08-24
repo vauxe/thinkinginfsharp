@@ -77,6 +77,14 @@ export const enLocale = {
           ]
         }
       ],
+      '/en/part-06/': [
+        {
+          text: 'Part VI · The booking system',
+          items: [
+            { text: '33 · Business Language, Commands, Events, and Model', link: '/en/part-06/ch-33-domain-language-model' }
+          ]
+        }
+      ],
       '/en/solutions/': [
         {
           text: 'Solutions',
@@ -112,7 +120,8 @@ export const enLocale = {
             { text: 'Chapter 29', link: '/en/solutions/ch-29-property-testing' },
             { text: 'Chapter 30', link: '/en/solutions/ch-30-diagnostics-tooling-builds' },
             { text: 'Chapter 31', link: '/en/solutions/ch-31-measure-before-optimizing' },
-            { text: 'Chapter 32', link: '/en/solutions/ch-32-functions-to-applications' }
+            { text: 'Chapter 32', link: '/en/solutions/ch-32-functions-to-applications' },
+            { text: 'Chapter 33', link: '/en/solutions/ch-33-domain-language-model' }
           ]
         }
       ]

@@ -515,10 +515,10 @@
 
 ### B33 — 业务语言、命令、事件与模型 / Business Language, Commands, Events, and Model
 
-- [ ] **依赖：** K06。
+- [x] **依赖：** K06。
 - **主要文件（4）：** `docs/{zh,en}/part-06/ch-33-domain-language-model.md`、`docs/{zh,en}/solutions/ch-33-domain-language-model.md`。
 - **验收：** 回顾前五部分切片并解释最终领域语言；区分命令、事件、状态与边界 DTO，不把事件溯源设为必需架构。
-- **验证：** K06 聚焦检查；双语与内容检查；`pnpm build`。
+- **验证：** 领域、工作流与性质聚焦 Release 测试 17/17 通过；正文与答案严格保持 320/320 和 136/136 行，明确区分可预约活动 `Event` 与事实 `BookingEvent`、命令/已验证命令/状态/边界 DTO，并把领域事件与 .NET 事件、消息代理、CQRS、事件溯源分离；Fantomas 全仓只读检查、22 项内容测试、双语/内容检查、完整示例门与 VitePress 生产构建通过；真实 Chrome 验证第六部分侧栏、同页中英切换、正文/答案链接与代码片段，中文页无控制台告警，390×844 下无页面级横向溢出且宽表格/代码只在内部滚动。
 - **规模：** M。
 
 ### K07 — 组装纯预约工作流

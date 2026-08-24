@@ -1,0 +1,320 @@
+---
+title: "Chapter 33: Business Language, Commands, Events, and Model"
+description: "Consolidate the booking system's domain language, distinguish intent from fact, state, and boundary data, and use events without assuming event sourcing."
+translationKey: part-06/ch-33-domain-language-model
+kind: chapter
+part: 6
+chapter: 33
+status: complete
+verifiedWith:
+  fsharp: "10"
+  dotnetSdk: "10.0.301"
+exampleIds:
+  - capstone-booking-domain
+exerciseIds:
+  - ch33-exercise-01
+  - ch33-exercise-02
+  - ch33-exercise-03
+termIds: []
+sources:
+  - id: microsoft-fsharp-records
+    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/records
+    checked: "2026-08-24"
+  - id: microsoft-fsharp-discriminated-unions
+    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions
+    checked: "2026-08-24"
+  - id: microsoft-fsharp-access-control
+    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/access-control
+    checked: "2026-08-24"
+  - id: microsoft-domain-events
+    url: https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/domain-events-design-implementation
+    checked: "2026-08-24"
+  - id: microsoft-cqrs-pattern
+    url: https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs
+    checked: "2026-08-24"
+  - id: microsoft-event-sourcing-pattern
+    url: https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing
+    checked: "2026-08-24"
+---
+
+# Chapter 33: Business Language, Commands, Events, and Model {#overview}
+
+The booking system did not begin with an architecture diagram. It began with values and functions, acquired protected domain types, grew a workflow, gained effect ports, and finally received a stable public module. Part VI assembles those slices into one application. Before adding more machinery, this chapter fixes the words each layer is allowed to say.
+
+That vocabulary is part of the design. `PlaceBooking` asks for work; `BookingPlaced` records a fact; `BookingState` is the current domain view; a future JSON request is a boundary representation. Giving all four the same record shape would save a few declarations while erasing when each value is valid and who may depend on it.
+
+## What you will be able to do {#outcomes}
+
+By the end of this chapter, you should be able to:
+
+- describe the booking domain without starting from controllers, tables, or frameworks;
+- distinguish a command, a validated command, a domain event, domain state, and a DTO;
+- explain why commands use imperative intent and events use past-tense facts;
+- use records for named product data and discriminated unions for closed alternatives;
+- protect invariants with private representations and smart constructors;
+- explain what `decide` and `evolve` are each responsible for;
+- recognize a type alias as a migration aid rather than a duplicate runtime model;
+- keep a stable public surface from exposing internal workflow representation;
+- use domain events without requiring a broker, CQRS, or event sourcing;
+- identify the additional commitments an event-sourced system would require.
+
+## Begin with one glossary {#glossary}
+
+The following words have precise local meanings in this project:
+
+| Word | Meaning here | Typical name | Can it fail merely by existing? |
+|---|---|---|---|
+| Command | A request that the system attempt one business action | `PlaceBooking` | Yes; raw boundary fields may be invalid, and valid intent may still be refused |
+| Validated command | Intent whose independent field validation has succeeded | `ValidPlaceBooking` | Its fields are valid, but current state may still refuse it |
+| Domain event | An immutable description of a business fact that the domain accepted | `BookingPlaced` | No; it describes an outcome, not a request |
+| State | The domain's present view used to judge the next command | `NotBooked`, `Booked booking` | No; publicly obtainable state should satisfy its invariants |
+| Boundary DTO | Data shaped for JSON, storage, another language, or another process | `PlaceBookingRequestDto` | Yes; it is untrusted until mapped and validated |
+| Port | A capability the application requires from its environment | `LoadBooking`, `AppendEvent` | Calls may reject, cancel, or fault according to their contract |
+
+“Event” has two meanings in the sample. The type `Event` is the scheduled activity whose seats can be booked. The type `BookingEvent` is a fact about a booking. In prose, this chapter calls the former an **activity** when ambiguity is possible. Neither meaning is the same as a .NET delegate event.
+
+The table describes roles, not mandatory suffixes. A small internal type can be clear without `Command` in its name. The important test is whether readers can tell if the value asks, states, remembers, or crosses a boundary.
+
+## See how the model grew {#model-evolution}
+
+The earlier teaching slices were successive refinements, not six competing architectures:
+
+1. Part I used tuples, lists, expressions, and folds to discover the seat-allocation behavior.
+2. Part II replaced loose primitives and Boolean combinations with records, single-case unions, and discriminated unions.
+3. Part III separated validation, decision, and evolution into modules with an explicit compilation order.
+4. Part IV surrounded the pure workflow with asynchronous ports, cancellation, and owned resources.
+5. Part V tested invariants and projected a stable F#-facing public module without leaking workflow types.
+6. This part gives the accumulated language one canonical home, then connects it to contracts, storage, adapters, and HTTP.
+
+Preserving every historical type would create two sources of truth. The capstone instead migrates callers toward one model and retains only small compatibility aliases where an earlier chapter still compiles against an old name.
+
+## Model the business before the transport {#domain-model}
+
+The core model names the activity, booking lifecycle, and failures in domain terms:
+
+<<< @/../examples/capstone/src/Booking.Domain/Domain.fs#booking-model{fsharp:line-numbers} [Domain.fs]
+
+Several F# choices work together here:
+
+- records group named values such as request, activity, seats, and status;
+- discriminated unions make lifecycle alternatives and error alternatives explicit;
+- values are immutable by default, so a transition returns a new `Booking`;
+- single-case unions distinguish identifiers, counts, codes, and reasons that share primitive representations;
+- units of measure prevent accidental arithmetic between seats and unrelated integers inside the model;
+- private record representations prevent callers from constructing a `Booking` that skipped its rules;
+- module functions form the supported construction, observation, and transition surface.
+
+A type alone does not enforce every invariant. `BookingStatus` can express three legal shapes, but only `Booking.confirm` and `Booking.cancel` define which transitions are allowed. `Booking.create` compares requested seats with the activity capacity. Protection comes from the combination of representation, access control, and the small functions that may create new values.
+
+The model deliberately contains no JSON property names, database paths, HTTP status codes, logging levels, or dependency-injection services. Those concepts can change without changing what a booking means.
+
+## Commands describe intent {#commands}
+
+The canonical command vocabulary is small:
+
+<<< @/../examples/capstone/src/Booking.Domain/Commands.fs#commands{fsharp:line-numbers} [Commands.fs]
+
+`Place`, `Confirm`, and `Cancel` are imperative names because a command asks the system to attempt something. The caller cannot truthfully name the input `BookingPlaced`: capacity, duplicate request identity, current status, or malformed text may prevent that fact.
+
+These command records intentionally contain boundary-friendly primitives. Constructing `({ RequestId = " "; Seats = 0 } : PlaceBooking)` is possible, so construction does **not** mean acceptance. Validation converts independently valid fields into protected values such as `RequestId` and `SeatCount`; the decision then applies rules that depend on current state.
+
+This yields three distinct questions:
+
+| Stage | Question | Example failure |
+|---|---|---|
+| Parse/map | Can external representation become the command's primitive fields? | JSON number has the wrong shape |
+| Validate | Are the fields meaningful by themselves? | Blank request ID or non-positive seats |
+| Decide | Is this valid intent allowed in the present state? | Booking already exists or capacity is too small |
+
+Keeping these questions separate lets independent validation errors accumulate while state-dependent rules short-circuit from a known state. Chapter 34 will connect every command to one pure decider; this chapter fixes the language that decider consumes.
+
+`[<RequireQualifiedAccess>]` makes call sites write `BookingCommand.Place`, `BookingCommand.Confirm`, or `BookingCommand.Cancel`. Qualification prevents generic case names from becoming ambiguous when the domain grows.
+
+## Events describe accepted facts {#events}
+
+The corresponding event vocabulary uses the past tense:
+
+<<< @/../examples/capstone/src/Booking.Domain/Events.fs#events{fsharp:line-numbers} [Events.fs]
+
+`BookingPlaced`, `BookingConfirmed`, and `BookingCancelled` state what the domain accepted. In this model each event carries the resulting protected `Booking`, so evolution can project the new state without repeating transition rules. This is a simple in-process fact representation, not yet a promise about a durable wire schema.
+
+An event should not contain an operation that still needs approval. A handler may fail to perform a later side effect—sending a notification, for example—but that failure does not make the already accepted booking fact grammatically become a command again. Application policy decides how to retry or compensate for the side effect.
+
+The union cases are public, while the `Booking` representation is private. Code holding a valid booking can therefore wrap it in an event case. Do not overstate the guarantee: the current API protects booking construction and transitions, but it does not cryptographically prove event provenance. Chapter 34 narrows normal event production through the decider.
+
+Domain events also do not imply .NET events or a message broker. A pure function can return a `BookingEvent` as ordinary data. The application may fold it into state, persist it, publish a mapped integration message, or do more than one of those according to explicit consistency rules.
+
+## State is the present decision context {#state}
+
+The workflow needs only two top-level state shapes:
+
+<<< @/../examples/capstone/src/Booking.Domain/Workflow.fs#booking-state{fsharp:line-numbers} [Workflow.fs]
+
+`NotBooked` means no booking exists for the request being considered. `Booked booking` carries the protected booking whose own status is pending, confirmed, or cancelled. This nested shape avoids invalid combinations such as “not booked and confirmed.”
+
+Evolution is intentionally mechanical:
+
+<<< @/../examples/capstone/src/Booking.Domain/Workflow.fs#evolve{fsharp:line-numbers} [Workflow.fs]
+
+`evolve` answers “what state follows this accepted fact?” It does not answer “may this fact happen?” The decider and domain transition functions own that policy. If `evolve` rechecked capacity or status, the rule could drift into two implementations.
+
+The current event carries the complete resulting `Booking`, so `evolve` does not need its previous-state argument. Keeping the conventional `state -> event -> state` shape makes folding explicit and leaves room for a later event that represents a delta. Do not infer that an unused argument proves history is irrelevant to deciding the event.
+
+The pure conceptual path is:
+
+```text
+raw DTO or caller input
+  -> command
+  -> field validation
+  -> validated command + current state
+  -> decide
+  -> accepted event or explicit error
+  -> evolve
+  -> next state
+  -> boundary projection or committed effect
+```
+
+Only the last step needs an external effect. Everything from validation through evolution can be deterministic and tested without a database, clock, or network.
+
+## Do not confuse state with a DTO {#dto-boundary}
+
+A domain value and a DTO can momentarily contain the same information and still have different contracts:
+
+| Concern | Domain value | Boundary DTO |
+|---|---|---|
+| Primary audience | Domain functions and F# callers | Serializer, database adapter, C# caller, or remote client |
+| Validity | Constructed through protected rules | May contain missing, blank, default, unknown, or obsolete fields |
+| Shape changes when | Business meaning changes | Wire/storage compatibility changes |
+| F# features | Private records, DUs, options, units of measure | Explicit primitive fields and a deliberately versioned representation |
+| Failure | Domain error or impossible construction | Parse, schema, mapping, and compatibility errors |
+
+Serializing `Booking`, `BookingStatus`, or `BookingEvent` directly would make their compiler-oriented representation a public storage or network contract. Renaming a union case, changing its payload, or reorganizing private fields could then become a migration. Chapter 35 will introduce explicit DTOs and total-or-explicitly-failing mappings instead.
+
+A DTO is not “bad domain modeling.” It is an anti-corruption boundary whose job is to admit external representation rules without weakening the domain. Keep it simple, document its schema, and validate before passing protected values inward.
+
+## Offer a stable public path {#public-surface}
+
+The capstone's intended F#-facing entry point begins with raw boundary values but returns an opaque model:
+
+<<< @/../examples/capstone/src/Booking.Domain/PublicApi.fs#start{fsharp:line-numbers} [PublicApi.fs]
+
+`PublicApi.BookingModel` and `BookingView` have hidden representations. Consumers use `start`, `place`, `confirm`, `cancel`, and observation functions; they need not mention `Event`, `Booking`, `BookingState`, `BookingEvent`, `RequestId`, or `SeatCount` in their own signatures. The public module projects internal errors into the smaller `BookingError` vocabulary.
+
+This does not make every other type in the assembly inaccessible. It establishes a stable path that consumers can choose without coupling themselves to the teaching workflow's representation. A signature file or separate internal assembly could restrict the surface further if the library contract later requires it.
+
+The stable API and the boundary DTO solve different problems. The former protects F# source dependencies inside one library ecosystem; the latter fixes a serialization or cross-language contract. Chapter 27 showed why a C#-first API may need classes, enums, members, nullable annotations, and exceptions instead of exposing this F#-shaped surface directly.
+
+## Migrate names without duplicating models {#compatibility-aliases}
+
+Earlier slices used `Validation.PlaceBookingCommand` and `Workflow.BookingEvent`. The consolidated code retains these declarations only as aliases:
+
+```fsharp
+// Compatibility names; no second runtime representation is created.
+type PlaceBookingCommand = PlaceBooking
+type BookingEvent = Booking.Domain.BookingEvent
+```
+
+A type alias gives old source code another name for the same type. It has no distinct constructor, serialized shape, equality semantics, or runtime identity. That makes it suitable for a staged teaching migration.
+
+An alias is not a permanent excuse for two vocabularies. New code uses `PlaceBooking` and the namespace-level `BookingEvent`; old examples move when their chapter is revised. If two names begin to acquire different rules, define two honest concepts and an explicit mapping rather than letting aliases conceal disagreement.
+
+## Events do not require event sourcing {#events-not-event-sourcing}
+
+Returning a domain event commits the code to a vocabulary of facts. It does **not** commit the system to storing every fact forever or reconstructing state from them.
+
+| Design | Source of truth | How current state is obtained | Additional obligations |
+|---|---|---|---|
+| Current-state persistence | Latest booking DTO or database row | Read the saved current representation | Atomic updates, concurrency checks, schema migration, recovery |
+| Domain events with current-state persistence | Latest state; events may trigger in-process work or integration | Read current state; handle selected facts | Dispatch timing, side-effect consistency, duplicate handling where delivery can repeat |
+| Event sourcing | Append-only ordered event stream | Replay events, often aided by snapshots or projections | Stream concurrency, event schema evolution, replay determinism, projection rebuilds, idempotency, retention, privacy, and operational tooling |
+
+Event sourcing is a storage architecture: each entity's ordered event stream is the authoritative history, and current state is derived by replay. CQRS is another independent choice that separates write commands from read queries. They are often combined, but neither follows automatically from defining an F# union named `BookingEvent`.
+
+The capstone currently proves only a pure fact vocabulary and an evolution function. Its earlier in-memory adapter demonstrates wiring, not a durable event store. Later chapters may persist a current DTO, append selected facts, or map facts to integration messages without turning the event list into the sole source of truth.
+
+Choose event sourcing only when access to history, temporal decisions, audit needs, or projection flexibility justify its migration and operational costs. “We already have events” is not sufficient evidence.
+
+## Name types from time and authority {#naming}
+
+Use tense and ownership as a quick review tool:
+
+- command names are imperative business actions: `PlaceBooking`, not `SetStatus`;
+- event names are past-tense facts: `BookingConfirmed`, not `ConfirmBookingEvent` if that sounds pending;
+- state names describe what is presently true: `NotBooked`, `Booked`;
+- error names state why an attempted transition failed: `CannotConfirmFrom`;
+- DTO names identify the boundary and direction when ambiguity matters: `PlaceBookingRequestDto`;
+- port names describe capabilities, not chosen products: `LoadBooking`, not `ReadPostgresRow`.
+
+Names should use the language of the people defining the rule. Technical precision still matters: if business participants use “event” for the scheduled activity, qualify the fact as `BookingEvent` rather than silently changing their word.
+
+Avoid generic containers such as `Request`, `Response`, `Data`, or `StatusChanged` at a domain-wide scope. They force readers to recover context from folders or comments. Also avoid encoding implementation promises into domain names: `BookingSavedToJson` is an adapter outcome, not a booking fact.
+
+## Read the K06 evidence narrowly {#evidence}
+
+The consolidated implementation and focused tests establish that:
+
+- all three commands express intent and all three events express accepted facts;
+- booking construction and transitions still pass through the existing protected domain functions;
+- `PublicApi` does not expose internal domain or workflow types in its function signatures;
+- the old command and event names are aliases rather than second runtime models;
+- adding new event cases made an older pattern match fail exhaustiveness checking until it was updated;
+- domain, workflow, and property tests still pass under F# 10 with null checking and warnings as errors.
+
+That evidence does not yet establish one decider for all commands, durable JSON compatibility, atomic persistence, idempotency, HTTP behavior, or restart recovery. Those are explicit later slices, not properties to infer from clean type names.
+
+## Review a domain language {#review-checklist}
+
+Before extending the model, ask:
+
+- Can a domain expert recognize the actions, facts, states, and refusals?
+- Does each command describe one attempted business action rather than a field update?
+- Can raw command fields be distinguished from validated values?
+- Does each event state something that has already been accepted?
+- Does `decide` own permission while `evolve` owns projection?
+- Are publicly constructible values guaranteed valid, or clearly marked as boundary input?
+- Are domain representations protected without hiding useful observation functions?
+- Does a DTO change for compatibility reasons independently of the domain type?
+- Are compatibility aliases temporary and directionally migrating callers?
+- Has any mention of events accidentally implied a broker, CQRS, or event sourcing?
+- Are unproved concurrency, durability, retry, and recovery guarantees stated as missing?
+
+## Exercises {#exercises}
+
+### Exercise 1: classify values by role {#exercise-01}
+
+Classify each value as command, validated command, domain event, state, boundary DTO, port, or domain error: `PlaceBooking`, `ValidPlaceBooking`, `BookingPlaced`, `Booked booking`, `PlaceBookingRequestDto`, `AppendEvent`, and `RequestedSeatsExceedCapacity`. For each, state who may create it and whether its mere construction means the requested booking happened.
+
+### Exercise 2: extend the language before the code {#exercise-02}
+
+The business asks to change the seat count of a pending booking. Propose a command, an accepted event, state-dependent errors, and the protected domain transition. State what must be validated independently, what requires the activity capacity and current booking status, and what `evolve` should do. Do not add JSON or storage fields yet.
+
+### Exercise 3: decide whether history is the truth {#exercise-03}
+
+Compare current-state persistence with event sourcing for this booking system. The requirements are: prevent overselling, recover after restart, answer the current booking status quickly, and keep a 90-day audit trail. Identify what both designs need, what event sourcing adds, and which design you would choose from only these facts. List the evidence that would make you revisit the choice.
+
+[Read the chapter solutions](../solutions/ch-33-domain-language-model).
+
+## Model review {#model-review}
+
+- The domain language precedes controllers, tables, serializers, and hosts.
+- A command asks; a validated command has sound fields; a decision may still refuse it.
+- An event states an accepted fact and uses past-tense business language.
+- State is the present context for the next decision, not automatically its storage format.
+- A DTO belongs to a compatibility boundary and remains untrusted until mapped.
+- Records express named products; discriminated unions express closed alternatives.
+- Private representations plus smart constructors and transition functions protect invariants.
+- `decide` owns whether a fact may occur; `evolve` projects an accepted fact into state.
+- A stable public module can hide workflow representation without becoming a wire contract.
+- Type aliases help migration but must not preserve two permanent vocabularies.
+- Domain events can be ordinary returned data; brokers and handlers are optional application choices.
+- Event sourcing and CQRS are separate architectural commitments, not consequences of an event union.
+- Current K06 evidence proves vocabulary and encapsulation, not persistence or concurrency guarantees.
+
+## Sources {#sources}
+
+- [Microsoft Learn: F# records, immutability, construction, and access modifiers](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/records)
+- [Microsoft Learn: F# discriminated unions and named cases](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions)
+- [Microsoft Learn: F# access control](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/access-control)
+- [Microsoft Learn: domain events as facts and explicit domain side effects](https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/domain-events-design-implementation)
+- [Azure Architecture Center: CQRS commands, reads, and independent complexity](https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs)
+- [Azure Architecture Center: event sourcing, replay, projections, and trade-offs](https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing)

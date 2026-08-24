@@ -3,9 +3,11 @@ namespace Booking.Domain
 open Booking.Domain.Validation
 
 module Workflow =
+    // #region booking-state
     type BookingState =
         | NotBooked
         | Booked of Booking
+    // #endregion booking-state
 
     // Compatibility name for callers of the earlier workflow module.
     type BookingEvent = Booking.Domain.BookingEvent
@@ -26,8 +28,10 @@ module Workflow =
                 |> Result.map BookingPlaced
                 |> Result.mapError BookingCreationFailed
 
+    // #region evolve
     let evolve (_: BookingState) (event: BookingEvent) =
         match event with
         | BookingPlaced booking
         | BookingConfirmed booking
         | BookingCancelled booking -> Booked booking
+// #endregion evolve
