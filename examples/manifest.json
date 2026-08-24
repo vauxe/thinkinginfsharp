@@ -84,6 +84,18 @@
       ]
     },
     {
+      "id": "ch07-records-equality",
+      "kind": "script",
+      "path": "examples/scripts/ch07-records-equality.fsx",
+      "expectedOutput": [
+        "Record update: original=2 updated=3",
+        "Anonymous summary: Lin -> 3 seats, group=true",
+        "Equality: structural=true physical=false alias=true",
+        "Hashes agree for equal records: true",
+        "Structural sort: [\"A-1:Ada:2\"; \"A-1:Lin:1\"; \"B-2:Lin:2\"]"
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",

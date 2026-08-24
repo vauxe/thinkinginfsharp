@@ -155,10 +155,10 @@
 
 ### B07 — 记录、更新、相等与比较 / Records, Updates, Equality, and Comparison
 
-- [ ] **依赖：** C1。
+- [x] **依赖：** C1。
 - **主要文件（5）：** `docs/{zh,en}/part-02/ch-07-records-equality.md`、`docs/{zh,en}/solutions/ch-07-records-equality.md`、`examples/scripts/ch07-records-equality.fsx`。
 - **验收：** 覆盖元组、记录、匿名记录、不可变更新、结构相等/比较，并显式区分引用身份与哈希语义。
-- **验证：** FSI 断言相等、排序和身份反例；双语与内容检查；`pnpm build`。
+- **验证：** FSI 的 5 行输出固定不可变更新、匿名投影、结构相等/引用身份反例、哈希契约与结构排序；`pnpm test` 全链路通过。
 - **规模：** M。
 
 ### B08 — 可辨识联合与状态建模 / Discriminated Unions and State Modeling

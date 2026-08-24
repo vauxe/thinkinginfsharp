@@ -31,6 +31,16 @@
         "definition": "A function value created directly with a fun parameter -> body expression without first naming the function itself."
       }
     },
+    "anonymous-record": {
+      "zh": {
+        "preferred": "匿名记录",
+        "definition": "无需预先声明名称、由一组精确字段标签和类型确定形状的记录值。"
+      },
+      "en": {
+        "preferred": "anonymous record",
+        "definition": "A record value whose exact shape is determined by its field labels and types without a separately declared type name."
+      }
+    },
     "automatic-generalization": {
       "zh": {
         "preferred": "自动泛化",
@@ -191,6 +201,16 @@
         "definition": "A Boolean when condition evaluated only after its pattern initially matches; when false, matching continues with later rules."
       }
     },
+    "hash-code": {
+      "zh": {
+        "preferred": "哈希码",
+        "definition": "由相等语义一致地导出的整数摘要，用于哈希数据结构定位候选项；不同值仍可能产生同一码。"
+      },
+      "en": {
+        "preferred": "hash code",
+        "definition": "An integer summary derived consistently with equality to locate candidates in hash-based structures; unequal values may still share one code."
+      }
+    },
     "higher-order-function": {
       "zh": {
         "preferred": "高阶函数",
@@ -321,6 +341,26 @@
         "definition": "A function calling itself directly or indirectly to continue with a smaller problem or one closer to a termination condition."
       }
     },
+    "record": {
+      "zh": {
+        "preferred": "记录",
+        "definition": "由命名字段组成的乘积类型；普通 F# 记录默认不可变，并在组成字段支持时自动获得结构相等与比较。"
+      },
+      "en": {
+        "preferred": "record",
+        "definition": "A product type made of named fields; an ordinary F# record is immutable by default and automatically supports structural equality and comparison when its components do."
+      }
+    },
+    "reference-identity": {
+      "zh": {
+        "preferred": "引用身份",
+        "definition": "两个引用是否指向同一个运行时对象的关系，与对象内容是否结构相等分开。"
+      },
+      "en": {
+        "preferred": "reference identity",
+        "definition": "The relation of two references pointing to the same runtime object, separate from whether their contents are structurally equal."
+      }
+    },
     "shadowing": {
       "zh": {
         "preferred": "遮蔽",
@@ -329,6 +369,26 @@
       "en": {
         "preferred": "shadowing",
         "definition": "Introducing a new binding with the same name in an inner or later scope so that the old binding can no longer be reached by that name there; it does not mutate the old value."
+      }
+    },
+    "structural-comparison": {
+      "zh": {
+        "preferred": "结构比较",
+        "definition": "按组成部分的既定顺序递归比较复合值而得到的排序关系，要求所有相关组成类型支持比较。"
+      },
+      "en": {
+        "preferred": "structural comparison",
+        "definition": "An ordering obtained by recursively comparing a composite value's components in a defined order, requiring each relevant component type to support comparison."
+      }
+    },
+    "structural-equality": {
+      "zh": {
+        "preferred": "结构相等",
+        "definition": "递归比较复合值对应组成部分而判断内容是否相等的语义，而不是检查它们是否为同一对象。"
+      },
+      "en": {
+        "preferred": "structural equality",
+        "definition": "Equality determined by recursively comparing corresponding components of composite values rather than checking whether they are the same object."
       }
     },
     "structural-recursion": {

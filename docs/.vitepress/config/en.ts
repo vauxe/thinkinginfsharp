@@ -23,6 +23,14 @@ export const enLocale = {
           ]
         }
       ],
+      '/en/part-02/': [
+        {
+          text: 'Part II · Modeling with types',
+          items: [
+            { text: '7 · Records, Updates, Equality, and Comparison', link: '/en/part-02/ch-07-records-equality' }
+          ]
+        }
+      ],
       '/en/solutions/': [
         {
           text: 'Solutions',
@@ -32,7 +40,8 @@ export const enLocale = {
             { text: 'Chapter 3', link: '/en/solutions/ch-03-functions-as-values' },
             { text: 'Chapter 4', link: '/en/solutions/ch-04-branching-patterns' },
             { text: 'Chapter 5', link: '/en/solutions/ch-05-lists-pipelines' },
-            { text: 'Chapter 6', link: '/en/solutions/ch-06-recursion-folds' }
+            { text: 'Chapter 6', link: '/en/solutions/ch-06-recursion-folds' },
+            { text: 'Chapter 7', link: '/en/solutions/ch-07-records-equality' }
           ]
         }
       ]
