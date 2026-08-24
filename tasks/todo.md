@@ -459,10 +459,10 @@
 
 ### E31 — 测量、分配与优化前后对照
 
-- [ ] **依赖：** B30。
+- [x] **依赖：** B30。
 - **主要文件（≤5）：** `examples/chapters/ch31/Ch31.Benchmarks.fsproj`、`Benchmarks.fs`、`Program.fs`、`tests/ContentFixtures/ch31-baseline.json`、`examples/manifest.json`。
 - **验收：** 锁定基准工具；记录运行时/OS/CPU/配置；比较一个集合或分配热点的基线与改进；结果只支持样例内结论；`voption`、Span/byref、裁剪/AOT 仅在测量语境识别。
-- **验证：** Release 基准 smoke job 与功能等价测试；`pnpm check:examples`。
+- **验证：** 先由错误的上限比较获得确定性等价红灯（期望 7、实际 3），修复后固定与固定种子生成的 260 个案例全部通过；BenchmarkDotNet 0.15.8 锁定且 Dry smoke 的 4 个组合全部执行成功；Release ShortRun 在所记录环境中显示单遍版本两种规模的均值比均为 0.43，并把管道版 520 B/7504 B 的中间数组分配降为 0 B；基线明确限定为样例证据而非性能门；完整 `pnpm check:examples` 通过。
 - **规模：** L。
 
 ### B31 — 先测量再优化 / Measure Before Optimizing

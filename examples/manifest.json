@@ -389,6 +389,15 @@
       ]
     },
     {
+      "id": "ch31-measure-before-optimizing",
+      "kind": "compile",
+      "path": "examples/chapters/ch31/Ch31.Benchmarks.fsproj",
+      "sources": [
+        "examples/chapters/ch31/Benchmarks.fs",
+        "examples/chapters/ch31/Program.fs"
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",
