@@ -7,6 +7,7 @@
   <Project Path="examples/capstone/src/Booking.Api/Booking.Api.fsproj" />
   <Project Path="examples/capstone/clients/Booking.CSharpClient/Booking.CSharpClient.csproj" />
   <Project Path="examples/ecosystem/web/WebSample.fsproj" />
+  <Project Path="examples/ecosystem/data/DataSample.fsproj" />
   <Project Path="examples/chapters/ch16/Ch16.fsproj" />
   <Project Path="examples/chapters/ch17/Ch17.fsproj" />
   <Project Path="examples/chapters/ch19/Ch19.fsproj" />

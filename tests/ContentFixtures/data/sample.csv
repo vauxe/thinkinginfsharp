@@ -1,0 +1,7 @@
+OrderId,Region,Product,Units,UnitPrice,OrderedAt
+ORD-1001,North,Keyboard,2,75.50,2026-01-02
+ORD-1002,South,Monitor,1,240.00,2026-01-03
+ORD-1003,North,Mouse,4,25.00,2026-01-04
+ORD-1004,West,Dock,3,110.00,2026-01-05
+ORD-1005,South,Keyboard,2,80.00,2026-01-06
+ORD-1006,West,Cable,5,12.00,2026-01-07

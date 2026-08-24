@@ -443,6 +443,14 @@
       ]
     },
     {
+      "id": "ecosystem-data-csv-provider",
+      "kind": "compile",
+      "path": "examples/ecosystem/data/DataSample.fsproj",
+      "sources": [
+        "examples/ecosystem/data/Program.fs"
+      ]
+    },
+    {
       "id": "capstone-booking-api",
       "kind": "compile",
       "path": "examples/capstone/src/Booking.Api/Booking.Api.fsproj",
@@ -497,6 +505,7 @@
         "examples/chapters/ch29/Generators.fs",
         "tests/ExampleTests/Ch29Properties.fs",
         "tests/ExampleTests/Ch32CompositionTests.fs",
+        "tests/ExampleTests/DataSampleTests.fs",
         "tests/ExampleTests/BookingProperties.fs"
       ]
     }

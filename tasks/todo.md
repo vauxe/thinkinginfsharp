@@ -651,10 +651,10 @@
 
 ### X40 — 数据、查询与类型提供器使用样例
 
-- [ ] **依赖：** B39。
+- [x] **依赖：** B39。
 - **主要文件（≤5）：** `examples/ecosystem/data/DataSample.fsproj`、`Program.fs`、`tests/ContentFixtures/data/sample.csv`、`tests/ExampleTests/DataSampleTests.fs`、`examples/manifest.json`。
 - **验收：** 锁定数据/类型提供器包；固定本地样本保证编译稳定；展示查询与类型提供器消费，但不教授类型提供器创作或依赖在线 schema。
-- **验证：** 离线可重复 Release build/test；`pnpm check:examples`。
+- **验证：** 依据官方 NuGet 与项目文档锁定当前稳定 `FSharp.Data` 8.2.0 及完整传递图；`CsvProvider` 只在编译期读取仓库内固定 `sample.csv`，以 `ResolutionFolder=__SOURCE_DIRECTORY__` 消除构建工作目录差异，运行期则由调用方显式传入本地路径，不读取在线 schema。先修正空可执行脚手架的 FS0988，再由缺失 `summarizeByRegion`、`highValueOrders` 和结果记录得到预期 FS0039 红灯；实现使用提供器推断的 `int`、`decimal` 与 `DateOnly` 列，先把生成行映射成普通公开记录，再分别以 `Seq.groupBy` 和 `query { where; sortByDescending; select }` 完成区域聚合与高价值订单查询。两项聚焦测试 2/2 精确断言六行夹具的订单数、单位数、收入、日期、过滤与排序；命令行先把用户相对路径规范化为绝对路径，真实执行稳定输出 South 400.00、West 390.00、North 251.00。Fantomas 7 检查通过；全解决方案 `--locked-mode` 还原后，数据项目 Release `--no-restore` 构建为 0 警告/0 错误，测试同样 `--no-restore` 通过，完整 `pnpm check:examples` 通过且无需数据库、网络 schema、账号或额外服务。
 - **规模：** M。
 
 ### B40 — 数据、类型提供器、分析与机器学习 / Data, Type Providers, Analytics, and ML
