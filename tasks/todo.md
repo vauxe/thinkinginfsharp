@@ -675,10 +675,10 @@
 
 ### X41b — Fable 浏览器构建与最小交互
 
-- [ ] **依赖：** X41a。
+- [x] **依赖：** X41a。
 - **主要文件（≤4）：** `examples/ecosystem/fable/App.fs`、`index.html`、`vite.config.mjs`、`tests/site-fable-smoke.mjs`。
 - **验收：** 一个最小交互由 F# 编译到浏览器并在生产模式构建；样例和说明准确区分生成 JS、浏览器 API 与可用 .NET API。
-- **验证：** 生产构建；锁定浏览器 smoke；`pnpm check:examples`。
+- **验证：** 先新增锁定 `playwright-core` 1.62.1、明确驱动已安装系统 Chrome 而不暗示仓库固定浏览器二进制的契约，在尚无生产产物时得到预期 `dist/index.html` ENOENT 红灯；实现把记录模型与 `Increment | Reset` 消息交给纯 `update`，只在 DOM 适配壳持有可变模型、绑定事件并渲染。Fable 5.13.0 从唯一 `App.fs` 生成 JavaScript，Vite 6.4.3 生产构建转换 15 个模块，产出约 4.32 kB HTML 与 6.74 kB JS；页面自足说明浏览器执行生成 JavaScript、`Browser.Dom` 是类型化浏览器绑定，并明确不能假定任意 .NET 库可用。首轮 Chrome 冒烟准确捕获缺失图标造成的 404 控制台错误，补内联图标后自动测试在 360×800 完成 `0 → 3 → 0`、验证禁用/恢复状态、零运行期/HTTP/请求错误与零页面溢出；根 `check:examples` 现串联原 .NET 矩阵、Fable 生产构建和该真实浏览器测试，并完整通过。独立 DevTools 验证语义标题/区域/live output/按钮可访问名称和移动布局；将单页样例声明为 MPA 并补元描述后，移动端 Lighthouse 的可访问性、最佳实践、SEO 与可代理浏览均为 100，控制台零消息。
 - **规模：** M。
 
 ### B41 — Fable、Elmish 与浏览器应用 / Fable, Elmish, and Browser Applications

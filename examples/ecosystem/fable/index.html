@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="description" content="A minimal F#-to-JavaScript browser interaction built with Fable." />
+    <link rel="icon" href="data:," />
+    <title>Fable boundary sample</title>
+    <style>
+      :root {
+        color: #172033;
+        background: #eef3f8;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-synthesis: none;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-width: 20rem;
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        padding: 1.5rem;
+      }
+
+      main {
+        width: min(100%, 42rem);
+        padding: clamp(1.25rem, 4vw, 2.5rem);
+        border: 1px solid #c8d3e0;
+        border-radius: 1rem;
+        background: #ffffff;
+        box-shadow: 0 1rem 3rem rgb(23 32 51 / 10%);
+      }
+
+      h1,
+      h2 {
+        line-height: 1.15;
+      }
+
+      h1 {
+        margin: 0.25rem 0 1rem;
+        font-size: clamp(2rem, 7vw, 3.25rem);
+      }
+
+      h2 {
+        margin-top: 2rem;
+      }
+
+      p,
+      li {
+        line-height: 1.65;
+      }
+
+      .eyebrow {
+        margin: 0;
+        color: #31578a;
+        font-size: 0.8rem;
+        font-weight: 750;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      output {
+        display: block;
+        margin: 1rem 0;
+        font: 700 1.5rem/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+      }
+
+      button {
+        min-height: 2.75rem;
+        padding: 0.6rem 1rem;
+        border: 2px solid #31578a;
+        border-radius: 0.55rem;
+        color: #ffffff;
+        background: #31578a;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      button:last-child {
+        color: #23446f;
+        background: transparent;
+      }
+
+      button:focus-visible {
+        outline: 3px solid #ef9f20;
+        outline-offset: 3px;
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+      }
+
+      .boundary-note {
+        margin-top: 2rem;
+        padding: 1rem 1.25rem;
+        border-left: 0.3rem solid #31578a;
+        background: #edf4fc;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          color: #eef4ff;
+          background: #111827;
+        }
+
+        main {
+          border-color: #3d4c63;
+          background: #1b2433;
+          box-shadow: none;
+        }
+
+        .eyebrow {
+          color: #9fc5fa;
+        }
+
+        button:last-child {
+          color: #c9dcf8;
+        }
+
+        .boundary-note {
+          background: #223149;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">F# → JavaScript → browser DOM</p>
+      <h1>Fable browser boundary</h1>
+      <p>
+        Fable compiles <code>App.fs</code> into JavaScript. The browser executes that JavaScript;
+        it does not host the .NET runtime.
+      </p>
+
+      <section aria-labelledby="counter-heading">
+        <h2 id="counter-heading">Pure update, effectful shell</h2>
+        <output id="count" data-testid="count" aria-live="polite">Count: 0</output>
+        <div class="actions">
+          <button id="increment" type="button">Increment count</button>
+          <button id="reset" type="button">Reset count</button>
+        </div>
+      </section>
+
+      <aside class="boundary-note" aria-label="Runtime boundary">
+        <strong>What crosses the boundary?</strong>
+        <ul>
+          <li>The model, union messages, and <code>update</code> are ordinary pure F#.</li>
+          <li><code>Browser.Dom</code> supplies typed bindings to browser APIs such as events and elements.</li>
+          <li>Only APIs supported by Fable or a compatible binding are available; arbitrary .NET libraries are not.</li>
+        </ul>
+      </aside>
+
+      <noscript>This sample needs JavaScript generated from F#.</noscript>
+    </main>
+    <script type="module" src="/generated/App.js"></script>
+  </body>
+</html>
