@@ -811,10 +811,10 @@
 
 ### A08 — 附录 H：高级特性识别索引
 
-- [ ] **依赖：** A07、B31、B40、B45。
+- [x] **依赖：** A07、B31、B40、B45。
 - **主要文件（2）：** `docs/zh/appendices/h-advanced-index.md`、`docs/en/appendices/h-advanced-index.md`。
 - **验收：** quotations、SRTP、灵活类型、byref/Span 各说明识别信号、适用边界与官方入口；明确首版不教类型提供器创作或编译器服务。
-- **验证：** 官方来源复核；双语与内容检查；`pnpm build`。
+- **验证：** 中英文严格保持 167/167 行与同锚点结构，以四列表先给 quotations、SRTP、灵活类型与 byref/Span 的表面信号、核心含义和第一个停止问题，再分别说明识别组合、真正适用边界、常见误用、评审问题及正文回链。2026-08-25 逐项复核 Microsoft Learn 的 F# quotations、SRTP、灵活类型、byrefs，以及 .NET Memory/Span 生命周期指南和 FSharp.Core quotation API：明确 typed/untyped quotation 是表达式对象而非自动执行；F# 7+ SRTP 简化语法可显示 `'T`，旧式/复杂分派仍可能出现 `^T`；`#BaseType` 等价于带子类型约束的新泛型参数且主要服务嵌套类型位置；`inref` 只限制当前引用持有者，Span/byref-like 值受逸出和捕获限制，异步/长期所有权应转向 `Memory<T>` 等合适表示。范围边界明确不教授类型提供器创作、FSharp.Compiler.Service、通用 quotation 求值器、高级 SRTP 分派和自定义 byref-like 类型；它只是一份识别与路由索引。双语、内容与 VitePress 生产构建通过。
 - **规模：** M。
 
 ### S01 — 双语前言、阅读路线与中立首页

@@ -4,7 +4,7 @@ description: "Recognize quotations, statically resolved type parameters, flexibl
 translationKey: appendices/h-advanced-index
 kind: appendix
 appendix: H
-status: review
+status: complete
 exampleIds: []
 exerciseIds: []
 termIds: []

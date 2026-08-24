@@ -4,7 +4,7 @@ description: "识别 quotations、静态解析类型参数、灵活类型与 byr
 translationKey: appendices/h-advanced-index
 kind: appendix
 appendix: H
-status: review
+status: complete
 exampleIds: []
 exerciseIds: []
 termIds: []
