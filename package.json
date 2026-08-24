@@ -7,13 +7,16 @@
   "scripts": {
     "dev": "vitepress dev docs",
     "build": "vitepress build docs",
-    "preview": "vitepress preview docs"
+    "preview": "vitepress preview docs",
+    "test:content": "node --test scripts/content-contract.test.mjs scripts/markdown.test.mjs"
   },
   "engines": {
     "node": ">=22.0.0",
     "pnpm": "11.7.0"
   },
   "devDependencies": {
-    "vitepress": "1.6.4"
+    "markdown-it": "15.0.0",
+    "vitepress": "1.6.4",
+    "yaml": "2.9.0"
   }
 }

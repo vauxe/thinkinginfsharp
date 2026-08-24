@@ -4,6 +4,7 @@ import test from 'node:test'
 
 import {
   assertPageFrontmatter,
+  sharedCodeReferenceTarget,
   validatePageFrontmatter,
   validateSharedCodeReference,
   validateTerminology
@@ -104,6 +105,15 @@ test('allows only normalized snippet references inside the shared examples tree'
       '@/../examples/scripts/ch01-first-session.fsx#binding{1,3 fsharp:line-numbers}'
     ),
     []
+  )
+  assert.deepEqual(
+    sharedCodeReferenceTarget(
+      '@/../examples/scripts/ch01-first-session.fsx#binding{1,3 fsharp:line-numbers}'
+    ),
+    {
+      path: 'scripts/ch01-first-session.fsx',
+      region: 'binding'
+    }
   )
 
   for (const reference of [

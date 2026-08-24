@@ -387,3 +387,18 @@ export function validateSharedCodeReference(reference) {
 
   return errors
 }
+
+export function sharedCodeReferenceTarget(reference) {
+  if (validateSharedCodeReference(reference).length > 0) return undefined
+
+  let normalized = reference.trim()
+  normalized = normalized.replace(/\s+\[[^\]\r\n]+\]$/, '')
+  normalized = normalized.replace(/\{[^{}\r\n]+\}$/, '')
+  const region = /#([A-Za-z0-9_-]+)$/.exec(normalized)?.[1]
+  normalized = normalized.replace(/#[A-Za-z0-9_-]+$/, '')
+
+  return {
+    path: normalized.slice(SHARED_EXAMPLE_PREFIX.length),
+    region
+  }
+}
