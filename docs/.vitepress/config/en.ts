@@ -56,7 +56,8 @@ export const enLocale = {
             { text: '19 · .NET APIs and Null Boundaries', link: '/en/part-04/ch-19-dotnet-null-boundaries' },
             { text: '20 · Functional Core and Effect Boundaries', link: '/en/part-04/ch-20-functional-core-effects' },
             { text: '21 · Exceptions, Resources, and I/O', link: '/en/part-04/ch-21-exceptions-resources-io' },
-            { text: "22 · Async<'T> and Task<'T>", link: '/en/part-04/ch-22-async-task' }
+            { text: "22 · Async<'T> and Task<'T>", link: '/en/part-04/ch-22-async-task' },
+            { text: '23 · Cancellation, Timeouts, Faults, and Disposal', link: '/en/part-04/ch-23-cancellation-timeouts' }
           ]
         }
       ],
@@ -85,7 +86,8 @@ export const enLocale = {
             { text: 'Chapter 19', link: '/en/solutions/ch-19-dotnet-null-boundaries' },
             { text: 'Chapter 20', link: '/en/solutions/ch-20-functional-core-effects' },
             { text: 'Chapter 21', link: '/en/solutions/ch-21-exceptions-resources-io' },
-            { text: 'Chapter 22', link: '/en/solutions/ch-22-async-task' }
+            { text: 'Chapter 22', link: '/en/solutions/ch-22-async-task' },
+            { text: 'Chapter 23', link: '/en/solutions/ch-23-cancellation-timeouts' }
           ]
         }
       ]

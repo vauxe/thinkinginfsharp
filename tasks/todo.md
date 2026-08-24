@@ -339,10 +339,10 @@
 
 ### B23 — 取消、超时、故障与释放 / Cancellation, Timeouts, Faults, and Disposal
 
-- [ ] **依赖：** B22。
+- [x] **依赖：** B22。
 - **主要文件（5）：** `docs/{zh,en}/part-04/ch-23-cancellation-timeouts.md`、`docs/{zh,en}/solutions/ch-23-cancellation-timeouts.md`、`examples/scripts/ch23-cancellation-timeouts.fsx`。
 - **验收：** 显式传播令牌，区分取消操作与放弃等待；覆盖故障传播及成功/失败/取消下的同步和异步释放。
-- **验证：** FSI 用 `TaskCompletionSource`/令牌而非计时猜测验证全部路径；双语与内容检查；`pnpm build`。
+- **验证：** 中英文正文各 260 行、答案各 258 行且语义/结构对应；FSI 用 `TaskCompletionSource`、令牌和显式截止信号证明取消操作、仅放弃等待、超时后底层仍运行、原始故障，以及同步/异步资源在成功、故障、取消三条路径上的释放，全程无计时猜测；额外编译探针验证 task `use` 会等待 `IAsyncDisposable` 三条路径，并如实记录 FSI #14454 限制；答案代码、双语/内容与 `pnpm build` 通过。
 - **规模：** L。
 
 ### B24 — 并行、并发、代理与受控可变性 / Parallelism, Concurrency, Agents, and Controlled Mutation

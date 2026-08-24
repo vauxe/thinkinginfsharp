@@ -311,6 +311,20 @@
       ]
     },
     {
+      "id": "ch23-cancellation-timeouts",
+      "kind": "script",
+      "path": "examples/scripts/ch23-cancellation-timeouts.fsx",
+      "expectedOutput": [
+        "Operation cancellation: canceled=true token=true",
+        "Abandoned wait: waiter-canceled=true operation-pending=true",
+        "Underlying after abandon: result=late-result",
+        "Timeout signal: timed-out=true operation-pending=true",
+        "Fault: type=InvalidOperationException message=quote-failed",
+        "Sync dispose: success=true fault=true cancel=true",
+        "Async dispose: pending=true success=true fault=true cancel=true"
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",
