@@ -795,10 +795,10 @@
 
 ### A06 — 附录 F：中英文术语表
 
-- [ ] **依赖：** A05、F04。
+- [x] **依赖：** A05、F04。
 - **主要文件（2）：** `docs/zh/glossary.md`、`docs/en/glossary.md`。
 - **验收：** 从 `terminology.json` 生成或验证一致的术语、定义、首次出现和交叉链接；两种语言均可独立理解。
-- **验证：** `pnpm check:content`；`pnpm check:parity`；`pnpm build`。
+- **验证：** `scripts/generate-glossary.mjs` 以 `docs/terminology.json` 为唯一显示词与定义源，按章节阅读顺序从两种语言 frontmatter 分别求出最早声明页，并要求每个键都有中英文首现、两页 `translationKey`/部分/章号相同；任何孤立键、跨语言首现漂移、缺失页或生成差异均失败。生成的中英文页严格保持 533/533 行、84/84 个同名稳定锚点和三个学习阶段分组；每项以本语言完整定义为主体，同时显示另一语言首选词、稳定键和真实首教章节链接，所以只会中文或只会英文都可独立使用。首现定义明确为“阅读顺序中最早声明该键的教学章节”，不假装普通叙述此前绝未出现该词。新增 `generate:glossary`/`check:glossary`，并把后者接入 `check:content`；三项生成器测试覆盖双语渲染与锚点/链接、缺失/过期检测以及无首现术语拒绝，完整内容测试 25/25 通过。`pnpm check:glossary`、双语、内容和 VitePress 生产构建全部通过；安装期意外中断造成的 pnpm 状态缓存/链接不一致已只通过删除生成状态并以 `CI=true pnpm install --frozen-lockfile` 从既有锁文件恢复，未修改依赖或锁文件。
 - **规模：** M。
 
 ### A07 — 附录 G：答案与开放题评审标准
