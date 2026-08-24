@@ -397,6 +397,22 @@ module BookingApiTests =
         Assert.DoesNotContain("PATH-OR-SECRET", responseText)
 
     [<Fact>]
+    let ``dependency deadline maps to unavailable rather than client cancellation`` () =
+        let recorded = recordingPorts NotBooked
+        use deadline = new CancellationTokenSource()
+        deadline.Cancel()
+
+        let timedOutPorts =
+            { recorded.Ports with
+                LoadBooking = fun _ _ -> Task.FromCanceled<BookingState>(deadline.Token) }
+
+        use api = new TestApi(timedOutPorts)
+        use response = api.Client.GetAsync("/api/bookings/REQ-DEADLINE") |> complete
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode)
+        Assert.Equal("dependency_unavailable", (readError response).Code)
+
+    [<Fact>]
     let ``client cancellation reaches the blocked port and remains cancellation`` () =
         let recorded = recordingPorts NotBooked
 

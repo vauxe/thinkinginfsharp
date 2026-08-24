@@ -574,7 +574,7 @@
 - [x] **依赖：** B35。
 - **主要文件（≤5）：** `examples/capstone/src/Booking.Api/Booking.Api.fsproj`、`Program.fs`、`Endpoints.fs`、`tests/ContractTests/BookingApiTests.fs`、`ThinkingInFSharp.slnx`。
 - **验收：** API 只接收/返回边界 DTO；输入验证、JSON、错误映射、异步与请求取消正确；机密配置不进入响应/日志；测试进程内运行。
-- **验证：** 先由缺失 `Booking.Api` 得到预期 FS0039 红灯；实现以 `PlaceBookingDto`、`ConfirmBookingDto`、`CancelBookingDto` 和 `BookingDto` 固定四个 HTTP 路由，另用稳定 `ApiErrorDto` 映射传输、验证、领域、支付、存储与未知故障，响应不回显异常消息、支付结果或配置路径；严格 JSON 继续拒绝错误大小写与未知字段，命令体在 Kestrel 和进程内测试宿主中都限制为 16 KiB，请求的 `CancellationToken` 原样贯穿加载、支付、追加与通知；放置流程明确暴露“支付在提交前、通知在提交后”的阶段性部分失败窗口，留给 K11 解决幂等与恢复而不伪称事务；官方 `Microsoft.AspNetCore.TestHost` 10.0.9 锁定到与本机 ASP.NET Core 运行时一致的版本，精确 `BookingApi` 过滤 15/15 覆盖成功、生命周期、严格输入、有界读取、错误状态、机密脱敏、提交前后故障和无 sleep 取消；全解决方案 Release 构建 0 警告/0 错误，真实 Kestrel 回环冒烟得到 `201`/`Location`、持久化后的 `200` 与严格 JSON `400`，最终宿主关闭 `Server` 响应头，默认日志没有请求体、支付标识或存储路径；Fantomas、示例清单单测与完整锁定 `pnpm check:examples` 通过，临时快照已删除。
+- **验证：** 先由缺失 `Booking.Api` 得到预期 FS0039 红灯；实现以 `PlaceBookingDto`、`ConfirmBookingDto`、`CancelBookingDto` 和 `BookingDto` 固定四个 HTTP 路由，另用稳定 `ApiErrorDto` 映射传输、验证、领域、支付、存储与未知故障，响应不回显异常消息、支付结果或配置路径；严格 JSON 继续拒绝错误大小写与未知字段，命令体在 Kestrel 和进程内测试宿主中都限制为 16 KiB，请求的 `CancellationToken` 原样贯穿加载、支付、追加与通知；放置流程明确暴露“支付在提交前、通知在提交后”的阶段性部分失败窗口，留给 K11 解决幂等与恢复而不伪称事务；官方 `Microsoft.AspNetCore.TestHost` 10.0.9 锁定到与本机 ASP.NET Core 运行时一致的版本，精确 `BookingApi` 过滤 16/16 覆盖成功、生命周期、严格输入、有界读取、错误状态、机密脱敏、提交前后故障、依赖自身截止映射与无 sleep 客户端取消；全解决方案 Release 构建 0 警告/0 错误，真实 Kestrel 回环冒烟得到 `201`/`Location`、持久化后的 `200` 与严格 JSON `400`，最终宿主关闭 `Server` 响应头，默认日志没有请求体、支付标识或存储路径；Fantomas、示例清单单测与完整锁定 `pnpm check:examples` 通过，临时快照已删除。
 - **规模：** L。
 
 ### B36 — Web API、JSON 与输入边界 / Web API, JSON, and Input Boundaries
@@ -582,7 +582,7 @@
 - [x] **依赖：** K10。
 - **主要文件（4）：** `docs/{zh,en}/part-06/ch-36-web-api-boundaries.md`、`docs/{zh,en}/solutions/ch-36-web-api-boundaries.md`。
 - **验收：** 由 K10 解释端点、DTO、验证、取消和机密配置边界；提供可复制的本地运行/请求命令及失败响应。
-- **验证：** 正文严格保持 393/393 行，答案严格保持 174/174 行；逐段对齐从 HTTP 字节到响应 DTO 的外层解释过程、四条命令路由、DTO/领域隔离、传输—存在性—领域三层验证、无 `Content-Length` 时仍有效的 16 KiB 上限、统一严格 JSON、稳定状态码/错误代码、`RequestAborted` 传播、支付—追加—通知时间线、提交前后部分失败、异常脱敏、配置/机密/日志分类、`TestServer` 与真实 Kestrel 的互补证据、本地 Bash/PowerShell 启动及 `curl` 成功/失败请求，并明确无认证/TLS/CORS/速率限制的回环样例不得原样公开；答案覆盖自动绑定下保持契约、支付歧义/发件箱式重放证据，以及边缘与受信代理拓扑的控制责任；引用当前 .NET 10 / ASP.NET Core 官方资料；K10 精确契约 15/15、全解决方案 Release 构建和最终锁定示例门通过，双语/内容检查与 VitePress 生产构建通过；真实 Chrome 验证英文正文到答案、答案同页切换中文、两类侧栏与语义标题，390×844 下无页面级横向溢出且宽代码/表格保持内部滚动，控制台零告警，移动端 Lighthouse 可访问性、最佳实践、SEO 与可代理浏览均为 100。
+- **验证：** 正文严格保持 393/393 行，答案严格保持 174/174 行；逐段对齐从 HTTP 字节到响应 DTO 的外层解释过程、四条命令路由、DTO/领域隔离、传输—存在性—领域三层验证、无 `Content-Length` 时仍有效的 16 KiB 上限、统一严格 JSON、稳定状态码/错误代码、`RequestAborted` 传播、支付—追加—通知时间线、提交前后部分失败、异常脱敏、配置/机密/日志分类、`TestServer` 与真实 Kestrel 的互补证据、本地 Bash/PowerShell 启动及 `curl` 成功/失败请求，并明确无认证/TLS/CORS/速率限制的回环样例不得原样公开；答案覆盖自动绑定下保持契约、支付歧义/发件箱式重放证据，以及边缘与受信代理拓扑的控制责任；引用当前 .NET 10 / ASP.NET Core 官方资料；K10 精确契约现为 16/16，并额外锁定依赖自身截止与客户端断连的不同语义；全解决方案 Release 构建和最终锁定示例门通过，双语/内容检查与 VitePress 生产构建通过；真实 Chrome 验证英文正文到答案、答案同页切换中文、两类侧栏与语义标题，390×844 下无页面级横向溢出且宽代码/表格保持内部滚动，控制台零告警，移动端 Lighthouse 可访问性、最佳实践、SEO 与可代理浏览均为 100。
 - **规模：** L。
 
 ### K11 — 原子容量、幂等、重试与重启恢复
@@ -627,9 +627,9 @@
 
 ### C6 — 贯穿项目检查点
 
-- [ ] **依赖：** B38。
+- [x] **依赖：** B38。
 - **验收：** 规格要求的 JSON/C#、竞争预约、重复 ID、失败重试、取消/超时、资源释放和重启持久化场景全部有证据；无需账号或额外服务。
-- **验证：** `pnpm check:capstone`；`pnpm test`；按 README 从临时目录手工完成一次 API + C# 客户端流程。
+- **验证：** 逐项证据审计完成：9 项版本化严格 JSON 契约与 API/端到端输入测试覆盖 JSON；独立 C# 进程仅引用 `Booking.Contracts` 并经真实 HTTP 完成放置—精确重放—确认—读取；显式门闩竞争测试证明容量 3 下两个 2 座请求恰有一个成功；并发等价命令、同键异载荷冲突与效果计数证明重复 ID 语义；通知失败只重发待通知阶段，支付故障后停在结果未知且不盲目重扣；新增无计时特征测试把依赖自身截止稳定映射为 `503 dependency_unavailable`，并与客户端 `RequestAborted` 保持取消的测试区分；文件取消写入无临时残留且保留旧快照，组合根重复释放、释放后拒用和检查脚本 `finally` 精确清理证明资源边界；真实第二个 `dotnet fsi` 进程从磁盘恢复并零效果重放。最终 `BookingApi` 16/16、`pnpm check:capstone` 与完整 `pnpm test` 通过；按 README 已从唯一临时目录运行真实 Kestrel、独立 C# 客户端及无效 JSON 成功/失败流程并核对相关日志，随后停止进程并删除精确目录。除可能从公开 NuGet 源取得已锁定包外，无需账号、私有源或额外运行时服务。
 
 ## 7. 第七部分：生态地图
 
