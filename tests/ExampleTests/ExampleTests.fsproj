@@ -12,6 +12,7 @@
     <Compile Include="Ch16ProjectTests.fs" />
     <Compile Include="Ch17SignatureTests.fs" />
     <Compile Include="BookingWorkflowTests.fs" />
+    <Compile Include="BookingAsyncPortTests.fs" />
   </ItemGroup>
 
   <ItemGroup>

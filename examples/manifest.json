@@ -164,7 +164,9 @@
       "sources": [
         "examples/capstone/src/Booking.Domain/Domain.fs",
         "examples/capstone/src/Booking.Domain/Validation.fs",
-        "examples/capstone/src/Booking.Domain/Workflow.fs"
+        "examples/capstone/src/Booking.Domain/Workflow.fs",
+        "examples/capstone/src/Booking.Domain/Ports.fs",
+        "examples/capstone/src/Booking.Domain/Fakes.fs"
       ]
     },
     {
@@ -357,7 +359,8 @@
         "tests/ExampleTests/BookingDomainTests.fs",
         "tests/ExampleTests/Ch16ProjectTests.fs",
         "tests/ExampleTests/Ch17SignatureTests.fs",
-        "tests/ExampleTests/BookingWorkflowTests.fs"
+        "tests/ExampleTests/BookingWorkflowTests.fs",
+        "tests/ExampleTests/BookingAsyncPortTests.fs"
       ]
     }
   ]

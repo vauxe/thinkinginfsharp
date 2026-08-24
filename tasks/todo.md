@@ -355,10 +355,10 @@
 
 ### K04 — 预约异步端口与确定性替身
 
-- [ ] **依赖：** B24、K03。
+- [x] **依赖：** B24、K03。
 - **主要文件（≤5）：** `examples/capstone/src/Booking.Domain/Ports.fs`、`Fakes.fs`、`Booking.Domain.fsproj`、`tests/ExampleTests/BookingAsyncPortTests.fs`、`examples/manifest.json`。
 - **验收：** 持久化、支付、通知、时钟端口显式接收取消令牌；替身能确定性模拟成功、故障、取消和延迟门闩，且纯领域层不依赖具体 I/O。
-- **验证：** `dotnet test ThinkingInFSharp.slnx --configuration Release --filter FullyQualifiedName~BookingAsyncPort`；Release 构建；`pnpm check:examples`。
+- **验证：** `BookingAsyncPort` 的 4 项 Release 测试通过：五个端口均记录精确调用方令牌，可控操作在显式完成前保持挂起，并原样传播指定故障与匹配令牌的取消；`Ports.fs` 只定义函数端口与边界数据，既有纯 `Domain`/`Validation`/`Workflow` 未引入具体 I/O；Release 构建及 `pnpm check:examples` 通过。
 - **规模：** M。
 
 ### C4 — 第四部分检查点
