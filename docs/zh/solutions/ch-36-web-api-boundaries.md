@@ -1,0 +1,174 @@
+---
+title: "第 36 章答案"
+description: "在自动绑定下保留 HTTP 契约，推理不明确效果，并为不同部署拓扑分配安全控制。"
+translationKey: solutions/ch-36-web-api-boundaries
+kind: solution
+part: 6
+chapter: 36
+status: complete
+verifiedWith:
+  fsharp: "10"
+  dotnetSdk: "10.0.301"
+exampleIds:
+  - capstone-booking-domain
+  - capstone-booking-contracts
+  - capstone-booking-infrastructure
+  - capstone-booking-api
+exerciseIds:
+  - ch36-exercise-01
+  - ch36-exercise-02
+  - ch36-exercise-03
+termIds: []
+sources:
+  - id: microsoft-minimal-api
+    url: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis?view=aspnetcore-10.0
+    checked: "2026-08-25"
+  - id: microsoft-request-aborted
+    url: https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.http.defaulthttpcontext.requestaborted?view=aspnetcore-10.0
+    checked: "2026-08-25"
+  - id: microsoft-testserver
+    url: https://learn.microsoft.com/en-us/aspnet/core/test/middleware?view=aspnetcore-10.0
+    checked: "2026-08-25"
+  - id: microsoft-kestrel-security
+    url: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/servers/kestrel/security-considerations?view=aspnetcore-10.0
+    checked: "2026-08-25"
+  - id: microsoft-app-secrets
+    url: https://learn.microsoft.com/en-us/aspnet/core/security/app-secrets?view=aspnetcore-10.0
+    checked: "2026-08-25"
+  - id: microsoft-http-logging
+    url: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/http-logging/?view=aspnetcore-10.0
+    checked: "2026-08-25"
+---
+
+# 第 36 章答案 {#overview}
+
+这些答案在改变机制时保留可观察契约。只有失败行为受控时，自动绑定才合适；只有持久状态能说明最后可见效果时，重试才安全；只有控制的拥有者与拓扑匹配时，部署中间件才有用。
+
+[返回第 36 章](../part-06/ch-36-web-api-boundaries)。
+
+## 练习 1：改变绑定但不改变契约 {#exercise-01}
+
+### 先冻结可观察行为 {#exercise-01-contract}
+
+重构必须保留以下不变量：
+
+- 接受的 JSON 媒体类型与精确、区分大小写的属性名；
+- 拒绝未知成员与过深嵌套；
+- 无论是否有 `Content-Length` 都有效的 16 KiB 字节上限；
+- 格式错误或形状不兼容的 JSON 返回 `invalid_json`；
+- 空请求体或 DTO 字段缺失返回 `invalid_request`；
+- 在任何端口调用前累积领域字段错误；
+- 每个端口都得到调用方的请求中止令牌；
+- 每种成功状态、错误状态、稳定代码与响应 DTO 形状。
+
+不要先删除契约测试。它们就是让机制可以安全变化的规格。
+
+### 把策略分配给最窄的可复用层 {#exercise-01-layers}
+
+一种可行设计按如下方式划分责任：
+
+| 层 | 责任 |
+|---|---|
+| HTTP JSON 配置 | 对 Minimal API 绑定使用的选项调用 `BookingJson.configure` |
+| Kestrel 配置 | 在真实服务器拒绝超过 16 KiB 的请求体 |
+| 早期中间件或端点过滤器 | 传输特性未提供上限时，执行同样的流式字节计数 |
+| 绑定失败边界 | 把格式错误 JSON 与绑定失败转换为稳定 `ApiErrorDto` 契约 |
+| 路由处理程序 | 接收 `PlaceBookingDto`，执行映射和验证，再调用应用工作流 |
+| 最外层异常边界 | 保留请求取消，并隐藏运维或意外故障细节 |
+
+于是处理程序可以具有紧凑的概念签名：
+
+```fsharp
+PlaceBookingDto -> CancellationToken -> Task<IResult>
+```
+
+这个签名并不能证明公共契约。框架绑定在处理程序之前运行。依据配置与宿主，绑定失败可能返回框架生成的响应体，也可能以异常形式抵达 `TestServer`。绑定失败边界必须在两条路径可观察之前把它们规范化。
+
+不要在中间件中读取一次请求体来计量，然后让绑定器读取已经消费的流。要么在绑定前安装真正的限流包装流，要么只在声明的小上限内缓冲，并用可重绕流替换请求体。前者避免重复缓冲；后者更简单，但必须在请求结束后释放自己拥有的缓冲区。
+
+### 保持黑盒测试 {#exercise-01-tests}
+
+原样运行现有 HTTP 用例。再加入两个没有 `Content-Length` 的请求：一个恰好达到上限，一个超过一个字节。加入 `application/problem+json` 或另一种有效 `+json` 媒体类型，以证明内容类型策略是有意选择的。
+
+断言无效输入绝不会进入 `LoadBooking`，而不只是响应为 `400`。断言取消抵达阻塞端口，而不只是客户端任务结束。最后再次执行真实 Kestrel 冒烟，因为 `TestServer` 不复现所有传输上限与头部。
+
+如果任何状态码、代码、字段错误或副作用次数变化，重构就改变了 API。应显式决定这次迁移，而不是把它称为绑定实现细节。
+
+## 练习 2：从最后可见效果开始推理 {#exercise-02}
+
+### 记录歧义，而不是猜测 {#exercise-02-table}
+
+三种中断会产生不同事实：
+
+| 中断 | 提供商所见 | 快照内容 | 调用方所见 | 盲目重试风险 |
+|---|---|---|---|---|
+| 支付授权后追加失败 | 一笔授权可能存在 | 旧状态 | `503` 或响应丢失 | 第二笔授权 |
+| 追加成功后通知失败 | 授权存在 | 新预约 | `503` | 重复命令，而通知仍缺失 |
+| 通知成功后响应丢失 | 授权与通知都存在 | 新预约 | 取消/无响应 | 已完成工作仍重复支付或通知 |
+
+调用方无法从 HTTP 响应存在与否推导持久事实。服务器也无法仅仅因为发送请求后连接失败，就推导提供商是否已经行动。双方都需要跨进程与网络故障存续的标识符。
+
+### 持久化最小重放证据 {#exercise-02-evidence}
+
+第 37 章需要一条以规范化请求 ID 为键的持久记录。它至少要保留：
+
+- 原始命令的指纹，使同一 ID 用于不同输入时成为冲突；
+- 已接受的预约或决策结果；
+- 稳定支付幂等键，以及授权是待处理、已知接受、已知拒绝还是结果不明确；
+- 通知是待处理还是已投递；
+- 足以重放同一完成结果、且不再次执行效果的响应数据。
+
+“待处理”与“结果不明确”不同。待处理表示尚不知道有任何尝试开始；结果不明确表示尝试已经开始，但结果未知。再次授权前需要查询提供商状态，或使用提供商支持的幂等键。
+
+本地提交后的通知适合用持久的发件箱式记录：把预约与“通知待处理”一起提交，再独立投递并标记完成。确定性替身可以证明状态机，却不能证明真实消息代理或邮件提供商的投递语义。
+
+这不是分布式事务，而是针对重放、对账和至少一次尝试的显式协议，并在支持处去重。补偿、授权过期与提供商回调需要本例没有的额外业务规则。
+
+## 练习 3：审阅两种部署拓扑 {#exercise-03}
+
+### 把每种控制放在拥有可信信息的位置 {#exercise-03-table}
+
+把下表当作起点，而不是普适基础设施策略：
+
+| 关注点 | Kestrel 位于边缘 | 前方有受信反向代理 | 预约需求 |
+|---|---|---|---|
+| TLS 与 HSTS | 在应用/服务器配置 | 通常由代理终止；正确保留安全协议 | 不可信网络上必需 |
+| 转发头 | 保持关闭 | 只为显式已知代理/网络启用 | 取决于拓扑 |
+| 主机过滤 | 配置允许的主机 | 代理验证；应用可纵深防御 | 主机参与安全判断时必需 |
+| 16 KiB 请求体上限 | Kestrel 加应用上限 | 代理、Kestrel 与应用上限应一致 | 这些命令路由必需 |
+| 速率限制/超时 | 应用/服务器策略 | 协调代理与应用策略 | 公开前必需；数值取决于负载 |
+| 身份验证/授权 | 应用验证身份与权限 | 代理可以认证，但应用必须显式信任并授权所得身份 | 暴露预约数据前必需 |
+| 机密获取 | 进程可访问的受控存储 | 受控存储或工作负载身份，绝不用代理头传递原始机密 | 真实提供商必需 |
+| HTTP 日志 | 在应用分类与脱敏 | 两层都分类脱敏；避免重复捕获请求体 | 诊断策略必需；请求体日志可选 |
+
+信任所有发送方时，转发头很危险：客户端可以伪造协议或地址。反之，在终止 TLS 的代理后仍关闭它们，会使 HTTPS 重定向、安全链接与审计数据出错。配置应服从真实信任边界。
+
+只有浏览器源需要直接调用此 API 时，CORS 才有必要。它不验证调用方身份，也不能防御脚本、服务器或命令行客户端。如果不存在跨源浏览器客户端，保持 CORS 关闭才是更小的正确策略。
+
+关闭 `Server: Kestrel` 可以减少被动披露，却不能修复缺失的身份验证、TLS 或速率限制。同样，把凭据从源码移入明文环境变量可以防止意外提交，却不能加密它。
+
+发布审阅应为每个必需行命名拥有者与验证证据：配置测试、部署探针、日志样本或安全测试。没有拓扑或可观察结果的勾选框并不是控制。
+
+## 答案回顾 {#solution-review}
+
+- 绑定重构必须保留处理程序运行前发生的失败。
+- Kestrel 与应用级上限覆盖不同执行环境。
+- 契约测试断言没有副作用与取消，而不只断言状态码。
+- HTTP 响应是被观察的证据，不是事务收据。
+- 支付歧义需要持久键，并在再次授权前对账。
+- 提交后通知需要持久的待处理/完成状态与重放策略。
+- 发件箱是协议组件，不是恰好一次投递的承诺。
+- 边缘与代理部署为 TLS 和转发头分配不同权威。
+- 即使代理参与，身份验证与授权依然必需。
+- CORS 是浏览器策略，不是调用方身份验证。
+- 环境变量与被抑制的服务器头只是有限加固措施。
+- 日志控制需要每个日志层的分类、脱敏与证据。
+
+## 来源 {#sources}
+
+- [Microsoft Learn：Minimal API 快速参考](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis?view=aspnetcore-10.0)
+- [Microsoft Learn：`HttpContext.RequestAborted`](https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.http.defaulthttpcontext.requestaborted?view=aspnetcore-10.0)
+- [Microsoft Learn：用 `TestServer` 测试 ASP.NET Core 中间件](https://learn.microsoft.com/en-us/aspnet/core/test/middleware?view=aspnetcore-10.0)
+- [Microsoft Learn：Kestrel 安全注意事项与可配置上限](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/servers/kestrel/security-considerations?view=aspnetcore-10.0)
+- [Microsoft Learn：在开发中安全存储应用机密](https://learn.microsoft.com/en-us/aspnet/core/security/app-secrets?view=aspnetcore-10.0)
+- [Microsoft Learn：HTTP 日志与脱敏](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/http-logging/?view=aspnetcore-10.0)

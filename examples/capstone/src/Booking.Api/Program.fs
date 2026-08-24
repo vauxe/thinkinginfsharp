@@ -63,6 +63,7 @@ module Program =
         | StartupConfigurationError.InvalidEventId -> "invalid_event_id"
         | StartupConfigurationError.InvalidCapacity -> "invalid_capacity"
 
+    // #region api-host
     [<EntryPoint>]
     let main arguments =
         match StartupConfiguration.load () with
@@ -99,3 +100,4 @@ module Program =
 
             application.Run()
             0
+// #endregion api-host

@@ -173,6 +173,7 @@ module BookingEndpoints =
                 "The request body is not valid JSON for this endpoint."
                 [||]
 
+    // #region bounded-json-body
     // The small command contract is buffered only up to the documented limit. This also
     // enforces the limit under TestServer, where Kestrel-specific limits do not run.
     let private readBody (context: HttpContext) =
@@ -217,6 +218,7 @@ module BookingEndpoints =
             Ok(JsonSerializer.Deserialize<'dto>(span, jsonOptions))
         with :? JsonException ->
             Error InvalidJson
+    // #endregion bounded-json-body
 
     let private preparePlace command =
         Validation.validatePlaceBooking command
@@ -411,6 +413,7 @@ module BookingEndpoints =
                             [||]
         }
 
+    // #region safe-error-boundary
     let private safely handler (context: HttpContext) =
         task {
             try
@@ -446,6 +449,7 @@ module BookingEndpoints =
                         "The request could not be completed."
                         [||]
         }
+    // #endregion safe-error-boundary
 
     // #region endpoint-map
     let map (application: WebApplication) dependencies =
