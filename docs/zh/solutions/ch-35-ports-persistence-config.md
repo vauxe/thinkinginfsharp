@@ -1,0 +1,154 @@
+---
+title: "第 35 章答案"
+description: "演进带版本快照，审计替换过程中的中断点，并为借用的生产客户端重新设计组合。"
+translationKey: solutions/ch-35-ports-persistence-config
+kind: solution
+part: 6
+chapter: 35
+status: complete
+verifiedWith:
+  fsharp: "10"
+  dotnetSdk: "10.0.301"
+exampleIds:
+  - capstone-booking-domain
+  - capstone-booking-contracts
+  - capstone-booking-infrastructure
+exerciseIds:
+  - ch35-exercise-01
+  - ch35-exercise-02
+  - ch35-exercise-03
+termIds: []
+sources:
+  - id: microsoft-json-property-names
+    url: https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/customize-properties
+    checked: "2026-08-25"
+  - id: microsoft-json-unmapped-members
+    url: https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/missing-members
+    checked: "2026-08-25"
+  - id: microsoft-file-move
+    url: https://learn.microsoft.com/en-us/dotnet/api/system.io.file.move?view=net-10.0
+    checked: "2026-08-25"
+  - id: microsoft-filestream-flush
+    url: https://learn.microsoft.com/en-us/dotnet/api/system.io.filestream.flush?view=net-10.0
+    checked: "2026-08-25"
+  - id: microsoft-cancellation-token
+    url: https://learn.microsoft.com/en-us/dotnet/api/system.threading.cancellationtoken?view=net-10.0
+    checked: "2026-08-25"
+---
+
+# 第 35 章答案 {#overview}
+
+这些答案把兼容性、文件替换与所有权保留为三项独立策略。一次迁移并不等于“加入可空字段”，刷新不等于事务，而依赖注入也不会决定谁负责释放借来的客户端。
+
+[返回第 35 章](../part-06/ch-35-ports-persistence-config)。
+
+## 练习 1：演进快照契约 {#exercise-01}
+
+### 先分派版本，再进行严格的版本专属解析 {#exercise-01-dispatch}
+
+把当前 `BookingDto` 保留为精确的版本 1 表示。引入独立 `BookingDtoV2`，保留所有已有字段，再加入 `[<JsonPropertyName("customerNote")>] CustomerNote: string | null`。文件已经存在后，不要再改变 `schemaVersion = 1` 的含义。
+
+读取现在分成两个阶段：
+
+1. 应用已有字节上限、严格 UTF-8 解码与 JSON 深度限制。
+2. 用 `JsonDocument` 或最小信封仅读取顶层 `schemaVersion`。
+3. 把 `1` 分派给精确的版本 1 反序列化器与映射器。
+4. 把 `2` 分派给独立配置的严格版本 2 反序列化器与映射器。
+5. 对其他每个整数返回 `UnsupportedSchemaVersion actual`。
+6. 把缺失或非整数版本拒绝为损坏表示。
+
+必须先分派版本，再严格反序列化完整对象。否则版本 2 的 `customerNote` 会被版本 1 选项当成未知成员，并以错误原因失败。
+
+采用以下兼容性表：
+
+| 已存文档 | 内存结果 | 重写策略 |
+|---|---|---|
+| 精确版本 1 | 受保护预约加 `CustomerNote = None` | 加载期间不写入 |
+| 没有 `customerNote` 的版本 2 | 受保护预约加 `None` | 稍后保存为规范版本 2 |
+| 带字符串备注的版本 2 | 受保护预约加 `Some note` | 下次成功保存时保留 |
+| 带未知成员的版本 2 | 严格策略下的损坏/不支持表示 | 不修改文件 |
+| 版本 3 | `UnsupportedSchemaVersion 3` | 不猜测，也不降级 |
+
+在内存中升级，仅在下一次成功业务保存时重写。一次读取不应意外变成写入、获得新的失败模式或改变时间戳。如果运维确实要求立即迁移，就把它做成有备份、审计与回滚行为的独立命令。
+
+备注的领域策略仍需要需求。“可选”只回答是否存在，没有回答最大长度、空白规范化、隐私，或它是否根本属于预约。只有写明这些规则之后，才应加入受保护类型。
+
+契约测试应保留每项版本 1 快照测试，加入精确的版本 2 形状，证明两个版本都映射到预期受保护值，并证明版本 3 与未知成员在已声明阶段失败。
+
+## 练习 2：审计每个保存中断点 {#exercise-02}
+
+### 分开目标可见性与持久性 {#exercise-02-table}
+
+假设已经有一个旧完整目标：
+
+| 中断点 | 读者可见的目标 | 临时文件 | 诚实结论 |
+|---|---|---|---|
+| 创建临时文件前 | 旧完整目标 | 无 | 写入尚未开始 |
+| 写临时文件期间 | 旧完整目标 | 可能不完整 | 正常展开会删除；进程崩溃可能留下残留 |
+| `Flush(true)` 后、移动前 | 旧完整目标 | 完整暂存字节 | 取消会删除；崩溃可能留下完整孤儿 |
+| 同卷替换期间 | 文件系统专属的旧或新替换行为 | 正在重命名 | 没有原地写入部分目标 |
+| 成功移动后 | 新完整目标 | 通常不存在 | 提交已经发生；稍后的取消无法诚实地回滚 |
+
+实现会在写入前观察取消，并在 `File.Move` 前一刻再次观察。移动之后没有可取消的等待。如果令牌在提交后并发取消，返回 `Ok` 比为已经可见的工作报告取消更安全。
+
+必须分开三项主张：
+
+- 进程可见替换：目标通过同目录移动替换，而不是逐字节覆盖。
+- 缓冲区刷新：`Flush(true)` 请求在移动前写出中间文件缓冲区。
+- 断电持久性：文件数据、重命名元数据与目录项是否持久，取决于操作系统、文件系统、挂载选项与设备行为；本例没有证明它。
+
+`finally` 中的清理属于尽力而为。启动维护程序可以先确认文件不是已配置目标，再删除符合私有临时命名模式的旧文件。它绝不能删除宽泛目录，也不能接受未验证路径。
+
+如果需求是“预约与支付授权一起提交”，无论怎样重排这七个文件步骤都无法提供保证。它需要更宽的一致性协议，而不是为 `File.Move` 使用更强措辞。
+
+## 练习 3：消除歧义地改变所有权 {#exercise-03}
+
+### 分开借用能力与被拥有生命周期 {#exercise-03-borrowed}
+
+重构组合，让它依赖能力而不是具体替身：
+
+```fsharp
+type ExternalServicePorts =
+    { Charge: PaymentRequest -> CancellationToken -> Task<PaymentOutcome>
+      Notify: NotificationRequest -> CancellationToken -> Task<unit> }
+
+type BorrowedInfrastructureComposition =
+    inherit IDisposable
+    abstract member Ports: AsyncPorts
+
+val startBorrowed:
+    configuration: BookingStoreConfiguration ->
+    externalServices: ExternalServicePorts ->
+    getUtcNow: (CancellationToken -> Task<DateTimeOffset>) ->
+    BorrowedInfrastructureComposition
+```
+
+这份 `.fsi` 风格声明表达接口契约，不是 K09 已经实现的代码。生产实现会把现有端口记录构造移到 `startBorrowed` 后面，而且借用型组合不会暴露具体 `PaymentStub` 或 `NotificationStub` 属性。
+
+宿主创建长生命周期客户端、注册它们、启动一个或多个借用型组合，并在释放共享客户端之前先释放各组合。如果客户端实现 `IAsyncDisposable`，宿主会在自己的关闭边界等待它们。借用型组合绝不能调用任一释放接口。
+
+避免使用一个含糊的 `ownsClients: bool` 标志。分开的构造函数或类型——例如演示用 `startOwnedStubs` 与宿主客户端用 `startBorrowed`——让调用位置即可审查所有权。
+
+释放后使用分成两层：
+
+1. 每个组合仍把自身标记为关闭，并拒绝新端口调用。
+2. 宿主保证只要还有借用型组合处于活动状态，就不释放共享客户端。
+
+测试仍可保持确定性：在测试中创建 `PaymentStub` 与 `NotificationStub`，把它们的 `Invoke` 函数作为借用能力传入，再在测试最外层 `use` 作用域释放替身。断言授权、拒绝、精确故障、预先取消且不记录调用，以及释放组合不会释放借用替身。
+
+调用方令牌仍必须原样传递。借用只改变生命周期权威，并未授权组合替换取消、重试或错误策略。
+
+## 答案回顾 {#solution-review}
+
+- 保留每个已写出模式版本的精确含义。
+- 应先检查版本，再应用严格的版本专属未知成员规则。
+- 读取时只在内存升级；立即重写应成为显式迁移操作。
+- 可选字段仍然需要领域与隐私策略。
+- 移动前，旧目标仍是权威；移动后，提交已经发生。
+- 临时清理与崩溃恢复是不同关注点。
+- 刷新会请求缓冲区持久化，却不能证明普适断电持久性。
+- 文件替换无法把远程支付操作一并原子提交。
+- 借用能力与拥有资源需要不同构造 API。
+- 创建者/宿主会在每个借用方关闭后释放共享客户端。
+- 测试把确定性替身作为借用函数传入时，它们仍然有用。
+- 所有权变化不会改变取消或失败语义。

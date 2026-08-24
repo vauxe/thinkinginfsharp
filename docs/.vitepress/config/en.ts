@@ -82,7 +82,8 @@ export const enLocale = {
           text: 'Part VI · The booking system',
           items: [
             { text: '33 · Business Language, Commands, Events, and Model', link: '/en/part-06/ch-33-domain-language-model' },
-            { text: '34 · The Pure Booking Workflow and Validation', link: '/en/part-06/ch-34-pure-booking-workflow' }
+            { text: '34 · The Pure Booking Workflow and Validation', link: '/en/part-06/ch-34-pure-booking-workflow' },
+            { text: '35 · Ports, Persistence, Configuration, and Stubs', link: '/en/part-06/ch-35-ports-persistence-config' }
           ]
         }
       ],
@@ -123,7 +124,8 @@ export const enLocale = {
             { text: 'Chapter 31', link: '/en/solutions/ch-31-measure-before-optimizing' },
             { text: 'Chapter 32', link: '/en/solutions/ch-32-functions-to-applications' },
             { text: 'Chapter 33', link: '/en/solutions/ch-33-domain-language-model' },
-            { text: 'Chapter 34', link: '/en/solutions/ch-34-pure-booking-workflow' }
+            { text: 'Chapter 34', link: '/en/solutions/ch-34-pure-booking-workflow' },
+            { text: 'Chapter 35', link: '/en/solutions/ch-35-ports-persistence-config' }
           ]
         }
       ]
