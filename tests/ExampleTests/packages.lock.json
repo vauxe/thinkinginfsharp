@@ -98,6 +98,12 @@
         "dependencies": {
           "xunit.extensibility.core": "[2.9.3]"
         }
+      },
+      "booking.domain": {
+        "type": "Project",
+        "dependencies": {
+          "FSharp.Core": "[10.1.301, )"
+        }
       }
     }
   }

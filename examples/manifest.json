@@ -158,6 +158,14 @@
       ]
     },
     {
+      "id": "capstone-booking-domain",
+      "kind": "compile",
+      "path": "examples/capstone/src/Booking.Domain/Booking.Domain.fsproj",
+      "sources": [
+        "examples/capstone/src/Booking.Domain/Domain.fs"
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",
@@ -171,7 +179,8 @@
       "path": "tests/ExampleTests/ExampleTests.fsproj",
       "sources": [
         "tests/ExampleTests/SmokeTests.fs",
-        "tests/ExampleTests/CapstonePart01Tests.fs"
+        "tests/ExampleTests/CapstonePart01Tests.fs",
+        "tests/ExampleTests/BookingDomainTests.fs"
       ]
     }
   ]

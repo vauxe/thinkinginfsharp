@@ -8,6 +8,11 @@
   <ItemGroup>
     <Compile Include="SmokeTests.fs" />
     <Compile Include="CapstonePart01Tests.fs" />
+    <Compile Include="BookingDomainTests.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../examples/capstone/src/Booking.Domain/Booking.Domain.fsproj" />
   </ItemGroup>
 
   <ItemGroup>

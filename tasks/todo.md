@@ -203,17 +203,17 @@
 
 ### K02 — 预约领域模型与不变量
 
-- [ ] **依赖：** B12、F06。
+- [x] **依赖：** B12、F06。
 - **主要文件（≤5）：** `examples/capstone/src/Booking.Domain/Booking.Domain.fsproj`、`Domain.fs`、`tests/ExampleTests/BookingDomainTests.fs`、`ThinkingInFSharp.slnx`、`examples/manifest.json`。
 - **验收：** 建立活动、容量、请求标识、预约状态等领域类型；公开构造函数拒绝非法容量/标识/状态；领域表示不承担 JSON 或数据库契约。
-- **验证：** `dotnet test ThinkingInFSharp.slnx --configuration Release --filter FullyQualifiedName~BookingDomain`；Release 构建；`pnpm check:examples`。
+- **验证：** 先以缺失 API 获得预期编译红灯，再由 8 项 `BookingDomain` xUnit 测试覆盖标识、容量、座位、跨字段容量和状态转换；外部 FSI 直接构造 `Capacity`/`EventId` 均为 FS1093；`pnpm test` 的锁定还原、Release 构建、全测试与示例检查通过。
 - **规模：** M。
 
 ### C2 — 第二部分检查点
 
-- [ ] **依赖：** K02。
+- [x] **依赖：** K02。
 - **验收：** 类型建模路径完整；结构/哈希/身份表述一致；K02 的非法状态不可经公开 API 构造；章节和答案双语对等。
-- **验证：** `pnpm test`；人工复核 B07、B11、B12 的术语和类型签名。
+- **验证：** `pnpm test` 全绿；人工复核 B07 的结构/哈希/身份条件、B11 的 `equality`/`comparison`/`int<'Measure>` 实际 FSI 签名、B12 与 K02 的同文件/跨程序集 private 边界；中英页面行数与结构检查一致。
 
 ## 3. 第三部分：组合与程序结构
 
