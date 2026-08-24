@@ -731,10 +731,10 @@
 
 ### B44 — Unity 6.3 LTS 与 F# / Unity 6.3 LTS and F#
 
-- [ ] **依赖：** X44。
+- [x] **依赖：** X44。
 - **主要文件（4）：** `docs/{zh,en}/part-07/ch-44-unity.md`、`docs/{zh,en}/solutions/ch-44-unity.md`。
 - **验收：** 准确解释兼容目标、`FSharp.Core`、C# 适配、序列化、IL2CPP 和裁剪；不把 F# 类库成功编译误报为 Unity 全链成功。
-- **验证：** X44 自动证据 + 独立人工记录；双语与内容检查；`pnpm build`。
+- **验证：** 中英文正文严格保持 592/592 行、解答严格保持 303/303 行；章节以“F# 编译 → 依赖闭包 → Unity 导入 → Editor/Play Mode → Mono Player → IL2CPP Player → 受支持发布”的证据阶梯为主线，分别说明 .NET Standard 2.1 API profile、精确 `FSharp.Core` 装配、C# 友好 CLR 表面、Unity 序列化与重载生命周期、输入/时间/线程/逐帧分配、IL2CPP 五阶段流水线、AOT 风险、窄 `link.xml` 根、Burst/Jobs 的独立 HPC# 边界，以及可复现 Player 构建。X44 是唯一已执行样例：锁定 F# 插件构建、纯规则、值类型状态、依赖产物和公开 API 检查均通过；说明性 C# `MonoBehaviour`、Unity 6000.3.22f1 导入、Play Mode 与 macOS ARM64 IL2CPP Player 明确记录为未运行，因为本机没有 Unity Editor/模块，未把普通 .NET 构建冒充 Unity 结果。三道双语答案分别为战术游戏、Burst 主导动作游戏与 Editor 内容流水线选择不同语言边界，设计从 X44 升级到真实 IL2CPP 垂直切片的项目/证据图，并处理任务存档迁移、异步陈旧结果和 AOT 安全处理器注册。`check-parity`、`check-content` 与 VitePress 生产构建通过；真实 Chrome 验证英文正文/解答、语言菜单切换到中文解答及返回中文正文，两套侧栏与互链正确；390×844 下无页面级横向溢出，宽表格与代码块只在自身容器内滚动，控制台零警告/错误，移动端 Lighthouse 的可访问性、最佳实践、SEO 与可代理浏览均为 100。
 - **规模：** L。
 
 ### B45 — 脚本、自动化、包生态与继续学习 / Scripting, Automation, Packages, and What Comes Next
