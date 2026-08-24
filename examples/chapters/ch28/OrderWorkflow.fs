@@ -52,22 +52,10 @@ module ProductSnapshot =
             raise (ArgumentException("SKU must not be blank.", nameof sku))
 
         if unitPrice < 0M then
-            raise (
-                ArgumentOutOfRangeException(
-                    nameof unitPrice,
-                    unitPrice,
-                    "Unit price must not be negative."
-                )
-            )
+            raise (ArgumentOutOfRangeException(nameof unitPrice, unitPrice, "Unit price must not be negative."))
 
         if available < 0 then
-            raise (
-                ArgumentOutOfRangeException(
-                    nameof available,
-                    available,
-                    "Available stock must not be negative."
-                )
-            )
+            raise (ArgumentOutOfRangeException(nameof available, available, "Available stock must not be negative."))
 
         { Sku = sku.Trim()
           UnitPrice = unitPrice
@@ -86,17 +74,13 @@ type OrderDecisionError =
 
 // #region pure-decision
 module OrderDecision =
-    let decide
-        (product: ProductSnapshot option)
-        (command: PlaceOrderCommand)
-        : Result<OrderDraft, OrderDecisionError> =
+    let decide (product: ProductSnapshot option) (command: PlaceOrderCommand) : Result<OrderDraft, OrderDecisionError> =
         let requestedSku = PlaceOrderCommand.sku command
         let requestedQuantity = PlaceOrderCommand.quantity command
 
         match product with
         | None -> Error(ProductNotFound requestedSku)
-        | Some snapshot
-            when not (StringComparer.Ordinal.Equals(snapshot.Sku, requestedSku)) ->
+        | Some snapshot when not (StringComparer.Ordinal.Equals(snapshot.Sku, requestedSku)) ->
             Error(ProductNotFound requestedSku)
         | Some snapshot when requestedQuantity > snapshot.Available ->
             Error(InsufficientStock(requestedQuantity, snapshot.Available))
@@ -122,10 +106,7 @@ type OrderPorts =
       SaveOrder: PlacedOrder -> unit }
 
 module OrderWorkflow =
-    let place
-        (ports: OrderPorts)
-        (command: PlaceOrderCommand)
-        : Result<PlacedOrder, OrderDecisionError> =
+    let place (ports: OrderPorts) (command: PlaceOrderCommand) : Result<PlacedOrder, OrderDecisionError> =
         let product = command |> PlaceOrderCommand.sku |> ports.FindProduct
 
         match OrderDecision.decide product command with

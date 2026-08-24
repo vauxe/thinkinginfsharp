@@ -12,8 +12,7 @@ module private NormalizedText =
         else
             Some(raw.Trim())
 
-type EventIdError =
-    | BlankEventId
+type EventIdError = | BlankEventId
 
 type EventId = private EventId of string
 
@@ -25,8 +24,7 @@ module EventId =
 
     let value (EventId eventId) = eventId
 
-type RequestIdError =
-    | BlankRequestId
+type RequestIdError = | BlankRequestId
 
 type RequestId = private RequestId of string
 
@@ -38,42 +36,33 @@ module RequestId =
 
     let value (RequestId requestId) = requestId
 
-type CapacityError =
-    | NonPositiveCapacity of actual: int
+type CapacityError = NonPositiveCapacity of actual: int
 
 type Capacity = private Capacity of int<seat>
 
 module Capacity =
     let create raw =
         if raw > 0 then
-            raw
-            |> LanguagePrimitives.Int32WithMeasure<seat>
-            |> Capacity
-            |> Ok
+            raw |> LanguagePrimitives.Int32WithMeasure<seat> |> Capacity |> Ok
         else
             Error(NonPositiveCapacity raw)
 
     let value (Capacity capacity) = capacity
 
-type SeatCountError =
-    | NonPositiveSeatCount of actual: int
+type SeatCountError = NonPositiveSeatCount of actual: int
 
 type SeatCount = private SeatCount of int<seat>
 
 module SeatCount =
     let create raw =
         if raw > 0 then
-            raw
-            |> LanguagePrimitives.Int32WithMeasure<seat>
-            |> SeatCount
-            |> Ok
+            raw |> LanguagePrimitives.Int32WithMeasure<seat> |> SeatCount |> Ok
         else
             Error(NonPositiveSeatCount raw)
 
     let value (SeatCount seats) = seats
 
-type ConfirmationCodeError =
-    | BlankConfirmationCode
+type ConfirmationCodeError = | BlankConfirmationCode
 
 type ConfirmationCode = private ConfirmationCode of string
 
@@ -85,8 +74,7 @@ module ConfirmationCode =
 
     let value (ConfirmationCode code) = code
 
-type CancellationReasonError =
-    | BlankCancellationReason
+type CancellationReasonError = | BlankCancellationReason
 
 type CancellationReason = private CancellationReason of string
 
@@ -104,9 +92,7 @@ type Event =
           Capacity: Capacity }
 
 module Event =
-    let create eventId capacity =
-        { Id = eventId
-          Capacity = capacity }
+    let create eventId capacity = { Id = eventId; Capacity = capacity }
 
     let id event = event.Id
     let capacity event = event.Capacity
@@ -116,8 +102,7 @@ type BookingStatus =
     | Confirmed of ConfirmationCode
     | Cancelled of CancellationReason
 
-type BookingCreationError =
-    | RequestedSeatsExceedCapacity of requested: int<seat> * capacity: int<seat>
+type BookingCreationError = RequestedSeatsExceedCapacity of requested: int<seat> * capacity: int<seat>
 
 type BookingTransitionError =
     | CannotConfirmFrom of current: BookingStatus

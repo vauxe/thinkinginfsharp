@@ -35,10 +35,7 @@ module Ch28WorkflowTests =
         let request = command "ORD-28" "FSP-BOOK" 3
         let snapshot = product "FSP-BOOK" 19.50M 2
 
-        Assert.Equal(
-            Error(InsufficientStock(3, 2)),
-            OrderDecision.decide (Some snapshot) request
-        )
+        Assert.Equal(Error(InsufficientStock(3, 2)), OrderDecision.decide (Some snapshot) request)
     // #endregion pure-value-tests
 
     // #region port-double-tests
@@ -89,10 +86,7 @@ module Ch28WorkflowTests =
                     DateTimeOffset.MaxValue
               SaveOrder = saved.Add }
 
-        Assert.Equal(
-            Error(InsufficientStock(2, 1)),
-            OrderWorkflow.place ports request
-        )
+        Assert.Equal(Error(InsufficientStock(2, 1)), OrderWorkflow.place ports request)
 
         Assert.Equal(0, clockCalls)
         Assert.Empty saved
@@ -117,12 +111,9 @@ module Ch28WorkflowTests =
                     DateTimeOffset.MaxValue
               SaveOrder = saved.Add }
 
-        Assert.Equal(
-            Error(ProductNotFound "FSP-BOOK"),
-            OrderWorkflow.place ports request
-        )
+        Assert.Equal(Error(ProductNotFound "FSP-BOOK"), OrderWorkflow.place ports request)
 
         Assert.True(([ "FSP-BOOK" ] = (lookups |> Seq.toList)))
         Assert.Equal(0, clockCalls)
         Assert.Empty saved
-    // #endregion missing-product-test
+// #endregion missing-product-test

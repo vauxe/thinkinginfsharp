@@ -1,9 +1,6 @@
 // #region if-expression
 let availability remaining =
-    if remaining > 0 then
-        "available"
-    else
-        "full"
+    if remaining > 0 then "available" else "full"
 
 printfn "Availability: %s" (availability 3)
 // #endregion if-expression

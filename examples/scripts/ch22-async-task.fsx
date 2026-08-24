@@ -54,13 +54,9 @@ printfn "Task result: %s" taskResult
 // #endregion task-start
 
 // #region interop
-let taskFromAsync =
-    async { return 21 }
-    |> Async.StartAsTask
+let taskFromAsync = async { return 21 } |> Async.StartAsTask
 
-let asyncFromTask =
-    task { return 42 }
-    |> Async.AwaitTask
+let asyncFromTask = task { return 42 } |> Async.AwaitTask
 
 let fromAsync = taskFromAsync.GetAwaiter().GetResult()
 let fromTask = Async.RunSynchronously asyncFromTask

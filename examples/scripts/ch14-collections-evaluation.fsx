@@ -64,18 +64,12 @@ printfn "Cached enumerations: first=%A second=%A pulls=%d" cachedFirst cachedSec
 let uniqueSeats = [ 3; 1; 3; 2 ] |> Set.ofList
 
 let bookingByCode =
-    [ "B2", "first"
-      "A1", "only"
-      "B2", "replacement" ]
-    |> Map.ofList
+    [ "B2", "first"; "A1", "only"; "B2", "replacement" ] |> Map.ofList
 
 ensureEqual "set removes duplicates and orders" [ 1; 2; 3 ] (Set.toList uniqueSeats)
 ensureEqual "later map binding replaces earlier" "replacement" bookingByCode["B2"]
 
-printfn
-    "Ordered collections: set=%A map=%A"
-    (Set.toList uniqueSeats)
-    (Map.toList bookingByCode)
+printfn "Ordered collections: set=%A map=%A" (Set.toList uniqueSeats) (Map.toList bookingByCode)
 // #endregion ordered-collections
 
 // #region equality-only-key
@@ -85,8 +79,7 @@ type EmailAddress =
 
     override this.Equals(other: obj) =
         match other with
-        | :? EmailAddress as candidate ->
-            StringComparer.OrdinalIgnoreCase.Equals(this.Value, candidate.Value)
+        | :? EmailAddress as candidate -> StringComparer.OrdinalIgnoreCase.Equals(this.Value, candidate.Value)
         | _ -> false
 
     override this.GetHashCode() =

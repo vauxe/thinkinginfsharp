@@ -31,19 +31,18 @@ module BookingAsyncPortTests =
         let clock = ControlledOperation<unit, DateTimeOffset>()
 
         let ports =
-            {
-                LoadBooking = load.Invoke
-                AppendEvent = fun id event token -> append.Invoke(id, event) token
-                Charge = charge.Invoke
-                Notify = notify.Invoke
-                GetUtcNow = fun token -> clock.Invoke() token
-            }
+            { LoadBooking = load.Invoke
+              AppendEvent = fun id event token -> append.Invoke (id, event) token
+              Charge = charge.Invoke
+              Notify = notify.Invoke
+              GetUtcNow = fun token -> clock.Invoke () token }
 
         use owner = new CancellationTokenSource()
         let loadTask = ports.LoadBooking requestId owner.Token
 
         let eventId = EventId.create "EVT-K04" |> expectOk
         let capacity = Capacity.create 4 |> expectOk
+
         let bookingEvent =
             Booking.create (Event.create eventId capacity) requestId seats
             |> expectOk
@@ -69,13 +68,11 @@ module BookingAsyncPortTests =
         Assert.Equal(now, clockTask.GetAwaiter().GetResult())
 
         let allTokens =
-            [
-                load.Calls.Head.CancellationToken
-                append.Calls.Head.CancellationToken
-                charge.Calls.Head.CancellationToken
-                notify.Calls.Head.CancellationToken
-                clock.Calls.Head.CancellationToken
-            ]
+            [ load.Calls.Head.CancellationToken
+              append.Calls.Head.CancellationToken
+              charge.Calls.Head.CancellationToken
+              notify.Calls.Head.CancellationToken
+              clock.Calls.Head.CancellationToken ]
 
         Assert.All(allTokens, fun token -> Assert.Equal(owner.Token, token))
 
@@ -94,7 +91,7 @@ module BookingAsyncPortTests =
     [<Fact>]
     let ``controlled operation preserves a supplied fault`` () =
         let controlled = ControlledOperation<unit, string>()
-        let running = controlled.Invoke() CancellationToken.None
+        let running = controlled.Invoke () CancellationToken.None
         let expected = InvalidOperationException "payment-offline"
 
         Assert.True(controlled.Fail expected)
@@ -113,7 +110,7 @@ module BookingAsyncPortTests =
     let ``controlled operation observes caller cancellation`` () =
         let controlled = ControlledOperation<unit, string>()
         use owner = new CancellationTokenSource()
-        let running = controlled.Invoke() owner.Token
+        let running = controlled.Invoke () owner.Token
 
         controlled.Entered.GetAwaiter().GetResult()
         owner.Cancel()

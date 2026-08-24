@@ -32,8 +32,7 @@ module Ch28BoundaryTests =
     [<Fact>]
     let ``json input crosses validation before becoming a command`` () =
         let dto =
-            PlaceOrderJson.deserialize
-                """{"orderId":"ORD-28","sku":"FSP-BOOK","quantity":2}"""
+            PlaceOrderJson.deserialize """{"orderId":"ORD-28","sku":"FSP-BOOK","quantity":2}"""
 
         match PlaceOrderDto.toCommand dto with
         | Error error -> failwithf "Expected a command, received %A" error
@@ -48,24 +47,16 @@ module Ch28BoundaryTests =
         let missingId = PlaceOrderJson.deserialize "{}"
 
         let defaultQuantity =
-            PlaceOrderJson.deserialize
-                """{"orderId":"ORD-28","sku":"FSP-BOOK"}"""
+            PlaceOrderJson.deserialize """{"orderId":"ORD-28","sku":"FSP-BOOK"}"""
 
         Assert.Equal(Error MissingBody, PlaceOrderDto.toCommand nullBody)
-        Assert.Equal(
-            Error(InvalidCommand MissingOrderId),
-            PlaceOrderDto.toCommand missingId
-        )
+        Assert.Equal(Error(InvalidCommand MissingOrderId), PlaceOrderDto.toCommand missingId)
 
-        Assert.Equal(
-            Error(InvalidCommand(NonPositiveQuantity 0)),
-            PlaceOrderDto.toCommand defaultQuantity
-        )
+        Assert.Equal(Error(InvalidCommand(NonPositiveQuantity 0)), PlaceOrderDto.toCommand defaultQuantity)
 
     [<Fact>]
     let ``unknown json members fail instead of disappearing silently`` () =
         Assert.Throws<JsonException>(fun () ->
-            PlaceOrderJson.deserialize
-                """{"orderId":"ORD-28","sku":"FSP-BOOK","quantity":2,"priority":true}"""
+            PlaceOrderJson.deserialize """{"orderId":"ORD-28","sku":"FSP-BOOK","quantity":2,"priority":true}"""
             |> ignore)
-    // #endregion json-input-contract
+// #endregion json-input-contract

@@ -78,15 +78,10 @@ module BookingDomainTests =
     [<Fact>]
     let ``pending booking confirms immutably and cannot confirm twice`` () =
         let event =
-            Event.create
-                (EventId.create "EVT-42" |> expectOk)
-                (Capacity.create 4 |> expectOk)
+            Event.create (EventId.create "EVT-42" |> expectOk) (Capacity.create 4 |> expectOk)
 
         let booking =
-            Booking.create
-                event
-                (RequestId.create "REQ-9" |> expectOk)
-                (SeatCount.create 3 |> expectOk)
+            Booking.create event (RequestId.create "REQ-9" |> expectOk) (SeatCount.create 3 |> expectOk)
             |> expectOk
 
         let code = ConfirmationCode.create "  CONF-1  " |> expectOk
@@ -102,15 +97,10 @@ module BookingDomainTests =
     [<Fact>]
     let ``booking cancellation is final`` () =
         let event =
-            Event.create
-                (EventId.create "EVT-42" |> expectOk)
-                (Capacity.create 4 |> expectOk)
+            Event.create (EventId.create "EVT-42" |> expectOk) (Capacity.create 4 |> expectOk)
 
         let booking =
-            Booking.create
-                event
-                (RequestId.create "REQ-9" |> expectOk)
-                (SeatCount.create 3 |> expectOk)
+            Booking.create event (RequestId.create "REQ-9" |> expectOk) (SeatCount.create 3 |> expectOk)
             |> expectOk
 
         let code = ConfirmationCode.create "CONF-1" |> expectOk

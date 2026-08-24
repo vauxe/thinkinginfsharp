@@ -166,10 +166,7 @@ let validAccumulated = validateAccumulating valid
 
 assert (firstError = Error [ MissingRequestId ])
 
-assert (
-    allErrors =
-        Error [ MissingRequestId; MissingAttendee; SeatsNotInteger "oops" ]
-)
+assert (allErrors = Error [ MissingRequestId; MissingAttendee; SeatsNotInteger "oops" ])
 
 assert (mixedErrors = Error [ MissingAttendee; NonPositiveSeats 0 ])
 assert (validFirst = validAccumulated)
@@ -192,7 +189,19 @@ printfn "First error: %s" (renderResult renderBooking firstError)
 printfn "Accumulated invalid: %s" (renderResult renderBooking allErrors)
 printfn "Accumulated mixed: %s" (renderResult renderBooking mixedErrors)
 printfn "Valid strategies agree: %b (%s)" (validFirst = validAccumulated) (renderResult renderBooking validAccumulated)
-printfn "Dependent invalid: %s capacity-checks=%d" (renderResult (fun (SeatCount seats) -> $"ok:{seats}") invalidSeatsResult) invalidSeatsChecks
-printfn "Dependent excessive: %s capacity-checks=%d" (renderResult (fun (SeatCount seats) -> $"ok:{seats}") excessiveSeatsResult) excessiveSeatsChecks
-printfn "Dependent accepted: %s capacity-checks=%d" (renderResult (fun (SeatCount seats) -> $"ok:{seats}") acceptedSeatsResult) acceptedSeatsChecks
+
+printfn
+    "Dependent invalid: %s capacity-checks=%d"
+    (renderResult (fun (SeatCount seats) -> $"ok:{seats}") invalidSeatsResult)
+    invalidSeatsChecks
+
+printfn
+    "Dependent excessive: %s capacity-checks=%d"
+    (renderResult (fun (SeatCount seats) -> $"ok:{seats}") excessiveSeatsResult)
+    excessiveSeatsChecks
+
+printfn
+    "Dependent accepted: %s capacity-checks=%d"
+    (renderResult (fun (SeatCount seats) -> $"ok:{seats}") acceptedSeatsResult)
+    acceptedSeatsChecks
 // #endregion evidence

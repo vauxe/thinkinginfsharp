@@ -13,8 +13,7 @@ let cancellableTask (cancellationToken: CancellationToken) =
 
     task {
         use _registration =
-            cancellationToken.Register(fun () ->
-                completion.TrySetCanceled(cancellationToken) |> ignore)
+            cancellationToken.Register(fun () -> completion.TrySetCanceled(cancellationToken) |> ignore)
 
         return! completion.Task
     }
@@ -72,8 +71,7 @@ type WaitOutcome<'T> =
 
 let awaitUntilSignal (operation: Task<'T>) (timeoutSignal: Task) =
     task {
-        let! winner =
-            Task.WhenAny [| operation :> Task; timeoutSignal |]
+        let! winner = Task.WhenAny [| operation :> Task; timeoutSignal |]
 
         if obj.ReferenceEquals(winner, operation) then
             let! value = operation
@@ -102,9 +100,7 @@ timedOperation.SetResult("finished-after-timeout")
 
 // #region fault-propagation
 let faultingTask () : Task<string> =
-    task {
-        return raise (InvalidOperationException "quote-failed")
-    }
+    task { return raise (InvalidOperationException "quote-failed") }
 
 let faultedTask = faultingTask ()
 
@@ -137,12 +133,13 @@ type SyncProbe(label: string, disposed: ResizeArray<string>) =
     interface IDisposable with
         member _.Dispose() = disposed.Add label
 
-type AsyncProbe(
-    label: string,
-    started: TaskCompletionSource<unit>,
-    release: TaskCompletionSource<unit>,
-    disposed: ResizeArray<string>
-) =
+type AsyncProbe
+    (
+        label: string,
+        started: TaskCompletionSource<unit>,
+        release: TaskCompletionSource<unit>,
+        disposed: ResizeArray<string>
+    ) =
     interface IAsyncDisposable with
         member _.DisposeAsync() =
             let disposal =
@@ -227,16 +224,9 @@ syncCancellation.Dispose()
 // #region async-disposal
 let asyncDisposed = ResizeArray<string>()
 
-let runWithAsyncResource
-    label
-    path
-    (cancellationToken: CancellationToken)
-    started
-    release
-    =
+let runWithAsyncResource label path (cancellationToken: CancellationToken) started release =
     let resource =
-        new AsyncProbe(label, started, release, asyncDisposed)
-        :> IAsyncDisposable
+        new AsyncProbe(label, started, release, asyncDisposed) :> IAsyncDisposable
 
     usingAsync resource (fun () ->
         task {
@@ -300,17 +290,13 @@ assert asyncFault
 assert asyncCanceled
 assert asyncCanceledTask.IsCanceled
 
-assert (
-    Seq.toList asyncDisposed =
-      [
-        "success:start"
-        "failure:start"
-        "cancel:start"
-        "success:done"
-        "failure:done"
-        "cancel:done"
-      ]
-)
+assert
+    (Seq.toList asyncDisposed = [ "success:start"
+                                  "failure:start"
+                                  "cancel:start"
+                                  "success:done"
+                                  "failure:done"
+                                  "cancel:done" ])
 
 printfn
     "Async dispose: pending=%b success=%b fault=%b cancel=%b"

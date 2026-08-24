@@ -11,8 +11,7 @@ let capSeats maximum draft =
     { draft with
         RequestedSeats = min maximum draft.RequestedSeats }
 
-let addChannel channel draft =
-    { draft with Channel = Some channel }
+let addChannel channel draft = { draft with Channel = Some channel }
 
 let toLabel draft =
     let channel = draft.Channel |> Option.defaultValue "unknown"
@@ -24,35 +23,22 @@ let rawDraft =
       Channel = None }
 
 // #region repeated-nesting
-let nestedLabel =
-    toLabel (addChannel "web" (capSeats 4 (trimAttendee rawDraft)))
+let nestedLabel = toLabel (addChannel "web" (capSeats 4 (trimAttendee rawDraft)))
 
 printfn "Nested: %s" nestedLabel
 // #endregion repeated-nesting
 
 // #region pipeline
 let pipedLabel =
-    rawDraft
-    |> trimAttendee
-    |> capSeats 4
-    |> addChannel "web"
-    |> toLabel
+    rawDraft |> trimAttendee |> capSeats 4 |> addChannel "web" |> toLabel
 
 printfn "Pipeline matches nested: %b" (pipedLabel = nestedLabel)
 // #endregion pipeline
 
 // #region composition
-let prepareLabel =
-    trimAttendee
-    >> capSeats 4
-    >> addChannel "web"
-    >> toLabel
+let prepareLabel = trimAttendee >> capSeats 4 >> addChannel "web" >> toLabel
 
-let prepareLabelBackward =
-    toLabel
-    << addChannel "web"
-    << capSeats 4
-    << trimAttendee
+let prepareLabelBackward = toLabel << addChannel "web" << capSeats 4 << trimAttendee
 
 printfn "Forward composition: %s" (prepareLabel rawDraft)
 printfn "Backward composition: %s" (prepareLabelBackward rawDraft)

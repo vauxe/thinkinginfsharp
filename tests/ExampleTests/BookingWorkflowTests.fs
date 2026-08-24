@@ -17,19 +17,13 @@ module BookingWorkflowTests =
         Event.create eventId validCapacity
 
     let private command requestId seats : PlaceBookingCommand =
-        { RequestId = requestId
-          Seats = seats }
+        { RequestId = requestId; Seats = seats }
 
     [<Fact>]
     let ``independent command errors accumulate in field order`` () =
         let result = validatePlaceBooking (command " " 0)
 
-        Assert.Equal(
-            Error
-                [ InvalidRequestId BlankRequestId
-                  InvalidSeatCount(NonPositiveSeatCount 0) ],
-            result
-        )
+        Assert.Equal(Error [ InvalidRequestId BlankRequestId; InvalidSeatCount(NonPositiveSeatCount 0) ], result)
 
     [<Fact>]
     let ``valid command produces an event that evolves booking state`` () =
@@ -49,10 +43,7 @@ module BookingWorkflowTests =
         let event = createEvent 4
         let result = decidePlaceBooking event NotBooked (command "REQ-K03" 5)
 
-        Assert.Equal(
-            Error(BookingCreationFailed(RequestedSeatsExceedCapacity(5<seat>, 4<seat>))),
-            result
-        )
+        Assert.Equal(Error(BookingCreationFailed(RequestedSeatsExceedCapacity(5<seat>, 4<seat>))), result)
 
     [<Fact>]
     let ``existing state short circuits the later capacity decision`` () =
@@ -61,8 +52,7 @@ module BookingWorkflowTests =
         let existingSeats = SeatCount.create 2 |> expectOk
         let existing = Booking.create event existingId existingSeats |> expectOk
 
-        let result =
-            decidePlaceBooking event (Booked existing) (command "REQ-NEW" 5)
+        let result = decidePlaceBooking event (Booked existing) (command "REQ-NEW" 5)
 
         Assert.Equal(Error(BookingAlreadyExists existingId), result)
 
@@ -73,13 +63,9 @@ module BookingWorkflowTests =
         let existingSeats = SeatCount.create 2 |> expectOk
         let existing = Booking.create event existingId existingSeats |> expectOk
 
-        let result =
-            decidePlaceBooking event (Booked existing) (command "" 0)
+        let result = decidePlaceBooking event (Booked existing) (command "" 0)
 
         Assert.Equal(
-            Error
-                (InvalidCommand
-                    [ InvalidRequestId BlankRequestId
-                      InvalidSeatCount(NonPositiveSeatCount 0) ]),
+            Error(InvalidCommand [ InvalidRequestId BlankRequestId; InvalidSeatCount(NonPositiveSeatCount 0) ]),
             result
         )

@@ -17,7 +17,10 @@ module CapstonePart01Tests =
     [<Fact>]
     let ``booking basics parses transforms and respects capacity`` () =
         let repositoryRoot = findRepositoryRoot (DirectoryInfo(AppContext.BaseDirectory))
-        let scriptPath = Path.Combine(repositoryRoot, "examples/capstone/part-01/BookingBasics.fsx")
+
+        let scriptPath =
+            Path.Combine(repositoryRoot, "examples/capstone/part-01/BookingBasics.fsx")
+
         let startInfo = ProcessStartInfo("dotnet")
         startInfo.ArgumentList.Add("fsi")
         startInfo.ArgumentList.Add("--exec")
@@ -50,7 +53,6 @@ module CapstonePart01Tests =
               "Rejected IDs: [\"B-103\"]"
               "Capacity: booked=7 remaining=1" ]
 
-        let actual =
-            output.Replace("\r\n", "\n").Trim().Split('\n') |> Array.toList
+        let actual = output.Replace("\r\n", "\n").Trim().Split('\n') |> Array.toList
 
         Assert.Equal<string list>(expected, actual)

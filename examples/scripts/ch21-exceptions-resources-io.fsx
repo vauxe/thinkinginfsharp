@@ -9,11 +9,7 @@ type ReadTextError =
 // #endregion error-model
 
 // #region resource-scope
-let withReader
-    (openReader: string -> StreamReader)
-    path
-    operation
-    =
+let withReader (openReader: string -> StreamReader) path operation =
     use reader = openReader path
     operation reader
 // #endregion resource-scope
@@ -21,8 +17,7 @@ let withReader
 // #region translate-errors
 let readText path =
     try
-        withReader File.OpenText path (fun reader -> reader.ReadToEnd())
-        |> Ok
+        withReader File.OpenText path (fun reader -> reader.ReadToEnd()) |> Ok
     with
     | :? FileNotFoundException
     | :? DirectoryNotFoundException -> Error(PathNotFound path)
@@ -51,10 +46,7 @@ let readerIsDisposed (reader: StreamReader option) =
 let tempName = Guid.NewGuid().ToString("N")
 
 let tempDirectory =
-    Path.Combine(
-        Path.GetTempPath(),
-        $"thinkinginfsharp-ch21-{tempName}"
-    )
+    Path.Combine(Path.GetTempPath(), $"thinkinginfsharp-ch21-{tempName}")
 
 let filePath = Path.Combine(tempDirectory, "seats.txt")
 let missingPath = Path.Combine(tempDirectory, "missing.txt")
@@ -72,8 +64,7 @@ try
         successReader <- Some reader
         reader
 
-    let text =
-        withReader openSuccess filePath (fun reader -> reader.ReadToEnd())
+    let text = withReader openSuccess filePath (fun reader -> reader.ReadToEnd())
 
     let successDisposed = readerIsDisposed successReader
 

@@ -5,14 +5,10 @@ let ensureEqual label expected actual =
     if actual <> expected then
         failwithf "%s: expected %A, got %A" label expected actual
 
-type BookingRequest =
-    { RequestId: string
-      Seats: int }
+type BookingRequest = { RequestId: string; Seats: int }
 
 // #region runtime-types
-let request =
-    { RequestId = "R-26"
-      Seats = 3 }
+let request = { RequestId = "R-26"; Seats = 3 }
 
 let declaredType = typeof<BookingRequest>
 let boxedRequest: objnull = box request
@@ -35,14 +31,9 @@ let describeObject (value: objnull) =
     | :? int as number -> $"int:{number}"
     | _ -> "other"
 
-let descriptions =
-    [ box "lin"; box request; box 42 ]
-    |> List.map describeObject
+let descriptions = [ box "lin"; box request; box 42 ] |> List.map describeObject
 
-ensureEqual
-    "pattern casts"
-    [ "text:LIN"; "request:R-26/3"; "int:42" ]
-    descriptions
+ensureEqual "pattern casts" [ "text:LIN"; "request:R-26/3"; "int:42" ] descriptions
 
 printfn "Pattern casts: %A" descriptions
 
@@ -61,10 +52,7 @@ printfn "Failed downcast: %s" failedDowncast
 let add = Func<int, int, int>(fun left right -> left + right)
 
 let labels =
-    Array.ConvertAll(
-        [| 1; 2; 3 |],
-        Converter<int, string>(fun number -> string (number * 2))
-    )
+    Array.ConvertAll([| 1; 2; 3 |], Converter<int, string>(fun number -> string (number * 2)))
 
 ensureEqual "delegate invocation" 7 (add.Invoke(3, 4))
 ensureEqual "delegate conversion" [| "2"; "4"; "6" |] labels
@@ -127,11 +115,7 @@ let found, emailValue = bookingByEmail.TryGetValue "Lin@Example.com"
 ensureEqual "case-insensitive key count" 1 bookingByEmail.Count
 ensureEqual "case-insensitive lookup" (true, "second") (found, emailValue)
 
-printfn
-    "String comparer: count=%d found=%b value=%s"
-    bookingByEmail.Count
-    found
-    emailValue
+printfn "String comparer: count=%d found=%b value=%s" bookingByEmail.Count found emailValue
 // #endregion dotnet-collections
 
 // #region identity-hash-keys
@@ -141,8 +125,7 @@ type Customer(customerId: string) =
 let customerIdComparer: IEqualityComparer<Customer> =
     HashIdentity.FromFunctions
         (fun customer -> StringComparer.Ordinal.GetHashCode(customer.CustomerId))
-        (fun left right ->
-            StringComparer.Ordinal.Equals(left.CustomerId, right.CustomerId))
+        (fun left right -> StringComparer.Ordinal.Equals(left.CustomerId, right.CustomerId))
 
 let firstCustomer = Customer("C-26")
 let secondCustomer = Customer("C-26")

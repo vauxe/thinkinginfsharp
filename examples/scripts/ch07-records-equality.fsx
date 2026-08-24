@@ -42,9 +42,15 @@ printfn "Hashes agree for equal records: %b" equalHashesAgree
 
 // #region structural-comparison
 let drafts =
-    [ { EventId = "B-2"; Attendee = "Lin"; Seats = 2 }
-      { EventId = "A-1"; Attendee = "Lin"; Seats = 1 }
-      { EventId = "A-1"; Attendee = "Ada"; Seats = 2 } ]
+    [ { EventId = "B-2"
+        Attendee = "Lin"
+        Seats = 2 }
+      { EventId = "A-1"
+        Attendee = "Lin"
+        Seats = 1 }
+      { EventId = "A-1"
+        Attendee = "Ada"
+        Seats = 2 } ]
 
 let sortedLabels =
     drafts

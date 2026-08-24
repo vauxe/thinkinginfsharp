@@ -11,17 +11,13 @@ module NullBoundaries =
     // #endregion boundary-errors
 
     // #region dotnet-calls
-    let createAbsoluteUri (raw: string) : Uri =
-        Uri(raw, UriKind.Absolute)
+    let createAbsoluteUri (raw: string) : Uri = Uri(raw, UriKind.Absolute)
 
-    let uriHost (uri: Uri) : string =
-        uri.Host
+    let uriHost (uri: Uri) : string = uri.Host
 
-    let joinLabels (labels: string array) : string =
-        String.Join(" / ", labels)
+    let joinLabels (labels: string array) : string = String.Join(" / ", labels)
 
-    let countItems (items: IReadOnlyCollection<'T>) : int =
-        items.Count
+    let countItems (items: IReadOnlyCollection<'T>) : int = items.Count
     // #endregion dotnet-calls
 
     // #region nullable-input
@@ -34,27 +30,21 @@ module NullBoundaries =
 
     // #region nullable-return
     let tryResolveType (typeName: string) : Type option =
-        Type.GetType(typeName, throwOnError = false)
-        |> Option.ofObj
+        Type.GetType(typeName, throwOnError = false) |> Option.ofObj
     // #endregion nullable-return
 
     // #region nullable-value-conversions
-    let nullableIntToOption (value: Nullable<int>) : int option =
-        Option.ofNullable value
+    let nullableIntToOption (value: Nullable<int>) : int option = Option.ofNullable value
 
-    let optionToNullableInt (value: int option) : Nullable<int> =
-        Option.toNullable value
+    let optionToNullableInt (value: int option) : Nullable<int> = Option.toNullable value
     // #endregion nullable-value-conversions
 
     // #region nullable-reference-conversions
-    let nullableTextToOption (value: string | null) : string option =
-        Option.ofObj value
+    let nullableTextToOption (value: string | null) : string option = Option.ofObj value
 
-    let optionToNullableText (value: string option) : string | null =
-        Option.toObj value
+    let optionToNullableText (value: string option) : string | null = Option.toObj value
     // #endregion nullable-reference-conversions
 
     // #region some-null
-    let someNullText : (string | null) option =
-        Some null
-    // #endregion some-null
+    let someNullText: (string | null) option = Some null
+// #endregion some-null

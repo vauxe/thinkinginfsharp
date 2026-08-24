@@ -56,10 +56,7 @@ let describeSeatCountError raw =
     | Error(NotPositive actual) -> $"not-positive:{actual}"
     | Error(NotAnInteger invalid) -> $"not-an-integer:{invalid}"
 
-printfn
-    "Explicit errors: zero=%s text=%s"
-    (describeSeatCountError "0")
-    (describeSeatCountError "oops")
+printfn "Explicit errors: zero=%s text=%s" (describeSeatCountError "0") (describeSeatCountError "oops")
 
 // #region parameterized-active-pattern
 let mutable thresholdChecks = 0
@@ -67,10 +64,7 @@ let mutable thresholdChecks = 0
 let (|AtLeast|_|) minimum value =
     thresholdChecks <- thresholdChecks + 1
 
-    if value >= minimum then
-        Some value
-    else
-        None
+    if value >= minimum then Some value else None
 
 let classifyParty seats =
     match seats with

@@ -1,8 +1,6 @@
 namespace ThinkingInFSharp.Ch25
 
-type QuoteRequest =
-    { Seats: int
-      UnitPrice: decimal }
+type QuoteRequest = { Seats: int; UnitPrice: decimal }
 
 type QuoteError =
     | NonPositiveSeats of actual: int
@@ -35,8 +33,7 @@ type PriceCalculator(taxRate: decimal, discountPolicy: IDiscountPolicy) =
         if taxRate < 0M then
             invalidArg (nameof taxRate) "Tax rate cannot be negative."
 
-    new(discountPolicy: IDiscountPolicy) =
-        PriceCalculator(0M, discountPolicy)
+    new(discountPolicy: IDiscountPolicy) = PriceCalculator(0M, discountPolicy)
 
     member _.TaxRate = taxRate
 
@@ -73,13 +70,10 @@ module QuoteExtensions =
         member this.TotalAmount = Quote.total this
 
 [<Struct>]
-type QuoteRevision = private | QuoteRevision of int
+type QuoteRevision = private QuoteRevision of int
 
 module QuoteRevision =
     let create raw =
-        if raw > 0 then
-            Ok(QuoteRevision raw)
-        else
-            Error raw
+        if raw > 0 then Ok(QuoteRevision raw) else Error raw
 
     let value (QuoteRevision revision) = revision

@@ -18,7 +18,5 @@ module Workflow =
 
     let describe decision =
         match decision with
-        | Accepted(bookingId, remaining) ->
-            $"accepted:{BookingId.value bookingId} remaining={remaining}"
-        | Rejected(requested, capacity) ->
-            $"rejected:requested={requested} capacity={capacity}"
+        | Accepted(bookingId, remaining) -> $"accepted:{BookingId.value bookingId} remaining={remaining}"
+        | Rejected(requested, capacity) -> $"rejected:requested={requested} capacity={capacity}"

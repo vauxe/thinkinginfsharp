@@ -19,10 +19,8 @@ module Ports =
           Message: string }
 
     type AsyncPorts =
-        {
-            LoadBooking: RequestId -> CancellationToken -> Task<BookingState>
-            AppendEvent: RequestId -> BookingEvent -> CancellationToken -> Task<unit>
-            Charge: PaymentRequest -> CancellationToken -> Task<PaymentOutcome>
-            Notify: NotificationRequest -> CancellationToken -> Task<unit>
-            GetUtcNow: CancellationToken -> Task<DateTimeOffset>
-        }
+        { LoadBooking: RequestId -> CancellationToken -> Task<BookingState>
+          AppendEvent: RequestId -> BookingEvent -> CancellationToken -> Task<unit>
+          Charge: PaymentRequest -> CancellationToken -> Task<PaymentOutcome>
+          Notify: NotificationRequest -> CancellationToken -> Task<unit>
+          GetUtcNow: CancellationToken -> Task<DateTimeOffset> }

@@ -36,7 +36,7 @@ printfn "Concurrent results: %A" waitResults
 // #endregion concurrent-waits
 
 // #region parallel-map
-let values = [| 1 .. 8 |]
+let values = [| 1..8 |]
 let sequentialSquares = values |> Array.map (fun value -> value * value)
 let parallelSquares = values |> Array.Parallel.map (fun value -> value * value)
 let parallelAgrees = parallelSquares = sequentialSquares
@@ -46,12 +46,7 @@ printfn "Parallel map agrees: %b" parallelAgrees
 // #endregion parallel-map
 
 let startLongRunning action =
-    Task.Factory.StartNew(
-        Action action,
-        CancellationToken.None,
-        TaskCreationOptions.LongRunning,
-        TaskScheduler.Default
-    )
+    Task.Factory.StartNew(Action action, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default)
 
 let runTwoWithBarrier action =
     use barrier = new Barrier(2)
@@ -73,8 +68,7 @@ let counterLock = obj ()
 runTwoWithBarrier (fun barrier ->
     barrier.SignalAndWait() |> ignore
 
-    lock counterLock (fun () ->
-        lockedCounter[0] <- lockedCounter[0] + 1))
+    lock counterLock (fun () -> lockedCounter[0] <- lockedCounter[0] + 1))
 
 let atomicCounter = [| 0 |]
 
@@ -86,19 +80,13 @@ assert (racyCounter[0] = 1)
 assert (lockedCounter[0] = 2)
 assert (atomicCounter[0] = 2)
 
-printfn
-    "Shared counter: race=%d lock=%d interlocked=%d"
-    racyCounter[0]
-    lockedCounter[0]
-    atomicCounter[0]
+printfn "Shared counter: race=%d lock=%d interlocked=%d" racyCounter[0] lockedCounter[0] atomicCounter[0]
 // #endregion shared-state
 
 // #region compound-invariant
 type CapacityState =
-    {
-        mutable Remaining: int
-        mutable Accepted: int
-    }
+    { mutable Remaining: int
+      mutable Accepted: int }
 
 let capacity = { Remaining = 3; Accepted = 0 }
 let capacityLock = obj ()
@@ -125,7 +113,12 @@ let capacityInvariant = capacity.Remaining = 1 && capacity.Accepted = 1
 
 assert (acceptedReservations = 1)
 assert capacityInvariant
-printfn "Locked capacity: accepted=%d remaining=%d invariant=%b" acceptedReservations capacity.Remaining capacityInvariant
+
+printfn
+    "Locked capacity: accepted=%d remaining=%d invariant=%b"
+    acceptedReservations
+    capacity.Remaining
+    capacityInvariant
 // #endregion compound-invariant
 
 // #region mailbox-agent
@@ -151,27 +144,25 @@ let reservationAgent =
                 | Reserve(_, reply) ->
                     reply.Reply(Rejected remaining)
                     return! loop remaining accepted
-                | Stop reply ->
-                    reply.Reply(remaining, accepted)
+                | Stop reply -> reply.Reply(remaining, accepted)
             }
 
         loop 3 0)
 
 let agentReplies =
-    [|
-        reservationAgent.PostAndAsyncReply(fun reply -> Reserve(2, reply))
-        reservationAgent.PostAndAsyncReply(fun reply -> Reserve(2, reply))
-    |]
+    [| reservationAgent.PostAndAsyncReply(fun reply -> Reserve(2, reply))
+       reservationAgent.PostAndAsyncReply(fun reply -> Reserve(2, reply)) |]
     |> Async.Parallel
     |> Async.RunSynchronously
 
 let agentAccepted =
     agentReplies
-    |> Array.filter (function Accepted _ -> true | Rejected _ -> false)
+    |> Array.filter (function
+        | Accepted _ -> true
+        | Rejected _ -> false)
     |> Array.length
 
-let agentRemaining, agentAcceptedState =
-    reservationAgent.PostAndReply Stop
+let agentRemaining, agentAcceptedState = reservationAgent.PostAndReply Stop
 
 assert (agentAccepted = 1)
 assert (agentRemaining = 1)
@@ -203,14 +194,12 @@ let getCached key =
 let cacheBarrier = new Barrier(2)
 
 let cachedTasks =
-    [|
-        startLongRunning (fun () ->
-            cacheBarrier.SignalAndWait() |> ignore
-            getCached "quote" |> ignore)
-        startLongRunning (fun () ->
-            cacheBarrier.SignalAndWait() |> ignore
-            getCached "quote" |> ignore)
-    |]
+    [| startLongRunning (fun () ->
+           cacheBarrier.SignalAndWait() |> ignore
+           getCached "quote" |> ignore)
+       startLongRunning (fun () ->
+           cacheBarrier.SignalAndWait() |> ignore
+           getCached "quote" |> ignore) |]
 
 Task.WaitAll cachedTasks
 let cachedValues = [| getCached "quote"; getCached "quote" |]

@@ -3,8 +3,7 @@ namespace ThinkingInFSharp.Ch16
 open System
 
 module Domain =
-    type BookingIdError =
-        | MissingBookingId
+    type BookingIdError = | MissingBookingId
 
     type BookingId = private BookingId of string
 
@@ -17,8 +16,7 @@ module Domain =
 
         let value (BookingId bookingId) = bookingId
 
-    type SeatCountError =
-        | NonPositiveSeatCount of actual: int
+    type SeatCountError = NonPositiveSeatCount of actual: int
 
     type SeatCount = private SeatCount of int
 
@@ -31,8 +29,7 @@ module Domain =
 
         let value (SeatCount seats) = seats
 
-    type CapacityError =
-        | NonPositiveCapacity of actual: int
+    type CapacityError = NonPositiveCapacity of actual: int
 
     type Capacity = private Capacity of int
 

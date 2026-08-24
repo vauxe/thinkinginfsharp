@@ -1,8 +1,7 @@
 namespace ThinkingInFSharp.Ch17
 
 module SeatAllocation =
-    type CapacityError =
-        | NonPositiveCapacity of actual: int
+    type CapacityError = NonPositiveCapacity of actual: int
 
     type Capacity = Capacity of int
 
@@ -15,8 +14,7 @@ module SeatAllocation =
 
         let value (Capacity capacity) = capacity
 
-    type SeatCountError =
-        | NonPositiveSeatCount of actual: int
+    type SeatCountError = NonPositiveSeatCount of actual: int
 
     type SeatCount = SeatCount of int
 
@@ -29,8 +27,7 @@ module SeatAllocation =
 
         let value (SeatCount seats) = seats
 
-    type AllocationError =
-        | InsufficientCapacity of requested: int * available: int
+    type AllocationError = InsufficientCapacity of requested: int * available: int
 
     type Allocation =
         { Capacity: Capacity

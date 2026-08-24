@@ -18,8 +18,7 @@ type ControlledOperation<'Input, 'Output>() =
     let completion =
         TaskCompletionSource<'Output>(TaskCreationOptions.RunContinuationsAsynchronously)
 
-    member _.Calls =
-        lock syncRoot (fun () -> calls |> Seq.toList)
+    member _.Calls = lock syncRoot (fun () -> calls |> Seq.toList)
 
     member _.Entered = entered.Task
 
@@ -33,14 +32,11 @@ type ControlledOperation<'Input, 'Output>() =
             entered.TrySetResult() |> ignore
 
             use _registration =
-                cancellationToken.Register(fun () ->
-                    completion.TrySetCanceled(cancellationToken) |> ignore)
+                cancellationToken.Register(fun () -> completion.TrySetCanceled(cancellationToken) |> ignore)
 
             return! completion.Task
         }
 
-    member _.Succeed output =
-        completion.TrySetResult output
+    member _.Succeed output = completion.TrySetResult output
 
-    member _.Fail(error: exn) =
-        completion.TrySetException error
+    member _.Fail(error: exn) = completion.TrySetException error

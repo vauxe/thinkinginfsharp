@@ -42,13 +42,9 @@ let summarizeCapacity capacity bookings =
         else
             acceptedRev, booking :: rejectedRev, bookedSeats
 
-    let acceptedRev, rejectedRev, bookedSeats =
-        bookings |> List.fold folder ([], [], 0)
+    let acceptedRev, rejectedRev, bookedSeats = bookings |> List.fold folder ([], [], 0)
 
-    List.rev acceptedRev,
-    List.rev rejectedRev,
-    bookedSeats,
-    capacity - bookedSeats
+    List.rev acceptedRev, List.rev rejectedRev, bookedSeats, capacity - bookedSeats
 
 let acceptedBookings, rejectedBookings, bookedSeats, remainingSeats =
     summarizeCapacity bookingCapacity parsedBookings

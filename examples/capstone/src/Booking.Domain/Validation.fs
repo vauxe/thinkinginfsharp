@@ -5,9 +5,7 @@ module Validation =
         | InvalidRequestId of RequestIdError
         | InvalidSeatCount of SeatCountError
 
-    type PlaceBookingCommand =
-        { RequestId: string
-          Seats: int }
+    type PlaceBookingCommand = { RequestId: string; Seats: int }
 
     type ValidPlaceBooking =
         private
@@ -33,12 +31,8 @@ module Validation =
         SeatCount.create raw
         |> Result.mapError (fun error -> [ InvalidSeatCount error ])
 
-    let private createValidCommand
-        (requestId: RequestId)
-        (seats: SeatCount)
-        : ValidPlaceBooking =
-        { RequestId = requestId
-          Seats = seats }
+    let private createValidCommand (requestId: RequestId) (seats: SeatCount) : ValidPlaceBooking =
+        { RequestId = requestId; Seats = seats }
 
     let validatePlaceBooking (command: PlaceBookingCommand) =
         Ok createValidCommand

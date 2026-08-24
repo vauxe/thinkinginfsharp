@@ -49,10 +49,7 @@ module internal Decision =
         elif request.Seats > capacity then
             let suggestion = if capacity > 0 then Some capacity else None
 
-            Rejected(
-                $"requested {request.Seats} exceeds available {capacity}",
-                suggestion
-            )
+            Rejected($"requested {request.Seats} exceeds available {capacity}", suggestion)
         else
             let normalizedRequestId = request.RequestId.Trim().ToUpperInvariant()
             Accepted($"CONF-{normalizedRequestId}", capacity - request.Seats)
@@ -65,13 +62,15 @@ module internal Decision =
 /// Rejected responses have an error message and may have a suggested seat count.
 /// </remarks>
 [<Sealed>]
-type BookingResponse internal (
-    outcome: BookingOutcome,
-    confirmationCode: string | null,
-    remainingSeats: Nullable<int>,
-    errorMessage: string | null,
-    suggestedSeats: Nullable<int>
-) =
+type BookingResponse
+    internal
+    (
+        outcome: BookingOutcome,
+        confirmationCode: string | null,
+        remainingSeats: Nullable<int>,
+        errorMessage: string | null,
+        suggestedSeats: Nullable<int>
+    ) =
     /// <summary>Gets the accepted or rejected outcome.</summary>
     member _.Outcome = outcome
 
@@ -96,26 +95,14 @@ module internal ResponseAdapter =
     let fromDecision decision =
         match decision with
         | Accepted(confirmationCode, remainingSeats) ->
-            BookingResponse(
-                BookingOutcome.Accepted,
-                confirmationCode,
-                Nullable remainingSeats,
-                null,
-                Nullable<int>()
-            )
+            BookingResponse(BookingOutcome.Accepted, confirmationCode, Nullable remainingSeats, null, Nullable<int>())
         | Rejected(message, suggestedSeats) ->
             let suggestion =
                 match suggestedSeats with
                 | Some seats -> Nullable seats
                 | None -> Nullable<int>()
 
-            BookingResponse(
-                BookingOutcome.Rejected,
-                null,
-                Nullable<int>(),
-                message,
-                suggestion
-            )
+            BookingResponse(BookingOutcome.Rejected, null, Nullable<int>(), message, suggestion)
 // #endregion boundary-adapter
 
 // #region public-api
@@ -132,15 +119,7 @@ type BookingApi private () =
         ArgumentNullException.ThrowIfNull(request, nameof request)
 
         if capacity < 0 then
-            raise (
-                ArgumentOutOfRangeException(
-                    nameof capacity,
-                    capacity,
-                    "Capacity cannot be negative."
-                )
-            )
+            raise (ArgumentOutOfRangeException(nameof capacity, capacity, "Capacity cannot be negative."))
 
-        request
-        |> Decision.evaluate capacity
-        |> ResponseAdapter.fromDecision
+        request |> Decision.evaluate capacity |> ResponseAdapter.fromDecision
 // #endregion public-api

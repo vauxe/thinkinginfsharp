@@ -26,7 +26,8 @@ module Ch25ObjectTests =
     let ``class member calculates a validated quote`` () =
         let groupDiscount =
             { new IDiscountPolicy with
-                member _.Rate request = if request.Seats >= 5 then 0.10M else 0M }
+                member _.Rate request =
+                    if request.Seats >= 5 then 0.10M else 0M }
 
         let calculator = PriceCalculator(0.20M, groupDiscount)
         let quote = calculator.Calculate { Seats = 5; UnitPrice = 10M } |> expectOk
@@ -41,10 +42,7 @@ module Ch25ObjectTests =
     let ``interface view delegates to the same class behavior`` () =
         let service = PriceCalculator(noDiscount) :> IQuoteService
 
-        Assert.Equal(
-            Error(NonPositiveSeats 0),
-            service.Quote { Seats = 0; UnitPrice = 10M }
-        )
+        Assert.Equal(Error(NonPositiveSeats 0), service.Quote { Seats = 0; UnitPrice = 10M })
 
         let quote = service.Quote { Seats = 2; UnitPrice = 10M } |> expectOk
         Assert.Equal(20M, Quote.total quote)
@@ -69,8 +67,7 @@ module Ch25ObjectTests =
     [<Fact>]
     let ``type extension offers a derived view without storing another field`` () =
         let quote =
-            PriceCalculator(noDiscount).Calculate { Seats = 2; UnitPrice = 7M }
-            |> expectOk
+            PriceCalculator(noDiscount).Calculate { Seats = 2; UnitPrice = 7M } |> expectOk
 
         Assert.False(quote.IsDiscounted)
         Assert.Equal(14M, quote.TotalAmount)

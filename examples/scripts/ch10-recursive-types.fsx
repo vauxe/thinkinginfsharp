@@ -7,8 +7,7 @@ type BookingTree<'T> =
 let emptyTree: BookingTree<int> = Empty
 let leafTree = Leaf 2
 
-let branchTree =
-    Branch(Leaf 2, Branch(Leaf 3, Leaf 4))
+let branchTree = Branch(Leaf 2, Branch(Leaf 3, Leaf 4))
 // #endregion recursive-type
 
 // #region structural-traversal
@@ -16,27 +15,17 @@ let rec countLeaves tree =
     match tree with
     | Empty -> 0
     | Leaf _ -> 1
-    | Branch(left, right) ->
-        countLeaves left + countLeaves right
+    | Branch(left, right) -> countLeaves left + countLeaves right
 
 let rec totalSeats tree =
     match tree with
     | Empty -> 0
     | Leaf seats -> seats
-    | Branch(left, right) ->
-        totalSeats left + totalSeats right
+    | Branch(left, right) -> totalSeats left + totalSeats right
 
-printfn
-    "Counts: empty=%d leaf=%d branch=%d"
-    (countLeaves emptyTree)
-    (countLeaves leafTree)
-    (countLeaves branchTree)
+printfn "Counts: empty=%d leaf=%d branch=%d" (countLeaves emptyTree) (countLeaves leafTree) (countLeaves branchTree)
 
-printfn
-    "Totals: empty=%d leaf=%d branch=%d"
-    (totalSeats emptyTree)
-    (totalSeats leafTree)
-    (totalSeats branchTree)
+printfn "Totals: empty=%d leaf=%d branch=%d" (totalSeats emptyTree) (totalSeats leafTree) (totalSeats branchTree)
 // #endregion structural-traversal
 
 // #region tree-map
@@ -44,19 +33,15 @@ let rec mapTree mapping tree =
     match tree with
     | Empty -> Empty
     | Leaf value -> Leaf(mapping value)
-    | Branch(left, right) ->
-        Branch(mapTree mapping left, mapTree mapping right)
+    | Branch(left, right) -> Branch(mapTree mapping left, mapTree mapping right)
 
 let rec renderTree formatValue tree =
     match tree with
     | Empty -> "Empty"
     | Leaf value -> $"Leaf({formatValue value})"
-    | Branch(left, right) ->
-        $"Branch({renderTree formatValue left},{renderTree formatValue right})"
+    | Branch(left, right) -> $"Branch({renderTree formatValue left},{renderTree formatValue right})"
 
-let labeledTree =
-    branchTree
-    |> mapTree (fun seats -> $"{seats} seats")
+let labeledTree = branchTree |> mapTree (fun seats -> $"{seats} seats")
 
 printfn "Mapped: %s" (renderTree id labeledTree)
 // #endregion tree-map
@@ -71,11 +56,9 @@ let rec foldTree onEmpty onLeaf onBranch tree =
         let rightResult = foldTree onEmpty onLeaf onBranch right
         onBranch leftResult rightResult
 
-let countWithFold =
-    foldTree 0 (fun _ -> 1) (+)
+let countWithFold = foldTree 0 (fun _ -> 1) (+)
 
-let totalWithFold =
-    foldTree 0 id (+)
+let totalWithFold = foldTree 0 id (+)
 
 printfn
     "Fold agrees: count=%b total=%b"
@@ -88,17 +71,9 @@ let rec height tree =
     match tree with
     | Empty -> 0
     | Leaf _ -> 1
-    | Branch(left, right) ->
-        1 + max (height left) (height right)
+    | Branch(left, right) -> 1 + max (height left) (height right)
 
-printfn
-    "Heights: empty=%d leaf=%d branch=%d"
-    (height emptyTree)
-    (height leafTree)
-    (height branchTree)
+printfn "Heights: empty=%d leaf=%d branch=%d" (height emptyTree) (height leafTree) (height branchTree)
 
-printfn
-    "Shape preserved: before=%d after=%d"
-    (countLeaves branchTree)
-    (countLeaves labeledTree)
+printfn "Shape preserved: before=%d after=%d" (countLeaves branchTree) (countLeaves labeledTree)
 // #endregion tree-depth

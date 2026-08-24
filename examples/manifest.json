@@ -146,6 +146,14 @@
       ]
     },
     {
+      "id": "ch11-value-restriction",
+      "kind": "expected-error",
+      "path": "examples/expected-errors/ch11-value-restriction.fsx",
+      "diagnostics": [
+        "FS0030"
+      ]
+    },
+    {
       "id": "ch12-making-illegal-states-unrepresentable",
       "kind": "script",
       "path": "examples/scripts/ch12-making-illegal-states-unrepresentable.fsx",

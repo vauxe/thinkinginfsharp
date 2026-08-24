@@ -1,8 +1,7 @@
 namespace ThinkingInFSharp.Ch17
 
 module SeatAllocation =
-    type CapacityError =
-        | NonPositiveCapacity of actual: int
+    type CapacityError = NonPositiveCapacity of actual: int
 
     type Capacity
 
@@ -10,8 +9,7 @@ module SeatAllocation =
         val create: raw: int -> Result<Capacity, CapacityError>
         val value: capacity: Capacity -> int
 
-    type SeatCountError =
-        | NonPositiveSeatCount of actual: int
+    type SeatCountError = NonPositiveSeatCount of actual: int
 
     type SeatCount
 
@@ -19,8 +17,7 @@ module SeatAllocation =
         val create: raw: int -> Result<SeatCount, SeatCountError>
         val value: seats: SeatCount -> int
 
-    type AllocationError =
-        | InsufficientCapacity of requested: int * available: int
+    type AllocationError = InsufficientCapacity of requested: int * available: int
 
     type Allocation
 

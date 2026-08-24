@@ -50,8 +50,7 @@ let captureCandidate campaign effects =
         invalidArg (nameof effects) "NextInt returned a value outside its requested range."
 
     let region =
-        effects.ReadSetting "BOOKING_REGION"
-        |> normalizedRegion campaign.DefaultRegion
+        effects.ReadSetting "BOOKING_REGION" |> normalizedRegion campaign.DefaultRegion
 
     { SubmittedAt = submittedAt
       Draw = draw
@@ -62,15 +61,11 @@ let captureCandidate campaign effects =
 let systemEffects (random: Random) =
     { UtcNow = fun () -> DateTimeOffset.UtcNow
       NextInt = fun upperExclusive -> random.Next upperExclusive
-      ReadSetting =
-        fun name ->
-            Environment.GetEnvironmentVariable name
-            |> Option.ofObj }
+      ReadSetting = fun name -> Environment.GetEnvironmentVariable name |> Option.ofObj }
 // #endregion system-adapter
 
 // #region closures
-let fixedClock instant =
-    fun () -> instant
+let fixedClock instant = fun () -> instant
 
 let fixedDraw draw =
     fun upperExclusive ->
@@ -79,8 +74,7 @@ let fixedDraw draw =
 
         draw
 
-let settingsFrom values =
-    fun name -> Map.tryFind name values
+let settingsFrom values = fun name -> Map.tryFind name values
 // #endregion closures
 
 let renderDecision decision =
@@ -118,10 +112,7 @@ let candidate = captureCandidate campaign observedEffects
 let firstDecision = decide campaign candidate
 let replayedDecision = decide campaign candidate
 
-let expectedCalls =
-    [ "clock"
-      "random:10000"
-      "environment:BOOKING_REGION" ]
+let expectedCalls = [ "clock"; "random:10000"; "environment:BOOKING_REGION" ]
 
 assert (candidate.SubmittedAt = instant)
 assert (candidate.Draw = 7)
@@ -136,35 +127,32 @@ let fallbackEffects =
       ReadSetting = settingsFrom Map.empty }
 
 let fallbackDecision =
-    fallbackEffects
-    |> captureCandidate campaign
-    |> decide campaign
+    fallbackEffects |> captureCandidate campaign |> decide campaign
 
 assert (fallbackDecision = Accepted "BOOK-global-0042")
 
 let earlyDecision =
-    decide campaign { candidate with SubmittedAt = campaign.OpensAt.AddTicks(-1L) }
+    decide
+        campaign
+        { candidate with
+            SubmittedAt = campaign.OpensAt.AddTicks(-1L) }
 
 let closedDecision =
-    decide campaign { candidate with SubmittedAt = campaign.ClosesAt }
+    decide
+        campaign
+        { candidate with
+            SubmittedAt = campaign.ClosesAt }
 
 assert (earlyDecision = NotOpen)
 assert (closedDecision = Closed)
 // #endregion deterministic-test
 
-printfn
-    "Captured: time=%s draw=%d region=%s"
-    (candidate.SubmittedAt.ToString("O"))
-    candidate.Draw
-    candidate.Region
+printfn "Captured: time=%s draw=%d region=%s" (candidate.SubmittedAt.ToString("O")) candidate.Draw candidate.Region
 
 printfn "Decision: %s" (renderDecision firstDecision)
 printfn "Fallback: %s" (renderDecision fallbackDecision)
 
-printfn
-    "Window: early=%s closed=%s"
-    (renderDecision earlyDecision)
-    (renderDecision closedDecision)
+printfn "Window: early=%s closed=%s" (renderDecision earlyDecision) (renderDecision closedDecision)
 
 printfn "Effect order: %s" (String.Join(" -> ", calls))
 printfn "Core replay: %b effect-calls=%d" (replayedDecision = firstDecision) calls.Count

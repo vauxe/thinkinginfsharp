@@ -1,17 +1,11 @@
-let requests =
-    [ "Lin", 3
-      "Ada", 0
-      "Sam", 2
-      "Mina", -1 ]
+let requests = [ "Lin", 3; "Ada", 0; "Sam", 2; "Mina", -1 ]
 
 let isValidRequest (_, seats) = seats > 0
 let formatRequest (guest, seats) = $"{guest}:{seats}"
 
 // #region filter-map-pipeline
 let pipelineLabels =
-    requests
-    |> List.filter isValidRequest
-    |> List.map formatRequest
+    requests |> List.filter isValidRequest |> List.map formatRequest
 
 printfn "Pipeline labels: %A" pipelineLabels
 // #endregion filter-map-pipeline
@@ -19,7 +13,7 @@ printfn "Pipeline labels: %A" pipelineLabels
 // #region choose-pipeline
 let tryFormatRequest request =
     if isValidRequest request then
-        Some (formatRequest request)
+        Some(formatRequest request)
     else
         None
 
@@ -65,7 +59,9 @@ printfn "For/while agree: %b" (pipelineLabels = forLabels && forLabels = whileLa
 
 // #region list-iteration
 printf "Iteration order:"
+
 for label in pipelineLabels do
     printf " %s" label
+
 printfn ""
 // #endregion list-iteration

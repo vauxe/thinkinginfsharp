@@ -76,10 +76,7 @@ module AllocationProperties =
 
     let preservesRequests sample =
         let actual =
-            sample
-            |> SeatAllocation.allocate
-            |> _.Decisions
-            |> List.map requestedSeats
+            sample |> SeatAllocation.allocate |> _.Decisions |> List.map requestedSeats
 
         actual = sample.Requests
 
@@ -128,8 +125,7 @@ module private AllocationCaseGen =
         }
 
     let generator =
-        Gen.sized (fun size ->
-            Gen.frequency [ 4, general size; 1, rejectionThenFit size ])
+        Gen.sized (fun size -> Gen.frequency [ 4, general size; 1, rejectionThenFit size ])
 // #endregion generator
 
 // #region shrinker

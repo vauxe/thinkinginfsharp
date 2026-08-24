@@ -30,10 +30,7 @@ let describeStatus status =
     | Confirmed confirmationCode -> $"confirmed:{confirmationCode}"
     | Cancelled reason -> $"cancelled:{reason}"
 
-let statuses =
-    [ Pending
-      Confirmed "C-42"
-      Cancelled "duplicate" ]
+let statuses = [ Pending; Confirmed "C-42"; Cancelled "duplicate" ]
 
 let descriptions = statuses |> List.map describeStatus
 

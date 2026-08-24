@@ -443,10 +443,10 @@
 
 ### E30 — 诊断、格式化与可复现构建证据
 
-- [ ] **依赖：** B29。
-- **主要文件（≤5）：** `.config/dotnet-tools.json`、`fantomas.json`、`examples/expected-errors/ch11-value-restriction.fsx`、`examples/expected-errors/ch16-file-order/`（≤2 文件）、`examples/manifest.json`。
+- [x] **依赖：** B29。
+- **主要文件（≤5）：** `.config/dotnet-tools.json`、`.editorconfig`、`examples/expected-errors/ch11-value-restriction.fsx`、`examples/expected-errors/ch16-file-order/`（≤2 文件）、`examples/manifest.json`。
 - **验收：** 锁定 Fantomas；预期错误断言实际诊断编号；格式检查不改文件；干净 restore/build 可重复；不扩展为平台专属 CI 教程。
-- **验证：** `dotnet tool restore`；`dotnet fantomas . --check`；`pnpm check:examples`；干净 Release build。
+- **验证：** 依照 Fantomas 7 官方配置约定复用 `.editorconfig`，不创建不会被读取的 `fantomas.json`；本地工具锁定为稳定版 7.0.5，`dotnet tool restore` 与 `dotnet fantomas . --check` 通过；先由只读格式检查获得 99 红灯并列出 41 个历史文件，再建立机械格式基线且完整示例门通过；预期错误实际断言 FS0030、FS0039 与 FS0800；连续两轮 clean、`--locked-mode` restore、Release `--no-restore` build 均为 0 警告、0 错误。
 - **规模：** M。
 
 ### B30 — 诊断、调试、格式化与构建 / Diagnostics, Debugging, Formatting, and Builds
