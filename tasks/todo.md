@@ -451,10 +451,10 @@
 
 ### B30 — 诊断、调试、格式化与构建 / Diagnostics, Debugging, Formatting, and Builds
 
-- [ ] **依赖：** E30。
+- [x] **依赖：** E30。
 - **主要文件（4）：** `docs/{zh,en}/part-05/ch-30-diagnostics-tooling-builds.md`、`docs/{zh,en}/solutions/ch-30-diagnostics-tooling-builds.md`。
 - **验收：** 教读者从首个诊断定位根因、使用调试器/FSI、格式化和静态检查，并解释锁定与可复现原则。
-- **验证：** E30 全部检查；双语与内容检查；`pnpm build`。
+- **验证：** 第 16 章文件顺序与第 11 章值限制样例继续实际断言 FS0039/FS0030；答案中的 FSI 诊断探针由 F# 10 在 `--checknulls+ --warnaserror+` 下执行通过；中英正文与答案严格保持 315/315 和 168/168 行；22 项内容测试、双语/内容检查、完整示例门及 VitePress 生产构建通过。
 - **规模：** M。
 
 ### E31 — 测量、分配与优化前后对照
