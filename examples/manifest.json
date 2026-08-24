@@ -416,6 +416,19 @@
       ]
     },
     {
+      "id": "ch45-scripting-packages-next",
+      "kind": "script",
+      "path": "examples/scripts/ch45-scripting-packages-next.fsx",
+      "expectedOutput": [
+        "First write: updated files=2",
+        "Second write: unchanged files=2",
+        "Check mode: current files=2",
+        "Stable timestamp: true",
+        "Manifest paths: nested/beta.bin, notes.txt",
+        "Cleanup: removed=true"
+      ]
+    },
+    {
       "id": "ch31-measure-before-optimizing",
       "kind": "compile",
       "path": "examples/chapters/ch31/Ch31.Benchmarks.fsproj",
