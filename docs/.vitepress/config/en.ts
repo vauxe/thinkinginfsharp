@@ -41,7 +41,8 @@ export const enLocale = {
           text: 'Part III · Composition and program structure',
           items: [
             { text: '13 · Composition, Argument Order, and Pipeline APIs', link: '/en/part-03/ch-13-composition-pipeline-api' },
-            { text: '14 · Choosing Collections and Evaluation Models', link: '/en/part-03/ch-14-collections-evaluation' }
+            { text: '14 · Choosing Collections and Evaluation Models', link: '/en/part-03/ch-14-collections-evaluation' },
+            { text: '15 · Active Patterns and Domain Matching Boundaries', link: '/en/part-03/ch-15-active-patterns' }
           ]
         }
       ],
@@ -62,7 +63,8 @@ export const enLocale = {
             { text: 'Chapter 11', link: '/en/solutions/ch-11-generics-constraints' },
             { text: 'Chapter 12', link: '/en/solutions/ch-12-making-illegal-states-unrepresentable' },
             { text: 'Chapter 13', link: '/en/solutions/ch-13-composition-pipeline-api' },
-            { text: 'Chapter 14', link: '/en/solutions/ch-14-collections-evaluation' }
+            { text: 'Chapter 14', link: '/en/solutions/ch-14-collections-evaluation' },
+            { text: 'Chapter 15', link: '/en/solutions/ch-15-active-patterns' }
           ]
         }
       ]

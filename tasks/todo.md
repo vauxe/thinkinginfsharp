@@ -235,10 +235,10 @@
 
 ### B15 — 活动模式与领域匹配边界 / Active Patterns and Domain Matching Boundaries
 
-- [ ] **依赖：** B14。
+- [x] **依赖：** B14。
 - **主要文件（5）：** `docs/{zh,en}/part-03/ch-15-active-patterns.md`、`docs/{zh,en}/solutions/ch-15-active-patterns.md`、`examples/scripts/ch15-active-patterns.fsx`。
 - **验收：** 覆盖完整、部分和参数化活动模式的适用边界；避免用活动模式隐藏昂贵 I/O 或不可见失败。
-- **验证：** FSI 覆盖匹配/不匹配路径；双语与内容检查；`pnpm build`。
+- **验证：** FSI 的 6 行确定性输出覆盖完整模式全部分区、部分模式匹配/不匹配、保留的解析错误与参数化识别器调用次数；额外交互探针验证 F# 10 的 `bool` 部分返回及带 `[<return: Struct>]` 的 `voption` 返回；`pnpm test` 全链路通过。
 - **规模：** M。
 
 ### E16 — 多文件模块、命名空间与编译顺序样例

@@ -1,6 +1,16 @@
 {
   "schemaVersion": 1,
   "terms": {
+    "active-pattern": {
+      "zh": {
+        "preferred": "活动模式",
+        "definition": "由函数实现并以具名模式形式使用的输入视图，可在匹配时对值进行分类或解构。"
+      },
+      "en": {
+        "preferred": "active pattern",
+        "definition": "A function-backed view of an input used as a named pattern to classify or decompose a value during matching."
+      }
+    },
     "accumulator": {
       "zh": {
         "preferred": "累加器",
@@ -99,6 +109,16 @@
       "en": {
         "preferred": "comparison constraint",
         "definition": "The 'T : comparison requirement that a type parameter support F# generic comparison and ordering operations."
+      }
+    },
+    "complete-active-pattern": {
+      "zh": {
+        "preferred": "完整活动模式",
+        "definition": "为每个输入都返回某个具名案例的活动模式；多案例形式会把整个输入空间划分为若干部分。"
+      },
+      "en": {
+        "preferred": "complete active pattern",
+        "definition": "An active pattern that returns a named case for every input; its multi-case form partitions the whole input space."
       }
     },
     "computation-expression": {
@@ -391,6 +411,16 @@
         "definition": "A name or pattern in a function definition that receives an argument supplied by a caller."
       }
     },
+    "parameterized-active-pattern": {
+      "zh": {
+        "preferred": "参数化活动模式",
+        "definition": "在最终被匹配输入之前接收额外实参、从而为调用位置特化识别规则的单案例活动模式。"
+      },
+      "en": {
+        "preferred": "parameterized active pattern",
+        "definition": "A single-case active pattern that accepts extra arguments before the final matched input to specialize recognition at the use site."
+      }
+    },
     "partial-application": {
       "zh": {
         "preferred": "部分应用",
@@ -399,6 +429,16 @@
       "en": {
         "preferred": "partial application",
         "definition": "Supplying only some arguments to a curried function to obtain a new function that awaits the remaining arguments."
+      }
+    },
+    "partial-active-pattern": {
+      "zh": {
+        "preferred": "部分活动模式",
+        "definition": "只识别输入空间一部分并能以不匹配告终的单案例活动模式，名称列表以通配符案例结尾。"
+      },
+      "en": {
+        "preferred": "partial active pattern",
+        "definition": "A single-case active pattern that recognizes only part of the input space and may fail to match, with a wildcard case ending its name list."
       }
     },
     "pattern": {

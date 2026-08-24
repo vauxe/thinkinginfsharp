@@ -194,6 +194,19 @@
       ]
     },
     {
+      "id": "ch15-active-patterns",
+      "kind": "script",
+      "path": "examples/scripts/ch15-active-patterns.fsx",
+      "expectedOutput": [
+        "Complete: pending=open:pending",
+        "Complete: confirmed=open:confirmed:C-42",
+        "Complete: cancelled=closed:duplicate",
+        "Partial: three=matched:3 zero=not-matched text=not-matched",
+        "Explicit errors: zero=not-positive:0 text=not-an-integer:oops",
+        "Parameterized: six=large:6/1 three=group:3/2 one=single:1/2"
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",
