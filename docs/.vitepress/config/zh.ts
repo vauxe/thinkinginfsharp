@@ -42,7 +42,8 @@ export const zhLocale = {
           items: [
             { text: '第 13 章 · 组合、参数顺序与管道 API', link: '/zh/part-03/ch-13-composition-pipeline-api' },
             { text: '第 14 章 · 集合选择与求值模型', link: '/zh/part-03/ch-14-collections-evaluation' },
-            { text: '第 15 章 · 活动模式与领域匹配边界', link: '/zh/part-03/ch-15-active-patterns' }
+            { text: '第 15 章 · 活动模式与领域匹配边界', link: '/zh/part-03/ch-15-active-patterns' },
+            { text: '第 16 章 · 模块、命名空间、项目与编译设置', link: '/zh/part-03/ch-16-modules-namespaces-projects' }
           ]
         }
       ],
@@ -64,7 +65,8 @@ export const zhLocale = {
             { text: '第 12 章', link: '/zh/solutions/ch-12-making-illegal-states-unrepresentable' },
             { text: '第 13 章', link: '/zh/solutions/ch-13-composition-pipeline-api' },
             { text: '第 14 章', link: '/zh/solutions/ch-14-collections-evaluation' },
-            { text: '第 15 章', link: '/zh/solutions/ch-15-active-patterns' }
+            { text: '第 15 章', link: '/zh/solutions/ch-15-active-patterns' },
+            { text: '第 16 章', link: '/zh/solutions/ch-16-modules-namespaces-projects' }
           ]
         }
       ]

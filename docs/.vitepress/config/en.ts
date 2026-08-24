@@ -42,7 +42,8 @@ export const enLocale = {
           items: [
             { text: '13 · Composition, Argument Order, and Pipeline APIs', link: '/en/part-03/ch-13-composition-pipeline-api' },
             { text: '14 · Choosing Collections and Evaluation Models', link: '/en/part-03/ch-14-collections-evaluation' },
-            { text: '15 · Active Patterns and Domain Matching Boundaries', link: '/en/part-03/ch-15-active-patterns' }
+            { text: '15 · Active Patterns and Domain Matching Boundaries', link: '/en/part-03/ch-15-active-patterns' },
+            { text: '16 · Modules, Namespaces, Projects, and Compiler Settings', link: '/en/part-03/ch-16-modules-namespaces-projects' }
           ]
         }
       ],
@@ -64,7 +65,8 @@ export const enLocale = {
             { text: 'Chapter 12', link: '/en/solutions/ch-12-making-illegal-states-unrepresentable' },
             { text: 'Chapter 13', link: '/en/solutions/ch-13-composition-pipeline-api' },
             { text: 'Chapter 14', link: '/en/solutions/ch-14-collections-evaluation' },
-            { text: 'Chapter 15', link: '/en/solutions/ch-15-active-patterns' }
+            { text: 'Chapter 15', link: '/en/solutions/ch-15-active-patterns' },
+            { text: 'Chapter 16', link: '/en/solutions/ch-16-modules-namespaces-projects' }
           ]
         }
       ]

@@ -251,10 +251,10 @@
 
 ### B16 — 模块、命名空间、项目与编译设置 / Modules, Namespaces, Projects, and Compiler Settings
 
-- [ ] **依赖：** E16。
+- [x] **依赖：** E16。
 - **主要文件（4）：** `docs/{zh,en}/part-03/ch-16-modules-namespaces-projects.md`、`docs/{zh,en}/solutions/ch-16-modules-namespaces-projects.md`。
 - **验收：** 由 E16 解释文件顺序、作用域和项目结构；只教授 nullable 启用后的最小标注，不提前展开 B19 的完整空值边界。
-- **验证：** E16 聚焦检查；双语与内容检查；`pnpm build`。
+- **验证：** E16 的 4 项 xUnit 聚焦测试覆盖可空边界、组件错误、跨文件工作流与程序组合；正文用反序项目固定 `FS0039` 诊断，并区分文件/项目/解决方案/程序集及主要编译设置；中英正文与答案行数、标题锚点和元数据严格对齐；双语、内容检查与生产构建通过。
 - **规模：** M。
 
 ### E17 — 签名文件与封装边界样例

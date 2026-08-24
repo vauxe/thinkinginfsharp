@@ -71,6 +71,16 @@
         "definition": "An ordered same-type collection with fixed length, contiguous storage, and elements that can be updated in place; changing length requires a new array."
       }
     },
+    "assembly": {
+      "zh": {
+        "preferred": "程序集",
+        "definition": "由 .NET 编译产生并作为部署、加载与引用单元的 .dll 或 .exe，以及其中的元数据和代码。"
+      },
+      "en": {
+        "preferred": "assembly",
+        "definition": "A .NET-compiled .dll or .exe, together with its metadata and code, used as a unit of deployment, loading, and reference."
+      }
+    },
     "automatic-generalization": {
       "zh": {
         "preferred": "自动泛化",
@@ -119,6 +129,16 @@
       "en": {
         "preferred": "complete active pattern",
         "definition": "An active pattern that returns a named case for every input; its multi-case form partitions the whole input space."
+      }
+    },
+    "compilation-order": {
+      "zh": {
+        "preferred": "编译顺序",
+        "definition": "F# 源文件提供给编译器的先后次序；通常后面的文件可以使用前面定义，反向依赖则不可用。"
+      },
+      "en": {
+        "preferred": "compilation order",
+        "definition": "The sequence in which F# source files are supplied to the compiler; later files can ordinarily use earlier definitions, but not the reverse."
       }
     },
     "computation-expression": {
@@ -341,6 +361,26 @@
         "definition": "A binding introduced with let mutable whose storage location can subsequently be updated with <-."
       }
     },
+    "module": {
+      "zh": {
+        "preferred": "模块",
+        "definition": "把相关类型、值与函数组织在同一具名范围内的 F# 构造；模块自身可以位于命名空间或另一模块中。"
+      },
+      "en": {
+        "preferred": "module",
+        "definition": "An F# construct that groups related types, values, and functions in one named scope and can itself live in a namespace or another module."
+      }
+    },
+    "namespace": {
+      "zh": {
+        "preferred": "命名空间",
+        "definition": "可跨文件与程序集组织类型和模块的具名容器；它不能直接包含 F# 值或函数。"
+      },
+      "en": {
+        "preferred": "namespace",
+        "definition": "A named container that can organize types and modules across files and assemblies but cannot directly contain F# values or functions."
+      }
+    },
     "list": {
       "zh": {
         "preferred": "列表",
@@ -369,6 +409,26 @@
       "en": {
         "preferred": "numeric conversion",
         "definition": "Explicitly producing a value of one numeric type from another, such as using decimal to obtain a decimal from an int."
+      }
+    },
+    "nullable-reference-type": {
+      "zh": {
+        "preferred": "可空引用类型",
+        "definition": "启用 F# 空值检查后，用 `T | null` 明确允许 null 的引用类型标注；它是编译期契约，不是运行时包装器。"
+      },
+      "en": {
+        "preferred": "nullable reference type",
+        "definition": "With F# null checking enabled, a `T | null` reference-type annotation that explicitly permits null; it is a compile-time contract, not a runtime wrapper."
+      }
+    },
+    "open-declaration": {
+      "zh": {
+        "preferred": "open 声明",
+        "definition": "让某命名空间或模块中的名称在后续范围可用短名称引用的声明；它不加载代码，也不改变访问控制。"
+      },
+      "en": {
+        "preferred": "open declaration",
+        "definition": "A declaration that makes names from a namespace or module available by shorter references in the following scope without loading code or changing accessibility."
       }
     },
     "generic-type-parameter": {
@@ -479,6 +539,16 @@
       "en": {
         "preferred": "private representation",
         "definition": "A design in which callers can use a type but cannot directly use its underlying union cases, record construction, or other representation details."
+      }
+    },
+    "project-file": {
+      "zh": {
+        "preferred": "项目文件",
+        "definition": "描述目标框架、编译项顺序、引用和构建属性的 MSBuild XML 文件；F# 项目通常使用 .fsproj 扩展名。"
+      },
+      "en": {
+        "preferred": "project file",
+        "definition": "An MSBuild XML file describing target framework, compile-item order, references, and build properties; an F# project normally uses the .fsproj extension."
       }
     },
     "recursive-type": {
