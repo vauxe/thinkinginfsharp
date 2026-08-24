@@ -299,10 +299,10 @@
 
 ### E19 — .NET 空值边界契约样例
 
-- [ ] **依赖：** C3。
+- [x] **依赖：** C3。
 - **主要文件（≤5）：** `examples/chapters/ch19/Ch19.fsproj`、`NullBoundaries.fs`、`tests/ContractTests/Ch19NullTests.fs`、`ThinkingInFSharp.slnx`、`examples/manifest.json`。
 - **验收：** nullable 开启；用真实 .NET API 验证引用 `T | null`、`Nullable<T>`、`option` 和边界转换；不把 `option` 宣称为绝对无 null。
-- **验证：** 聚焦 Release build/contract tests；`pnpm check:examples`。
+- **验证：** 先由缺失契约 API 产生 `FS0039` 编译红灯，再由 6 项 `Ch19NullTests` 覆盖 .NET 构造/成员/重载/接口、`Type.GetType` 的 `T | null` 返回、`Null`/`NonNull` 输入收窄、`Nullable<int>` 与 `option` 双向转换、引用与 `option` 双向转换及 `Some null` 反例；nullable 开启且警告视为错误，锁定还原、Release 构建/契约测试与 `pnpm check:examples` 通过。
 - **规模：** M。
 
 ### B19 — .NET API 与空值边界 / .NET APIs and Null Boundaries

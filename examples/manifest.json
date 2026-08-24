@@ -265,11 +265,20 @@
       ]
     },
     {
+      "id": "ch19-null-boundaries",
+      "kind": "compile",
+      "path": "examples/chapters/ch19/Ch19.fsproj",
+      "sources": [
+        "examples/chapters/ch19/NullBoundaries.fs"
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",
       "sources": [
-        "tests/ContractTests/SmokeTests.fs"
+        "tests/ContractTests/SmokeTests.fs",
+        "tests/ContractTests/Ch19NullTests.fs"
       ]
     },
     {
