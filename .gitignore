@@ -17,6 +17,8 @@ BenchmarkDotNet.Artifacts/
 !.env.example
 *.pem
 *.pfx
+*.p12
+*.key
 
 # Editors and operating systems
 .DS_Store

@@ -10,10 +10,13 @@
     <Compile Include="../../examples/chapters/ch28/OrderWorkflow.fs" Link="Ch28/OrderWorkflow.fs" />
     <Compile Include="Ch19NullTests.fs" />
     <Compile Include="Ch28BoundaryTests.fs" />
+    <Compile Include="BookingJsonContractTests.fs" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="../../examples/chapters/ch19/Ch19.fsproj" />
+    <ProjectReference Include="../../examples/capstone/src/Booking.Domain/Booking.Domain.fsproj" />
+    <ProjectReference Include="../../examples/capstone/src/Booking.Contracts/Booking.Contracts.fsproj" />
   </ItemGroup>
 
   <ItemGroup>

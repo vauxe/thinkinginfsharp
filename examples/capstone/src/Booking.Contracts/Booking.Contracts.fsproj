@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Dtos.fs" />
+    <Compile Include="Mapping.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Booking.Domain/Booking.Domain.fsproj" />
+  </ItemGroup>
+</Project>

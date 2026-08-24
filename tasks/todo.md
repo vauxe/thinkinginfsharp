@@ -539,10 +539,10 @@
 
 ### K08a — 边界 DTO、JSON 映射与配置
 
-- [ ] **依赖：** B34、K07。
+- [x] **依赖：** B34、K07。
 - **主要文件（≤5）：** `examples/capstone/src/Booking.Contracts/Booking.Contracts.fsproj`、`Dtos.fs`、`Mapping.fs`、`tests/ContractTests/BookingJsonContractTests.fs`、`ThinkingInFSharp.slnx`。
 - **验收：** Web/持久化 DTO 与领域类型分离；双向映射明确失败；JSON 字段、枚举/联合表示和兼容性由固定契约测试锁定；机密值不写入仓库。
-- **验证：** 精确过滤 BookingJsonContract；Release build；`pnpm check:examples`。
+- **验证：** 先由缺失 `Booking.Contracts` 得到预期 FS0039 红灯；实现过程中 F# 10 又以 FS3261 阻止隐式混用非空字符串与 `null`，并以 FS0250 阻止跨文件拆分同名类型/伴生模块，最终用显式 `string | null` 与独立 `*Mapping` 模块解决而未压制警告；三个命令 DTO 保留原始意图，版本 1 `BookingDto` 把领域状态 DU 投影为 `pending`/`confirmed`/`cancelled` 标签与唯一关联载荷，反向映射先检查版本、缺失值、智能构造函数和合法载荷组合，再经只接收受保护值的 `Booking.restore` 重建；精确过滤契约测试 9/9 覆盖三种 JSON 形状、全状态双向往返、缺失/非法字段、未知标签、非法联合载荷、版本优先级、真实命令 JSON、精确大小写与未知成员拒绝；全解决方案 Release 构建 0 警告/0 错误，Fantomas 和完整锁定还原、示例/测试/脚本/预期诊断门通过；未新增第三方包，`.env`、私钥与证书容器继续由 `.gitignore` 排除。
 - **规模：** L。
 
 ### K08b — 无外部账号的本地持久化适配器

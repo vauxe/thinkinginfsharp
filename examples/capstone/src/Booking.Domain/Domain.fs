@@ -135,6 +135,14 @@ module Booking =
     let seats booking = booking.Seats
     let status booking = booking.Status
 
+    // #region booking-rehydration
+    let restore requestId eventId seats status =
+        { RequestId = requestId
+          EventId = eventId
+          Seats = seats
+          Status = status }
+    // #endregion booking-rehydration
+
     let confirm confirmationCode booking =
         match booking.Status with
         | Pending ->

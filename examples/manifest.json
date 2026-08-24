@@ -182,6 +182,15 @@
       ]
     },
     {
+      "id": "capstone-booking-contracts",
+      "kind": "compile",
+      "path": "examples/capstone/src/Booking.Contracts/Booking.Contracts.fsproj",
+      "sources": [
+        "examples/capstone/src/Booking.Contracts/Dtos.fs",
+        "examples/capstone/src/Booking.Contracts/Mapping.fs"
+      ]
+    },
+    {
       "id": "ch13-composition-pipeline-api",
       "kind": "script",
       "path": "examples/scripts/ch13-composition-pipeline-api.fsx",
@@ -419,7 +428,8 @@
         "tests/ContractTests/SmokeTests.fs",
         "examples/chapters/ch28/OrderWorkflow.fs",
         "tests/ContractTests/Ch19NullTests.fs",
-        "tests/ContractTests/Ch28BoundaryTests.fs"
+        "tests/ContractTests/Ch28BoundaryTests.fs",
+        "tests/ContractTests/BookingJsonContractTests.fs"
       ]
     },
     {
