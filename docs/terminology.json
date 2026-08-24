@@ -71,6 +71,16 @@
         "definition": "A function value together with surrounding values captured at its definition site and retained for later calls."
       }
     },
+    "comparison-constraint": {
+      "zh": {
+        "preferred": "比较约束",
+        "definition": "写作 'T : comparison，要求类型参数支持 F# 的泛型比较与排序操作。"
+      },
+      "en": {
+        "preferred": "comparison constraint",
+        "definition": "The 'T : comparison requirement that a type parameter support F# generic comparison and ordering operations."
+      }
+    },
     "computation-expression": {
       "zh": {
         "preferred": "计算表达式",
@@ -99,6 +109,16 @@
       "en": {
         "preferred": "eager evaluation",
         "definition": "Computing a result when an operation is called rather than delaying work until later enumeration or demand."
+      }
+    },
+    "equality-constraint": {
+      "zh": {
+        "preferred": "相等约束",
+        "definition": "写作 'T : equality，要求类型参数支持 F# 的泛型相等运算。"
+      },
+      "en": {
+        "preferred": "equality constraint",
+        "definition": "The 'T : equality requirement that a type parameter support F# generic equality operations."
       }
     },
     "effect": {
@@ -271,6 +291,16 @@
         "definition": "Explicitly producing a value of one numeric type from another, such as using decimal to obtain a decimal from an int."
       }
     },
+    "generic-type-parameter": {
+      "zh": {
+        "preferred": "泛型类型参数",
+        "definition": "在一个定义中代表尚未指定的类型、并在每次具体使用时由一致类型实参替换的类型级参数。"
+      },
+      "en": {
+        "preferred": "generic type parameter",
+        "definition": "A type-level parameter representing an as-yet unspecified type within a definition and replaced consistently by a type argument at each concrete use."
+      }
+    },
     "option": {
       "zh": {
         "preferred": "option",
@@ -401,6 +431,16 @@
         "definition": "Stopping a composition at a None or Error that cannot continue, preserving that result without running later dependent steps."
       }
     },
+    "statically-resolved-type-parameter": {
+      "zh": {
+        "preferred": "静态解析类型参数",
+        "definition": "写作 ^T、在内联调用点解析并可携带成员约束的 F# 类型参数；它不同于普通的 'T 泛型参数。"
+      },
+      "en": {
+        "preferred": "statically resolved type parameter",
+        "definition": "An F# type parameter written ^T, resolved at an inline call site, and able to carry member constraints; it differs from an ordinary 'T generic parameter."
+      }
+    },
     "structural-comparison": {
       "zh": {
         "preferred": "结构比较",
@@ -491,6 +531,16 @@
         "definition": "A type with exactly one value, (), used when an expression has no specific result to pass to a later computation."
       }
     },
+    "unit-of-measure": {
+      "zh": {
+        "preferred": "度量单位",
+        "definition": "附着在受支持数值类型上的编译期类型标注，用于静态检查量纲关系，并在运行时擦除。"
+      },
+      "en": {
+        "preferred": "unit of measure",
+        "definition": "A compile-time type annotation attached to supported numeric types to check dimensional relationships statically and erased at runtime."
+      }
+    },
     "union-case": {
       "zh": {
         "preferred": "联合案例",
@@ -509,6 +559,16 @@
       "en": {
         "preferred": "value",
         "definition": "A result produced when evaluation completes normally and available to other expressions; a function is itself a value."
+      }
+    },
+    "value-restriction": {
+      "zh": {
+        "preferred": "值限制",
+        "definition": "自动泛化只允许安全形状的绑定；带未解析类型变量而不可泛化的值绑定会被拒绝，以免同一存储被不安全地当作多种类型。"
+      },
+      "en": {
+        "preferred": "value restriction",
+        "definition": "The restriction of automatic generalization to safe binding shapes, rejecting nongeneralizable values with unresolved type variables so one storage location cannot be used unsafely at multiple types."
       }
     },
     "wildcard-pattern": {

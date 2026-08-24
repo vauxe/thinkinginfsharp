@@ -187,10 +187,10 @@
 
 ### B11 — 泛型、值限制、约束与度量 / Generics, Value Restriction, Constraints, and Units
 
-- [ ] **依赖：** B10。
+- [x] **依赖：** B10。
 - **主要文件（5）：** `docs/{zh,en}/part-02/ch-11-generics-constraints.md`、`docs/{zh,en}/solutions/ch-11-generics-constraints.md`、`examples/scripts/ch11-generics-constraints.fsx`。
 - **验收：** 准确解释自动泛化和值限制；覆盖相等/比较约束、组成类型约束和度量单位，避免把 SRTP 当作普通泛型前提。
-- **验证：** FSI 正例 + E30 将承接预期诊断；双语与内容检查；`pnpm build`。
+- **验证：** FSI 的 5 行确定性正例覆盖泛化、安全泛型值、工厂修复、条件式相等/比较与度量算术；FS0030、组成类型 FS0001、量纲 FS0001 及正文签名均用 F# 10 交互式复核；`pnpm test` 全链路通过，E30 后续承接诊断实验。
 - **规模：** L。
 
 ### B12 — 让非法状态无法表示 / Making Illegal States Unrepresentable

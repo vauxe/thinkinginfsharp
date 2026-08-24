@@ -30,7 +30,8 @@ export const enLocale = {
             { text: '7 · Records, Updates, Equality, and Comparison', link: '/en/part-02/ch-07-records-equality' },
             { text: '8 · Discriminated Unions and State Modeling', link: '/en/part-02/ch-08-discriminated-unions' },
             { text: '9 · Absence and Expected Failure', link: '/en/part-02/ch-09-option-result' },
-            { text: '10 · Recursive Types and Structural Recursion', link: '/en/part-02/ch-10-recursive-types' }
+            { text: '10 · Recursive Types and Structural Recursion', link: '/en/part-02/ch-10-recursive-types' },
+            { text: '11 · Generics, Constraints, and Units', link: '/en/part-02/ch-11-generics-constraints' }
           ]
         }
       ],
@@ -47,7 +48,8 @@ export const enLocale = {
             { text: 'Chapter 7', link: '/en/solutions/ch-07-records-equality' },
             { text: 'Chapter 8', link: '/en/solutions/ch-08-discriminated-unions' },
             { text: 'Chapter 9', link: '/en/solutions/ch-09-option-result' },
-            { text: 'Chapter 10', link: '/en/solutions/ch-10-recursive-types' }
+            { text: 'Chapter 10', link: '/en/solutions/ch-10-recursive-types' },
+            { text: 'Chapter 11', link: '/en/solutions/ch-11-generics-constraints' }
           ]
         }
       ]

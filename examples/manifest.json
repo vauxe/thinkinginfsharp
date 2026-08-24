@@ -134,6 +134,18 @@
       ]
     },
     {
+      "id": "ch11-generics-constraints",
+      "kind": "script",
+      "path": "examples/scripts/ch11-generics-constraints.fsx",
+      "expectedOutput": [
+        "Generalized function: ints=[3; 3] strings=[\"Lin\"; \"Lin\"]",
+        "Simple generic value: ints=[1] strings=[\"Ada\"]",
+        "Value restriction fixes: ints=2 strings=2 fresh=true",
+        "Constraints: equal=true ordered=true sorted=[\"A\"; \"B\"]",
+        "Measures: requested=5 remaining=35 rate=4.0"
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",
