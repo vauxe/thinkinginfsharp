@@ -10,7 +10,9 @@
     "preview": "vitepress preview docs",
     "check:parity": "node scripts/check-parity.mjs",
     "check:content": "node scripts/check-content.mjs",
-    "test:content": "node --test scripts/content-contract.test.mjs scripts/markdown.test.mjs scripts/content-checks.test.mjs"
+    "check:examples": "node scripts/check-examples.mjs",
+    "test:content": "node --test scripts/content-contract.test.mjs scripts/markdown.test.mjs scripts/content-checks.test.mjs scripts/example-checks.test.mjs",
+    "test": "pnpm test:content && pnpm check:parity && pnpm check:content && pnpm check:examples && pnpm build"
   },
   "engines": {
     "node": ">=22.0.0",

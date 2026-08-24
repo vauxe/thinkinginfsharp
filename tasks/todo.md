@@ -69,10 +69,10 @@
 
 ### F07 — 建立契约测试与统一示例检查器
 
-- [ ] **依赖：** F05、F06。
+- [x] **依赖：** F05、F06。
 - **主要文件（5）：** `tests/ContractTests/ContractTests.fsproj`、`tests/ContractTests/SmokeTests.fs`、`examples/manifest.json`、`scripts/check-examples.mjs`、`package.json`。
 - **验收：** manifest 支持 `script/compile/test/contract/unity-plugin/expected-error/illustrative` 分类；检查器执行对应命令、拒绝未登记有效代码，并汇入 `pnpm test`。
-- **验证：** `pnpm check:examples`；`pnpm test`。
+- **验证：** 21 项 Node 测试通过（其中 5 项覆盖示例门的七类条目与失败路径）；真实 F# 示例/契约测试通过；`pnpm test` 全链路通过。
 - **规模：** M。
 
 ### C0 — 基础质量门

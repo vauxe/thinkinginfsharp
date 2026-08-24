@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "id": "foundation-contract-tests",
+      "kind": "contract",
+      "path": "tests/ContractTests/ContractTests.fsproj",
+      "sources": [
+        "tests/ContractTests/SmokeTests.fs"
+      ]
+    },
+    {
+      "id": "foundation-example-tests",
+      "kind": "test",
+      "path": "tests/ExampleTests/ExampleTests.fsproj",
+      "sources": [
+        "tests/ExampleTests/SmokeTests.fs"
+      ]
+    }
+  ]
+}
