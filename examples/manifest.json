@@ -459,6 +459,22 @@
       ]
     },
     {
+      "id": "ecosystem-cloud-service",
+      "kind": "compile",
+      "path": "examples/ecosystem/cloud/CloudService.fsproj",
+      "sources": [
+        "examples/ecosystem/cloud/Program.fs"
+      ]
+    },
+    {
+      "id": "ecosystem-cloud-apphost",
+      "kind": "compile",
+      "path": "examples/ecosystem/cloud/AppHost/AppHost.csproj",
+      "sources": [
+        "examples/ecosystem/cloud/AppHost/Program.cs"
+      ]
+    },
+    {
       "id": "capstone-booking-api",
       "kind": "compile",
       "path": "examples/capstone/src/Booking.Api/Booking.Api.fsproj",

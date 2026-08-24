@@ -691,10 +691,10 @@
 
 ### X42 — 云、容器与 Aspire 的本地验证切片
 
-- [ ] **依赖：** B41。
+- [x] **依赖：** B41。
 - **主要文件（≤5）：** `examples/ecosystem/cloud/CloudService.fsproj`、`Program.fs`、`examples/ecosystem/cloud/AppHost/AppHost.csproj`、`Program.cs`、`examples/ecosystem/cloud/README.md`。
 - **验收：** 实施时依据官方 .NET 10 支持矩阵锁定 Aspire/容器工具版本；用 C# 基础设施宿主编排 F# 服务且无需云账号，诚实展示生态边界；Serverless 只作带约束的决策分支。
-- **验证：** Release build；本地 AppHost/服务健康检查；可用时验证容器发布；`pnpm check:examples`。
+- **验证：** 依据截至 2026-08-25 的官方 Aspire SDK、项目式 AppHost 与 NuGet 资料锁定 `Aspire.AppHost.Sdk` 13.5.2，实际环境为 .NET SDK 10.0.301；F# Web 服务锁定 `FSharp.Core` 10.1.301，C# AppHost 的完整平台编排图锁定 13.5.2，并明确保留项目资产模式、只抑制对应的 `ASPIRE010` CLI bundle 迁移提示。先由清单中的缺失项目/源文件得到预期红灯，再由 F# 泛型响应/可空性和 AppHost 缺少 `http` 端点得到编译与真实启动红灯；最终服务与 AppHost Release 构建均为 0 警告/0 错误。直接运行 F# 服务时，`/health/live`、`/health/ready` 与 `/api/runtime` 分别返回 `healthy`、`ready` 和 `standalone`；C# 编排壳显式声明动态 HTTP 端点、注入 `DEPLOYMENT_MODE=aspire-local` 并注册 `/health/ready`，无需云账号、数据库、容器 daemon 或全局 Aspire CLI。因本机没有受信任开发证书，首次动态 HTTPS 仪表板准确暴露资源服务证书校验失败；改用官方支持、严格绑定 `127.0.0.1` 的仅本地 HTTP 配置后，真实 Chrome 仪表板显示唯一 `cloud-service` 为 `Running`、Health state 为 `Healthy`、对应检查为 `Healthy`，服务端点返回 `aspire-local`，README 同时明确匿名未加密模式不得暴露到局域网或生产。使用 .NET SDK 容器目标和固定 `mcr.microsoft.com/dotnet/aspnet:10.0.11` 成功生成约 89 MB 的本地镜像归档；解析确认 `linux/arm64`、非 root UID 1654、8080 和 `dotnet /app/CloudService.dll`，Docker daemon 未运行所以不声称容器已启动。首个 `--os linux` 命令会把普通锁图污染为 `linux-arm64` 并使解决方案 `--locked-mode` 失败；最终命令不改变项目 RID，发布前后锁文件 SHA-256 一致。全解决方案锁定还原、Release 构建、测试及 Fable 生产构建/Chrome 冒烟组成的 `pnpm check:examples` 完整通过。
 - **规模：** L。
 
 ### B42 — 云、容器、Serverless 与 .NET Aspire / Cloud, Containers, Serverless, and .NET Aspire
