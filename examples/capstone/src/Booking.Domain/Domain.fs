@@ -86,6 +86,7 @@ module CancellationReason =
 
     let value (CancellationReason reason) = reason
 
+// #region booking-model
 type Event =
     private
         { Id: EventId
@@ -150,3 +151,4 @@ module Booking =
                 { booking with
                     Status = Cancelled reason }
         | Cancelled _ as current -> Error(CannotCancelFrom current)
+// #endregion booking-model

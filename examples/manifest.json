@@ -171,6 +171,8 @@
       "path": "examples/capstone/src/Booking.Domain/Booking.Domain.fsproj",
       "sources": [
         "examples/capstone/src/Booking.Domain/Domain.fs",
+        "examples/capstone/src/Booking.Domain/Commands.fs",
+        "examples/capstone/src/Booking.Domain/Events.fs",
         "examples/capstone/src/Booking.Domain/Validation.fs",
         "examples/capstone/src/Booking.Domain/Workflow.fs",
         "examples/capstone/src/Booking.Domain/PublicApi.fs",

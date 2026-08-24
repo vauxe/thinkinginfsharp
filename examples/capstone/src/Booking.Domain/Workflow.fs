@@ -7,7 +7,8 @@ module Workflow =
         | NotBooked
         | Booked of Booking
 
-    type BookingEvent = BookingPlaced of Booking
+    // Compatibility name for callers of the earlier workflow module.
+    type BookingEvent = Booking.Domain.BookingEvent
 
     type PlaceBookingError =
         | InvalidCommand of CommandValidationError list
@@ -27,4 +28,6 @@ module Workflow =
 
     let evolve (_: BookingState) (event: BookingEvent) =
         match event with
-        | BookingPlaced booking -> Booked booking
+        | BookingPlaced booking
+        | BookingConfirmed booking
+        | BookingCancelled booking -> Booked booking

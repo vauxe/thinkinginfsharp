@@ -37,6 +37,7 @@ module BookingWorkflowTests =
             Assert.Equal(3<seat>, booking |> Booking.seats |> SeatCount.value)
             Assert.Equal(Pending, Booking.status booking)
             Assert.Equal(Booked booking, evolve NotBooked bookingEvent)
+        | Ok unexpected -> failwithf "Expected BookingPlaced, received %A" unexpected
 
     [<Fact>]
     let ``capacity failure follows successful command validation`` () =

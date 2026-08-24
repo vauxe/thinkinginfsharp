@@ -507,10 +507,10 @@
 
 ### K06 — 收束领域语言、命令与事件
 
-- [ ] **依赖：** C5、K02、K05。
+- [x] **依赖：** C5、K02、K05。
 - **主要文件（≤5）：** `examples/capstone/src/Booking.Domain/Domain.fs`、`Commands.fs`、`Events.fs`、`PublicApi.fs`、`Booking.Domain.fsproj`。
 - **验收：** 名称与业务规则统一；命令表示意图、事件表示已发生事实；私有领域表示保持封装；旧教学切片迁移而非复制第二套模型。
-- **验证：** 领域与性质测试；Release build；`pnpm check:examples`。
+- **验证：** `PlaceBooking`、`ConfirmBooking`、`CancelBooking` 明确表达意图，`BookingPlaced`、`BookingConfirmed`、`BookingCancelled` 明确表达已发生事实；旧 `Validation.PlaceBookingCommand` 与 `Workflow.BookingEvent` 仅保留为类型别名，不创建第二个运行时模型；新增事件案例先触发旧测试的 FS0025 非穷尽匹配，再把意外事实写成显式失败分支；领域、工作流和性质聚焦测试 17/17 通过，K05 反射契约继续证明 `PublicApi` 不泄漏领域表示；Fantomas 全仓检查和 Release 完整示例门通过。
 - **规模：** M。
 
 ### B33 — 业务语言、命令、事件与模型 / Business Language, Commands, Events, and Model

@@ -5,7 +5,8 @@ module Validation =
         | InvalidRequestId of RequestIdError
         | InvalidSeatCount of SeatCountError
 
-    type PlaceBookingCommand = { RequestId: string; Seats: int }
+    // Compatibility name for the earlier teaching slice; no second runtime type is created.
+    type PlaceBookingCommand = PlaceBooking
 
     type ValidPlaceBooking =
         private

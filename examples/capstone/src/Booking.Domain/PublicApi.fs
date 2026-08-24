@@ -97,9 +97,7 @@ module PublicApi =
 
     // #region transitions
     let place rawRequestId rawSeats (BookingModel(event, state)) =
-        let command: PlaceBookingCommand =
-            { RequestId = rawRequestId
-              Seats = rawSeats }
+        let command = Commands.place rawRequestId rawSeats
 
         match decidePlaceBooking event state command with
         | Error error -> error |> mapPlaceError |> Error
@@ -109,21 +107,27 @@ module PublicApi =
         match state with
         | NotBooked -> Error [ BookingError.BookingDoesNotExist ]
         | Booked booking ->
-            match ConfirmationCode.create rawConfirmationCode with
+            let command =
+                Commands.confirm (booking |> Booking.requestId |> RequestId.value) rawConfirmationCode
+
+            match ConfirmationCode.create command.ConfirmationCode with
             | Error BlankConfirmationCode -> Error [ BookingError.BlankConfirmationCode ]
             | Ok confirmationCode ->
                 match Booking.confirm confirmationCode booking with
-                | Ok confirmed -> BookingModel(event, Booked confirmed) |> Ok
+                | Ok confirmed -> BookingModel(event, evolve state (BookingConfirmed confirmed)) |> Ok
                 | Error error -> Error [ mapTransitionError error ]
 
     let cancel rawReason (BookingModel(event, state)) =
         match state with
         | NotBooked -> Error [ BookingError.BookingDoesNotExist ]
         | Booked booking ->
-            match CancellationReason.create rawReason with
+            let command =
+                Commands.cancel (booking |> Booking.requestId |> RequestId.value) rawReason
+
+            match CancellationReason.create command.Reason with
             | Error BlankCancellationReason -> Error [ BookingError.BlankCancellationReason ]
             | Ok reason ->
                 match Booking.cancel reason booking with
-                | Ok cancelled -> BookingModel(event, Booked cancelled) |> Ok
+                | Ok cancelled -> BookingModel(event, evolve state (BookingCancelled cancelled)) |> Ok
                 | Error error -> Error [ mapTransitionError error ]
 // #endregion transitions
