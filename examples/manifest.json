@@ -275,6 +275,15 @@
       ]
     },
     {
+      "id": "ch25-objects-interfaces",
+      "kind": "compile",
+      "path": "examples/chapters/ch25/Ch25.fsproj",
+      "sources": [
+        "examples/chapters/ch25/Types.fs",
+        "examples/chapters/ch25/Program.fs"
+      ]
+    },
+    {
       "id": "ch20-functional-core-effects",
       "kind": "script",
       "path": "examples/scripts/ch20-functional-core-effects.fsx",
@@ -360,7 +369,8 @@
         "tests/ExampleTests/Ch16ProjectTests.fs",
         "tests/ExampleTests/Ch17SignatureTests.fs",
         "tests/ExampleTests/BookingWorkflowTests.fs",
-        "tests/ExampleTests/BookingAsyncPortTests.fs"
+        "tests/ExampleTests/BookingAsyncPortTests.fs",
+        "tests/ExampleTests/Ch25ObjectTests.fs"
       ]
     }
   ]

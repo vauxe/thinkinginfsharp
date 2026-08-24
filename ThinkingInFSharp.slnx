@@ -5,4 +5,5 @@
   <Project Path="examples/chapters/ch16/Ch16.fsproj" />
   <Project Path="examples/chapters/ch17/Ch17.fsproj" />
   <Project Path="examples/chapters/ch19/Ch19.fsproj" />
+  <Project Path="examples/chapters/ch25/Ch25.fsproj" />
 </Solution>

@@ -371,10 +371,10 @@
 
 ### E25 — F# 对象模型样例
 
-- [ ] **依赖：** C4。
+- [x] **依赖：** C4。
 - **主要文件（≤5）：** `examples/chapters/ch25/Ch25.fsproj`、`Types.fs`、`Program.fs`、`tests/ExampleTests/Ch25ObjectTests.fs`、`ThinkingInFSharp.slnx`。
 - **验收：** 类、构造、成员、接口、对象表达式、类型扩展和结构体均由实际需求驱动；结构体示例说明复制和默认值风险。
-- **验证：** 聚焦 Release build/test；`pnpm check:examples`。
+- **验证：** Ch25 Release 构建和 6 项 `Ch25Object` 测试通过：主/次构造函数、成员、显式接口视图、对象表达式替身、类型扩展，以及结构体按值复制和 `Unchecked.defaultof` 绕过正数修订不变量均有证据；示例程序四行输出复核，`pnpm check:examples` 通过。
 - **规模：** M。
 
 ### B25 — 在 F# 中定义对象 / Defining Objects in F#

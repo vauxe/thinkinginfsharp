@@ -13,12 +13,14 @@
     <Compile Include="Ch17SignatureTests.fs" />
     <Compile Include="BookingWorkflowTests.fs" />
     <Compile Include="BookingAsyncPortTests.fs" />
+    <Compile Include="Ch25ObjectTests.fs" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="../../examples/capstone/src/Booking.Domain/Booking.Domain.fsproj" />
     <ProjectReference Include="../../examples/chapters/ch16/Ch16.fsproj" />
     <ProjectReference Include="../../examples/chapters/ch17/Ch17.fsproj" />
+    <ProjectReference Include="../../examples/chapters/ch25/Ch25.fsproj" />
   </ItemGroup>
 
   <ItemGroup>
