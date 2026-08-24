@@ -84,7 +84,8 @@ export const enLocale = {
             { text: '33 · Business Language, Commands, Events, and Model', link: '/en/part-06/ch-33-domain-language-model' },
             { text: '34 · The Pure Booking Workflow and Validation', link: '/en/part-06/ch-34-pure-booking-workflow' },
             { text: '35 · Ports, Persistence, Configuration, and Stubs', link: '/en/part-06/ch-35-ports-persistence-config' },
-            { text: '36 · Web API, JSON, and Input Boundaries', link: '/en/part-06/ch-36-web-api-boundaries' }
+            { text: '36 · Web API, JSON, and Input Boundaries', link: '/en/part-06/ch-36-web-api-boundaries' },
+            { text: '37 · Consistency, Idempotency, Retries, and Partial Failure', link: '/en/part-06/ch-37-consistency-idempotency' }
           ]
         }
       ],
@@ -127,7 +128,8 @@ export const enLocale = {
             { text: 'Chapter 33', link: '/en/solutions/ch-33-domain-language-model' },
             { text: 'Chapter 34', link: '/en/solutions/ch-34-pure-booking-workflow' },
             { text: 'Chapter 35', link: '/en/solutions/ch-35-ports-persistence-config' },
-            { text: 'Chapter 36', link: '/en/solutions/ch-36-web-api-boundaries' }
+            { text: 'Chapter 36', link: '/en/solutions/ch-36-web-api-boundaries' },
+            { text: 'Chapter 37', link: '/en/solutions/ch-37-consistency-idempotency' }
           ]
         }
       ]
