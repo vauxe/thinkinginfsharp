@@ -475,6 +475,15 @@
       ]
     },
     {
+      "id": "ecosystem-avalonia-desktop",
+      "kind": "compile",
+      "path": "examples/ecosystem/avalonia/AvaloniaSample.fsproj",
+      "sources": [
+        "examples/ecosystem/avalonia/MainWindow.fs",
+        "examples/ecosystem/avalonia/Program.fs"
+      ]
+    },
+    {
       "id": "capstone-booking-api",
       "kind": "compile",
       "path": "examples/capstone/src/Booking.Api/Booking.Api.fsproj",

@@ -33,6 +33,7 @@
     <ProjectReference Include="../../examples/chapters/ch25/Ch25.fsproj" />
     <ProjectReference Include="../../examples/chapters/ch32/Ch32.App.fsproj" />
     <ProjectReference Include="../../examples/ecosystem/data/DataSample.fsproj" />
+    <ProjectReference Include="../../examples/ecosystem/avalonia/AvaloniaSample.fsproj" />
   </ItemGroup>
 
   <ItemGroup>

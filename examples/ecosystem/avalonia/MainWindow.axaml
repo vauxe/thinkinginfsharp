@@ -1,0 +1,37 @@
+<Window
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    x:Class="ThinkingInFSharp.AvaloniaSample.MainWindow"
+    Title="Thinking in F# — Avalonia"
+    Width="520"
+    Height="400"
+    MinWidth="420"
+    MinHeight="340"
+    WindowStartupLocation="CenterScreen">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="32">
+    <StackPanel Grid.Row="0" Spacing="6">
+      <TextBlock FontSize="13" FontWeight="SemiBold" Text="THINKING IN F#" />
+      <TextBlock FontSize="28" FontWeight="Bold" Text="Pure update, thin view" />
+      <TextBlock Opacity="0.72" Text="Avalonia owns the window; F# owns the state transition." />
+    </StackPanel>
+
+    <Border Grid.Row="1" Margin="0,24" Padding="24" CornerRadius="16" BorderThickness="1">
+      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+        <TextBlock HorizontalAlignment="Center" Opacity="0.72" Text="Seats requested" />
+        <TextBlock
+            x:Name="CountText"
+            HorizontalAlignment="Center"
+            FontSize="64"
+            FontWeight="Bold"
+            Text="0" />
+        <TextBlock x:Name="StatusText" HorizontalAlignment="Center" Text="No seats selected" />
+      </StackPanel>
+    </Border>
+
+    <StackPanel Grid.Row="2" HorizontalAlignment="Center" Orientation="Horizontal" Spacing="12">
+      <Button x:Name="RemoveButton" MinWidth="100" HorizontalContentAlignment="Center" Content="Remove" />
+      <Button x:Name="ResetButton" MinWidth="100" HorizontalContentAlignment="Center" Content="Reset" />
+      <Button x:Name="AddButton" MinWidth="100" HorizontalContentAlignment="Center" Content="Add a seat" />
+    </StackPanel>
+  </Grid>
+</Window>

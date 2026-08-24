@@ -707,10 +707,10 @@
 
 ### X43 — Avalonia 最小桌面样例
 
-- [ ] **依赖：** B42。
+- [x] **依赖：** B42。
 - **主要文件（≤5）：** `examples/ecosystem/avalonia/AvaloniaSample.fsproj`、`Program.fs`、`App.axaml`、`MainWindow.axaml`、`MainWindow.fs`。
 - **验收：** 锁定 Avalonia 版本；最小应用可构建并保持 UI 与纯更新逻辑分离；移动端只说明官方支持边界，不声称已验证未执行的平台。
-- **验证：** Release build；可用桌面环境人工启动；纯更新逻辑聚焦测试；`pnpm check:examples`。
+- **验证：** 先把解决方案与清单指向尚不存在的项目，得到缺少 `AvaloniaSample.fsproj`、`MainWindow.fs` 和 `Program.fs` 的预期红灯；随后按截至 2026-08-25 的官方 F# 模板与平台资料实现恰好 5 个主要文件，目标为 .NET 10，并把 `Avalonia`、`Avalonia.Desktop` 与 `Avalonia.Themes.Fluent` 精确锁定到当前稳定版 12.1.1。`Counter.update` 是不接触控件的纯函数，窗口只负责把 `AddSeat`、`RemoveSeat`、`Reset` 消息派发给它并渲染状态；聚焦 xUnit 测试为 1/1，全 `ExampleTests` 为 68/68，Release 构建为 0 警告/0 错误，Fantomas 检查通过。全解决方案 locked-mode 还原、Release 构建、测试及 Fable 生产构建/Chrome 冒烟组成的 `pnpm check:examples` 完整通过。真实 macOS 启动已尝试，但当前自动化会话无法提供可用的图形显示上下文，Avalonia.Native 在创建 CoreVideo RenderTimer 时以原生代码 `-6661` 退出；因此不声称窗口运行通过，也不把该环境限制伪装成应用修复。样例仅是已构建的桌面目标；官方支持的 iOS/Android 需要独立平台项目、.NET 10 移动工作负载、签名和设备/模拟器验证，本任务未创建也未声称验证这些目标。
 - **规模：** L。
 
 ### B43 — Avalonia、桌面与移动端 / Avalonia, Desktop, and Mobile
