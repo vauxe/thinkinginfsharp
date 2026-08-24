@@ -16,7 +16,8 @@ export const zhLocale = {
           items: [
             { text: '第 1 章 · 第一次 F# 会话', link: '/zh/part-01/ch-01-first-session' },
             { text: '第 2 章 · 值、绑定与表达式', link: '/zh/part-01/ch-02-values-bindings-expressions' },
-            { text: '第 3 章 · 函数也是值', link: '/zh/part-01/ch-03-functions-as-values' }
+            { text: '第 3 章 · 函数也是值', link: '/zh/part-01/ch-03-functions-as-values' },
+            { text: '第 4 章 · 分支与基本模式', link: '/zh/part-01/ch-04-branching-patterns' }
           ]
         }
       ],
@@ -26,7 +27,8 @@ export const zhLocale = {
           items: [
             { text: '第 1 章', link: '/zh/solutions/ch-01-first-session' },
             { text: '第 2 章', link: '/zh/solutions/ch-02-values-bindings-expressions' },
-            { text: '第 3 章', link: '/zh/solutions/ch-03-functions-as-values' }
+            { text: '第 3 章', link: '/zh/solutions/ch-03-functions-as-values' },
+            { text: '第 4 章', link: '/zh/solutions/ch-04-branching-patterns' }
           ]
         }
       ]

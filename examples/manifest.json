@@ -37,6 +37,18 @@
       ]
     },
     {
+      "id": "ch04-branching-patterns",
+      "kind": "script",
+      "path": "examples/scripts/ch04-branching-patterns.fsx",
+      "expectedOutput": [
+        "Availability: available",
+        "Capacity bands: full, last seat, limited, available",
+        "Booking: Lin requested 3 seats",
+        "Queues: empty | one: Lin | next: Lin, then Ada",
+        "Requests: invalid, accepted, too large"
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",

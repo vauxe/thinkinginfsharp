@@ -91,6 +91,16 @@
         "definition": "A piece of code that is evaluated and, when it completes normally, produces a value."
       }
     },
+    "exhaustiveness": {
+      "zh": {
+        "preferred": "穷尽性",
+        "definition": "一组模式覆盖输入类型所有可能形状的性质；无法穷尽时，某些输入可能没有匹配分支。"
+      },
+      "en": {
+        "preferred": "exhaustiveness",
+        "definition": "The property that a set of patterns covers every possible shape of the input type; without it, some input may have no matching branch."
+      }
+    },
     "fsharp-interactive": {
       "zh": {
         "preferred": "F# Interactive",
@@ -131,6 +141,16 @@
         "definition": "Supplying an argument to a function value and evaluating its body to produce a result."
       }
     },
+    "guard": {
+      "zh": {
+        "preferred": "守卫",
+        "definition": "模式初步匹配后才求值的 when 布尔条件；条件为 false 时继续尝试后续规则。"
+      },
+      "en": {
+        "preferred": "guard",
+        "definition": "A Boolean when condition evaluated only after its pattern initially matches; when false, matching continues with later rules."
+      }
+    },
     "higher-order-function": {
       "zh": {
         "preferred": "高阶函数",
@@ -161,6 +181,16 @@
         "definition": "A representation of a value written directly in source code, such as 40, true, \"hello\", or 1.5m."
       }
     },
+    "list": {
+      "zh": {
+        "preferred": "列表",
+        "definition": "由同一类型元素组成的有序不可变单向链式集合；空表为 []，头与尾可用 :: 构造或解构。"
+      },
+      "en": {
+        "preferred": "list",
+        "definition": "An ordered immutable singly linked collection of elements of one type; [] is empty, and :: constructs or decomposes a head and tail."
+      }
+    },
     "numeric-conversion": {
       "zh": {
         "preferred": "数值转换",
@@ -189,6 +219,16 @@
       "en": {
         "preferred": "partial application",
         "definition": "Supplying only some arguments to a curried function to obtain a new function that awaits the remaining arguments."
+      }
+    },
+    "pattern": {
+      "zh": {
+        "preferred": "模式",
+        "definition": "用来检查输入结构、分解组成部分并可为其建立局部绑定的形状规则。"
+      },
+      "en": {
+        "preferred": "pattern",
+        "definition": "A shape rule used to test input structure, decompose components, and optionally bind local names to them."
       }
     },
     "pattern-matching": {
@@ -269,6 +309,16 @@
       "en": {
         "preferred": "value",
         "definition": "A result produced when evaluation completes normally and available to other expressions; a function is itself a value."
+      }
+    },
+    "wildcard-pattern": {
+      "zh": {
+        "preferred": "通配符模式",
+        "definition": "写作 _、匹配任何输入但不为该输入建立可用名称的模式。"
+      },
+      "en": {
+        "preferred": "wildcard pattern",
+        "definition": "The _ pattern, which matches any input without binding an available name to that input."
       }
     }
   }

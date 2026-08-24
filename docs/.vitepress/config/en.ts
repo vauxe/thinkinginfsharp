@@ -16,7 +16,8 @@ export const enLocale = {
           items: [
             { text: '1 · A First F# Session', link: '/en/part-01/ch-01-first-session' },
             { text: '2 · Values, Bindings, and Expressions', link: '/en/part-01/ch-02-values-bindings-expressions' },
-            { text: '3 · Functions Are Values', link: '/en/part-01/ch-03-functions-as-values' }
+            { text: '3 · Functions Are Values', link: '/en/part-01/ch-03-functions-as-values' },
+            { text: '4 · Branching and Basic Patterns', link: '/en/part-01/ch-04-branching-patterns' }
           ]
         }
       ],
@@ -26,7 +27,8 @@ export const enLocale = {
           items: [
             { text: 'Chapter 1', link: '/en/solutions/ch-01-first-session' },
             { text: 'Chapter 2', link: '/en/solutions/ch-02-values-bindings-expressions' },
-            { text: 'Chapter 3', link: '/en/solutions/ch-03-functions-as-values' }
+            { text: 'Chapter 3', link: '/en/solutions/ch-03-functions-as-values' },
+            { text: 'Chapter 4', link: '/en/solutions/ch-04-branching-patterns' }
           ]
         }
       ]

@@ -115,10 +115,10 @@
 
 ### B04 — 分支与基本模式 / Branching and Basic Patterns
 
-- [ ] **依赖：** B03。
+- [x] **依赖：** B03。
 - **主要文件（5）：** `docs/{zh,en}/part-01/ch-04-branching-patterns.md`、`docs/{zh,en}/solutions/ch-04-branching-patterns.md`、`examples/scripts/ch04-branching-patterns.fsx`。
 - **验收：** 从布尔判断推导 `if`/`match`；覆盖元组和列表解构、守卫及基本穷尽性，不提前依赖联合类型。
-- **验证：** 聚焦 FSI 脚本；双语与内容检查；`pnpm build`。
+- **验证：** FSI 覆盖真假分支、守卫顺序、元组与空/一项/多项列表形状，5 行输出按 manifest 通过；`pnpm test` 的内容、双语、示例和生产构建全绿。
 - **规模：** M。
 
 ### B05 — 列表、管道与数据流 / Lists, Pipelines, and Data Flow
