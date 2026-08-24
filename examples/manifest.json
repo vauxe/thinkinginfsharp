@@ -229,6 +229,26 @@
       ]
     },
     {
+      "id": "ch17-signature-library",
+      "kind": "compile",
+      "path": "examples/chapters/ch17/Ch17.fsproj",
+      "sources": [
+        "examples/chapters/ch17/Library.fsi",
+        "examples/chapters/ch17/Library.fs"
+      ]
+    },
+    {
+      "id": "ch17-hidden-representation",
+      "kind": "expected-error",
+      "path": "examples/expected-errors/ch17-hidden-representation/Ch17HiddenRepresentation.fsproj",
+      "sources": [
+        "examples/expected-errors/ch17-hidden-representation/Consumer.fs"
+      ],
+      "diagnostics": [
+        "FS0800"
+      ]
+    },
+    {
       "id": "foundation-contract-tests",
       "kind": "contract",
       "path": "tests/ContractTests/ContractTests.fsproj",
@@ -244,7 +264,8 @@
         "tests/ExampleTests/SmokeTests.fs",
         "tests/ExampleTests/CapstonePart01Tests.fs",
         "tests/ExampleTests/BookingDomainTests.fs",
-        "tests/ExampleTests/Ch16ProjectTests.fs"
+        "tests/ExampleTests/Ch16ProjectTests.fs",
+        "tests/ExampleTests/Ch17SignatureTests.fs"
       ]
     }
   ]

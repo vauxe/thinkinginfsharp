@@ -10,11 +10,13 @@
     <Compile Include="CapstonePart01Tests.fs" />
     <Compile Include="BookingDomainTests.fs" />
     <Compile Include="Ch16ProjectTests.fs" />
+    <Compile Include="Ch17SignatureTests.fs" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="../../examples/capstone/src/Booking.Domain/Booking.Domain.fsproj" />
     <ProjectReference Include="../../examples/chapters/ch16/Ch16.fsproj" />
+    <ProjectReference Include="../../examples/chapters/ch17/Ch17.fsproj" />
   </ItemGroup>
 
   <ItemGroup>

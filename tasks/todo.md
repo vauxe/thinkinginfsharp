@@ -259,10 +259,10 @@
 
 ### E17 — 签名文件与封装边界样例
 
-- [ ] **依赖：** B16。
+- [x] **依赖：** B16。
 - **主要文件（≤5）：** `examples/chapters/ch17/Ch17.fsproj`、`Library.fsi`、`Library.fs`、`tests/ExampleTests/Ch17SignatureTests.fs`、`ThinkingInFSharp.slnx`。
 - **验收：** `.fsi` 真实隐藏表示并公开惯用 F# API；测试只能经公共表面观察不变量；文件顺序正确。
-- **验证：** 聚焦 Release build/test；`pnpm check:examples`。
+- **验证：** 先以缺失项目和 `FS0039` 获得预期编译红灯，再由 4 项外部消费者测试覆盖受控构造、观察、成功分配与容量不足；`.fsi` 紧邻并先于 `.fs`，将三个表示保持抽象；独立消费者直接构造 `Capacity 0` 稳定产生 `FS0800`；Release 全解决方案构建/测试与 `pnpm check:examples` 通过。
 - **规模：** M。
 
 ### B17 — 签名、访问控制与 F# API / Signatures, Access Control, and F#-Facing APIs

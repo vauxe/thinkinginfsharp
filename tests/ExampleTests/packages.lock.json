@@ -110,6 +110,12 @@
         "dependencies": {
           "FSharp.Core": "[10.1.301, )"
         }
+      },
+      "ch17": {
+        "type": "Project",
+        "dependencies": {
+          "FSharp.Core": "[10.1.301, )"
+        }
       }
     }
   }
