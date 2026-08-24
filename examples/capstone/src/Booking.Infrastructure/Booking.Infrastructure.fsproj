@@ -6,6 +6,9 @@
   <ItemGroup>
     <Compile Include="Configuration.fs" />
     <Compile Include="FileStore.fs" />
+    <Compile Include="PaymentStub.fs" />
+    <Compile Include="NotificationStub.fs" />
+    <Compile Include="Composition.fs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -118,9 +118,24 @@
           "xunit.extensibility.core": "[2.9.3]"
         }
       },
+      "booking.contracts": {
+        "type": "Project",
+        "dependencies": {
+          "Booking.Domain": "[1.0.0, )",
+          "FSharp.Core": "[10.1.301, )"
+        }
+      },
       "booking.domain": {
         "type": "Project",
         "dependencies": {
+          "FSharp.Core": "[10.1.301, )"
+        }
+      },
+      "booking.infrastructure": {
+        "type": "Project",
+        "dependencies": {
+          "Booking.Contracts": "[1.0.0, )",
+          "Booking.Domain": "[1.0.0, )",
           "FSharp.Core": "[10.1.301, )"
         }
       },

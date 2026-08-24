@@ -555,10 +555,10 @@
 
 ### K09 — 支付、通知替身与生命周期
 
-- [ ] **依赖：** K08b、K04。
+- [x] **依赖：** K08b、K04。
 - **主要文件（≤5）：** `examples/capstone/src/Booking.Infrastructure/PaymentStub.fs`、`NotificationStub.fs`、`Composition.fs`、`Booking.Infrastructure.fsproj`、`tests/ExampleTests/BookingAdapterTests.fs`。
 - **验收：** 替身确定性产生成功、拒绝、故障与取消；资源所有权和释放位置明确；不启动额外 HTTP 服务。
-- **验证：** 精确过滤 BookingAdapter；Release build；`pnpm check:examples`。
+- **验证：** 先由缺失 `Booking.Infrastructure`/替身 API 得到预期 FS0039 红灯；支付替身由构造时固定行为确定授权、拒绝或故障，通知替身确定交付或故障，两者在记录调用前尊重调用方取消且不使用网络、随机数或延时；`Composition.start` 创建并拥有替身，把文件快照、支付、通知和注入时钟装配成领域 `AsyncPorts`，校验事件键一致性，把存储分类保留在不泄露快照内容的类型化异常中，并以幂等 `Dispose` 关闭使用边界；聚焦测试 6/6 覆盖所有替身结果、取消无副作用、真实持久化桥接、令牌传递、类型化损坏错误、重复释放和释放后拒绝调用；全解决方案 Release 构建 0 警告/0 错误，完整锁定示例门通过，未添加 HTTP 服务或第三方包。
 - **规模：** M。
 
 ### B35 — 端口、持久化、配置与替身 / Ports, Persistence, Configuration, and Stubs

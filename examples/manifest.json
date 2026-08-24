@@ -196,7 +196,10 @@
       "path": "examples/capstone/src/Booking.Infrastructure/Booking.Infrastructure.fsproj",
       "sources": [
         "examples/capstone/src/Booking.Infrastructure/Configuration.fs",
-        "examples/capstone/src/Booking.Infrastructure/FileStore.fs"
+        "examples/capstone/src/Booking.Infrastructure/FileStore.fs",
+        "examples/capstone/src/Booking.Infrastructure/PaymentStub.fs",
+        "examples/capstone/src/Booking.Infrastructure/NotificationStub.fs",
+        "examples/capstone/src/Booking.Infrastructure/Composition.fs"
       ]
     },
     {
@@ -455,6 +458,7 @@
         "tests/ExampleTests/BookingWorkflowTests.fs",
         "tests/ExampleTests/BookingDeciderTests.fs",
         "tests/ExampleTests/BookingAsyncPortTests.fs",
+        "tests/ExampleTests/BookingAdapterTests.fs",
         "tests/ExampleTests/Ch25ObjectTests.fs",
         "examples/chapters/ch28/OrderWorkflow.fs",
         "tests/ExampleTests/Ch28WorkflowTests.fs",
