@@ -58,7 +58,7 @@ sources:
     url: https://docs.unity3d.com/Manual/assembly-definitions-referencing.html
     checked: "2026-08-25"
   - id: unity-testing
-    url: https://docs.unity3d.com/Manual/testing-editortestsrunner.html
+    url: https://docs.unity3d.com/6000.0/Documentation/Manual/testing-editortestsrunner.html
     checked: "2026-08-25"
   - id: unity-command-line-build
     url: https://docs.unity3d.com/Manual/build-command-line.html
