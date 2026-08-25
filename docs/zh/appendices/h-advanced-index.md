@@ -5,6 +5,9 @@ translationKey: appendices/h-advanced-index
 kind: appendix
 appendix: H
 status: complete
+verifiedWith:
+  fsharp: "10"
+  dotnetSdk: "10.0.301"
 exampleIds: []
 exerciseIds: []
 termIds: []

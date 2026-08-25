@@ -4,6 +4,9 @@ description: "选择学习路线、阅读 F# 类型、运行证据，并理解�
 translationKey: preface/index
 kind: preface
 status: complete
+verifiedWith:
+  fsharp: "10"
+  dotnetSdk: "10.0.301"
 exampleIds: []
 exerciseIds: []
 termIds: []

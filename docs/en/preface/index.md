@@ -4,6 +4,9 @@ description: "Choose a learning route, read F# types, run the evidence, and unde
 translationKey: preface/index
 kind: preface
 status: complete
+verifiedWith:
+  fsharp: "10"
+  dotnetSdk: "10.0.301"
 exampleIds: []
 exerciseIds: []
 termIds: []
