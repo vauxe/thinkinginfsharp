@@ -53,8 +53,7 @@ module BookingEndToEndTests =
         Event.create eventId capacity
 
     type private TestApi
-        (snapshotPath: string, chargeBehavior: PaymentRequest -> CancellationToken -> Task<PaymentOutcome>)
-        =
+        (snapshotPath: string, chargeBehavior: PaymentRequest -> CancellationToken -> Task<PaymentOutcome>) =
         let paymentCalls = Counter()
         let notificationCalls = Counter()
         let configuration = BookingStoreConfiguration.create snapshotPath |> expectOk
@@ -125,10 +124,7 @@ module BookingEndToEndTests =
         use api = new TestApi(Path.Combine(temporary.Path, "bookings.json"), authorize)
 
         use created =
-            sendJson
-                api.Client
-                "/api/bookings/place"
-                """{"requestId":" REQ-E2E ","seats":2}"""
+            sendJson api.Client "/api/bookings/place" """{"requestId":" REQ-E2E ","seats":2}"""
 
         let createdBody = readText created
         Assert.Equal(HttpStatusCode.Created, created.StatusCode)
@@ -142,20 +138,14 @@ module BookingEndToEndTests =
         Assert.DoesNotContain("TX-E2E-INTERNAL", createdBody)
 
         use replayed =
-            sendJson
-                api.Client
-                "/api/bookings/place"
-                """{"requestId":"REQ-E2E","seats":2}"""
+            sendJson api.Client "/api/bookings/place" """{"requestId":"REQ-E2E","seats":2}"""
 
         Assert.Equal(HttpStatusCode.Created, replayed.StatusCode)
         Assert.Equal(createdBody, readText replayed)
         Assert.Equal("/api/bookings/REQ-E2E", string replayed.Headers.Location)
 
         use conflict =
-            sendJson
-                api.Client
-                "/api/bookings/place"
-                """{"requestId":"REQ-E2E","seats":1}"""
+            sendJson api.Client "/api/bookings/place" """{"requestId":"REQ-E2E","seats":1}"""
 
         Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode)
         Assert.Equal("idempotency_conflict", (readError conflict).Code)
@@ -187,8 +177,7 @@ module BookingEndToEndTests =
         let failPayment (_: PaymentRequest) (_: CancellationToken) =
             Task.FromException<PaymentOutcome>(InvalidOperationException "controlled payment fault")
 
-        use api =
-            new TestApi(Path.Combine(temporary.Path, "bookings.json"), failPayment)
+        use api = new TestApi(Path.Combine(temporary.Path, "bookings.json"), failPayment)
 
         let body = """{"requestId":"REQ-E2E-PAYMENT","seats":2}"""
         use first = sendJson api.Client "/api/bookings/place" body
@@ -219,11 +208,7 @@ module BookingEndToEndTests =
         meterListener.SetMeasurementEventCallback<int64>(fun instrument _ tags _ ->
             let outcome =
                 tags.ToArray()
-                |> Array.tryPick (fun tag ->
-                    if tag.Key = "outcome" then
-                        Some(string tag.Value)
-                    else
-                        None)
+                |> Array.tryPick (fun tag -> if tag.Key = "outcome" then Some(string tag.Value) else None)
                 |> Option.defaultValue "missing"
 
             measurements.Add(instrument.Name, outcome))
@@ -231,11 +216,7 @@ module BookingEndToEndTests =
         meterListener.SetMeasurementEventCallback<double>(fun instrument _ tags _ ->
             let outcome =
                 tags.ToArray()
-                |> Array.tryPick (fun tag ->
-                    if tag.Key = "outcome" then
-                        Some(string tag.Value)
-                    else
-                        None)
+                |> Array.tryPick (fun tag -> if tag.Key = "outcome" then Some(string tag.Value) else None)
                 |> Option.defaultValue "missing"
 
             measurements.Add(instrument.Name, outcome))
@@ -255,15 +236,9 @@ module BookingEndToEndTests =
         let correlation = response.Headers.GetValues("X-Correlation-ID") |> Seq.exactlyOne
         Assert.Matches("^[0-9a-f]{32}$", correlation)
 
-        Assert.Contains(
-            (BookingDiagnosticNames.RequestCounterName, "client_error"),
-            measurements
-        )
+        Assert.Contains((BookingDiagnosticNames.RequestCounterName, "client_error"), measurements)
 
-        Assert.Contains(
-            (BookingDiagnosticNames.RequestDurationName, "client_error"),
-            measurements
-        )
+        Assert.Contains((BookingDiagnosticNames.RequestDurationName, "client_error"), measurements)
 
         let activity = Assert.Single completedActivities
         Assert.Equal(BookingDiagnosticNames.RequestActivityName, activity.DisplayName)

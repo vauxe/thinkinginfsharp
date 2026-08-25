@@ -179,12 +179,7 @@ module BookingEndpoints =
                 "A previous operation for this booking is incomplete."
                 [||]
         | BookingConsistencyError.PaymentDeclined ->
-            writeError
-                context
-                StatusCodes.Status422UnprocessableEntity
-                "payment_declined"
-                "Payment was declined."
-                [||]
+            writeError context StatusCodes.Status422UnprocessableEntity "payment_declined" "Payment was declined." [||]
         | BookingConsistencyError.PaymentOutcomeUnknown ->
             writeError
                 context
@@ -341,7 +336,9 @@ module BookingEndpoints =
 
     let private writeBooking (context: HttpContext) (prepared: PreparedCommand) (booking: Booking) =
         if prepared.SuccessStatusCode = StatusCodes.Status201Created then
-            let requestId = booking |> Booking.requestId |> RequestId.value |> Uri.EscapeDataString
+            let requestId =
+                booking |> Booking.requestId |> RequestId.value |> Uri.EscapeDataString
+
             context.Response.Headers.Location <- $"/api/bookings/{requestId}"
 
         writeJson context prepared.SuccessStatusCode (BookingMapping.ofDomain booking)
@@ -394,11 +391,7 @@ module BookingEndpoints =
                     | Ok() -> return! writeBooking context prepared (BookingEvent.booking bookingEvent)
         }
 
-    let private executeConsistent
-        (dependencies: ConsistentBookingApiDependencies)
-        prepared
-        (context: HttpContext)
-        =
+    let private executeConsistent (dependencies: ConsistentBookingApiDependencies) prepared (context: HttpContext) =
         task {
             let cancellationToken = context.RequestAborted
             cancellationToken.ThrowIfCancellationRequested()
@@ -435,28 +428,13 @@ module BookingEndpoints =
         }
 
     let private handlePlaceWith execute context =
-        processCommand
-            execute
-            (deserialize<PlaceBookingDto>)
-            PlaceBookingMapping.toDomain
-            preparePlace
-            context
+        processCommand execute (deserialize<PlaceBookingDto>) PlaceBookingMapping.toDomain preparePlace context
 
     let private handleConfirmWith execute context =
-        processCommand
-            execute
-            (deserialize<ConfirmBookingDto>)
-            ConfirmBookingMapping.toDomain
-            prepareConfirm
-            context
+        processCommand execute (deserialize<ConfirmBookingDto>) ConfirmBookingMapping.toDomain prepareConfirm context
 
     let private handleCancelWith execute context =
-        processCommand
-            execute
-            (deserialize<CancelBookingDto>)
-            CancelBookingMapping.toDomain
-            prepareCancel
-            context
+        processCommand execute (deserialize<CancelBookingDto>) CancelBookingMapping.toDomain prepareCancel context
 
     let private routeRequestId (context: HttpContext) =
         let rawRequestId =
@@ -507,8 +485,7 @@ module BookingEndpoints =
 
                 match loaded with
                 | Error error ->
-                    return!
-                        writeConsistencyError context (BookingConsistencyError.StorageUnavailable error)
+                    return! writeConsistencyError context (BookingConsistencyError.StorageUnavailable error)
                 | Ok(Some booking) when Booking.requestId booking = requestId ->
                     return! writeJson context StatusCodes.Status200OK (BookingMapping.ofDomain booking)
                 | Ok(Some _)
@@ -567,17 +544,13 @@ module BookingEndpoints =
         let protectedHandler handler =
             RequestDelegate(fun context -> safely handler context)
 
-        application.MapPost("/api/bookings/place", protectedHandler place)
-        |> ignore
+        application.MapPost("/api/bookings/place", protectedHandler place) |> ignore
 
-        application.MapPost("/api/bookings/confirm", protectedHandler confirm)
-        |> ignore
+        application.MapPost("/api/bookings/confirm", protectedHandler confirm) |> ignore
 
-        application.MapPost("/api/bookings/cancel", protectedHandler cancel)
-        |> ignore
+        application.MapPost("/api/bookings/cancel", protectedHandler cancel) |> ignore
 
-        application.MapGet("/api/bookings/{requestId}", protectedHandler load)
-        |> ignore
+        application.MapGet("/api/bookings/{requestId}", protectedHandler load) |> ignore
 
     let map (application: WebApplication) (dependencies: BookingApiDependencies) =
         let execute = executeCommand dependencies

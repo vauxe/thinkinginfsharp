@@ -33,7 +33,9 @@ module BookingDiagnosticNames =
 [<Sealed>]
 type BookingRequestDiagnostics(meterFactory: IMeterFactory, logger: ILogger<BookingRequestDiagnostics>) =
     let meter = meterFactory.Create(BookingDiagnosticNames.MeterName, "1.0.0")
-    let activities = new ActivitySource(BookingDiagnosticNames.ActivitySourceName, "1.0.0")
+
+    let activities =
+        new ActivitySource(BookingDiagnosticNames.ActivitySourceName, "1.0.0")
 
     let requestCounter =
         meter.CreateCounter<int64>(
@@ -43,11 +45,7 @@ type BookingRequestDiagnostics(meterFactory: IMeterFactory, logger: ILogger<Book
         )
 
     let requestDuration =
-        meter.CreateHistogram<double>(
-            BookingDiagnosticNames.RequestDurationName,
-            "ms",
-            "Booking HTTP request duration"
-        )
+        meter.CreateHistogram<double>(BookingDiagnosticNames.RequestDurationName, "ms", "Booking HTTP request duration")
 
     let requestCompleted =
         LoggerMessage.Define<string, string, string, int, string, double>(
@@ -77,7 +75,10 @@ type BookingRequestDiagnostics(meterFactory: IMeterFactory, logger: ILogger<Book
     member _.InvokeAsync(context: HttpContext, next: RequestDelegate) : Task =
         task {
             let stopwatch = Stopwatch.StartNew()
-            let activity = activities.StartActivity(BookingDiagnosticNames.RequestActivityName, ActivityKind.Internal)
+
+            let activity =
+                activities.StartActivity(BookingDiagnosticNames.RequestActivityName, ActivityKind.Internal)
+
             let correlation = correlationId ()
             let scopeValues = Dictionary<string, obj>()
             scopeValues.Add("CorrelationId", correlation)
