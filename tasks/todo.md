@@ -891,10 +891,10 @@
 
 ### R05 — 真实浏览器、可访问性与响应式审计
 
-- [ ] **依赖：** C8。
+- [x] **依赖：** C8。
 - **主要文件（≤3）：** `tests/site-browser.test.mjs`、`package.json`、`reviews/browser-accessibility-audit.md`；修复回派原任务。
 - **验收：** 根页、中英路线、同页切换、搜索、复制、锚点、前后章、键盘和窄屏可用；控制台/网络无异常；关键页面无明显 WCAG 2.2 AA 问题。
-- **验证：** 锁定浏览器自动化 smoke；真实浏览器检查桌面与 360px；`pnpm build`。
+- **验证：** 提交 `6db774c` 增加直接服务生产静态产物的 Chrome 门并纳入 `pnpm test`；5/5 覆盖根页、英文桌面阅读、同页双向切换、英中搜索、剪贴板、目录锚点、前后章、明暗主题、首个 Tab/跳到正文、`/` 搜索、Escape、移动导航，以及 360px 中文第 37/44 章和英文附录 C。逐页要求单一 main/H1、正确 `lang`、无重复 ID/无名可见控件/标题跳级/缺 alt，关键目标至少 24px，正文文本/链接对比度抽样至少 4.5:1；控制台 warning/error、pageerror、失败请求和 HTTP >=400 均为 0。初次 Lighthouse 发现搜索按钮内可见 `K` 与辅助名称不一致的 medium 问题；修复把字面键改为视觉伪元素、隐藏快捷键容器的名称贡献并声明 `Control+K Meta+K /`，回归先红后绿。最终英文 desktop 与中文 mobile Lighthouse 的 Accessibility/Best Practices/SEO/Agentic Browsing 均为 100；移动 55/0，桌面原始报告无 score=0 审计，CLS 0.044。首屏索引请求为 0；首次英文搜索只加载英文索引（编码 316,145 B），中文只加载中文索引（445,870 B），不互载，故构建大 chunk 是按需的单语言搜索成本而非首屏负担。`pnpm build`、39/39 内容测试、50 项示例、Fable Chrome、201 书页/203 HTML/17,287 内链及浏览器 5/5 的完整 `pnpm test` 通过；开放高/中/低均为 0。
 - **规模：** L。
 
 ### R06 — 干净检出发布复演
