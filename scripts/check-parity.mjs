@@ -25,6 +25,14 @@ function comparable(value) {
   return JSON.stringify(value ?? null)
 }
 
+function comparableTarget(target) {
+  return (target ?? '').replace(/^\/(?:zh|en)(?=\/|[?#]|$)/, '/{locale}')
+}
+
+function comparableCodeReference(reference) {
+  return reference.replace(/\s+\[[^\]]*\]\s*$/, '').trim()
+}
+
 function pairLabel(zh, en) {
   return `${zh.relativePath} <-> ${en.relativePath}`
 }
@@ -85,6 +93,28 @@ export function checkParity({ docsDir = defaultDocsDir } = {}) {
     const enAnchors = en.headings.map(({ anchor }) => anchor)
     if (comparable(zhAnchors) !== comparable(enAnchors)) {
       errors.push(`${pairLabel(zh, en)}: heading anchors differ`)
+    }
+
+    const zhLinks = zh.links.map(({ target, type }) => ({
+      target: comparableTarget(target),
+      type
+    }))
+    const enLinks = en.links.map(({ target, type }) => ({
+      target: comparableTarget(target),
+      type
+    }))
+    if (comparable(zhLinks) !== comparable(enLinks)) {
+      errors.push(`${pairLabel(zh, en)}: link targets differ`)
+    }
+
+    const zhCodeReferences = zh.codeReferences.map(({ reference }) =>
+      comparableCodeReference(reference)
+    )
+    const enCodeReferences = en.codeReferences.map(({ reference }) =>
+      comparableCodeReference(reference)
+    )
+    if (comparable(zhCodeReferences) !== comparable(enCodeReferences)) {
+      errors.push(`${pairLabel(zh, en)}: code references differ`)
     }
 
     for (const page of [zh, en]) {

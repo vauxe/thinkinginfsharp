@@ -117,6 +117,36 @@ test('reports paired metadata and structural mismatches', (t) => {
   assert.ok(errors.every((error) => /(?:zh|en)\/index\.md/.test(error)))
 })
 
+test('reports paired link-target and shared-code-reference drift', (t) => {
+  const { docsDir } = createFixture(t)
+  const zhBody = `${validBody(
+    '中文首页',
+    '中文页面包含与英文页面相同的结构，但夹具故意让链接和代码引用发生漂移。'
+  )}
+
+[下一页](/zh/right-target)
+
+<<< @/../examples/right.fsx#sample{fsharp} [中文标题]
+`
+  const enBody = `${validBody(
+    'English home',
+    'The page has the same heading structure, but this fixture deliberately drifts its link and code reference.'
+  )}
+
+[Next](/en/wrong-target)
+
+<<< @/../examples/wrong.fsx#sample{fsharp} [English title]
+`
+
+  write(docsDir, 'zh/index.md', markdown(metadata(), zhBody))
+  write(docsDir, 'en/index.md', markdown(metadata(), enBody))
+
+  const errors = checkParity({ docsDir })
+
+  assert.ok(errors.some((error) => error.includes('link targets differ')))
+  assert.ok(errors.some((error) => error.includes('code references differ')))
+})
+
 test('finds placeholders, broken links, duplicate anchors, unknown terms, and copied code', (t) => {
   const { docsDir } = createFixture(t)
   writeTerminology(docsDir)
@@ -177,7 +207,7 @@ test('accepts paired pages, stable anchors, valid links, and one shared snippet'
   )
 
   const sharedSnippet =
-    '<<< @/../examples/scripts/example.fsx#sample{2 fsharp:line-numbers}'
+    '@/../examples/scripts/example.fsx#sample{2 fsharp:line-numbers}'
   const zh = validBody(
     '中文首页',
     '这是一段完整的中文说明，为只阅读中文的读者解释页面目的和学习路径。'
@@ -192,7 +222,7 @@ test('accepts paired pages, stable anchors, valid links, and one shared snippet'
     'zh/index.md',
     markdown(
       metadata({ termIds: ['expression'] }),
-      `${zh}\n\n[Language choice](/). [Local API](http://localhost:5000/health).\n\n${sharedSnippet}\n\n` + '```fsharp\n// TODO is code, not placeholder prose\n```'
+      `${zh}\n\n[中文首页](/zh/). [Language choice](/). [Local API](http://localhost:5000/health).\n\n<<< ${sharedSnippet} [中文标题]\n\n` + '```fsharp\n// TODO is code, not placeholder prose\n```'
     )
   )
   write(
@@ -200,7 +230,7 @@ test('accepts paired pages, stable anchors, valid links, and one shared snippet'
     'en/index.md',
     markdown(
       metadata({ termIds: ['expression'] }),
-      `${en}\n\n[Language choice](/). [Local API](http://localhost:5000/health).\n\n${sharedSnippet}\n`
+      `${en}\n\n[English home](/en/). [Language choice](/). [Local API](http://localhost:5000/health).\n\n<<< ${sharedSnippet} [English title]\n`
     )
   )
 
