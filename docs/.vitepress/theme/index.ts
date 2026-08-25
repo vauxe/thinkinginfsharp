@@ -56,6 +56,19 @@ function localizeNavigationLabels() {
       element.setAttribute('aria-label', label)
     }
   }
+  for (const shortcut of document.querySelectorAll('.DocSearch-Button-Keys')) {
+    shortcut.setAttribute('aria-hidden', 'true')
+    shortcut.closest('button')?.setAttribute(
+      'aria-keyshortcuts',
+      'Control+K Meta+K /'
+    )
+    const finalKey = shortcut.querySelector('.DocSearch-Button-Key:last-child')
+    if (finalKey) {
+      const key = finalKey.textContent?.trim()
+      if (key) finalKey.setAttribute('data-search-key', key)
+      finalKey.textContent = ''
+    }
+  }
 }
 
 const LocalizedLayout = defineComponent({

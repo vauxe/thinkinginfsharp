@@ -34,6 +34,10 @@ html[lang="zh-Hans"] {
   outline-offset: 3px;
 }
 
+.DocSearch-Button-Key[data-search-key]::after {
+  content: attr(data-search-key);
+}
+
 .vp-doc a {
   text-decoration: underline;
   text-underline-offset: 0.18em;
