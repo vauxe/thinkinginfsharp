@@ -16,7 +16,11 @@ export default defineConfig({
     ['link', { rel: 'icon', type: 'image/svg+xml', href: `${siteBase}favicon.svg` }]
   ],
   cleanUrls: true,
-  lastUpdated: true,
+  // Publish the English sources at the site root without mixing source directories.
+  // Source: https://github.com/vuejs/vitepress/blob/v1.6.4/docs/en/guide/routing.md#route-rewrites
+  rewrites: {
+    'en/:path*': ':path*'
+  },
   vite: {
     // Each locale's full-text index is one lazy-loaded chunk.
     build: { chunkSizeWarningLimit: 2300 }
@@ -26,20 +30,16 @@ export default defineConfig({
     theme: {
       light: 'github-light-high-contrast',
       dark: 'github-dark-high-contrast'
-    },
+    }
   },
   locales: {
-    zh: zhLocale,
-    en: enLocale
+    root: enLocale,
+    zh: zhLocale
   },
   themeConfig: {
     i18nRouting: true,
     // The build-time search plugin reads the root theme config. Each locale
     // replaces this object with its own translated options at render time.
-    search: { provider: 'local' },
-    langMenuLabel: 'Language',
-    skipToContentLabel: 'Skip to content',
-    returnToTopLabel: 'Return to top',
-    darkModeSwitchLabel: 'Appearance'
+    search: { provider: 'local' }
   }
 })

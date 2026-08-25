@@ -7,14 +7,14 @@ type Locale = 'en' | 'zh'
 const docsRoot = fileURLToPath(new URL('../../', import.meta.url))
 const partNumbers = [1, 2, 3, 4, 5, 6, 7]
 
+function partDirectory(number: number) {
+  return `part-${String(number).padStart(2, '0')}`
+}
+
 const labels = {
   en: {
-    home: 'Home',
     contents: 'Contents',
-    preface: 'Preface',
-    start: 'Start reading',
     reference: 'Reference',
-    solutions: 'Solutions',
     parts: [
       'Part I · Expressions and functions',
       'Part II · Modeling with types',
@@ -26,12 +26,8 @@ const labels = {
     ]
   },
   zh: {
-    home: '首页',
     contents: '目录',
-    preface: '前言',
-    start: '开始阅读',
     reference: '参考资料',
-    solutions: '练习答案',
     parts: [
       '第一部分 · 表达式与函数',
       '第二部分 · 用类型建立模型',
@@ -57,8 +53,9 @@ function titleOf(locale: Locale, path: string) {
 
 function route(locale: Locale, path: string) {
   const stem = path.slice(0, -'.md'.length)
-  if (stem === 'index') return `/${locale}/`
-  return `/${locale}/${stem.endsWith('/index') ? stem.slice(0, -'index'.length) : stem}`
+  const localeRoot = locale === 'en' ? '' : `/${locale}`
+  if (stem === 'index') return `${localeRoot}/`
+  return `${localeRoot}/${stem.endsWith('/index') ? stem.slice(0, -'index'.length) : stem}`
 }
 
 function item(locale: Locale, path: string) {
@@ -72,49 +69,53 @@ function pages(locale: Locale, directory: string) {
     .map((name) => item(locale, `${directory}/${name}`))
 }
 
-function createNavigation(locale: Locale) {
+function solutionPages(locale: Locale, partNumber: number) {
+  return readdirSync(join(docsRoot, locale, partDirectory(partNumber)))
+    .filter((name) => name.endsWith('.md'))
+    .sort()
+    .map((name) => item(locale, `solutions/${name}`))
+}
+
+function createSidebar(locale: Locale) {
   const text = labels[locale]
-  const home = item(locale, 'index.md')
-  const contents = item(locale, 'contents.md')
+  const localeRoot = locale === 'en' ? '' : `/${locale}`
+  const contents = { text: text.contents, link: route(locale, 'index.md') }
   const preface = item(locale, 'preface/index.md')
   const parts = partNumbers.map((number) => ({
     text: text.parts[number - 1],
     collapsed: true,
-    items: pages(locale, `part-${String(number).padStart(2, '0')}`)
+    items: pages(locale, partDirectory(number))
   }))
   const appendices = pages(locale, 'appendices')
   const glossary = item(locale, 'glossary.md')
+  const solutionsGuide = item(locale, 'appendices/g-solutions-guide.md')
   const reference = [...appendices.slice(0, 5), glossary, ...appendices.slice(5)]
   const bookSidebar = [
-    { text: text.start, items: [home, contents, preface] },
+    contents,
+    preface,
     ...parts,
     { text: text.reference, collapsed: true, items: reference }
   ]
-  const solutionsSidebar = [{
-    text: text.solutions,
-    items: [appendices[5], ...pages(locale, 'solutions')]
-  }]
+  const solutionsSidebar = [
+    solutionsGuide,
+    ...partNumbers.map((number) => ({
+      text: text.parts[number - 1],
+      collapsed: true,
+      items: solutionPages(locale, number)
+    }))
+  ]
   const bookPrefixes = [
-    `/${locale}/contents`,
-    `/${locale}/preface/`,
-    ...partNumbers.map((number) => `/${locale}/part-${String(number).padStart(2, '0')}/`),
-    `/${locale}/appendices/`,
-    `/${locale}/glossary`
+    `${localeRoot}/preface/`,
+    ...partNumbers.map((number) => `${localeRoot}/${partDirectory(number)}/`),
+    `${localeRoot}/appendices/`,
+    `${localeRoot}/glossary`
   ]
 
   return {
-    nav: [
-      { text: text.home, link: home.link },
-      { text: text.contents, link: contents.link },
-      { text: text.start, link: parts[0].items[0].link },
-      { text: text.reference, items: reference }
-    ],
-    sidebar: {
-      ...Object.fromEntries(bookPrefixes.map((prefix) => [prefix, bookSidebar])),
-      [`/${locale}/solutions/`]: solutionsSidebar
-    }
+    ...Object.fromEntries(bookPrefixes.map((prefix) => [prefix, bookSidebar])),
+    [`${localeRoot}/solutions/`]: solutionsSidebar
   }
 }
 
-export const enNavigation = createNavigation('en')
-export const zhNavigation = createNavigation('zh')
+export const enSidebar = createSidebar('en')
+export const zhSidebar = createSidebar('zh')

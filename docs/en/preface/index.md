@@ -34,7 +34,7 @@ This viewpoint does not forbid objects, mutation, exceptions, tasks, or .NET API
 
 ## Follow one clear learning path {#reading-routes}
 
-Use the [contents](../contents) as your map. Read Parts I–III in order: they establish expressions and functions, type-driven modeling, and composition. Continue with Part IV for effects and concurrency, Part V for .NET engineering, and Part VI for a complete workflow. Part VII is optional exploration after the language foundations are comfortable.
+Use the [contents](../) as your map. Read Parts I–III in order: they establish expressions and functions, type-driven modeling, and composition. Continue with Part IV for effects and concurrency, Part V for .NET engineering, and Part VI for a complete workflow. Part VII is optional exploration after the language foundations are comfortable.
 
 Do not skip a chapter merely because its syntax looks familiar. Stay when your prediction differs from the compiler or from the output you observe.
 

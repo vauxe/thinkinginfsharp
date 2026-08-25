@@ -7,8 +7,6 @@
   --vp-c-brand-3: #123767;
   --vp-code-lang-color: #555861;
   --vp-code-line-number-color: #555861;
-  --book-choice-bg: #f7f9fc;
-  --book-choice-border: #c7d2e3;
 }
 
 .dark {
@@ -17,8 +15,6 @@
   --vp-c-brand-3: #285188;
   --vp-code-lang-color: #b9c3d0;
   --vp-code-line-number-color: #b9c3d0;
-  --book-choice-bg: #20242b;
-  --book-choice-border: #465365;
 }
 
 html[lang="en"] {
@@ -37,49 +33,4 @@ html[lang="zh-Hans"] {
 .vp-doc a {
   text-decoration: underline;
   text-underline-offset: 0.18em;
-}
-
-.language-landing .VPPage {
-  max-width: 48rem;
-  padding: clamp(1.5rem, 5vw, 3rem) clamp(1.25rem, 5vw, 3rem) 4rem;
-  margin: 0 auto;
-}
-
-.language-choice {
-  display: grid;
-  gap: 1rem;
-  max-width: 44rem;
-  margin-top: 2rem;
-}
-
-.language-choice__item {
-  display: grid;
-  min-height: 5.5rem;
-  padding: 1rem 1.25rem;
-  color: var(--vp-c-text-1);
-  text-decoration: none;
-  background: var(--book-choice-bg);
-  border: 1px solid var(--book-choice-border);
-  border-radius: 0.5rem;
-}
-
-.language-choice__item:hover {
-  color: var(--vp-c-brand-1);
-  border-color: var(--vp-c-brand-1);
-}
-
-.language-choice__item strong {
-  align-self: end;
-  font-size: 1.125rem;
-}
-
-.language-choice__item span {
-  align-self: start;
-  color: var(--vp-c-text-2);
-}
-
-@media (min-width: 48rem) {
-  .language-choice {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }

@@ -1,4 +1,4 @@
-import { zhNavigation } from './navigation'
+import { zhSidebar } from './navigation'
 
 export const zhLocale = {
   label: '简体中文',
@@ -7,18 +7,18 @@ export const zhLocale = {
   title: 'F# 思维',
   description: '从 F# 语言本身出发，学习函数式建模与生产级 .NET 工程。',
   themeConfig: {
-    nav: zhNavigation.nav,
-    sidebar: zhNavigation.sidebar,
+    sidebar: zhSidebar,
     search: {
       provider: 'local',
       options: {
+        detailedView: false,
+        disableQueryPersistence: true,
         translations: {
           button: {
             buttonText: '搜索',
             buttonAriaLabel: '搜索本书'
           },
           modal: {
-            displayDetails: '显示详细结果',
             resetButtonTitle: '清空搜索',
             backButtonTitle: '关闭搜索',
             noResultsText: '没有找到',
@@ -35,9 +35,14 @@ export const zhLocale = {
         }
       }
     },
-    outline: { label: '本页目录', level: [2, 3] as [number, number] },
-    lastUpdated: { text: '最后更新' },
+    outline: { label: '本页目录', level: 2 },
     docFooter: { prev: '上一页', next: '下一页' },
+    notFound: {
+      title: '页面不存在',
+      quote: '地址可能有误，或者页面已移动。',
+      linkLabel: '返回本书目录',
+      linkText: '返回目录'
+    },
     darkModeSwitchLabel: '外观',
     lightModeSwitchTitle: '切换到浅色主题',
     darkModeSwitchTitle: '切换到深色主题',

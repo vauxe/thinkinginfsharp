@@ -27,7 +27,6 @@ function localizeThemeLabels() {
 
   if (isChinese) {
     const hiddenLabels: Record<string, string> = {
-      'Main Navigation': '主导航',
       'Sidebar Navigation': '侧边栏导航',
       Pager: '翻页导航'
     }
