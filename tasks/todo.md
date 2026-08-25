@@ -867,10 +867,10 @@
 
 ### R02 — 无上下文 F# 专家正确性审阅
 
-- [ ] **依赖：** C8。
+- [x] **依赖：** C8。
 - **主要文件（1）：** `reviews/fsharp-expert-review.md`；修复回派原任务。
 - **验收：** 新专家不依赖规划上下文审阅语言语义、惯用性、null、相等/比较、CE、异步/取消、互操作和项目；所有高/中问题闭环。
-- **验证：** 修复后 `pnpm test`，并由审阅者复核关闭状态。
+- **验证：** 无上下文专家 Bacon 初审得到 1 个高、2 个中、1 个低问题：RequestId 可产生不可回读 `Location`、catch-all 把程序缺陷伪装为可重试 503、Unity struct 测试自身装箱，以及正文固定测试总数漂移。`6d273c3` 用 URI unreserved/长度/点段领域契约、可保留 `InnerException` 的类型化依赖故障、精确取消分类和 `OpCodes.Box` IL 回归关闭前三项；`a43ed08` 从读者正文移除易漂移总数并保留聚焦 1/1。领域/API/适配器/一致性/Unity 聚焦测试分别 9/9、24/24、6/6、7/7、3/3，完整 ExampleTests 与 ContractTests 均 70/70；capstone、Fantomas、双语/内容门和 38/38 内容测试通过。同一专家两轮复核后给出最终 PASS，4 项全部 CLOSED，开放高/中/低均为 0；完整记录见 `reviews/fsharp-expert-review.md`。
 - **规模：** L。
 
 ### R03 — 中英文独立读者与语义对等审阅
