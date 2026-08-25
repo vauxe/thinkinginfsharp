@@ -8,11 +8,21 @@ import { fileURLToPath } from 'node:url'
 import { gzip as gzipCallback } from 'node:zlib'
 
 import { chromium } from 'playwright-core'
+import {
+  normalizeSiteBase,
+  stripSiteBase,
+  withSiteBase
+} from '../scripts/lib/site-base.mjs'
 
 const gzip = promisify(gzipCallback)
 const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 const repositoryRoot = resolve(scriptDirectory, '..')
 const distributionRoot = resolve(repositoryRoot, 'docs/.vitepress/dist')
+const siteBase = normalizeSiteBase(process.env.VITEPRESS_BASE)
+
+function siteRoute(route) {
+  return withSiteBase(siteBase, route)
+}
 
 const contentTypes = new Map([
   ['.css', 'text/css; charset=utf-8'],
@@ -68,13 +78,16 @@ async function resolveRequestPath(requestUrl) {
     return undefined
   }
 
-  const relativePath = pathname === '/' ? '' : pathname.replace(/^\/+/, '')
+  const route = stripSiteBase(siteBase, pathname)
+  if (route === undefined) return undefined
+
+  const relativePath = route === '/' ? '' : route.replace(/^\/+/, '')
   const exact = resolve(distributionRoot, relativePath)
   if (!isInside(distributionRoot, exact)) return undefined
 
-  const candidates = pathname === '/'
+  const candidates = route === '/'
     ? [resolve(distributionRoot, 'index.html')]
-    : pathname.endsWith('/')
+    : route.endsWith('/')
       ? [resolve(exact, 'index.html')]
       : [exact, `${exact}.html`, resolve(exact, 'index.html')]
 
@@ -160,7 +173,9 @@ function monitorRuntime(page) {
 }
 
 async function gotoRoute(page, origin, route) {
-  const response = await page.goto(`${origin}${route}`, { waitUntil: 'networkidle' })
+  const response = await page.goto(`${origin}${siteRoute(route)}`, {
+    waitUntil: 'networkidle'
+  })
   assert.equal(response?.status(), 200, `${route} did not return HTTP 200`)
 }
 
@@ -360,7 +375,8 @@ async function testSearch({
     await page.getByRole('button', { name: searchButtonName, exact: true }).click()
     const searchbox = page.getByRole('searchbox')
     await searchbox.fill(query)
-    const result = page.locator(`[role="listbox"] a[href="${target}"]`)
+    const deployedTarget = siteRoute(target)
+    const result = page.locator(`[role="listbox"] a[href="${deployedTarget}"]`)
     await result.waitFor()
 
     const indexes = await page.evaluate(() => performance.getEntriesByType('resource')
@@ -375,7 +391,7 @@ async function testSearch({
     assert(indexes.every(entry => entry.encodedBodySize > 0))
 
     await result.click()
-    await page.waitForURL(url => `${url.pathname}${url.hash}` === target)
+    await page.waitForURL(url => `${url.pathname}${url.hash}` === deployedTarget)
     assert(await page.locator(target.slice(target.indexOf('#'))).isVisible())
     await assertRuntimeClean(problems, `${route} search`)
   } finally {
@@ -406,13 +422,19 @@ test('production site supports both languages, browser interactions, keyboard us
         await assertNoPageOverflow(page, 'neutral root desktop')
         const choices = page.locator('.language-choice__item')
         assert.equal(await choices.count(), 2)
-        assert.equal(await choices.nth(0).getAttribute('href'), '/zh/')
+        assert.equal(
+          await choices.nth(0).evaluate(element => new URL(element.href).pathname),
+          siteRoute('/zh/')
+        )
         assert.equal(await choices.nth(0).getAttribute('lang'), 'zh-Hans')
-        assert.equal(await choices.nth(1).getAttribute('href'), '/en/')
+        assert.equal(
+          await choices.nth(1).evaluate(element => new URL(element.href).pathname),
+          siteRoute('/en/')
+        )
         assert.equal(await choices.nth(1).getAttribute('lang'), 'en')
 
         await choices.nth(1).click()
-        await page.waitForURL(`${origin}/en/`)
+        await page.waitForURL(`${origin}${siteRoute('/en/')}`)
         await assertSemanticStructure(page, 'en', /^Thinking in F#/u)
 
         const chapter = '/en/part-01/ch-03-functions-as-values'
@@ -451,7 +473,9 @@ test('production site supports both languages, browser interactions, keyboard us
           'nav[aria-labelledby="doc-outline-aria-label"] a[href="#partial-application"]'
         )
         await outlineAnchor.click()
-        await page.waitForURL(`${origin}${chapter}#partial-application`)
+        await page.waitForURL(
+          `${origin}${siteRoute(chapter)}#partial-application`
+        )
         assert(await page.locator('#partial-application').isVisible())
 
         const codeBlock = page.locator('.vp-doc div[class*="language-"]').first()
@@ -478,20 +502,27 @@ test('production site supports both languages, browser interactions, keyboard us
         const pager = page.getByRole('navigation', { name: 'Previous and next page' })
         assert.equal(
           await pager.getByRole('link', { name: /Previous/u }).getAttribute('href'),
-          '/en/part-01/ch-02-values-bindings-expressions'
+          siteRoute('/en/part-01/ch-02-values-bindings-expressions')
         )
         const next = pager.getByRole('link', { name: /Next/u })
-        assert.equal(await next.getAttribute('href'), '/en/part-01/ch-04-branching-patterns')
+        assert.equal(
+          await next.getAttribute('href'),
+          siteRoute('/en/part-01/ch-04-branching-patterns')
+        )
         await next.click()
-        await page.waitForURL(`${origin}/en/part-01/ch-04-branching-patterns`)
+        await page.waitForURL(
+          `${origin}${siteRoute('/en/part-01/ch-04-branching-patterns')}`
+        )
         await assertSemanticStructure(page, 'en', /^Chapter 4:/u)
 
         await gotoRoute(page, origin, chapter)
         await page.locator('.VPNavBarTranslations > button').click()
         await page.locator(
-          '.VPNavBarTranslations a[href="/zh/part-01/ch-03-functions-as-values"]'
+          `.VPNavBarTranslations a[href="${siteRoute('/zh/part-01/ch-03-functions-as-values')}"]`
         ).click()
-        await page.waitForURL(`${origin}/zh/part-01/ch-03-functions-as-values`)
+        await page.waitForURL(
+          `${origin}${siteRoute('/zh/part-01/ch-03-functions-as-values')}`
+        )
         await assertSemanticStructure(page, 'zh-Hans', /^第 3 章：函数也是值/u)
         await page.getByRole('navigation', { name: '主导航' }).waitFor()
         assert.equal(
@@ -503,9 +534,9 @@ test('production site supports both languages, browser interactions, keyboard us
 
         await page.locator('.VPNavBarTranslations > button').click()
         await page.locator(
-          '.VPNavBarTranslations a[href="/en/part-01/ch-03-functions-as-values"]'
+          `.VPNavBarTranslations a[href="${siteRoute('/en/part-01/ch-03-functions-as-values')}"]`
         ).click()
-        await page.waitForURL(`${origin}${chapter}`)
+        await page.waitForURL(`${origin}${siteRoute(chapter)}`)
         await assertSemanticStructure(page, 'en', /^Chapter 3:/u)
 
         await sampleContrast(page, 'light theme')

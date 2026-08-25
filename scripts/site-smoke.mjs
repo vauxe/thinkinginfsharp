@@ -8,6 +8,11 @@ import { dirname, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { buildNavigationModel } from './generate-navigation.mjs'
+import {
+  normalizeSiteBase,
+  stripSiteBase,
+  withSiteBase
+} from './lib/site-base.mjs'
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 const defaultDocsDir = resolve(scriptDirectory, '../docs')
@@ -121,14 +126,14 @@ export function findIndexedMatches(serializedIndex, query) {
     .sort()
 }
 
-function internalTargets(html, sourceRoute) {
+function internalTargets(html, sourceRoute, base) {
   const targets = []
   for (const match of html.matchAll(/\b(?:href|src)="([^"]+)"/g)) {
     const raw = decodeHtmlAttribute(match[1])
     if (/^(?:data:|mailto:|tel:|javascript:)/i.test(raw)) continue
     let url
     try {
-      url = new URL(raw, `${siteOrigin}${sourceRoute}`)
+      url = new URL(raw, `${siteOrigin}${withSiteBase(base, sourceRoute)}`)
     } catch {
       targets.push({ raw, invalid: true })
       continue
@@ -138,10 +143,13 @@ function internalTargets(html, sourceRoute) {
   return targets
 }
 
-function targetFile(distDir, pathname) {
+function targetFile(distDir, pathname, base) {
+  const route = stripSiteBase(base, pathname)
+  if (route === undefined) return undefined
+
   let decodedPath
   try {
-    decodedPath = decodeURIComponent(pathname)
+    decodedPath = decodeURIComponent(route)
   } catch {
     return undefined
   }
@@ -153,15 +161,15 @@ function targetFile(distDir, pathname) {
   ) {
     return undefined
   }
-  const candidates = pathname.endsWith('/')
+  const candidates = route.endsWith('/')
     ? [join(exact, 'index.html')]
     : [exact, `${exact}.html`, join(exact, 'index.html')]
   return candidates.find(isFile)
 }
 
-function htmlHasRoute(html, sourceRoute, expectedRoute) {
-  return internalTargets(html, sourceRoute).some(
-    ({ url }) => url?.pathname === expectedRoute
+function htmlHasRoute(html, sourceRoute, expectedRoute, base) {
+  return internalTargets(html, sourceRoute, base).some(
+    ({ url }) => url?.pathname === withSiteBase(base, expectedRoute)
   )
 }
 
@@ -202,12 +210,15 @@ async function loadSearchIndex(distDir, locale, errors) {
   }
 }
 
-function validateBookPages({ distDir, model, errors }) {
+function validateBookPages({ base, distDir, model, errors }) {
   const expectedRoutes = ['/', ...model.routePairs.flatMap(({ en, zh }) => [en, zh])]
   const rootHtml = isFile(routeToHtmlPath(distDir, '/'))
     ? readFileSync(routeToHtmlPath(distDir, '/'), 'utf8')
     : ''
-  if (!rootHtml.includes('href="/en/"') || !rootHtml.includes('href="/zh/"')) {
+  if (
+    !htmlHasRoute(rootHtml, '/', '/en/', base) ||
+    !htmlHasRoute(rootHtml, '/', '/zh/', base)
+  ) {
     errors.push('index.html: neutral landing page must link to both language editions')
   }
 
@@ -229,7 +240,7 @@ function validateBookPages({ distDir, model, errors }) {
       if (!html.includes(`aria-label="${searchLabel}"`)) {
         errors.push(`${route}: missing localized search control`)
       }
-      if (!htmlHasRoute(html, route, counterpart)) {
+      if (!htmlHasRoute(html, route, counterpart, base)) {
         errors.push(`${route}: missing same-page language route ${counterpart}`)
       }
 
@@ -242,7 +253,7 @@ function validateBookPages({ distDir, model, errors }) {
         if (!html.includes('title="Copy code / 复制代码"')) {
           errors.push(`${route}: code-copy control lacks the bilingual title`)
         }
-        if (!htmlHasRoute(html, route, solutionRoute)) {
+        if (!htmlHasRoute(html, route, solutionRoute, base)) {
           errors.push(`${route}: missing chapter-to-solution link ${solutionRoute}`)
         }
       }
@@ -252,7 +263,7 @@ function validateBookPages({ distDir, model, errors }) {
         const chapter = Number.parseInt(solutionMatch[3], 10)
         const part = String(expectedPart(chapter)).padStart(2, '0')
         const chapterRoute = `/${locale}/part-${part}/${solutionMatch[2]}`
-        if (!htmlHasRoute(html, route, chapterRoute)) {
+        if (!htmlHasRoute(html, route, chapterRoute, base)) {
           errors.push(`${route}: missing solution-to-chapter link ${chapterRoute}`)
         }
       }
@@ -262,7 +273,7 @@ function validateBookPages({ distDir, model, errors }) {
   return expectedRoutes
 }
 
-function validateInternalLinks({ distDir, errors }) {
+function validateInternalLinks({ base, distDir, errors }) {
   const htmlFiles = filesUnder(distDir, (path) => path.endsWith('.html'))
   const checked = new Set()
   const idCache = new Map()
@@ -271,7 +282,7 @@ function validateInternalLinks({ distDir, errors }) {
     if (path.endsWith(`${sep}404.html`)) continue
     const sourceRoute = routeFromHtmlPath(distDir, path)
     const html = readFileSync(path, 'utf8')
-    for (const target of internalTargets(html, sourceRoute)) {
+    for (const target of internalTargets(html, sourceRoute, base)) {
       const key = `${sourceRoute}\0${target.raw}`
       if (checked.has(key)) continue
       checked.add(key)
@@ -279,7 +290,7 @@ function validateInternalLinks({ distDir, errors }) {
         errors.push(`${sourceRoute}: invalid internal URL ${target.raw}`)
         continue
       }
-      const path = targetFile(distDir, target.url.pathname)
+      const path = targetFile(distDir, target.url.pathname, base)
       if (!path) {
         errors.push(`${sourceRoute}: missing target ${target.raw}`)
         continue
@@ -313,7 +324,7 @@ function validateInternalLinks({ distDir, errors }) {
   return { htmlFiles: htmlFiles.length, checkedLinks: checked.size }
 }
 
-async function validateSearch({ distDir, expectedRoutes, errors }) {
+async function validateSearch({ base, distDir, expectedRoutes, errors }) {
   const sectionCounts = {}
   const indexes = {}
   for (const locale of ['en', 'zh']) {
@@ -325,7 +336,8 @@ async function validateSearch({ distDir, expectedRoutes, errors }) {
     for (const route of expectedRoutes.filter((candidate) =>
       candidate.startsWith(`/${locale}/`)
     )) {
-      if (!ids.some((id) => id === route || id.startsWith(`${route}#`))) {
+      const indexedRoute = withSiteBase(base, route)
+      if (!ids.some((id) => id === indexedRoute || id.startsWith(`${indexedRoute}#`))) {
         errors.push(`search/${locale}: route is not indexed: ${route}`)
       }
     }
@@ -335,7 +347,8 @@ async function validateSearch({ distDir, expectedRoutes, errors }) {
     const index = indexes[expectation.locale]
     if (!index) continue
     const matches = findIndexedMatches(index, expectation.query)
-    if (!matches.some((id) => id.startsWith(expectation.route))) {
+    const expectedRoute = withSiteBase(base, expectation.route)
+    if (!matches.some((id) => id.startsWith(expectedRoute))) {
       errors.push(
         `search/${expectation.locale}: "${expectation.query}" cannot find ${expectation.route}`
       )
@@ -348,6 +361,7 @@ async function validateSearch({ distDir, expectedRoutes, errors }) {
 export async function auditSite(options = {}) {
   const docsDir = resolve(options.docsDir ?? defaultDocsDir)
   const distDir = resolve(options.distDir ?? defaultDistDir)
+  const base = normalizeSiteBase(options.base ?? process.env.VITEPRESS_BASE)
   const errors = []
   if (!isFile(join(distDir, 'index.html'))) {
     return {
@@ -357,9 +371,10 @@ export async function auditSite(options = {}) {
   }
 
   const model = buildNavigationModel({ docsDir })
-  const expectedRoutes = validateBookPages({ distDir, model, errors })
-  const linkStats = validateInternalLinks({ distDir, errors })
+  const expectedRoutes = validateBookPages({ base, distDir, model, errors })
+  const linkStats = validateInternalLinks({ base, distDir, errors })
   const sectionCounts = await validateSearch({
+    base,
     distDir,
     expectedRoutes,
     errors

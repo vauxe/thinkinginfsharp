@@ -5,6 +5,7 @@ import {
   assertPageFrontmatter,
   validateTerminology
 } from '../../../scripts/lib/content-contract.mjs'
+import { normalizeSiteBase } from '../../../scripts/lib/site-base.mjs'
 import { enLocale } from './en'
 import { zhLocale } from './zh'
 
@@ -55,15 +56,18 @@ if (terminologyErrors.length > 0) {
   )
 }
 
+const siteBase = normalizeSiteBase(process.env.VITEPRESS_BASE)
+
 // VitePress 1.6.4 resolves config/index.ts directly, which keeps each locale
 // small and independently reviewable.
 // Source: https://github.com/vuejs/vitepress/blob/v1.6.4/docs/en/guide/i18n.md
 export default defineConfig({
+  base: siteBase,
   title: 'F# 思维 / Thinking in F#',
   description: 'A bilingual, F#-first book for learning and mastering F#.',
   lang: 'en',
   head: [
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }]
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: `${siteBase}favicon.svg` }]
   ],
   cleanUrls: true,
   lastUpdated: true,

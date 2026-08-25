@@ -20,11 +20,11 @@ The Chinese and English editions are equivalent and independently complete; choo
 </p>
 
 <nav class="language-choice" aria-label="Language / 语言">
-  <a class="language-choice__item" href="/zh/" lang="zh-Hans">
+  <a class="language-choice__item" href="./zh/" lang="zh-Hans">
     <strong>简体中文</strong>
     <span>从表达式、类型和函数开始</span>
   </a>
-  <a class="language-choice__item" href="/en/" lang="en">
+  <a class="language-choice__item" href="./en/" lang="en">
     <strong>English</strong>
     <span>Start with expressions, types, and functions</span>
   </a>

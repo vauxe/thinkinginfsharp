@@ -21,7 +21,7 @@
     "check:capstone": "node scripts/check-capstone.mjs",
     "check:site": "node scripts/site-smoke.mjs",
     "check:browser": "node --test tests/site-browser.test.mjs",
-    "test:content": "node --test scripts/content-contract.test.mjs scripts/markdown.test.mjs scripts/content-checks.test.mjs scripts/example-checks.test.mjs scripts/glossary.test.mjs scripts/solutions-guide.test.mjs scripts/navigation.test.mjs scripts/site-smoke.test.mjs",
+    "test:content": "node --test scripts/content-contract.test.mjs scripts/markdown.test.mjs scripts/content-checks.test.mjs scripts/example-checks.test.mjs scripts/glossary.test.mjs scripts/solutions-guide.test.mjs scripts/navigation.test.mjs scripts/site-base.test.mjs scripts/site-smoke.test.mjs",
     "test": "pnpm test:content && pnpm check:parity && pnpm check:content && pnpm check:examples && pnpm build && pnpm check:site && pnpm check:browser"
   },
   "engines": {
