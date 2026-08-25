@@ -435,6 +435,12 @@
       "sources": [
         "examples/chapters/ch31/Benchmarks.fs",
         "examples/chapters/ch31/Program.fs"
+      ],
+      "runArguments": [
+        "--verify-only"
+      ],
+      "expectedOutput": [
+        "Functional equivalence: 260 cases passed"
       ]
     },
     {

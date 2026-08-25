@@ -32,11 +32,17 @@ function writeManifest(root, entries) {
   )
 }
 
-function project({ target = 'net10.0', testProject = false, source }) {
+function project({
+  target = 'net10.0',
+  testProject = false,
+  executable = false,
+  source
+}) {
   return `<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>${target}</TargetFramework>
     ${testProject ? '<IsTestProject>true</IsTestProject>' : ''}
+    ${executable ? '<OutputType>Exe</OutputType>' : ''}
   </PropertyGroup>
   <ItemGroup><Compile Include="${source}" /></ItemGroup>
 </Project>\n`
@@ -55,7 +61,7 @@ function writeCompleteFixture(root) {
     `<Solution>\n${projectPaths.map((path) => `  <Project Path="${path}" />`).join('\n')}\n</Solution>\n`
   )
 
-  write(root, projectPaths[0], project({ source: 'Library.fs' }))
+  write(root, projectPaths[0], project({ executable: true, source: 'Library.fs' }))
   write(root, 'examples/compiled/Library.fs', 'module Compiled\nlet answer = 42\n')
   write(root, projectPaths[1], project({ testProject: true, source: 'Tests.fs' }))
   write(root, 'tests/Tests/Tests.fs', 'module Tests\n')
@@ -86,7 +92,9 @@ function writeCompleteFixture(root) {
       id: 'compiled-example',
       kind: 'compile',
       path: projectPaths[0],
-      sources: ['examples/compiled/Library.fs']
+      sources: ['examples/compiled/Library.fs'],
+      runArguments: ['--verify-only'],
+      expectedOutput: ['verification passed']
     },
     {
       id: 'contract-tests',
@@ -143,6 +151,9 @@ test('supports all seven kinds and executes their required checks', (t) => {
     if (invocation.includes('hello.fsx')) {
       return { status: 0, stdout: 'answer: 42\n', stderr: '' }
     }
+    if (invocation.includes('--verify-only')) {
+      return { status: 0, stdout: 'verification passed\n', stderr: '' }
+    }
     return { status: 0, stdout: '', stderr: '' }
   }
 
@@ -151,10 +162,43 @@ test('supports all seven kinds and executes their required checks', (t) => {
   assert.ok(calls.some((call) => call.includes('build')))
   assert.ok(calls.some((call) => call.includes('test')))
   assert.ok(
+    calls.some((call) => call.includes('run') && call.includes('--verify-only'))
+  )
+  assert.ok(
     calls.some((call) => call.some((part) => part.endsWith('/hello.fsx')))
   )
   assert.ok(
     calls.some((call) => call.some((part) => part.endsWith('/type-mismatch.fsx')))
+  )
+})
+
+test('project execution requires an executable and expected output', (t) => {
+  const root = createFixture(t)
+  const projectPath = 'examples/compiled/Compiled.fsproj'
+  write(
+    root,
+    'ThinkingInFSharp.slnx',
+    `<Solution>\n  <Project Path="${projectPath}" />\n</Solution>\n`
+  )
+  write(root, projectPath, project({ source: 'Library.fs' }))
+  write(root, 'examples/compiled/Library.fs', 'module Compiled\nlet answer = 42\n')
+  writeManifest(root, [
+    {
+      id: 'compiled-example',
+      kind: 'compile',
+      path: projectPath,
+      sources: ['examples/compiled/Library.fs'],
+      runArguments: ['--verify-only']
+    }
+  ])
+
+  const errors = checkExamples({ repoRoot: root })
+
+  assert.ok(
+    errors.some((error) => error.includes('expectedOutput must be a non-empty array'))
+  )
+  assert.ok(
+    errors.some((error) => error.includes('must set OutputType to Exe'))
   )
 })
 

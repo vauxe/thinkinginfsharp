@@ -51,6 +51,7 @@ This project is simultaneously a book, a body of executable evidence, and a serv
 
 - 可执行脚本列出有顺序的 `expectedOutput`；
 - 编译或测试项目列出真正参与编译的源文件；
+- 需要行为证据的可执行 `compile` 项目列出非空 `runArguments` 和有顺序的 `expectedOutput`；参数直接传给进程，不经过 shell；
 - 预期失败必须声明诊断号，且命令必须真正失败；
 - “仅用于说明”的代码必须显式登记为 `illustrative`，不冒充编译证据。
 
@@ -116,7 +117,7 @@ The executable contract lives in `scripts/lib/content-contract.mjs`, `check-pari
 
 ### 5. Back code with executable evidence
 
-Shared prose code uses `<<< @/../examples/...`; do not copy separate implementations into the two editions. Register all code under `examples` and `tests` in `examples/manifest.json`. Scripts declare ordered output, projects name sources actually compiled, expected errors declare diagnostics and really fail, and explanatory-only code is explicitly `illustrative` rather than presented as compiled evidence.
+Shared prose code uses `<<< @/../examples/...`; do not copy separate implementations into the two editions. Register all code under `examples` and `tests` in `examples/manifest.json`. Scripts declare ordered output; projects name sources actually compiled; executable `compile` entries that need behavioral evidence declare non-empty `runArguments` and ordered `expectedOutput`, passed directly without a shell; expected errors declare diagnostics and really fail; explanatory-only code is explicitly `illustrative` rather than presented as compiled evidence.
 
 Do not commit `bin`, `obj`, `dist`, Fable `generated`, secrets, or local environment files. Local services bind to `127.0.0.1` by default. Never expose an authentication-disabled teaching endpoint to a LAN or public interface.
 

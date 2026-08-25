@@ -1,6 +1,8 @@
 {
   "schemaVersion": 1,
   "capturedAt": "2026-08-24",
+  "sourceCommit": "fd009c2ffe664d0c7dad12416ace00d6e9e9fad2",
+  "command": "dotnet run --project examples/chapters/ch31/Ch31.Benchmarks.fsproj --configuration Release --no-restore",
   "scope": "RequestAggregation.arrayPipeline versus RequestAggregation.singlePass only",
   "tool": {
     "name": "BenchmarkDotNet",

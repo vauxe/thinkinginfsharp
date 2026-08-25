@@ -362,11 +362,32 @@ function parseManifest({ repoRoot, manifestPath }) {
       }
     }
 
+    const hasRunArguments = rawEntry.runArguments !== undefined
+    const runArguments = hasRunArguments
+      ? stringArray(
+          rawEntry.runArguments,
+          `${fieldPrefix}.runArguments`,
+          manifestLabel,
+          errors,
+          { required: true }
+        )
+      : []
+    let expectedOutput = []
+
+    if (hasRunArguments && kind !== 'compile') {
+      errors.push(
+        manifestDiagnostic(
+          manifestLabel,
+          `${fieldPrefix}.runArguments is only supported for compile entries`
+        )
+      )
+    }
+
     if (path && kind === 'script') {
       if (extname(path) !== '.fsx') {
         errors.push(manifestDiagnostic(manifestLabel, `${fieldPrefix}.path must be an .fsx file for script entries`))
       }
-      stringArray(rawEntry.expectedOutput, `${fieldPrefix}.expectedOutput`, manifestLabel, errors, {
+      expectedOutput = stringArray(rawEntry.expectedOutput, `${fieldPrefix}.expectedOutput`, manifestLabel, errors, {
         required: true
       })
     }
@@ -389,6 +410,26 @@ function parseManifest({ repoRoot, manifestPath }) {
         manifestLabel,
         errors
       })
+      if (hasRunArguments && kind === 'compile') {
+        expectedOutput = stringArray(
+          rawEntry.expectedOutput,
+          `${fieldPrefix}.expectedOutput`,
+          manifestLabel,
+          errors,
+          { required: true }
+        )
+        if (
+          projectSource !== undefined &&
+          !/<OutputType>\s*Exe\s*<\/OutputType>/i.test(projectSource)
+        ) {
+          errors.push(
+            manifestDiagnostic(
+              manifestLabel,
+              `${path} must set OutputType to Exe when runArguments are present`
+            )
+          )
+        }
+      }
       if (
         projectSource !== undefined &&
         (kind === 'test' || kind === 'contract') &&
@@ -431,6 +472,19 @@ function parseManifest({ repoRoot, manifestPath }) {
           }
         }
       }
+    }
+
+    if (
+      rawEntry.expectedOutput !== undefined &&
+      kind !== 'script' &&
+      !(kind === 'compile' && hasRunArguments)
+    ) {
+      errors.push(
+        manifestDiagnostic(
+          manifestLabel,
+          `${fieldPrefix}.expectedOutput requires a script or executable compile entry`
+        )
+      )
     }
 
     if (path && kind === 'expected-error') {
@@ -526,7 +580,7 @@ function parseManifest({ repoRoot, manifestPath }) {
       errors.push(manifestDiagnostic(manifestLabel, `${fieldPrefix}.path must be inside examples/`))
     }
 
-    entries.push({ ...rawEntry, id, kind, path, sources })
+    entries.push({ ...rawEntry, id, kind, path, sources, runArguments, expectedOutput })
   }
 
   const registeredCode = new Set()
@@ -565,6 +619,23 @@ function processFailure(label, result) {
   const output = `${result.stdout ?? ''}${result.stderr ?? ''}`.trim()
   const suffix = output ? `\n${output.slice(-4000)}` : ''
   return `${label}: command exited with status ${String(result.status)}${suffix}`
+}
+
+function checkExpectedOutput(label, result, expectedOutput, errors) {
+  if (result.error || result.status !== 0) return
+
+  const output = String(result.stdout ?? '')
+  let searchFrom = 0
+  for (const expected of expectedOutput) {
+    const index = output.indexOf(expected, searchFrom)
+    if (index >= 0) {
+      searchFrom = index + expected.length
+    } else if (output.includes(expected)) {
+      errors.push(`${label}: expected output appears out of order ${JSON.stringify(expected)}`)
+    } else {
+      errors.push(`${label}: missing expected output ${JSON.stringify(expected)}`)
+    }
+  }
 }
 
 export function runExampleChecks({ runner = spawnSync, ...options } = {}) {
@@ -618,24 +689,25 @@ export function runExampleChecks({ runner = spawnSync, ...options } = {}) {
     }
   }
 
+  for (const entry of parsed.entries.filter(
+    ({ kind, runArguments }) => kind === 'compile' && runArguments.length > 0
+  )) {
+    const result = run(entry.path, [
+      'run',
+      '--project',
+      entry.path,
+      '--configuration',
+      'Release',
+      '--no-build',
+      '--',
+      ...entry.runArguments
+    ])
+    checkExpectedOutput(entry.path, result, entry.expectedOutput, errors)
+  }
+
   for (const entry of parsed.entries.filter(({ kind }) => kind === 'script')) {
     const result = run(entry.path, ['fsi', '--exec', entry.path])
-    if (!result.error && result.status === 0) {
-      const output = String(result.stdout ?? '')
-      let searchFrom = 0
-      for (const expected of entry.expectedOutput) {
-        const index = output.indexOf(expected, searchFrom)
-        if (index >= 0) {
-          searchFrom = index + expected.length
-        } else if (output.includes(expected)) {
-          errors.push(
-            `${entry.path}: expected output appears out of order ${JSON.stringify(expected)}`
-          )
-        } else {
-          errors.push(`${entry.path}: missing expected output ${JSON.stringify(expected)}`)
-        }
-      }
-    }
+    checkExpectedOutput(entry.path, result, entry.expectedOutput, errors)
   }
 
   for (const entry of parsed.entries.filter(({ kind }) => kind === 'expected-error')) {

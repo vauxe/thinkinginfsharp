@@ -519,7 +519,7 @@ module Reservation =
 | 分类 | 要求 |
 | --- | --- |
 | `script` | `dotnet fsi --exec` 成功并验证关键输出 |
-| `compile` | 属于解决方案，Release 构建无警告 |
+| `compile` | 属于解决方案，Release 构建无警告；需要行为证据的可执行项目还要用参数数组运行并验证有序输出 |
 | `test` | 由 `dotnet test` 验证行为和边界 |
 | `contract` | 验证 DTO/JSON 往返、F#/C# 互操作或其他跨边界稳定表示 |
 | `unity-plugin` | 以 `netstandard2.1` 构建并包含 `FSharp.Core` 装配说明；Unity 导入与 Player 构建结果单独记录 |
