@@ -843,10 +843,10 @@
 
 ### S04 — 贡献、版本矩阵与人工验证模板
 
-- [ ] **依赖：** S03。
+- [x] **依赖：** S03。
 - **主要文件（≤5）：** `README.md`、`CONTRIBUTING.md`、`docs/version-matrix.md`、`reviews/review-template.md`、`reviews/unity-validation.md`。
 - **验收：** 从零运行、内容编辑、双语规则、来源复核、版本升级和人工检查步骤可复现；Unity 记录只填真实结果，未执行状态明确。
-- **验证：** 新读者按 README 完成冻结安装、检查和预览；链接/命令检查通过。
+- **验证：** 新增五份各自可由单语读者使用的双语文档：README 给出从零冻结安装、日常编辑、完整发布命令和仓库地图；贡献指南把中英独立完整、frontmatter/锚点/示例合同、F# 优先教学、引用、版本与安全边界写成可执行规则；版本矩阵严格区分锁定基线、最低要求、2026-08-25 实测环境和人工目标，并给出升级、全量验证与成对回退步骤；审阅模板要求所有项目显式使用 `passed`、`failed`、`not run` 或 `not applicable`，记录范围、抽样、证据、严重度和残余风险。Unity 记录中 .NET Release 构建、纯逻辑/API 测试和相邻 DLL 检查来自实际退出码 0 的示例门禁；由于本机不存在 `/Applications/Unity/Hub/Editor`，Editor 导入、C# adapter、Play Mode、macOS ARM64 IL2CPP Player 构建与启动五项保持 `not run`，并附精确人工复现协议。按 README 实际执行 `pnpm install --frozen-lockfile`（pnpm 11.7.0，锁文件未变）、`dotnet tool restore`、`env CI=true pnpm test`、`dotnet fantomas . --check` 与 `pnpm check:capstone`；完整测试通过 36/36 内容单测、双语/内容/示例/Fable 门禁和生产构建，capstone 的放置、重放、确认、读取与无密钥诊断通过。Fantomas 首次发现的三个既有格式问题已在 `84bb138` 机械修复，随后全仓检查通过。最终站点冒烟覆盖 201 个书页、203 个 HTML、17,287 个内部链接/锚点、中英各 1,757 个搜索分段及四个代表查询；仓库文档 11 个相对链接目标通过。`pnpm preview --host 127.0.0.1 --port 4173` 启动后，根页、`/zh/`、`/en/` 和 `/version-matrix` 均返回 HTTP 200，随后关闭服务。
 - **规模：** M。
 
 ### C8 — 全站装配检查点
