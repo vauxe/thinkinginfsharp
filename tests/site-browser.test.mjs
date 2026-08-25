@@ -186,6 +186,13 @@ async function assertSemanticStructure(page, expectedLang, h1Pattern) {
     lang => document.documentElement.lang === lang,
     expectedLang
   )
+  await page.waitForFunction(
+    ({ source, flags }) => {
+      const heading = document.querySelector('h1')?.innerText.trim() ?? ''
+      return new RegExp(source, flags).test(heading)
+    },
+    { source: h1Pattern.source, flags: h1Pattern.flags }
+  )
   assert.equal(await page.locator('html').getAttribute('lang'), expectedLang)
   assert.equal(await page.locator('main').count(), 1, 'The page must expose one main landmark.')
   assert.equal(await page.locator('h1').count(), 1, 'The page must expose one h1.')
