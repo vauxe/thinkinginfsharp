@@ -47,8 +47,26 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Verify and build
-        run: pnpm test
+      - name: Test content contracts
+        run: pnpm test:content
+
+      - name: Check bilingual parity
+        run: pnpm check:parity
+
+      - name: Check generated content
+        run: pnpm check:content
+
+      - name: Check executable examples
+        run: pnpm check:examples
+
+      - name: Build project site
+        run: pnpm build
+
+      - name: Audit project site
+        run: pnpm check:site
+
+      - name: Test project site in Chrome
+        run: pnpm check:browser
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
