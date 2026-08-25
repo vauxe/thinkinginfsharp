@@ -56,8 +56,11 @@ jobs:
       - name: Check generated content
         run: pnpm check:content
 
-      - name: Check executable examples
-        run: pnpm check:examples
+      - name: Check .NET and F# examples
+        run: node scripts/check-examples.mjs
+
+      - name: Check Fable browser sample
+        run: pnpm check:fable
 
       - name: Build project site
         run: pnpm build

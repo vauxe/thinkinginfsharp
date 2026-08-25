@@ -21,9 +21,14 @@ test('deploys the verified project-site build through GitHub Pages', () => {
   assert.equal(build.permissions.pages, 'write')
   const installIndex = buildSteps.findIndex(step => step.name === 'Install dependencies')
   const configureIndex = buildSteps.findIndex(step => step.name === 'Configure GitHub Pages')
+  const expectedGate = packageJson.scripts.test
+    .split(' && ')
+    .flatMap(command => command === 'pnpm check:examples'
+      ? packageJson.scripts['check:examples'].split(' && ')
+      : command)
   assert.deepEqual(
     buildSteps.slice(installIndex + 1, configureIndex).map(step => step.run),
-    packageJson.scripts.test.split(' && ')
+    expectedGate
   )
   assert.equal(
     buildSteps.find(step => step.uses === 'actions/upload-pages-artifact@v4').with.path,
