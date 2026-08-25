@@ -127,7 +127,7 @@ When a signature feels dense, name each input and intermediate result instead of
 
 ## Understand the version and evidence boundary {#version-scope}
 
-The repository sets `<LangVersion>10.0</LangVersion>`, normally targets `net10.0`, and records SDK `10.0.301` as its reproducibility baseline. Its `global.json` uses `latestPatch`, so SDK selection may move only to an installed patch in the same `10.0.3xx` feature band. That baseline establishes the compiler behavior reported by the book; it is not a claim that `10.0.301` remains the newest security-servicing release.
+The repository sets `<LangVersion>10.0</LangVersion>`, normally targets `net10.0`, and selects SDK `10.0.301` exactly. This keeps SDK-provided dependencies aligned with committed lock files and establishes the compiler behavior reported by the book; it is not a claim that `10.0.301` remains the newest security-servicing release.
 
 Use a currently supported patched SDK and runtime for deployed software, and rerun the evidence after upgrading. Most examples target .NET 10; the Unity library deliberately targets `netstandard2.1` for that host boundary, and editor/player results remain separately recorded manual evidence.
 

@@ -20,7 +20,7 @@ This is an **evidence-boundary table**, not a promise that every later version i
 
 | 组件 / Component | 状态 / Status | 本仓库的值 / Repository value | 权威位置与边界 / Authority and boundary |
 | --- | --- | --- | --- |
-| .NET SDK | 锁定基线 / locked baseline | `10.0.301`, `latestPatch`, no prerelease | `global.json`；只允许同一特征带的后续补丁，不自动跨特征带 |
+| .NET SDK | 锁定基线 / locked baseline | exactly `10.0.301`, no prerelease | `global.json` uses `rollForward: disable` so SDK-provided dependencies stay aligned with committed lock files |
 | F# language | 锁定基线 / locked baseline | `10.0` | `Directory.Build.props` 的 F# 项目 `LangVersion`；不是“编译器默认值” |
 | FSharp.Core | 解析结果 / resolved input | 通常 / normally `10.1.301` | 各项目的 `packages.lock.json`；Unity 插件还在项目文件中显式锁定 |
 | Node.js | 最低要求 / minimum requirement | `>=22.0.0` | `package.json#engines`；实测版本见下表 |
@@ -45,15 +45,15 @@ These versions prove only the corresponding focused samples. They are not certif
 | --- | --- | --- | --- |
 | Fable browser | `Fable.Core 5.2.0`, `Fable.Browser.Dom 2.20.0`, `Vite 6.4.3` | F#→JS Release build and DOM smoke | 浏览器矩阵、生产 CDN、SSR |
 | Avalonia desktop | `Avalonia 12.1.1` | Restore, Release compile, targeted tests | 原生窗口的逐平台人工交互 |
-| .NET Aspire | `Aspire.AppHost.Sdk 13.5.2` and locked packages | AppHost/sample compilation | 云账号、部署、托管服务可用性 |
+| .NET Aspire | `Aspire.AppHost.Sdk 13.5.2`, `Aspire.Cli 13.5.2` via `DnxPinned` | Optional AppHost/sample compilation; excluded from the site gate | 云账号、部署、托管服务可用性 |
 | Data | `FSharp.Data 8.2.0` | Locked compile and sample/test behavior | 外部数据源长期可用性与任意 schema |
 | Benchmarking | `BenchmarkDotNet 0.15.8` | Benchmark project compilation | 一次普通 CI 构建不是可靠性能结论 |
 | Unity managed plug-in | `netstandard2.1`, `FSharp.Core 10.1.301` | Release DLL build, pure transition tests, assembly/dependency checks | Editor import, C# adapter, Play Mode, IL2CPP and Player launch |
 | Unity environment | `6000.3.22f1` | 人工目标 / manual target only | 本工作区没有 Unity；所有 Unity 环境检查均为 `not run` |
 
-Unity 的可审计状态和复现实验步骤记录在 `reviews/unity-validation.md`。自动化构建出两个 DLL 不能替代 Unity Editor 或 Player 的结果。
+自动化构建出托管 DLL 不能替代 Unity Editor、IL2CPP 或 Player 运行结果；这些平台检查在本仓库中均未执行。
 
-The auditable Unity status and reproduction procedure live in `reviews/unity-validation.md`. Producing the two DLLs in automation cannot substitute for Unity Editor or Player evidence.
+Producing managed DLLs in automation cannot substitute for Unity Editor, IL2CPP, or Player execution; those platform checks were not run in this repository.
 
 ## 2026-08-25 实测环境 / Observed environment
 
@@ -79,16 +79,16 @@ Run from the repository root:
 
 ```console
 pnpm install --frozen-lockfile
-dotnet tool restore
-dotnet restore ThinkingInFSharp.slnx --locked-mode
 pnpm test
+pnpm check:examples
+dotnet tool restore
 dotnet fantomas . --check
 pnpm check:capstone
 ```
 
-`--frozen-lockfile` 与 `--locked-mode` 的意义是：当声明与锁文件不一致时失败，而不是现场选择新依赖。`pnpm test` 已包含书稿契约、示例、Fable、站点构建、内部链接与搜索检查；capstone 独立运行，因为它会临时启动本地 HTTP 进程。
+`pnpm test` 只验证静态书站。`pnpm check:examples` 另行执行 .NET 锁定还原、示例、测试和 Fable 浏览器切片；`check:capstone` 独立运行，因为它会临时启动本地 HTTP 进程。这样，发布书站不依赖任何生态框架，同时仍可按需验证正文引用的代码。
 
-The two lock-enforcing flags fail when declarations and lock files disagree instead of selecting new dependencies during verification. `pnpm test` includes book contracts, examples, Fable, site generation, internal links, and search checks. The capstone stays separate because it starts a temporary local HTTP process.
+`pnpm test` validates only the static book. `pnpm check:examples` separately runs locked .NET restore, samples, tests, and the Fable browser slice; `check:capstone` stays separate because it starts a temporary local HTTP process. Publishing the book therefore depends on no ecosystem framework, while its referenced code can still be verified on demand.
 
 ## 升级协议 / Upgrade protocol
 
@@ -97,18 +97,18 @@ The two lock-enforcing flags fail when declarations and lock files disagree inst
 1. **选择候选。** 从官方发行说明、支持策略或包元数据选择一个精确版本；记录复核日期，不使用无界的 `latest`。
 2. **更新权威输入。** 根据组件修改 `global.json`、`package.json`、`.config/dotnet-tools.json` 或项目文件；让包管理器正常更新相应锁文件，不手工拼接锁文件。
 3. **检查解析结果。** 执行冻结的 pnpm 安装和 .NET locked restore，确认没有意外的特征带、预发布包、重复 `FSharp.Core` 或平台目标变化。
-4. **扩大验证。** 依次运行内容测试、双语/内容门禁、示例、Fantomas、站点构建与冒烟、capstone。版本影响浏览器、桌面、Unity 或云边界时，还要使用相应人工记录。
+4. **扩大验证。** 依次运行静态书门禁、示例、Fantomas 和 capstone。版本影响浏览器、桌面、Unity 或云边界时，只陈述实际运行过的平台结果。
 5. **更新书稿。** 同步两种语言的 `verifiedWith`、版本说明、限制和来源复核日期；只有实际重新阅读或运行后才能更新日期或状态。
-6. **记录与回退。** 在审阅记录中写候选版本、命令、环境、失败与残余风险。失败时回退声明和它生成的锁文件；不要保留一个未经证明的半升级状态。
+6. **记录与回退。** 在提交或变更说明中写候选版本、命令、环境、失败与残余风险。失败时回退声明和它生成的锁文件；不要保留未经证明的半升级状态。
 
 Every upgrade must be a reversible change that explains its evidence boundary:
 
 1. **Select an exact candidate** from official release notes, support policy, or package metadata; record the review date and avoid an unbounded `latest`.
 2. **Change the authoritative input**—`global.json`, `package.json`, `.config/dotnet-tools.json`, or a project file—and let the package manager regenerate the relevant lock data.
 3. **Inspect resolution** with a frozen pnpm install and locked .NET restore. Reject unintended feature-band, prerelease, duplicate FSharp.Core, or target-framework changes.
-4. **Widen verification** through content tests, bilingual/content gates, examples, Fantomas, site build/smoke, and capstone. Add the relevant manual record when browser, desktop, Unity, or cloud boundaries change.
+4. **Widen verification** through the static-book gate, examples, Fantomas, and capstone. When browser, desktop, Unity, or cloud boundaries change, claim only platform results that were actually run.
 5. **Update both editions**: `verifiedWith`, version wording, limitations, and source review dates. Change a date or status only after the review or run actually happened.
-6. **Record and roll back** the candidate, commands, environment, failures, and residual risk. Revert declarations and their generated lock files on failure; do not retain an unproved half-upgrade.
+6. **Record and roll back** the candidate, commands, environment, failures, and residual risk in the commit or change description. Revert declarations and generated lock files on failure; do not retain an unproved half-upgrade.
 
 ## 权威入口 / Primary references
 

@@ -229,13 +229,13 @@ When suppressing a warning, scope the suppression narrowly and record why the fl
 
 | Layer | Repository evidence | What remains outside it |
 |---|---|---|
-| SDK selection | `global.json` selects 10.0.301 with `latestPatch` | Exact host runtime and installed patch may differ |
+| SDK selection | `global.json` selects exactly 10.0.301 | Host runtime and operating system still differ |
 | Direct and transitive packages | `PackageReference` plus committed `packages.lock.json` | Feed availability and external credentials |
 | Local tools | `.config/dotnet-tools.json` pins Fantomas 7.0.5 | Host runtime capable of running the tool |
 | Compiler outputs | `Deterministic=true` with the same inputs | OS-specific native assets, paths, timestamps outside compiler control |
 | Behavior | tests and example-output assertions | Unmodelled external services and machine state |
 
-`latestPatch` deliberately permits a later servicing patch in the same SDK feature band; it is a security/maintenance tradeoff, not byte-for-byte SDK identity. Record `dotnet --info` when investigating an environment-specific failure.
+Exact SDK selection keeps SDK-provided dependencies aligned with package locks. It does not freeze the operating system, runtime used by deployed software, package feeds, or local caches. Upgrade the SDK deliberately and record `dotnet --info` when investigating an environment-specific failure.
 
 A PackageReference such as `Version="3.4.0"` alone can permit resolution behavior beyond one transitive graph. The lock file records resolved versions and content hashes. `dotnet restore --locked-mode` uses that graph or fails when project dependencies and lock file disagree; it does not silently rewrite the contract.
 

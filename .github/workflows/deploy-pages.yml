@@ -39,37 +39,11 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - name: Install .NET SDK
-        uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: 10.0.301
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Test content contracts
-        run: pnpm test:content
-
-      - name: Check bilingual parity
-        run: pnpm check:parity
-
-      - name: Check generated content
-        run: pnpm check:content
-
-      - name: Check .NET and F# examples
-        run: node scripts/check-examples.mjs
-
-      - name: Check Fable browser sample
-        run: pnpm check:fable
-
-      - name: Build project site
-        run: pnpm build
-
-      - name: Audit project site
-        run: pnpm check:site
-
-      - name: Test project site in Chrome
-        run: pnpm check:browser
+      - name: Verify static book
+        run: pnpm test
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5

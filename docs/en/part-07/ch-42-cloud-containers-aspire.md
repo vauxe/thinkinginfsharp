@@ -172,7 +172,7 @@ The two probe paths are separate even though their current implementations are b
 
 The AppHost SDK is pinned to 13.5.2 and targets .NET 10. Its project reference points to the F# service. Aspire generates the `Projects.CloudService` metadata type from that reference; the service does not become C# and does not reference the AppHost.
 
-The project currently retains the package-provided orchestration assets and suppresses only `ASPIRE010`, the warning about migration toward the Aspire CLI bundle. That is a dated repository choice, not timeless guidance. It keeps the checked path independent of a global CLI, but the platform-specific locked graph must be revisited when the repository adopts a pinned CLI workflow or the old path is removed.
+The project opts into the Aspire CLI bundle and selects `DnxPinned`. The SDK therefore resolves the matching `Aspire.Cli@13.5.2` instead of adding host-specific Dashboard and orchestration packages to the AppHost lock file. No global CLI install is required, but first use needs the package source or a populated cache. This is an optional ecosystem sample, not a dependency of the book site.
 
 <<< @/../examples/ecosystem/cloud/AppHost/Program.cs{csharp:line-numbers} [AppHost Program.cs]
 
@@ -359,7 +359,7 @@ Current Aspire deployment is pipeline-based. A deployment target or compute envi
 - `aspire deploy` evaluates the model, resolves parameters, generates target output, and applies it directly.
 - `aspire do <step>` invokes named pipeline steps when CI/CD needs a split flow.
 
-These commands require an appropriate current CLI and target integrations. The local cloud sample uses neither a deployment target nor the CLI, so it cannot publish Docker Compose, Kubernetes, Azure, or another environment from Aspire. The AppHost build is only a local application-model and orchestration check.
+These commands require an appropriate CLI and target integrations. The local cloud sample uses the pinned CLI bundle for development orchestration, but configures no deployment target and runs no publish or deploy command. Its AppHost build is only a local application-model and orchestration check.
 
 ### Environment is not execution mode {#environment-execution-mode}
 
@@ -415,7 +415,7 @@ Emulators and local orchestrators are useful but not authoritative. Provider con
 | FSharp.Core | 10.1.301 | Cloud service lock and build |
 | Aspire.AppHost.Sdk | 13.5.2, published 2026-08-21 | AppHost lock, build, local run, dashboard health |
 | ASP.NET Core base image | 10.0.11 | Image archive generated and metadata inspected; container not run |
-| Aspire CLI bundle/deployment targets | Current docs reviewed | Not installed or executed; no production target configured |
+| Aspire CLI bundle/deployment targets | CLI 13.5.2 via `DnxPinned` | Bundle used for local AppHost build/start; no deployment target configured or executed |
 | Azure Functions isolated worker | Docs list .NET 10 and F# binding caveats | Not packaged, emulated, or deployed |
 | AWS Lambda .NET 10 image/runtime path | Current official docs reviewed | Not packaged for Lambda, invoked, or deployed |
 | Kubernetes probes/deployment | Current official semantics reviewed | No manifest, cluster, or probe execution |

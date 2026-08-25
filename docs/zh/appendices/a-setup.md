@@ -84,7 +84,7 @@ dotnet --info
 dotnet --version
 ```
 
-本版预期选中 `10.0.3xx` 功能带；已复核机器选中 10.0.301。同一允许功能带中的其他补丁可能正确。9.x SDK 或更新的 10.0 功能带不会被本仓库策略选中。
+本版精确选择 SDK `10.0.301`。若未安装该 SDK，仓库会报告版本选择错误，而不会静默改变编译器提供的依赖。
 
 若没有 `dotnet`，请按下面的操作系统和 CPU 架构安装。若它存在却报告错误架构或安装根，先理解冲突，再加入另一个副本。
 
@@ -202,13 +202,13 @@ dotnet fsi
 {
   "sdk": {
     "version": "10.0.301",
-    "rollForward": "latestPatch",
+    "rollForward": "disable",
     "allowPrerelease": false
   }
 }
 ```
 
-`latestPatch` 接受 **10.0.3xx 功能带内**不低于 10.0.301 的已安装补丁。它不表示“任意更新的 .NET SDK”。`allowPrerelease: false` 防止预览 SDK 静默满足选择条件。
+`disable` 要求精确 SDK，使 SDK 提供的依赖与已提交包锁保持一致。升级 SDK 时应有意修改版本、重新生成受影响的锁文件并重跑相应证据；`allowPrerelease: false` 还会排除预览 SDK。
 
 `net10.0` 等目标框架回答的是另一问题：项目针对哪个 API/运行时契约编译。`global.json` 选择 SDK 工具链。一台机器可以并列安装多个 SDK 与运行时。
 

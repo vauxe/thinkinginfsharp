@@ -84,7 +84,7 @@ Run the same command from the repository root. The working directory matters bec
 dotnet --version
 ```
 
-For this edition, the expected selected feature band is `10.0.3xx`; the checked machine selected `10.0.301`. A different patch in the same allowed band may be correct. A 9.x SDK or a later 10.0 feature band is not selected by this repository's policy.
+This edition selects exactly SDK `10.0.301`. If that SDK is absent, the repository fails with a version-selection error instead of silently changing compiler-provided dependencies.
 
 If `dotnet` is absent, install for the operating system and CPU architecture below. If it exists but reports the wrong architecture or installation root, understand that conflict before adding another copy.
 
@@ -202,13 +202,13 @@ The root `global.json` contains:
 {
   "sdk": {
     "version": "10.0.301",
-    "rollForward": "latestPatch",
+    "rollForward": "disable",
     "allowPrerelease": false
   }
 }
 ```
 
-`latestPatch` accepts an installed patch at or above 10.0.301 **within the 10.0.3xx feature band**. It does not mean “any newer .NET SDK.” `allowPrerelease: false` prevents a preview SDK from silently satisfying the selection.
+`disable` requires that exact SDK. This keeps SDK-provided dependencies aligned with committed package lock files. Upgrade the SDK deliberately, regenerate affected locks, and rerun the relevant evidence; `allowPrerelease: false` also excludes preview SDKs.
 
 Target frameworks such as `net10.0` answer a different question: which API/runtime contract a project compiles against. `global.json` selects the SDK toolchain. A machine can have several SDKs and runtimes side by side.
 

@@ -172,7 +172,7 @@ Web SDK 以 `net10.0` 为目标。仓库策略锁定 FSharp.Core 10.1.301。镜�
 
 AppHost SDK 固定为 13.5.2，并以 .NET 10 为目标。它的项目引用指向 F# 服务。Aspire 根据该引用生成 `Projects.CloudService` 元数据类型；服务并不会变成 C#，也不会引用 AppHost。
 
-项目目前保留由包提供的编排资产，并只抑制 `ASPIRE010`，即向 Aspire CLI bundle 迁移的提示。这是注明日期的仓库选择，而不是永恒建议。它让已检查路径不依赖全局 CLI，但当仓库采用锁定的 CLI 工作流或旧路径被删除时，必须重新审视这个平台专用锁图。
+项目启用 Aspire CLI bundle，并选择 `DnxPinned`。SDK 因而解析匹配的 `Aspire.Cli@13.5.2`，而不会把宿主平台专用的 Dashboard 与编排包写入 AppHost 锁文件。它不要求全局安装 CLI，但首次使用需要可用包源或已有缓存。这是可选生态样例，不是书站依赖。
 
 <<< @/../examples/ecosystem/cloud/AppHost/Program.cs{csharp:line-numbers} [AppHost Program.cs]
 
@@ -359,7 +359,7 @@ AppHost 资源健康回答编排是否认为资源已就绪，包括依赖方的
 - `aspire deploy` 求值模型、解析参数、生成目标输出并直接应用。
 - 当 CI/CD 需要拆分流程时，`aspire do <step>` 调用具名流水线步骤。
 
-这些命令需要适当的当前 CLI 与目标集成。本地云样例既没使用部署目标，也没使用 CLI，因此不能从 Aspire 发布 Docker Compose、Kubernetes、Azure 或其他环境。AppHost 构建只是本地应用模型与编排检查。
+这些命令需要适当的 CLI 与目标集成。本地云样例只用固定 CLI bundle 做开发期编排，没有配置部署目标，也没有执行 publish 或 deploy。其 AppHost 构建只是本地应用模型与编排检查。
 
 ### 环境不等于执行模式 {#environment-execution-mode}
 
@@ -415,7 +415,7 @@ Aspire 可以定义应用专用的构建、发布、推送与部署步骤。CI/C
 | FSharp.Core | 10.1.301 | 云服务锁文件与构建 |
 | Aspire.AppHost.Sdk | 13.5.2，发布于 2026-08-21 | AppHost 锁文件、构建、本地运行、仪表板健康 |
 | ASP.NET Core 基础镜像 | 10.0.11 | 已生成镜像归档并检查元数据；未运行容器 |
-| Aspire CLI bundle/部署目标 | 已审阅当前文档 | 未安装或执行；未配置生产目标 |
+| Aspire CLI bundle/部署目标 | 通过 `DnxPinned` 使用 CLI 13.5.2 | bundle 已用于本地 AppHost 构建/启动；未配置或执行部署目标 |
 | Azure Functions 隔离工作进程 | 文档列出 .NET 10 与 F# 绑定注意项 | 未打包、模拟或部署 |
 | AWS Lambda .NET 10 镜像/运行时路径 | 已审阅当前官方文档 | 未为 Lambda 打包、调用或部署 |
 | Kubernetes 探针/部署 | 已审阅当前官方语义 | 没有清单、集群或探针执行 |

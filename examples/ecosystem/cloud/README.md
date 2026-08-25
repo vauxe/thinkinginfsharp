@@ -2,7 +2,7 @@
 
 This sample keeps application code in a small F# ASP.NET Core service and puts local orchestration in a C# project-based Aspire AppHost. The language boundary is deliberate: Aspire can orchestrate an F# project, while the current project templates and generated `Projects` API make C# the low-friction infrastructure host.
 
-The AppHost SDK is pinned to 13.5.2 and targets .NET 10. It needs no cloud account, database, container engine, or globally installed Aspire CLI for the checked project-based path. Package restore does download and lock platform-specific local orchestration assets. Aspire 13.5.2 warns that some newer features require the CLI bundle; this sample explicitly remains on project-provided assets and suppresses only that migration warning. Revisit this choice when the CLI bundle becomes required or the repository adopts a pinned CLI workflow.
+The AppHost SDK is pinned to 13.5.2 and targets .NET 10. It needs no cloud account, database, container engine, or globally installed Aspire CLI. `AspireUseCliBundle` with `DnxPinned` resolves the matching `Aspire.Cli@13.5.2` on first build or run, so the committed AppHost package lock remains independent of the host operating system. That first use needs a configured NuGet source or an existing cache.
 
 ## Run the service directly
 
@@ -39,8 +39,7 @@ env \
   ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL=http://127.0.0.1:5193 \
   ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL=http://127.0.0.1:5194 \
   dotnet run \
-  --project examples/ecosystem/cloud/AppHost/AppHost.csproj \
-  --configuration Release
+  --project examples/ecosystem/cloud/AppHost/AppHost.csproj
 ```
 
 All three fixed endpoints bind only to `127.0.0.1`. The anonymous, unencrypted dashboard is suitable only for this controlled local check: other local processes can read its telemetry and submit data. Do not change those addresses to a LAN or public interface. Prefer trusted HTTPS development certificates for normal team use, and use authenticated encrypted endpoints outside a developer machine.

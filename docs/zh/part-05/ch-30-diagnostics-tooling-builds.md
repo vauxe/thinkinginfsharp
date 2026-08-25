@@ -229,13 +229,13 @@ Fantomas 规范布局。F# 编译器检查解析、名称解析、类型、约�
 
 | 层次 | 仓库证据 | 仍在仓库之外的内容 |
 |---|---|---|
-| SDK 选择 | `global.json` 选择 10.0.301 与 `latestPatch` | 精确宿主运行时与已安装补丁可能不同 |
+| SDK 选择 | `global.json` 精确选择 10.0.301 | 宿主运行时与操作系统仍可能不同 |
 | 直接与传递包 | `PackageReference` 加已提交 `packages.lock.json` | 包源可用性与外部凭据 |
 | 本地工具 | `.config/dotnet-tools.json` 锁定 Fantomas 7.0.5 | 能运行工具的宿主运行时 |
 | 编译器输出 | 相同输入配合 `Deterministic=true` | 平台原生资产、路径、编译器控制外时间戳 |
 | 行为 | 测试与样例输出断言 | 未建模的外部服务和机器状态 |
 
-`latestPatch` 有意允许同一 SDK 功能带中更晚的服务补丁；这是安全/维护权衡，不是逐字节 SDK 身份。调查环境特有失败时应记录 `dotnet --info`。
+精确 SDK 选择让 SDK 提供的依赖与包锁保持一致，但不会冻结操作系统、部署软件使用的运行时、包源或本地缓存。升级 SDK 时应有意更新；调查环境特有失败时记录 `dotnet --info`。
 
 仅有 `Version="3.4.0"` 的 PackageReference 仍可能允许解析出不止一个传递图。锁文件记录已解析版本与内容哈希。`dotnet restore --locked-mode` 要么使用该图，要么在项目依赖与锁文件不一致时失败；它不会静默改写契约。
 

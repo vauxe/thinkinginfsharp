@@ -16,13 +16,13 @@
     "check:navigation": "node scripts/generate-navigation.mjs --check",
     "check:parity": "node scripts/check-parity.mjs",
     "check:content": "pnpm check:glossary && pnpm check:solutions-guide && pnpm check:navigation && node scripts/check-content.mjs",
-    "check:examples": "node scripts/check-examples.mjs && pnpm check:fable",
+    "check:examples": "node --test scripts/example-checks.test.mjs && node scripts/check-examples.mjs && pnpm check:fable",
     "check:fable": "pnpm --filter @thinking-in-fsharp/fable-sample build && pnpm --filter @thinking-in-fsharp/fable-sample smoke",
     "check:capstone": "node scripts/check-capstone.mjs",
     "check:site": "node scripts/site-smoke.mjs",
     "check:browser": "node --test tests/site-browser.test.mjs",
-    "test:content": "node --test scripts/content-contract.test.mjs scripts/markdown.test.mjs scripts/content-checks.test.mjs scripts/example-checks.test.mjs scripts/glossary.test.mjs scripts/solutions-guide.test.mjs scripts/navigation.test.mjs scripts/pages-workflow.test.mjs scripts/site-base.test.mjs scripts/site-smoke.test.mjs",
-    "test": "pnpm test:content && pnpm check:parity && pnpm check:content && pnpm check:examples && pnpm build && pnpm check:site && pnpm check:browser"
+    "test:content": "node --test scripts/content-contract.test.mjs scripts/markdown.test.mjs scripts/content-checks.test.mjs scripts/glossary.test.mjs scripts/solutions-guide.test.mjs scripts/navigation.test.mjs scripts/site-base.test.mjs scripts/site-smoke.test.mjs",
+    "test": "pnpm test:content && pnpm check:parity && pnpm check:content && pnpm build && pnpm check:site && pnpm check:browser"
   },
   "engines": {
     "node": ">=22.0.0",
