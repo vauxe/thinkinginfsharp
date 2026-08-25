@@ -166,7 +166,7 @@ Kestrel 默认的请求体上限远大于这些微小的命令文档。宿主把
 
 1. 加载当前预约状态；
 2. 调用纯决策器；
-3. 仅对放置预约请求支付授权；
+3. 仅对创建预约请求支付授权；
 4. 追加已接受的事件；
 5. 发送通知；
 6. 序列化最终的预约 DTO。
@@ -183,7 +183,7 @@ API 不会查看私有预约字段来重新实现状态转换。它使用 `Decid
 | `400` | `invalid_request` | 缺少 DTO 必需数据 |
 | `400` | `validation_failed` | 领域命令字段无效 |
 | `404` | `booking_not_found` | 确认、取消或查询没有匹配预约 |
-| `409` | `booking_already_exists` | 放置预约复用了已有请求 ID |
+| `409` | `booking_already_exists` | 创建预约复用了已有请求 ID |
 | `409` | `capacity_exceeded` | 请求座位数超过本活动容量 |
 | `409` | `invalid_transition` | 当前状态拒绝请求的转换 |
 | `413` | `request_too_large` | 命令体超过 16 KiB |

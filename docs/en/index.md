@@ -33,7 +33,7 @@ This book is for developers who can already program but have not yet studied fun
 
 Every valid code sample comes from executable source shared by both editions.
 
-## The shortest route in {#quick-start}
+## The quickest start {#quick-start}
 
 The book assumes basic programming experience, but neither functional programming nor Chinese. With the repository and its [.NET SDK 10.0.301 reproduction baseline](https://dotnet.microsoft.com/en-us/download/dotnet/10.0) ready, verify the toolchain from the repository root:
 

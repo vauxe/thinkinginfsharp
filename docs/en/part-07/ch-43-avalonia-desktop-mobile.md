@@ -226,7 +226,7 @@ Desktop assumptions are explicit here. iOS and browser use `ISingleViewApplicati
 
 The repository's xUnit suite references the sample and checks three additions, reset, lower-bound removal, and the unchanged initial value. It runs without Avalonia initialization because the tested function has no toolkit dependency. That speed and determinism are the payoff of the boundary.
 
-The final focused run passed 1/1; the current complete example suite passed 70/70. The sample's Release build under .NET SDK 10.0.301 completed with zero warnings and zero errors, and the full locked example gate—including the other .NET projects and Fable browser smoke—passed.
+The final focused run passed 1/1, and the complete repository example suite passed. The sample's Release build under .NET SDK 10.0.301 completed with zero warnings and zero errors, and the full locked example gate—including the other .NET projects and Fable browser smoke—passed.
 
 ### State the native launch result exactly {#native-launch-result}
 

@@ -169,7 +169,8 @@ F# 的 `if`、`match`、`try`、循环和计算表达式都会产生值，因此
 
 除非消费者明确选择 F# 专用 API，否则应避免泄漏 `Microsoft.FSharp.*` 类型。把公共类型放入 namespace，遵循 .NET 命名，使用 XML 注释记录公共成员，准确标注可空性，并在运行期验证不受信任的公共输入。API 稳定后，`.fsi` 签名文件可以让导出的 F# 表层变得有意识、可审阅。
 
-二进制、源码、行为和线格式兼容彼此独立。参数改名可能破坏 C# 命名参数；新增重载可能让旧源码产生歧义；把返回的拒绝改为异常会改变行为；修改 DTO 字段会改变持久化或网络数据。优先增加兼容桥与 obsolete 迁移路径，而不是悄悄修改已发布成员。
+二进制、源码、行为和传输格式兼容彼此独立。
+参数改名可能破坏 C# 命名参数；新增重载可能让旧源码产生歧义；把返回的拒绝改为异常会改变行为；修改 DTO 字段会改变持久化或网络数据。优先增加兼容桥与 obsolete 迁移路径，而不是悄悄修改已发布成员。
 
 ## 阅读可执行的互操作配对 {#executable-pair}
 
@@ -216,7 +217,7 @@ F#/C# 混合解决方案可以是有效终点，并非未完成的迁移。让�
 - C# 调用点是否无需理解 FSharp.Core 表示类型就能自然阅读？
 - 公共入口的运行期守卫是否支撑可空标注？
 - 参数名、异常、XML 文档和生成的公共类型是否作为契约受测试？
-- 是否分别评估源码、二进制、行为与线格式兼容性？
+- 是否分别评估源码、二进制、行为与传输格式兼容性？
 - 适配器是否足够小，从而让领域规则只有一份？
 - 迁移改进了模型，还是只改变了语法？
 
@@ -229,4 +230,3 @@ F#/C# 混合解决方案可以是有效终点，并非未完成的迁移。让�
 - [Microsoft Learn：F# task 表达式](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/task-expressions)
 - [Microsoft Learn：集合设计指南](https://learn.microsoft.com/en-us/dotnet/standard/design-guidelines/guidelines-for-collections)
 - [Microsoft Learn：.NET 库的破坏性变更](https://learn.microsoft.com/en-us/dotnet/standard/library-guidance/breaking-changes)
-

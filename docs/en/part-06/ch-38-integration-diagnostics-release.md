@@ -144,7 +144,7 @@ This one flow checks four contract properties:
 
 The client deliberately configures strict, case-sensitive deserialization and rejects unmapped properties. That is a compatibility test for the chosen contract, not a rule every consumer must copy. The comparison of raw successful bodies is also narrow: it proves deterministic output in this contract version, not that arbitrary JSON texts with different property order are semantically unequal.
 
-A successful C# client does not prove binary compatibility with every previous assembly version. That requires retained consumer fixtures or an API-compatibility tool against a declared baseline. It does prove that the current published surface is usable in the most important foreign-language path.
+A successful C# client does not prove binary compatibility with every previous assembly version. That requires retained consumer fixtures or an API-compatibility tool against a declared baseline. It does prove that the current published surface is usable in the most important cross-language path.
 
 ## Instrument the boundary, not the secret {#diagnostics}
 

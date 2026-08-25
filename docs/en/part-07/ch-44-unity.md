@@ -242,7 +242,7 @@ As of 2026-08-25, X44 records:
 | Release plug-in build | Pass, 0 warnings/errors | F# source compiles on .NET SDK 10.0.301 |
 | Output inspection | Pass | 8,704-byte plug-in and 2,407,760-byte FSharp.Core are adjacent; assembly reference is present |
 | Focused rule/API test | Pass, 1/1 | Clamp/step behavior, struct state, no explicit `box` in `Step`, FSharp.Core reference, and no F#-specific public signature types |
-| Repository example matrix | Pass | Locked solution, 70 ExampleTests, other examples, Fable build, and browser smoke remain green |
+| Repository example matrix | Pass | The complete ExampleTests suite, other examples, Fable build, and browser smoke remain green |
 | Unity 6000.3.22f1 import | Not run | Editor is absent from this machine |
 | C# compilation and Play Mode | Not run | UnityEngine host and scene behavior are unverified |
 | macOS ARM64 IL2CPP Player | Not run | Native conversion, stripping, link, launch, and runtime behavior are unverified |

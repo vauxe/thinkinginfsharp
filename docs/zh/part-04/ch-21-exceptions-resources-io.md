@@ -110,7 +110,7 @@ let read path =
 
 ## 复用所有权，同时不隐藏它 {#with-reader}
 
-共享帮助函数接收取得函数与操作：
+共享帮助函数接收获取函数与操作：
 
 <<< @/../examples/scripts/ch21-exceptions-resources-io.fsx#resource-scope{fsharp:line-numbers} [ch21-exceptions-resources-io.fsx]
 
@@ -122,7 +122,7 @@ let read path =
 
 `withReader` 拥有 `openReader` 成功返回的每个 reader。调用方只能在 `operation` 内使用它；返回 reader 本身会把已经释放的对象交给外部。当 API 接收或返回可释放值时，应在文档中说明所有权。
 
-注入 `openReader` 会让取得点可以由测试控制与观察，却不会让打开或读取变纯。这个高阶函数用于集中生命周期，而不是把 I/O 改名成函数式抽象。
+注入 `openReader` 会让获取点可以由测试控制与观察，却不会让打开或读取变纯。这个高阶函数用于集中生命周期，而不是把 I/O 改名成函数式抽象。
 
 不要接收别人拥有的 reader 后悄悄释放它。一项实用约定是：取得资源的代码拥有它，除非 API 显式转移所有权。
 
@@ -202,7 +202,7 @@ let read path =
 
 避免默认使用 `Result<'T, string>` 之类的 API。字符串适合作为呈现值，但通常不是良好的内部错误模型：它会丢失用例、结构化上下文与编译器辅助处理。
 
-## 在取得之后解析 {#parse-after-read}
+## 在获取之后解析 {#parse-after-read}
 
 一种实用的边界顺序是：
 

@@ -175,7 +175,7 @@ present.Value     // 4
 
 当 `HasValue` 为 false 时读取 `Value` 会抛出 `InvalidOperationException`。应先检查；只有当该默认值确实符合调用方含义时才使用 `GetValueOrDefault`；或者转换成 F# 表示。
 
-### 在边缘转换，而不是遍布核心 {#nullable-value-conversion}
+### 在边界转换，而不要散布到核心 {#nullable-value-conversion}
 
 FSharp.Core 提供了具名转换：
 

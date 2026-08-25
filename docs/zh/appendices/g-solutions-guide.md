@@ -251,7 +251,7 @@ sources: []
 
 **各题答案:** [练习 1](../solutions/ch-22-async-task#exercise-01) · [练习 2](../solutions/ch-22-async-task#exercise-02) · [练习 3](../solutions/ch-22-async-task#exercise-03)
 
-**评审重点:** 用门闩证明 async 与 task 的启动语义，组合 Task API 与 Async 验证器，并明确单次执行所有权。
+**评审重点:** 用闩锁证明 async 与 task 的启动语义，组合 Task API 与 Async 验证器，并明确单次执行所有权。
 
 ### 第 23 章：取消、超时、故障与释放 {#chapter-23}
 

@@ -111,7 +111,7 @@ let invalid = BookingDomain.Capacity 0<BookingDomain.seat>
 
 F# 中，单个联合案例的可访问性不会低于联合表示本身。隐藏表示会一起隐藏全部构造/解构案例。私有记录表示同样会向消费者隐藏直接记录构造与字段模式访问。
 
-## 伴生模块拥有构造与观察 {#companion-module}
+## 伴生模块负责构造与观察 {#companion-module}
 
 F# 允许类型与模块同名，从而形成聚焦的 API：
 
@@ -145,7 +145,7 @@ Capacity.value : Capacity -> int<seat>
 
 不要只为方便而发布无检查逃生口。若可信迁移代码确实需要，就应保持私有或严格限定为 internal，并明确测试该边界。
 
-## 有效组成部分可以让更大状态有效 {#composing-invariants}
+## 由有效组成部分构造更大的有效状态 {#composing-invariants}
 
 请求模型组合两项组成证明，并且还隐藏自己的记录表示：
 

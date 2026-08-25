@@ -1,6 +1,6 @@
 ---
 title: "第 1 章：第一次 F# 会话"
-description: "在 F# Interactive、脚本与项目之间选择，并从表达式、值和 unit 建立第一幅准确心智图。"
+description: "在 F# Interactive、脚本与项目之间选择，并从表达式、值和 unit 建立第一个准确的心智模型。"
 translationKey: part-01/ch-01-first-session
 kind: chapter
 part: 1

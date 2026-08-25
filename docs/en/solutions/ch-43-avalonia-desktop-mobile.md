@@ -132,7 +132,7 @@ The comparison should measure:
 
 ## Exercise 2: turn X43 into a desktop release {#exercise-02}
 
-Begin with the evidence ledger. X43 currently proves a locked Avalonia 12.1.1 graph, `net10.0` Release compilation, AXAML compilation, one pure-state test, 68 passing example tests, and repository integration. It does not prove a displayed native window: the automated macOS attempt stopped before window creation with RenderTimer error `-6661`. Windows, Linux, publish output, packages, signing, installation, updates, and accessibility are unexecuted.
+Begin with the evidence ledger. X43 currently proves a locked Avalonia 12.1.1 graph, `net10.0` Release compilation, AXAML compilation, and one passing pure-state test; the complete repository example suite also proves that the sample remains integrated. It does not prove a displayed native window: the automated macOS attempt stopped before window creation with RenderTimer error `-6661`. Windows, Linux, publish output, packages, signing, installation, updates, and accessibility are unexecuted.
 
 ### Restructure without losing the small core {#desktop-structure}
 

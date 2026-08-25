@@ -100,7 +100,7 @@ Unity 无需编译 F# 源码，也能执行以 F# 编写的代码。F# 会编译
 
 - 区分 F# 编译、托管插件导入、Unity 脚本编译、Editor 运行、Mono Player 和 IL2CPP Player 证据；
 - 根据领域复杂度、帧预算、Unity 工具、团队技能与平台风险，选择 F# 应该处于何处；
-- 以 Unity 的 .NET Standard 2.1 兼容表面为目标，而不把 API profile 当作运行时身份；
+- 以 Unity 的 .NET Standard 2.1 兼容表面为目标，而不把 API 配置文件（profile）当作运行时身份；
 - 把 `FSharp.Core` 和所有其他运行期依赖与托管插件一起装配；
 - 设计从 C# 看起来普通、且不泄漏可避免 F# 表示类型的公开 F# API；
 - 把 Unity 序列化字段与 `UnityEngine.Object` 引用留在可复用领域模型之外；
@@ -115,7 +115,7 @@ Unity 无需编译 F# 源码，也能执行以 F# 编写的代码。F# 会编译
 - 在自动化中锁定确切 Unity 补丁和构建配置；
 - 准确说明 X44 证明了什么、刻意留给 Unity 什么，以及这些限制为何重要。
 
-## Unity 集成是一组层叠契约 {#unity-contract-stack}
+## Unity 集成由层层叠加的契约组成 {#unity-contract-stack}
 
 把 Unity 中使用 F# 的发布看成至少七个相连契约：
 
@@ -210,7 +210,7 @@ X44 实现一条水平移动规则。这条规则刻意小到不足以单独证�
 
 转换会夹紧方向输入，拒绝非有限值与负时间或速度，计算速度并返回新状态。它没有 `UnityEngine` 引用，不读取当前时间，也不发生可变更新。测试可以直接提供所有输入。
 
-### Unity 所有的薄适配层 {#csharp-adapter}
+### 由 Unity 拥有的薄适配层 {#csharp-adapter}
 
 <<< @/../examples/ecosystem/unity/FSharpGameplay/UnityAdapter.cs{csharp:line-numbers} [UnityAdapter.cs]
 
@@ -232,7 +232,7 @@ C# 适配器的直接调用应对静态可达性分析可见。X44 仍包含两�
 
 把 `link.xml` 复制到 Unity 项目的 `Assets` 树下。外部 `.fsproj` 旁的源文件在成为 Unity 资源前没有任何作用。
 
-### 按字面阅读证据账本 {#evidence-ledger}
+### 严格按证据账本陈述结论 {#evidence-ledger}
 
 截至 2026-08-25，X44 记录了：
 
@@ -242,14 +242,14 @@ C# 适配器的直接调用应对静态可达性分析可见。X44 仍包含两�
 | Release 插件构建 | 通过，0 警告/错误 | F# 源码能在 .NET SDK 10.0.301 上编译 |
 | 产物检查 | 通过 | 8,704 字节插件与 2,407,760 字节 FSharp.Core 相邻；程序集引用存在 |
 | 聚焦规则/API 测试 | 通过，1/1 | 夹紧/步进行为、struct 状态、`Step` 中无显式 `box`、FSharp.Core 引用，以及公开签名不含 F# 专属类型 |
-| 仓库示例矩阵 | 通过 | 锁定解决方案、70 个 ExampleTests、其他示例、Fable 构建与浏览器冒烟仍为绿色 |
+| 仓库示例矩阵 | 通过 | 完整 ExampleTests 套件、其他示例、Fable 构建与浏览器冒烟仍为绿色 |
 | Unity 6000.3.22f1 导入 | 未运行 | 此机器没有 Editor |
 | C# 编译与 Play Mode | 未运行 | UnityEngine 宿主与场景行为未验证 |
 | macOS ARM64 IL2CPP Player | 未运行 | 原生转换、裁剪、链接、启动与运行期行为未验证 |
 
 最后三行是证据，不是难堪。可见缺口可以安排和估价；虚假绿色行不行。
 
-## 面向兼容 profile，而非运行时名称 {#compatibility-target}
+## 面向兼容性配置文件，而非运行时名称 {#compatibility-target}
 
 Unity 6 在 Player 设置中提供 .NET Standard 2.1 与更宽的 .NET Framework profile。.NET Standard profile 是跨平台基线，也是可复用托管插件正确的第一目标。
 
@@ -291,7 +291,7 @@ Unity 6 在 Player 设置中提供 .NET Standard 2.1 与更宽的 .NET Framework
 
 把托管插件复制到 `Assets` 下，选择平台兼容性，并保持 Validate References 开启。这能比运行期更早发现缺失引用与强名称不匹配。
 
-Auto Reference 对 spike 很方便，但它让每个符合条件的脚本程序集都看到插件，并增加重编译与意外耦合。较大项目中应关闭它，并用程序集定义显式引用预编译程序集。把 Editor-only 适配器放入 Editor-only 程序集，并从 Player 平台排除不兼容插件。
+Auto Reference 对验证性试验（spike）很方便，但它让每个符合条件的脚本程序集都看到插件，并增加重编译与意外耦合。较大项目中应关闭它，并用程序集定义显式引用预编译程序集。把 Editor-only 适配器放入 Editor-only 程序集，并从 Player 平台排除不兼容插件。
 
 绝不要在理解不匹配前，通过关闭程序集版本验证来“修复”引用问题。如果多个插件要求不兼容 `FSharp.Core` 版本，应把它们重建到一个经过测试的版本、隔离成进程，或拒绝该组合；一个加载上下文无法诚实容纳两个程序集身份相同的文件。
 
@@ -373,7 +373,7 @@ X44 在 `Awake` 中重建 `MotionState`，并在 `OnDisable` 中重置输入。�
 
 把时间显式传给纯逻辑。这让暂停、重放、慢动作、确定性测试与服务端一致都可见。确定性还要求受控随机性、迭代顺序、浮点预期，并且没有隐藏墙钟。
 
-### 度量分配，不要从风格争论 {#allocation-budget}
+### 测量分配，不要陷入风格争论 {#allocation-budget}
 
 F# 管道、闭包、序列、record、union、数组与接口调用会根据表示和用法呈现不同分配行为。“函数式”既不是发生分配的证明，也不是零分配的证明。
 
@@ -469,7 +469,7 @@ F# 规则与编排
 7. **IL2CPP Player 测试：** 显式架构与裁剪级别、构建日志、启动、罕见反射/泛型路径与崩溃符号。
 8. **设备/发布测试：** 受支持硬件、性能、内存、挂起/恢复、平台服务、打包、签名、升级、遥测与恢复。
 
-Unity Test Framework 可以在构建后的 Player 中运行 Edit Mode、Play Mode 与测试。把普通 F# 测试留在 Unity 外以快速反馈，再为适配器与宿主增加 Unity 所有的 C# 测试。Player 测试不是 Play Mode 的重复；它运行不同的运行时与包。
+Unity Test Framework 可以在构建后的 Player 中运行 Edit Mode、Play Mode 与测试。把普通 F# 测试留在 Unity 外以快速反馈，再为适配器与宿主增加由 Unity 宿主负责的 C# 测试。Player 测试不是 Play Mode 的重复；它运行不同的运行时与包。
 
 失败时保留确切 Editor 版本、构建配置、目标、后端、裁剪级别、命令、退出码、Editor 日志、Player 日志、测试 XML、崩溃转储、符号与产物哈希。“CI 失败”不是诊断。
 
@@ -485,7 +485,7 @@ Unity 是编译器与资源流水线的一部分。像给编译器版本化一�
 
 应足够频繁地在 CI 中执行干净导入，以发现隐藏本地 Library 状态。决定哪些生成的 Unity metadata 与设置应进源码控制，且不要让开发者上次活动目标悄悄选择发布。
 
-### 每次调用驱动一个显式构建配置 {#build-profiles-and-ci}
+### 每次调用只执行一个显式构建配置 {#build-profiles-and-ci}
 
 Unity 命令行构建支持显式 build target 或保存的 build profile。始终指定其中一个，使用 batch mode，写日志文件，并让每个 Editor 调用只跑一个目标。切换目标可能要求程序集重载，在批处理脚本中途并不可靠。
 
@@ -508,7 +508,7 @@ Unity 命令行构建支持显式 build target 或保存的 build profile。始�
 
 以稳定事件名与标识符记录领域结果，不要记录整个存档或个人数据。把被拒绝的游戏命令与插件加载错误、被裁剪方法、原生崩溃或资源问题分开，使遥测能指向所有层。
 
-## 运行有界采用 spike {#adoption-spike}
+## 开展范围受限的采用试验 {#adoption-spike}
 
 在把生产 Unity 代码库投入 F# 前，用一个垂直切片限时覆盖最难的代表风险：
 
