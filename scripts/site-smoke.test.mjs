@@ -4,6 +4,7 @@ import test from 'node:test'
 
 import {
   findIndexedMatches,
+  representativeSearchPairs,
   routeToHtmlPath,
   tokenizeSearchQuery
 } from './site-smoke.mjs'
@@ -46,4 +47,25 @@ test('finds documents whose indexed terms satisfy every query token by prefix', 
     '/en/part-02/ch-08-discriminated-unions#overview'
   ])
   assert.deepEqual(findIndexedMatches(index, 'missing'), [])
+})
+
+test('keeps ten bilingual search journeys across the complete book', () => {
+  assert.equal(representativeSearchPairs.length, 10)
+
+  for (const pair of representativeSearchPairs) {
+    assert.match(pair.en.route, /^\/en\//)
+    assert.match(pair.zh.route, /^\/zh\//)
+    assert.ok(pair.en.query.length > 0)
+    assert.ok(pair.zh.query.length > 0)
+  }
+
+  const routes = representativeSearchPairs.flatMap(({ en, zh }) => [
+    en.route,
+    zh.route
+  ])
+  for (let part = 1; part <= 7; part += 1) {
+    const segment = `/part-${String(part).padStart(2, '0')}/`
+    assert.ok(routes.some((route) => route.includes(segment)))
+  }
+  assert.ok(routes.some((route) => route.includes('/appendices/')))
 })

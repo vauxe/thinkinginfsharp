@@ -14,28 +14,42 @@ const defaultDocsDir = resolve(scriptDirectory, '../docs')
 const defaultDistDir = resolve(defaultDocsDir, '.vitepress/dist')
 const siteOrigin = 'https://thinking-in-fsharp.invalid'
 
-const searchExpectations = [
-  {
-    locale: 'en',
-    query: 'discriminated unions',
-    route: '/en/part-02/ch-08-discriminated-unions'
-  },
-  {
-    locale: 'en',
-    query: 'statically resolved type parameters',
-    route: '/en/appendices/h-advanced-index'
-  },
-  {
-    locale: 'zh',
-    query: '可辨识联合',
-    route: '/zh/part-02/ch-08-discriminated-unions'
-  },
-  {
-    locale: 'zh',
-    query: '静态解析类型参数',
-    route: '/zh/glossary'
+function pairedSearch(enQuery, zhQuery, localeRelativeRoute) {
+  return {
+    en: {
+      locale: 'en',
+      query: enQuery,
+      route: `/en/${localeRelativeRoute}`
+    },
+    zh: {
+      locale: 'zh',
+      query: zhQuery,
+      route: `/zh/${localeRelativeRoute}`
+    }
   }
+}
+
+export const representativeSearchPairs = [
+  pairedSearch('partial application', '部分应用', 'part-01/ch-03-functions-as-values'),
+  pairedSearch('discriminated union', '可辨识联合', 'part-02/ch-08-discriminated-unions'),
+  pairedSearch('active pattern', '活动模式', 'part-03/ch-15-active-patterns'),
+  pairedSearch('computation expression', '计算表达式', 'part-03/ch-18-workflow-validation'),
+  pairedSearch('cancellation timeout', '取消 超时', 'part-04/ch-23-cancellation-timeouts'),
+  pairedSearch('property test', '性质测试', 'part-05/ch-29-property-testing'),
+  pairedSearch('idempotency conflict', '幂等 冲突', 'part-06/ch-37-consistency-idempotency'),
+  pairedSearch('type provider', '类型提供器', 'part-07/ch-40-data-analytics'),
+  pairedSearch('Unity IL2CPP', 'Unity IL2CPP', 'part-07/ch-44-unity'),
+  pairedSearch(
+    'statically resolved type parameter',
+    '静态解析类型参数',
+    'appendices/h-advanced-index'
+  )
 ]
+
+const searchExpectations = representativeSearchPairs.flatMap(({ en, zh }) => [
+  en,
+  zh
+])
 
 function filesUnder(directory, predicate = () => true) {
   const files = []
@@ -357,7 +371,8 @@ export async function auditSite(options = {}) {
       bookPages: expectedRoutes.length,
       ...linkStats,
       searchSections: sectionCounts,
-      searchQueries: searchExpectations.length
+      searchQueries: searchExpectations.length,
+      searchQueryPairs: representativeSearchPairs.length
     }
   }
 }
@@ -382,7 +397,8 @@ async function cli(argv = process.argv.slice(2)) {
     console.log(
       `Site smoke passed: ${stats.bookPages} book pages, ${stats.htmlFiles} HTML files, ` +
         `${stats.checkedLinks} internal links, ${stats.searchSections.en}/${stats.searchSections.zh} ` +
-        `English/Chinese search sections, ${stats.searchQueries} representative queries.`
+        `English/Chinese search sections, ${stats.searchQueries} representative queries ` +
+        `in ${stats.searchQueryPairs} bilingual pairs.`
     )
     return 0
   } catch (error) {
