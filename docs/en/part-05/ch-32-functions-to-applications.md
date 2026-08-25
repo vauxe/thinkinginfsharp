@@ -6,9 +6,9 @@ translationKey: part-05/ch-32-functions-to-applications
 
 # Chapter 32: From Functions to Applications {#overview}
 
-A pure function can decide what should happen, but a running application must also obtain configuration, call storage or networks, propagate cancellation, report what happened, and release what it owns. Those responsibilities do not invalidate the functional core. They define a boundary around it.
+A pure function decides what should happen. A running application additionally obtains configuration, calls storage or networks, propagates cancellation, reports outcomes, and releases owned resources. Those responsibilities form a boundary around the functional core.
 
-This chapter builds the smallest useful boundary around the booking workflow developed earlier. The result is an executable console application with no dependency-injection container and no telemetry vendor. Its architecture is visible in ordinary F# values and one composition root. The point is not that every application should remain this small; it is that a stronger host should solve a demonstrated hosting problem rather than hide an undefined design.
+This chapter builds the smallest useful boundary around the booking workflow developed earlier. The executable console application uses ordinary F# values and one composition root, with explicit construction and local instrumentation. A stronger host earns its place when configuration layering, lifecycle scopes, background workers, or framework integration become demonstrated requirements.
 
 ## What you will be able to do {#outcomes}
 
@@ -292,7 +292,7 @@ Use a counter for occurrences that only increase. Use a histogram when a duratio
 
 The activity records low-ambiguity tags and a status. Accepted and rejected decisions completed as designed, so they receive `Ok`; an unexpected fault receives `Error`; cancellation remains distinct. A production convention may refine those choices, but it should be consistent across services.
 
-Creating an `ActivitySource` is instrumentation, not distributed-trace collection. A collector such as OpenTelemetry must subscribe, sample, enrich, batch, and export activities. The local `ActivityListener` proves one activity stopped; it does not prove cross-process propagation, backend delivery, retention, or a useful trace query.
+Creating an `ActivitySource` supplies instrumentation. A collector such as OpenTelemetry then subscribes, samples, enriches, batches, and exports activities. The local `ActivityListener` proves that one activity stopped; production evidence must separately cover cross-process propagation, backend delivery, retention, and useful trace queries.
 
 ## Read the fixed evidence narrowly {#fixed-evidence}
 
@@ -314,7 +314,7 @@ lifecycle: store-disposed=true
 
 This proves that one fixed command passed through configuration, composition, the pure decision, the in-memory append, all three local observable signals, and deterministic disposal. Focused tests additionally prove independent configuration errors accumulate, the same cancellation token reaches both ports, one accepted event is appended, and a pre-canceled token calls no port.
 
-It does not prove that logs or telemetry reach an external backend, that the adapter is durable, or that concurrent requests preserve capacity. `LoadBooking` followed by `AppendEvent` is not an atomic transaction. Two callers can read the same state before either append. The in-memory adapter is a wiring demonstration, not a production booking store.
+This evidence covers in-process wiring only. External-backend delivery, durable storage, and capacity under concurrency each need integration evidence. Because `LoadBooking` and `AppendEvent` are separate operations, two callers can read the same state before either append. The in-memory adapter therefore serves as a wiring demonstration; a production store needs an atomic consistency boundary.
 
 ## Test the boundary without retesting the domain {#boundary-tests}
 

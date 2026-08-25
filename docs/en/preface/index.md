@@ -6,23 +6,23 @@ translationKey: preface/index
 
 # Preface: How to Use This Book {#overview}
 
-This is a book about learning to think with F#, not translating another language statement by statement. It starts from expressions, types, functions, and data transformation, then follows those ideas into effects, .NET boundaries, testing, architecture, and ecosystem choices.
+This book teaches you to reason in F# from expressions, types, functions, and data transformation. It then carries those ideas into effects, .NET boundaries, testing, architecture, and ecosystem choices, so prior-language knowledge becomes context rather than a line-by-line template.
 
-## Who this book is for—and who it is not for {#audience}
+## Who this book is for and what it covers {#audience}
 
 This book fits you if F# is new to you. Basic programming experience helps, but the early chapters explain every F# idea before relying on it. You may want to:
 
-- learn functional programming without treating F# as mathematical decoration;
+- learn functional programming as a practical way to structure software;
 - move from C# or another .NET language while preserving useful platform knowledge;
 - model domain rules, failures, effects, and concurrency explicitly;
 - judge F# realistically for web, data, cloud, desktop, automation, or Unity work;
 - progress from scripts to a tested, diagnosable application.
 
-It is not an exhaustive language specification, package catalog, framework cookbook, or promise that one tool fits every product. Use the linked official references when exact syntax or a changing platform contract matters.
+The book is a guided learning path with runnable evidence and decision criteria. For exhaustive syntax, package catalogs, framework recipes, and changing platform contracts, follow the linked official references.
 
 ## What “thinking in F#” means {#fsharp-first}
 
-F# is not “C# with fewer braces.” The recurring questions in this book are:
+Thinking in F# means reasoning from values, types, and explicit boundaries. The book repeatedly asks:
 
 1. What value does this expression produce?
 2. What does the inferred or public type permit?
@@ -30,13 +30,13 @@ F# is not “C# with fewer braces.” The recurring questions in this book are:
 4. Which transformation is pure, and where is an effect owned?
 5. What observable evidence would distinguish a correct design from a plausible wrong one?
 
-This viewpoint does not forbid objects, mutation, exceptions, tasks, or .NET APIs. It asks you to use each at a deliberate boundary. Mastery here means being able to explain that boundary and its tradeoff, not merely remembering syntax.
+This viewpoint gives objects, mutation, exceptions, tasks, and .NET APIs deliberate boundaries. Mastery means explaining each boundary and its tradeoff, supported by observable evidence as well as syntax knowledge.
 
 ## Follow one clear learning path {#reading-routes}
 
 Use the [contents](../) as your map. Read Parts I–III in order: they establish expressions and functions, type-driven modeling, and composition. Continue with Part IV for effects and concurrency, Part V for .NET engineering, and Part VI for a complete workflow. Part VII is optional exploration after the language foundations are comfortable.
 
-Do not skip a chapter merely because its syntax looks familiar. Stay when your prediction differs from the compiler or from the output you observe.
+Use your prediction as the progress signal. Familiar syntax may let you move quickly; a difference between your prediction and compiler output marks a chapter worth studying closely.
 
 ## Use a chapter as a feedback loop {#chapter-loop}
 
@@ -45,21 +45,21 @@ For each chapter:
 1. read the outcome and inspect important type signatures;
 2. predict output, failure, ordering, or ownership before running anything;
 3. copy and run the smallest relevant code block;
-4. explain the result without copying the prose;
+4. explain the result in your own words;
 5. solve all three exercises before opening the solution;
 6. compare contracts and evidence, then revise your answer.
 
-Closed exercises may have a narrow observable result. Diagnostic and design exercises can have several sound answers. The [solutions and review guide](../appendices/g-solutions-guide) explains the rubric and links to every answer; a published solution is feedback, not automatic proof or the only acceptable design.
+Closed exercises may have a narrow observable result. Diagnostic and design exercises can have several sound answers. The [solutions and review guide](../appendices/g-solutions-guide) explains the rubric and links to every answer; use each published solution as feedback, then justify your own answer from its contract and evidence.
 
 ## Run only as much as you need {#running-examples}
 
-The site can be read without installing anything. To run the examples, install the SDK described in [Appendix A](../appendices/a-setup), then check it in a terminal:
+You can read the site directly in a browser. To run the examples, install the SDK described in [Appendix A](../appendices/a-setup), then check it in a terminal:
 
 ```console
 dotnet --version
 ```
 
-Copy a chapter's code block into a file such as `lesson.fsx`, then run it without opening an interactive prompt:
+Copy a chapter's code block into a file such as `lesson.fsx`, then run it directly:
 
 ```console
 dotnet fsi --exec lesson.fsx
@@ -88,7 +88,7 @@ When a signature feels dense, name each input and intermediate result instead of
 
 The examples were reviewed with F# 10 and .NET 10. Use a currently supported patched SDK and runtime for deployed software, and recheck behavior after upgrading. Platform-specific chapters state where their evidence stops.
 
-F# 10 is the language scope, not a reason to showcase every new feature. The book prefers durable fundamentals and introduces version-specific behavior only where it changes a real decision. Package, browser, cloud, mobile, and Unity facts are dated because their contracts can change faster than the language core.
+F# 10 defines the language scope. The book prioritizes durable fundamentals and introduces version-specific behavior where it changes a real decision. Package, browser, cloud, mobile, and Unity facts are dated because their contracts can change faster than the language core.
 
 ## When you get stuck {#recovery}
 

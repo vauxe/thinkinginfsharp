@@ -187,9 +187,9 @@ The committed baseline records the exact tool, job, OS, runtime, architecture, G
 
 The defensible conclusion is narrow: on this captured environment and input generator, the single-pass candidate preserved all checked results, measured about 0.43 times the pipeline mean at both tested sizes, and avoided the intermediate-array allocation reported by MemoryDiagnoser.
 
-It does not prove that loops are always faster than pipelines, arrays are faster than lists, mutation is generally preferable, or the ratio will persist on another runtime or CPU. The processor query was denied and the workstation's power and background load were uncontrolled. ShortRun has only three measured iterations, so its wide confidence interval deserves particular caution.
+The conclusion applies to these two implementations, sizes, and this captured environment. General claims about loops, pipelines, arrays, lists, mutation, other runtimes, or other CPUs require new measurements. The processor query was denied, workstation power and background load were uncontrolled, and ShortRun supplied only three measured iterations, so the wide confidence interval deserves particular caution.
 
-Mean is the arithmetic mean of measured operations. Standard deviation describes observed spread. The displayed error is half of BenchmarkDotNet's stated confidence interval, not a bound on every future run. Ratio compares methods only within the corresponding `Count` group. “0 B reported” means the diagnoser observed no managed allocation per operation at its resolution; it does not mean the process uses no memory.
+Mean is the arithmetic mean of measured operations. Standard deviation describes observed spread. The displayed error is half of BenchmarkDotNet's stated confidence interval and applies to this sample rather than every future run. Ratio compares methods within the corresponding `Count` group. “0 B reported” means the diagnoser observed zero managed bytes per operation at its resolution; the process still uses memory elsewhere.
 
 ## Understand the allocation hypothesis {#allocation}
 

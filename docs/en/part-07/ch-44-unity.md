@@ -16,22 +16,16 @@ This chapter uses the managed plug-in sample as a deliberately small answer: kee
 
 By the end of this chapter, you should be able to:
 
-- separate F# compilation, managed plug-in import, Unity script compilation, Editor runtime, Mono Player, and IL2CPP Player evidence;
-- choose where F# belongs from domain complexity, frame budget, Unity tooling, team skills, and platform risk;
-- target Unity's .NET Standard 2.1 compatibility surface without confusing an API profile with a runtime identity;
-- package `FSharp.Core` and every other runtime dependency beside a managed plug-in;
-- design a public F# API that feels ordinary from C# and does not leak avoidable F# representation types;
-- keep Unity serialization fields and `UnityEngine.Object` references out of the reusable domain model;
-- map Unity lifecycle callbacks and input into explicit values before calling pure F# logic;
-- distinguish `Update`, `FixedUpdate`, background work, and main-thread Unity API ownership;
-- detect frame-loop allocations instead of assuming functional code is automatically cheap or expensive;
-- explain the IL2CPP sequence from managed assemblies through stripping, generated C++, native compilation, and packaging;
-- identify reflection, dynamic generic, code generation, and platform API paths that need AOT evidence;
-- use narrow preservation rules instead of preserving all of `FSharp.Core` by default;
-- treat Burst and the Job System as a separate HPC# contract, not an automatic property of an F# DLL;
-- climb an evidence ladder from ordinary unit tests to an imported, launched, stripped Player on target hardware;
-- pin an exact Unity patch and build profile in automation;
-- state exactly what the managed plug-in sample proves, what it deliberately leaves to Unity, and why those limits matter.
+- map the evidence chain from F# compilation and managed plug-in import through Editor runtime, Mono Player, and IL2CPP Player;
+- choose an F# boundary from domain complexity, frame budget, Unity tooling, team skills, and platform risk;
+- ship the full dependency closure and expose a C#-friendly API while keeping Unity serialization and engine objects outside the reusable domain model;
+- map lifecycle and input into explicit values, respect main-thread ownership, and measure frame-loop allocations before optimizing;
+- explain IL2CPP, AOT, stripping, and preservation rules while treating Burst and the Job System as a separate HPC# contract;
+- pin the Unity patch and build profile, then extend evidence from ordinary tests to a launched and stripped Player on target hardware.
+
+::: tip Two reading passes
+For a first pass, follow the [integration stack](#unity-contract-stack), [decision map](#decision-map), and [managed plug-in slice](#x44-verified-slice). Use the serialization, game-loop, IL2CPP, evidence, and release sections when preparing a representative Player build.
+:::
 
 ## Unity integration is a stack of contracts {#unity-contract-stack}
 
@@ -430,7 +424,7 @@ Most Unity APIs and objects are main-thread owned. Pure F# computation can use t
 
 Copy or map the required values on the main thread, perform bounded work with cancellation, then enqueue a result for the main thread. Include an operation or scene identity so a result from an unloaded scene, disabled component, or superseded request is rejected.
 
-Never use “immutable” as permission to read a `Transform`, asset, or destroyed Unity object from a worker. Immutability describes your value; it does not change the engine object's thread or lifetime contract.
+Immutability describes the copied F# value only. A `Transform`, asset, or destroyed Unity object still follows the engine's main-thread and lifetime contract, so worker code should consume detached values and return detached results.
 
 ## IL2CPP changes the proof obligation {#il2cpp-and-aot}
 
@@ -589,15 +583,37 @@ Adopt only the boundary that passes. The result may be “F# owns the entire det
 
 ### Exercise 1: choose three language boundaries {#exercise-01}
 
-Choose the first F# boundary, rejected alternatives, proof matrix, and reversal condition for: (a) a turn-based tactics game with complex deterministic combat, replay, mod validation, and a modest presentation layer; (b) a console action game whose risk is thousands of physics-like entities, Jobs/Burst performance, platform SDKs, and designer-authored behaviors; (c) a Unity Editor content pipeline that validates dialogue graphs, generates localization reports, and runs headlessly in CI. Do not choose one language split for all three.
+Evaluate these products separately:
+
+1. A turn-based tactics game has complex deterministic combat, replay, mod validation, and a modest presentation layer.
+2. A console action game concentrates risk in thousands of physics-like entities, Jobs/Burst performance, platform SDKs, and designer-authored behaviors.
+3. A Unity Editor content pipeline validates dialogue graphs, generates localization reports, and runs headlessly in CI.
+
+For each product, record the first F# boundary, rejected alternatives, proof matrix, and reversal condition. The three products may lead to different language splits.
 
 ### Exercise 2: turn the managed plug-in sample into a Unity vertical slice {#exercise-02}
 
-Design the smallest Unity project and evidence record that could promote the managed plug-in sample from “managed DLL builds” to “representative macOS ARM64 IL2CPP Player works.” Include artifact copying, FSharp.Core identity, assembly definitions, Validate References, scene and input setup, Edit/Play Mode tests, reload behavior, allocation profiling, stripping level, `link.xml`, command-line build profile, launch, logs, symbols, and exact failure semantics. Preserve every unrun row until it actually executes.
+Design the smallest Unity project and evidence record that could promote the managed plug-in sample from “managed DLL builds” to “representative macOS ARM64 IL2CPP Player works.” Organize the record into four groups:
+
+- **Assembly import:** artifact copying, `FSharp.Core` identity, assembly definitions, and Validate References.
+- **Editor behavior:** scene and input setup, Edit/Play Mode tests, reload behavior, and allocation profiling.
+- **Player build:** stripping level, `link.xml`, the command-line build profile, launch, logs, and symbols.
+- **Evidence status:** the exact command, result, artifact, and failure meaning for every row.
+
+Keep each unrun row marked as unrun until the corresponding step actually executes.
 
 ### Exercise 3: add saves, asynchronous effects, and dynamic content {#exercise-03}
 
-Extend the architecture for a quest system whose rules are F#, configuration is authored in Unity, saves must migrate across three versions, remote dialogue arrives asynchronously, and optional quest handlers are named in content. Define authoring DTOs, validated domain types, C# API shape, cancellation and stale-result messages, save DTO/migrations, handler registration without unrestricted runtime code generation, narrow preservation rules, malformed/old content tests, and Mono/IL2CPP evidence. State what belongs outside the Player if safe AOT discovery cannot be proven.
+Extend the architecture for a quest system whose rules are F#, configuration is authored in Unity, saves migrate across three versions, remote dialogue arrives asynchronously, and content names optional quest handlers.
+
+Cover four boundaries:
+
+- **Authored and saved data:** authoring DTOs, validated domain types, save DTOs, and migrations.
+- **Public behavior:** the C# API plus cancellation and stale-result messages.
+- **AOT discovery:** handler registration that avoids unrestricted runtime code generation, plus narrow preservation rules.
+- **Proof:** malformed and old-content tests plus Mono and IL2CPP evidence.
+
+Place any feature whose safe AOT discovery remains unproven outside the Player.
 
 [Read the chapter solutions](../solutions/ch-44-unity).
 

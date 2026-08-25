@@ -6,9 +6,9 @@ translationKey: part-07/ch-42-cloud-containers-aspire
 
 # Chapter 42: Cloud, Containers, Serverless, and .NET Aspire {#overview}
 
-F# does not need a special cloud. An F# service is a .NET process whose domain types, functions, ports, cancellation, configuration, and wire contracts still matter after deployment. Cloud products change who supplies machines, networking, scaling, identity, and operations; they do not remove those application boundaries.
+An F# service runs as a .NET process in the cloud. Its domain types, functions, ports, cancellation, configuration, and wire contracts continue to define the application after deployment. Cloud products decide who supplies machines, networking, scaling, identity, and operations around those boundaries.
 
-The dangerous shortcut is to choose from product names before naming the deployment problem. “Use containers,” “use Kubernetes,” “go Serverless,” and “add Aspire” are incomplete decisions. Each selects or describes a different layer. A container packages a process. A compute platform runs it. Serverless changes the execution and billing contract. Aspire describes an application model and can drive local orchestration or target-specific deployment work; its AppHost is not the production runtime.
+Start by naming the deployment problem, then choose the product and layer. A container packages a process. A compute platform such as Kubernetes runs it. Serverless changes the execution and billing contract. Aspire describes an application model and can drive local orchestration or target-specific deployment work; a separate target runtime hosts production.
 
 This chapter starts with the process and artifact, then moves outward. That order keeps F# design visible and makes every cloud claim proportional to evidence.
 
@@ -16,22 +16,16 @@ This chapter starts with the process and artifact, then moves outward. That orde
 
 By the end of this chapter, you should be able to:
 
-- separate source, build artifact, image, running instance, platform configuration, and deployed release;
-- choose among a managed process, managed container, Kubernetes, and Serverless from actual constraints;
-- define configuration, secret, identity, storage, network, shutdown, health, and resource contracts;
-- distinguish liveness, readiness, startup, synthetic, and business health signals;
-- package an F# Web project with the .NET SDK without assuming the container has been run;
-- explain why architecture, base image, non-root identity, port, and entry point are release inputs;
-- keep state and idempotency outside an ephemeral compute instance;
-- design event handlers for retries, duplicate delivery, partial completion, and poison input;
-- evaluate F# friction in provider-specific .NET workers and binding toolchains;
-- use a C# AppHost as a narrow infrastructure adapter around F# services;
-- distinguish AppHost resource health from service endpoint health;
-- decide whether Aspire Service Defaults or a smaller F#-friendly composition is justified;
-- distinguish `aspire publish`, `aspire deploy`, and the surrounding CI/CD responsibilities;
-- promote an immutable artifact through environments instead of rebuilding it;
-- state exactly what the local cloud sample's build, local run, dashboard, and image archive prove;
-- design a reversible deployment spike with cost, security, operations, and rollback evidence.
+- distinguish source, application artifact, image, running instance, platform configuration, and release, then match each claim to proportionate evidence;
+- choose among managed processes, managed containers, Kubernetes, and Serverless from trigger, lifetime, state, scale, control, and operational ownership;
+- define process and platform contracts for configuration, secrets, identity, storage, networking, resources, shutdown, and health;
+- design durable handlers for retries, duplicate delivery, partial completion, and poison input while keeping state and idempotency outside ephemeral instances;
+- connect F# services to containers and Aspire while keeping AppHost, service health, publish/deploy, and CI/CD responsibilities distinct;
+- promote one immutable artifact through a reversible release with explicit cost, security, observability, and rollback evidence.
+
+::: tip Two reading passes
+For a first pass, follow the [deployment stack](#deployment-contracts), [decision map](#compute-decision-map), and [verified local slice](#verified-slice). Return to the [release plan](#release-observe-rollback), [evidence ladder](#evidence-ladder), and [adoption spike](#adoption-spike) when preparing a real deployment.
+:::
 
 ## Deployment is a stack of contracts {#deployment-contracts}
 
@@ -482,15 +476,37 @@ The spike should be cheap to remove. Keep provider types outside the domain core
 
 ### Exercise 1: choose a compute model for three workloads {#exercise-01}
 
-Choose a first candidate, rejected alternatives, evidence gap, and reversal condition for each case: (a) one team owns a steady internal HTTP API with a managed database, moderate traffic, no custom network or sidecar requirement, and no platform team; (b) image metadata processing arrives in sharp bursts, each item is bounded to seconds, duplicate delivery is possible, and the downstream media API is rate-limited; (c) twenty regulated services need common admission policy, private networking, sidecars, controlled multi-tenant scheduling, and an existing staffed Kubernetes platform. Compare managed process/container, Serverless, and Kubernetes without forcing one answer across all cases.
+Evaluate these workloads separately:
+
+1. One team owns a steady internal HTTP API with a managed database, moderate traffic, no custom network or sidecar requirement, and no platform team.
+2. Image metadata processing arrives in sharp bursts. Each item finishes within seconds, duplicate delivery is possible, and the downstream media API is rate-limited.
+3. Twenty regulated services need common admission policy, private networking, sidecars, controlled multi-tenant scheduling, and an existing staffed Kubernetes platform.
+
+For each workload, record the first candidate, rejected alternatives, evidence gap, and reversal condition. Compare managed processes or containers, Serverless, and Kubernetes; each workload may lead to a different choice.
 
 ### Exercise 2: turn the local cloud sample into a release proposal {#exercise-02}
 
-Design the minimum work required to deploy the F# service from the local cloud sample to a managed container environment. Cover architecture, immutable image identity, registry, SBOM/signature/vulnerability policy, configuration and secret identity, Service Defaults or alternative telemetry, production probes, non-root/read-only execution, resource limits, shutdown, staging smoke, load, rollout, rollback, data compatibility, cost, and cleanup. Separate what the chapter illustrates from what requires target-environment evidence.
+Design the minimum work required to deploy the F# service from the local cloud sample to a managed container environment. Organize the proposal into four parts:
+
+- **Artifact and supply chain:** architecture, immutable image identity, registry, SBOM, signing, and vulnerability policy.
+- **Runtime contract:** configuration and secret identity, Service Defaults or alternative telemetry, production probes, non-root/read-only execution, resource limits, and shutdown.
+- **Release path:** staging smoke, representative load, progressive rollout, rollback, and data compatibility.
+- **Ownership:** cost, cleanup, and the team responsible for each operational response.
+
+Label each claim as either illustrated by this chapter or awaiting evidence from the target environment.
 
 ### Exercise 3: design an idempotent Serverless booking consumer {#exercise-03}
 
-A provider event delivers `BookingConfirmed` at least once. The handler must reserve a notification identity, call an email provider, record the outcome, retry transient faults, isolate poison input, and tolerate a crash after the provider accepted the email but before the handler recorded success. Design the F# core types, persistent state transitions, atomic boundary, provider adapter, unknown-outcome reconciliation, concurrency control, retry/dead-letter policy, telemetry, tests, deployment, and rollback. State which guarantee cannot be created without cooperation from the email provider.
+A provider event delivers `BookingConfirmed` at least once. The handler must reserve a notification identity, call an email provider, record the outcome, retry transient faults, isolate poison input, and tolerate a crash after the provider accepted the email but before the handler recorded success.
+
+Show four parts in the design:
+
+- **Core state:** F# types, persistent transitions, the atomic boundary, and concurrency control.
+- **Provider boundary:** the email adapter and reconciliation of an unknown outcome.
+- **Operations:** retry and dead-letter policy, telemetry, deployment, and rollback.
+- **Proof:** tests for duplicate delivery, partial completion, poison input, and recovery.
+
+Finish by naming the guarantee that requires cooperation from the email provider.
 
 [Read the chapter solutions](../solutions/ch-42-cloud-containers-aspire).
 

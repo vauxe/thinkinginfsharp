@@ -6,7 +6,7 @@ translationKey: part-07/ch-40-data-analytics
 
 # Chapter 40: Data, Type Providers, Analytics, and Machine Learning {#overview}
 
-F# makes data transformation pleasant because records, units of measure, pattern matching, sequences, and higher-order functions describe shape and flow directly. That advantage does not select a database library, make an external schema trustworthy, move a query to the server, fit a data set in memory, or prove a model useful.
+F# makes data transformation pleasant because records, units of measure, pattern matching, sequences, and higher-order functions describe shape and flow directly. Library choice, schema trust, query placement, memory scale, and model usefulness remain explicit engineering decisions with separate evidence.
 
 The right question is not “What is the F# data stack?” It is “Who owns this data and schema, where must each operation execute, how large and sensitive is the workload, and what evidence must survive after exploration?” This chapter builds a decision map from a small verified local CSV slice, then expands carefully into relational access, analysis, visualization, and machine learning.
 
@@ -72,7 +72,7 @@ type private Orders =
 ```
 The fixed sample makes `Units` an `int`, `UnitPrice` a `decimal`, and `OrderedAt` a `DateOnly`. `Culture="en-US"` and `PreferDateOnly=true` are part of the inference contract. Change those static parameters or the sample and the generated API may change at compile time.
 
-This is useful feedback, but it is not runtime proof. A later file can still be missing, unreadable, too large, differently encoded, malformed, or semantically invalid. The sample is a schema witness, not a validator for every future byte.
+This compile-time feedback establishes the shape witnessed by the fixed sample. Runtime validation must still cover file presence and access, size, encoding, syntax, and domain meaning for each later input.
 
 ### Keep generated rows inside the adapter {#generated-row-boundary}
 
@@ -389,7 +389,13 @@ Compare correctness and ownership before syntax. A ten-line demo that assumes a 
 
 ### Exercise 1: choose three data boundaries {#exercise-01}
 
-Choose and justify a first candidate for each case: (a) an F# booking service needs transactional writes, optimistic concurrency, and five carefully tuned PostgreSQL queries; (b) an analyst joins three bounded CSV extracts by date, explores missing values, and publishes an accessible chart weekly; (c) a web API receives a versioned feature DTO and must run a model trained by a Python team within 30 ms without a network hop. Compare at least two choices and list reversal evidence.
+Evaluate these data workloads separately:
+
+1. An F# booking service needs transactional writes, optimistic concurrency, and five carefully tuned PostgreSQL queries.
+2. An analyst joins three bounded CSV extracts by date, explores missing values, and publishes an accessible chart each week.
+3. A web API receives a versioned feature DTO and must run a model trained by a Python team within 30 ms in the same process.
+
+For each workload, choose and justify a first candidate, compare at least two options, and list the evidence that would reverse the choice.
 
 ### Exercise 2: design for CSV schema drift {#exercise-02}
 

@@ -25,6 +25,10 @@ npm run check
 
 `npm run check` tests the reading theme, verifies that the English and Chinese pages, heading anchors, and code blocks correspond, then builds the VitePress site.
 
+## Editorial style
+
+Lead with what a concept is, what it guarantees, and what the reader should do. Put boundary conditions in a separate sentence and express one limitation at a time. Keep direct negation when it states an exact type invariant, failure state, safety rule, or contrast whose positive form would be less precise.
+
 ## Repository layout
 
 ```text
@@ -33,4 +37,4 @@ scripts/check-book.mjs        Minimal bilingual consistency check
 .github/workflows/            GitHub Pages deployment
 ```
 
-Code examples live directly in the book pages. The repository therefore has no separate .NET solution, Aspire project, test matrix, or content generator.
+Code examples live directly in the book pages. The Markdown manuscript and its embedded examples are the source of truth; the Node-based checks validate that self-contained book structure.

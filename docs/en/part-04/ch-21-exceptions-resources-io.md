@@ -50,7 +50,7 @@ An exception object contains failure information and stack context. It is not me
 
 Inside a `with` handler, `reraise()` propagates the currently handled exception while preserving its existing stack. Writing `raise cause` there throws that object from the current point and changes the reported throw site. Often no catch is better than a catch whose only purpose is to rethrow.
 
-Do not use exceptions as an invisible branch for ordinary domain states such as “booking is closed.” Conversely, do not force an out-of-memory condition, a broken invariant, or an unexpected library fault into `Error "failed"` merely to keep a return type uniform.
+Represent ordinary domain states such as “booking is closed” with an explicit return branch. Preserve exceptional propagation for out-of-memory conditions, broken invariants, and unexpected library faults. Each representation then gives callers the recovery contract they need.
 
 ## Resource lifetime is a separate contract {#resource-lifetime}
 

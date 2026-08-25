@@ -218,13 +218,13 @@ The resulting policy is precise:
 | invalid command | no protected identity can be formed | domain validation error; no store access |
 | aggregate capacity currently unavailable | no terminal record | reject now; a later retry may re-evaluate |
 
-An idempotency key without payload comparison is dangerous: a client bug could reuse `REQ-7` for a different seat count and receive an unrelated old success. A fingerprint without a stable operation key is also insufficient: the server would have no durable address at which to find progress.
+A safe idempotency identity combines two parts. The stable operation key gives the server a durable address for progress, while the payload fingerprint detects a reused key carrying a different seat count. Require both before replaying an earlier result.
 
 ## Separate HTTP method semantics from application idempotency {#http-idempotency}
 
 RFC 9110 defines an idempotent HTTP method by the intended server effect of repeated identical requests. It identifies safe methods, `PUT`, and `DELETE` as idempotent; `POST` is not inherently so. It also says a client should not automatically retry a non-idempotent request unless it knows the request semantics are idempotent or knows the original was not applied. See [HTTP Semantics, section 9.2.2](https://www.rfc-editor.org/rfc/rfc9110.html#section-9.2.2).
 
-The stored identity rules make one application command retry-safe. That does not relabel every `POST` request, authorize an arbitrary proxy to retry it, or make a reused ID with different content safe. The eventual HTTP boundary must expose conflict and ambiguous-payment outcomes so a client can act deliberately.
+The stored identity rules make one application command retry-safe under its exact operation key and payload fingerprint. HTTP method semantics and intermediary retry authority remain separate policies. The HTTP boundary must expose reused-key conflicts and ambiguous-payment outcomes so a client can act deliberately.
 
 The Microsoft [Retry pattern](https://learn.microsoft.com/en-us/azure/architecture/patterns/retry) makes the same distinction operationally: classify faults, bound attempts, and ask whether an operation is idempotent before repeating it. “Received `503`” is not enough context to decide that a charge is safe to repeat.
 

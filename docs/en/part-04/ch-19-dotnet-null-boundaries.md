@@ -77,7 +77,7 @@ let items = [| 1; 2; 3 |] :> IReadOnlyCollection<int>
 countItems items
 ```
 
-The static upcast operator `:>` is checked by the compiler and cannot fail at runtime. The downcast operator `:?>` is a different, runtime-checked operation and does not belong here. Accepting an interface reduces assumptions, but it does not by itself make an operation pure, immutable, or thread-safe.
+The static upcast operator `:>` is checked by the compiler and is safe at runtime. The downcast operator `:?>` serves a different purpose and performs a runtime check. Accepting an interface narrows the required capabilities; purity, immutability, and thread safety remain separate properties.
 
 ## “Missing” has three distinct representations {#three-representations}
 
@@ -135,7 +135,7 @@ let tryResolveType (typeName: string) : Type option =
 ```
 `Option.ofObj` maps null to `None` and a non-null reference to `Some value`. Downstream F# code now sees `Type option`, not a nullable reference that must be rechecked everywhere.
 
-The argument `throwOnError = false` means “return null when lookup does not find the type”; the .NET contract documents other conditions that may still throw. `option` describes absence, not arbitrary failure. Do not catch every exception and erase its cause merely to obtain a tidy type.
+The argument `throwOnError = false` means “return null when lookup does not find the type”; the .NET contract documents other conditions that may still throw. Use `option` for this ordinary absence and preserve exceptions that carry other failure causes.
 
 ## `Nullable<T>` is a nullable value type {#nullable-values}
 
@@ -231,7 +231,7 @@ Choose from the producer's actual contract first, then from the consumer's domai
 
 ### Preserve causes instead of flattening them {#failure-causes}
 
-Nullable checking prevents some accidental dereferences at compile time. It does not validate whitespace, parse text, prove a URI is acceptable, or represent an unavailable service. Those are separate contracts.
+Nullable checking catches some accidental dereferences at compile time. Whitespace validation, text parsing, URI acceptance, and service availability are separate contracts with their own checks and representations.
 
 Use `option` when ordinary absence needs no explanation. Use `Result` when callers need a reason. Let unexpected exceptions retain their diagnostics until a boundary has enough context to translate them. Chapter 18 established validation semantics; Chapters 20 and 21 will add effects and exception/resource policy without changing this null model.
 

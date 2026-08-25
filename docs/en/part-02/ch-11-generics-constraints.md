@@ -93,7 +93,7 @@ The rule is intentionally conservative and also catches some pure-looking partia
 let alwaysKeep = List.filter (fun _ -> true) // FS0030
 ```
 
-Although the result is a function value, the right side is an application without an explicit argument on the binding. Do not conclude that “functions are never generic values”; conclude that automatic generalization uses safe binding forms rather than attempting a whole-program proof of purity and captured state.
+Although the result is a function value, the right side is an application and the binding has no explicit argument. Automatic generalization follows safe binding forms. A complete function definition with an explicit argument provides such a form, while a partial application may need an annotation or eta expansion.
 
 ### Repair intent, not just the diagnostic {#value-restriction-fixes}
 
@@ -211,7 +211,7 @@ let inline add left right = left + right
 // The inferred signature is inline and carries a static (+) member constraint.
 ```
 
-In current F#, the simplified syntax for a **statically resolved type parameter** (SRTP) commonly uses apostrophe-prefixed names such as `'T`; older material and some complex explicit dispatch forms use `^T`. Punctuation alone therefore does not distinguish an SRTP from an ordinary generic parameter. Recognize the combined signals: an `inline` definition, compile-time specialization, and a member constraint such as `static member (+)`. SRTP is useful for selected generic numeric and member-based abstractions, but it is not a prerequisite for ordinary generic programming. Do not add `inline` and member constraints to `map`, equality checks, or domain functions merely because their signatures contain type variables.
+In current F#, the simplified syntax for a **statically resolved type parameter** (SRTP) commonly uses apostrophe-prefixed names such as `'T`; older material and some complex explicit dispatch forms use `^T`. Identify SRTP from the combined signals: an `inline` definition, compile-time specialization, and a member constraint such as `static member (+)`. Use it for selected generic numeric and member-based abstractions. Ordinary functions such as `map`, equality checks, and domain rules usually keep ordinary type parameters and avoid the extra specialization contract.
 
 The shared measured addition deliberately fixes the representation as `int` and varies only the measure. It needs no custom SRTP machinery. Appendix H provides recognition rules and the advanced official entry point; concrete numeric types are usually clearer for domain APIs.
 
@@ -249,7 +249,7 @@ This diagnostic-only expression fails because its dimensions disagree:
 let invalid = 2<seat> + 3<minute> // FS0001
 ```
 
-Units are erased at runtime. They do not change the underlying numeric representation, cannot be discovered with runtime reflection, and are not automatically carried by serialization or a non-F# boundary. That is why the example output prints plain numbers even though the compiler checked the measures.
+Units are compile-time information and are erased at runtime. The underlying numeric representation and reflected runtime value stay unchanged, while serialization and non-F# boundaries carry the plain number. That is why the example output prints ordinary numbers even though the F# compiler checked their measures.
 
 At an input boundary, parse and validate the raw number, then restore the trusted measure explicitly:
 

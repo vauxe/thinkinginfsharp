@@ -291,9 +291,9 @@ This chapter's sample first produced an FS0039 compile failure for missing types
 
 Common signs of excess coupling include: renaming a private helper fails a test; changing a pipeline to an equivalent `match` fails; adding a harmless cache fails because call counts changed; mock setup is longer than the business example; an otherwise-private member was published only for a test.
 
-By contrast, a boundary field name, exactly-once charge, no save on failure, event order, or idempotency key can be public behavior. The rule is not “never test interactions”; it is whether a caller or external system can observe and rely on them.
+By contrast, a boundary field name, exactly-once charge, suppressed save after failure, event order, or idempotency key can be public behavior. Test an interaction when a caller or external system can observe and rely on it.
 
-Code coverage can reveal locations never executed, but it cannot prove assertions are meaningful or replace analysis of missing scenarios. List risks and invariants first, then use coverage to find blind spots. Do not chase a percentage by testing trivial getters or framework code.
+Code coverage reveals which locations executed. Risk and invariant analysis establishes which scenarios and assertions matter. Use coverage afterward to find blind spots, with attention on behavior rather than trivial getters, framework code, or a target percentage.
 
 ## Run focused and complete tests {#running-tests}
 

@@ -295,11 +295,20 @@ let start rawEventId rawCapacity =
     | Error errors, Ok _
     | Ok _, Error errors -> Error errors
 ```
-`PublicApi.BookingModel` and `BookingView` have hidden representations. Consumers use `start`, `place`, `confirm`, `cancel`, and observation functions; they need not mention `Event`, `Booking`, `BookingState`, `BookingEvent`, `RequestId`, or `SeatCount` in their own signatures. The public module projects internal errors into the smaller `BookingError` vocabulary.
+The public module gives consumers four small roles:
 
-This does not make every other type in the assembly inaccessible. It establishes a stable path that consumers can choose without coupling themselves to the teaching workflow's representation. A signature file or separate internal assembly could restrict the surface further if the library contract later requires it.
+| Role | Public names | Consumer action |
+|---|---|---|
+| Opaque state | `PublicApi.BookingModel` | obtain it from `start` and pass it to transitions |
+| Commands | `place`, `confirm`, `cancel` | request a domain transition |
+| Observation | `BookingView` and observation functions | read a projected view |
+| Failure | `BookingError` | match on the smaller public error vocabulary |
 
-The stable API and the boundary DTO solve different problems. The former protects F# source dependencies inside one library ecosystem; the latter fixes a serialization or cross-language contract. Chapter 27 showed why a C#-first API may need classes, enums, members, nullable annotations, and exceptions instead of exposing this F#-shaped surface directly.
+The internal workflow continues to use `Event`, `Booking`, `BookingState`, `BookingEvent`, `RequestId`, and `SeatCount`. Those names stay out of consumer signatures.
+
+The module establishes a stable consumer path while leaving other assembly types accessible. A library that later needs assembly-wide restriction can add a signature file or move implementation types into a separate internal assembly.
+
+The stable API and the boundary DTO solve different problems. The former protects F# source dependencies inside one library ecosystem; the latter fixes a serialization or cross-language contract. As Chapter 27 showed, a C#-first API often expresses its public surface with classes, enums, members, nullable annotations, and exceptions.
 
 ## Migrate names without duplicating models {#compatibility-aliases}
 
@@ -379,7 +388,17 @@ Before extending the model, ask:
 
 ### Exercise 1: classify values by role {#exercise-01}
 
-Classify each value as command, validated command, domain event, state, boundary DTO, port, or domain error: `PlaceBooking`, `ValidPlaceBooking`, `BookingPlaced`, `Booked booking`, `PlaceBookingRequestDto`, `AppendEvent`, and `RequestedSeatsExceedCapacity`. For each, state who may create it and whether its mere construction means the requested booking happened.
+Classify these values:
+
+- `PlaceBooking`
+- `ValidPlaceBooking`
+- `BookingPlaced`
+- `Booked booking`
+- `PlaceBookingRequestDto`
+- `AppendEvent`
+- `RequestedSeatsExceedCapacity`
+
+For each value, record its role—command, validated command, domain event, state, boundary DTO, port, or domain error—who may create it, and whether construction means the requested booking happened.
 
 ### Exercise 2: extend the language before the code {#exercise-02}
 

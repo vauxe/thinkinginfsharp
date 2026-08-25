@@ -6,9 +6,19 @@ translationKey: part-05/ch-27-fsharp-api-for-csharp
 
 # Chapter 27: Designing F# APIs for C# {#overview}
 
-F# and C# share the CLR, assemblies, and most foundational types, but they do not share one idiomatic vocabulary. `Result<_,_>`, discriminated unions, `option`, curried functions, and `Async<_>` are natural to F# callers. Publishing them unchanged to C# exposes `FSharpResult`, union-case helpers, `FSharpOption`, `FSharpFunc`, or `FSharpAsync`, turning F# representation details into burdens for callers and version compatibility.
+F# and C# share the CLR, assemblies, and most foundational types. Their idiomatic vocabularies project differently across an assembly boundary:
 
-The right goal is not to write the internals in C# style. It is to maintain two honest vocabularies: use the F# types that best express the domain internally, and a .NET contract familiar to consumers at the assembly boundary. The adapter between them must be small, explicit, and testable.
+| F# source form | Surface seen from C# |
+|---|---|
+| `Result<_,_>` | `FSharpResult` |
+| discriminated union | union-case types and helper members |
+| `option` | `FSharpOption` |
+| curried function | `FSharpFunc` |
+| `Async<_>` | `FSharpAsync` |
+
+These are valid CLR shapes. Publishing them makes their representation part of caller code and version compatibility.
+
+A stable library therefore maintains two honest vocabularies: F# types that express the domain internally, and a familiar .NET contract at the assembly boundary. The adapter between them stays small, explicit, and testable.
 
 ## What you will be able to do {#outcomes}
 

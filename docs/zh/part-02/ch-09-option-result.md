@@ -270,11 +270,25 @@ dotnet fsi --exec ch09-option-result.fsx
 
 ### 练习 2：组合可选数据 {#exercise-02}
 
-给定 `tryFindBooking : string -> Booking option` 与 `tryConfirmedCode : Booking -> string option`，定义 `tryFindConfirmedCode : string -> string option`，要求不使用模式匹配，也不产生嵌套 option。解释为什么关键操作是 `bind` 而不是 `map`。
+从以下两个函数开始：
+
+```fsharp
+tryFindBooking : string -> Booking option
+tryConfirmedCode : Booking -> string option
+```
+
+定义 `tryFindConfirmedCode : string -> string option`。让结果保持扁平，并直接表达组合过程，无需使用模式匹配。然后解释 `bind` 为什么适合这项组合，以及 `map` 会怎样改变结果类型。
 
 ### 练习 3：保留验证上下文 {#exercise-03}
 
-向 `BookingError` 添加 `EventClosed` 案例。编写 `validateOpen : bool -> BookingRequest -> Result<BookingRequest, BookingError>`，把它组合在现有验证之后，再用 `Result.mapError` 同时附上请求标识和活动标识。说明一个有两处无效的请求会返回哪个错误，以及原因。
+完成以下四步：
+
+1. 向 `BookingError` 添加 `EventClosed` 案例。
+2. 编写 `validateOpen : bool -> BookingRequest -> Result<BookingRequest, BookingError>`。
+3. 把它组合在现有验证之后。
+4. 用 `Result.mapError` 同时附上请求标识和活动标识。
+
+最后说明一个有两处无效的请求会返回哪个错误，并解释这项优先级。
 
 [查看本章练习答案](../solutions/ch-09-option-result)。
 

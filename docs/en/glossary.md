@@ -60,7 +60,7 @@ An association, introduced by a pattern such as let, between a name and a value;
 
 ### immutability {#immutability}
 
-The property of not being changed in place; for a binding, it means the name is not reassigned to another value, but it does not automatically make a referenced object's internals immutable.
+The property of retaining an established value. A binding keeps its name-to-value association, while a referenced object's internals follow their own mutability contract.
 
 **First introduced:** [Chapter 2: Values, Bindings, and Expressions](./part-01/ch-02-values-bindings-expressions#overview)
 

@@ -6,9 +6,9 @@ translationKey: part-01/ch-05-lists-pipelines
 
 # Chapter 5: Lists, Pipelines, and Data Flow {#overview}
 
-When processing a group of values, the best first question is not “what should the loop variable be?” but “what shape does each stage transform into what other shape?” The F# List module expresses frequent stages as higher-order functions: `filter` selects elements, `map` transforms them, and `choose` selects and transforms together. The pipeline `|>` then places stages in data-flow order.
+When processing a group of values, start by asking, “what input shape does each stage receive, and what output shape does it produce?” The F# List module expresses frequent stages as higher-order functions: `filter` selects elements, `map` transforms them, and `choose` selects and transforms together. The pipeline `|>` then places stages in data-flow order.
 
-F# also supports `for`, `while`, and `let mutable`. It is not a pure functional language, and this chapter does not treat loops as failure. We will compare three implementations of one problem, seeing when immutable transformations are clearer, when imperative iteration is more direct, and which traversal and allocation costs must be counted honestly before optimization.
+F# supports both immutable transformations and the imperative tools `for`, `while`, and `let mutable`. We will compare three implementations of one problem, seeing where each style communicates intent most directly and which traversal and allocation costs matter before optimization.
 
 ## What you will be able to do {#outcomes}
 
@@ -16,7 +16,7 @@ By the end of this chapter, you should be able to:
 
 - construct lists and understand the basic costs of `[]`, `::`, and `@`;
 - read the type signatures of `List.map`, `List.filter`, and `List.choose`;
-- reduce `x |> f` to `f x` instead of treating a pipeline as magic;
+- reduce `x |> f` to the ordinary application `f x`;
 - trace a pipeline's input, output, order, and eager evaluation stage by stage;
 - understand the minimal `Some`/`None` selection protocol used by `choose`;
 - write `for` and `while` loops whose bodies return `unit`;
@@ -54,19 +54,19 @@ Each accepts a function value before a list, so each works well with partial app
 
 `List.map transform source` calls `transform` on every input and collects results in original order. Output length equals input length, while element type may change from `'a` to `'b`.
 
-For example, `(string * int) -> string` function `formatRequest` turns every booking pair into a label. Partial application makes `List.map formatRequest` a function `(string * int) list -> string list`. `map` itself has no meaning for skipping an item.
+For example, `(string * int) -> string` function `formatRequest` turns every booking pair into a label. Partial application makes `List.map formatRequest` a function `(string * int) list -> string list`. Selection belongs to `filter` or `choose`; `map` preserves one output position for every input.
 
 ### `filter`: decide whether to retain the original item {#filter}
 
 `List.filter predicate source` requires `predicate` to return `bool`. The result contains only original elements for which it returned `true`, still in relative order, and its type remains `'a list`.
 
-`filter` fits when selection and later transformation are two clear conceptual stages. It returns a result list without removing elements from the source, and retained element values can be referenced by both lists. Do not depend on whether any internal spine is reused; that is an implementation detail.
+`filter` fits when selection and later transformation are two clear conceptual stages. It returns a new result list while the source remains available, and retained element values can be referenced by both lists. Treat internal spine reuse as an implementation detail.
 
 ### `choose`: zero or one output per item {#choose}
 
 `List.choose chooser source` asks each input to produce `Some value` or `None`. A `Some value` contributes the transformed value, while `None` contributes no result item, expressing selection and transformation together.
 
-For now, treat `option` as a minimal protocol: `Some x` means a value is present, and `None` means no value. Chapter 9 covers absence modeling, composition, and the `Some null` boundary. Do not treat `None` as an ordinary empty string or as error information.
+For now, treat `option` as a minimal protocol: `Some x` carries a value, while `None` represents absence. Chapter 9 covers absence modeling, composition, and the `Some null` boundary. Use `Result` later when the caller needs error information.
 
 When filtering and mapping share one decision and the intermediate list has no independent meaning, `choose` can express “each input yields at most one output” more directly. When each stage has a domain name or must be observed separately, keeping `filter` and `map` can be clearer.
 
@@ -102,19 +102,19 @@ Record types and values from top to bottom:
 | After `List.filter isValidRequest` | `(string * int) list` | Lin and Sam |
 | After `List.map formatRequest` | `string list` | `"Lin:3"` and `"Sam:2"` |
 
-The pipeline adds no control flow. It supplies the preceding stage's value as the following function's final argument. Aligned lines make transformation order scannable and avoid nested call parentheses.
+The pipeline supplies the preceding stage's value as the following function's final argument. Its control flow remains ordinary function application. Aligned lines make transformation order scannable and reduce nested call parentheses.
 
 ### List pipelines evaluate eagerly {#eager-pipelines}
 
-Each `List` operation here traverses its input and completes a result list when called. `filter` first produces an intermediate list, and `map` traverses it next. The pipe operator neither fuses the calls automatically nor turns a list into a lazy sequence.
+Each `List` operation here traverses its input and completes a result list when called. `filter` first produces an intermediate list, and `map` traverses it next. The pipe operator preserves those two eager calls; fusion and lazy evaluation require different operations or data structures.
 
-That does not make a two-stage pipeline inherently “slow.” The intermediate result may improve clarity and data may be small. Write clearly and measure a real bottleneck first. When one traversal matters and the logic naturally belongs together, use `choose` or a `fold` from Chapter 6.
+A two-stage pipeline can be the right choice when the intermediate result improves clarity or the data is small. Write clearly and measure a real bottleneck first. When one traversal matters and the logic naturally belongs together, use `choose` or a `fold` from Chapter 6.
 
 ### A pipeline can also reduce clarity {#pipeline-boundaries}
 
-A direct call such as `List.isEmpty values` may be clearer than a one-stage pipeline written only to use the operator. A pipeline can also hide information when parameters are not designed for final-argument flow, stages contain many effects, or lambdas become long.
+A direct call such as `List.isEmpty values` often communicates a single operation more clearly. Pipelines work best with final-argument flow, short stages, and visible effects.
 
-Extract complex stages into named functions and keep each output type easy to state. A pipeline is notation for data flow, not a style rule requiring every expression to be vertical.
+Extract complex stages into named functions and keep each output type easy to state. Use pipelines as notation for clear data flow, and use ordinary application where it reads more directly.
 
 ## Use `choose` to merge related stages {#choose-pipeline}
 
@@ -133,7 +133,7 @@ printfn "Chosen labels: %A" chosenLabels
 ```
 `tryFormatRequest` has type `(string * int) -> string option`. A valid request produces `Some label`, an invalid one produces `None`, and `List.choose` extracts the text inside each `Some` in order, again yielding `string list`.
 
-A `try` prefix often signals in F#/.NET code that an operation may not produce a normal value, but the exact failure representation still comes from the type. This type distinguishes only presence from absence and carries no reason. Validation that must explain failure should not hide that reason in `None`; later it should use `Result` or accumulating validation.
+A `try` prefix often signals in F#/.NET code that an operation may return an alternative to its normal value, while the type defines that alternative precisely. Here, `option` distinguishes presence from absence. Validation that must explain failure uses `Result` or accumulating validation later in the book.
 
 ## Use `iter` or `for` for effects {#iteration-for-effects}
 
@@ -151,7 +151,7 @@ printfn ""
 ```
 A `for` loop enumerates its input and may use a pattern in the loop-variable position. It suits logging, writing to an existing buffer, or calling an imperative API. If the goal is a new list, a loop must manage accumulation separately, while `map` and `filter` already encode that intent in their return type.
 
-Do not put effects in `map` merely because it visits every item. That also creates a result list that may be ignored and mixes “produce data” with “perform an effect.” `iter` or `for` makes the `unit` intent explicit.
+Use `map` to produce data. Use `iter` or `for` to perform an effect for every item; their `unit` result makes that intent explicit and avoids an unused result list.
 
 ## A mutable binding is an explicit tool {#mutable-bindings}
 
@@ -201,7 +201,7 @@ The version works and mutates only two local bindings, but it exposes more mecha
 
 ## How to choose among the three {#choosing-style}
 
-The shared script uses structural equality to show that all three implementations produce the same labels in the same order. The choice should not follow “functional is always good” or “loops are always fast,” but the problem:
+The shared script uses structural equality to show that all three implementations produce the same labels in the same order. Choose from the problem's shape and evidence:
 
 | Goal | Usually consider first | Reason |
 | --- | --- | --- |
@@ -210,7 +210,7 @@ The shared script uses structural equality to show that all three implementation
 | Continue according to explicit changing state | Small `while` plus local `mutable` | A state machine may be clearer than a distorted transformation |
 | Reduce traversals or allocations on a hot path | Measure, then merge stages or choose another collection | Evidence and a clear baseline beat guesses |
 
-A functional version may allocate too many intermediate lists. An imperative version may become quadratic through mistaken tail appends. A syntax paradigm is not a performance proof. Establish equal results, order, and boundaries, then benchmark or profile real costs.
+Either style can carry avoidable costs: a functional version may allocate too many intermediate lists, while an imperative version may become quadratic through mistaken tail appends. Establish equal results, order, and boundaries, then benchmark or profile real costs.
 
 ## Run the shared example {#run-example}
 
@@ -280,10 +280,10 @@ For `labelsWithFor` and `labelsWithWhile`:
 - An F# list is an ordered immutable singly linked structure. Front cons with `::` is normally constant time; append traverses the left side.
 - `map` yields one item per input, `filter` retains original items, and `choose` uses `Some`/`None` for zero-or-one output.
 - `x |> f` is data-flow notation for `f x`, relying on parameter order suited to partial application.
-- `List` pipelines evaluate eagerly and multiple stages may create intermediate lists; a pipeline is not automatically lazy or fused.
-- Use `iter` or `for` for effects instead of using `map` to create an ignored list.
+- `List` pipelines evaluate eagerly, and multiple stages may create intermediate lists; lazy or fused evaluation requires a suitable alternative abstraction.
+- Use `iter` or `for` for effects; reserve `map` for producing a result collection.
 - `let mutable` and `<-` explicitly denote changing storage; tight local containment controls reasoning cost.
-- A `while` loop requires manual progress and fits truly state-driven problems rather than default collection traversal.
+- A `while` loop requires manual progress and fits truly state-driven problems; collection functions express standard traversal directly.
 
 The next chapter generalizes “accumulate at the front and reverse” into recursion and accumulators, then rewrites a class of explicit recursion with `fold` while describing tail-call boundaries accurately.
 

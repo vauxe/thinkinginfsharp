@@ -6,7 +6,7 @@ translationKey: part-01/ch-03-functions-as-values
 
 # Chapter 3: Functions Are Values {#overview}
 
-F# does not confine functions to special code sections that can only be declared and called. A function is a value: `let` can bind it to a name, another function can receive it as an argument, and a function can return it as a result. **Function application** is itself an expression that produces a value.
+A function is an ordinary F# value: `let` can bind it to a name, another function can receive it as an argument, and a function can return it as a result. **Function application** is itself an expression that produces a value.
 
 This idea connects the first two chapters. Literals produce data values, function values describe computations from inputs to results, and higher-order functions turn behavior itself into composable data. Reading arrow types accurately before learning pipelines prevents `|>` from becoming decorative syntax.
 
@@ -37,7 +37,7 @@ printfn "Curried total: %M" totalForThree
 ```
 `let lineTotal unitPrice seats = ...` establishes a binding between the name `lineTotal` and a function value. `unitPrice` and `seats` are **parameters**: they stand for inputs the function will later receive. In the call `lineTotal 19.50m 3`, `19.50m` and `3` are **arguments**: the values actually supplied by the caller.
 
-Defining a function does not immediately evaluate its body. Only after the function receives enough arguments does the body `unitPrice * decimal seats` run. The value of the body's final expression is the function result; an ordinary F# function needs no `return` here.
+Defining a function creates its function value. The body `unitPrice * decimal seats` runs after the function receives enough arguments. Its final expression supplies the result directly, so an ordinary F# function uses that value in place of a `return` statement.
 
 ### Apply functions with spaces {#application}
 
@@ -48,13 +48,13 @@ Application associates to the left and binds more tightly than most infix operat
 1. compute the inner `transform value`;
 2. supply that result to the outer `transform`.
 
-Putting comma-separated values in parentheses constructs a tuple and may change the meaning entirely. `lineTotal (19.50m, 3)` is not another spelling of a call to the curried `lineTotal`; it supplies one tuple argument and therefore does not type-check.
+Putting comma-separated values in parentheses constructs a tuple and changes the argument shape. The curried `lineTotal` expects two successive arguments, while `lineTotal (19.50m, 3)` supplies one tuple argument and therefore produces a type error.
 
 ### A function body produces a result {#body-result}
 
 A function body may contain local `let` bindings and effects, but the final expression still determines the result type. If the last expression is `printfn`, the result is `unit`; if it is the amount calculation, the result is `decimal`.
 
-Being a function value does not make a function pure. Its body can still read a clock, write a file, or mutate controlled state. Purity comes from a design that depends only on explicit inputs and causes no observable effects, not from a property automatically granted by `let`.
+A function value may be pure or effectful. Its body can read a clock, write a file, or mutate controlled state. A pure design depends only on explicit inputs and produces its observable meaning through the returned value; `let` itself only establishes the binding.
 
 ## An arrow denotes a function type {#function-types}
 
@@ -70,7 +70,7 @@ The arrow `->` separates input from result. It associates to the right, so the s
 decimal -> (int -> decimal)
 ```
 
-After receiving a `decimal`, the result is not the final amount but an `int -> decimal` function. Supplying the `int` then produces a `decimal`. That is why `standardLineTotal` has this signature:
+After receiving a `decimal`, the function returns an `int -> decimal` function. Supplying the `int` then produces the final `decimal`. That is why `standardLineTotal` has this signature:
 
 ```text
 val standardLineTotal: int -> decimal
@@ -86,7 +86,7 @@ F# `let`-bound functions normally use **curried** form: multiple visible paramet
 (lineTotal 19.50m) 3
 ```
 
-This is not a promise that an expensive intermediate object is allocated every time. It is the semantic model of function types and application. The compiler may optimize the concrete representation; callers should depend on type behavior, not guessed allocation.
+This describes the semantic model of function types and application. The compiler may optimize the concrete representation, including intermediate allocations; callers should rely on type behavior and use measurements for allocation claims.
 
 ### A tupled parameter has another shape {#tupled-parameters}
 
@@ -104,7 +104,7 @@ Here `(unitPrice, seats)` is a tuple pattern that separates two positions from o
 decimal * int -> decimal
 ```
 
-The `*` in a type denotes tuple composition, not multiplication. The curried version receives two successive arguments; the tupled version receives one argument containing two components. They happen to compute the same result, but they do not have the same function type.
+The `*` in a type denotes tuple composition. The curried version receives two successive arguments; the tupled version receives one argument containing two components. They compute the same result through different function types.
 
 Idiomatic `let`-bound functions usually favor currying because it supports partial application and higher-order composition. A tuple can be clear when the domain naturally treats the input as one grouped value. .NET method calls often contain parentheses and commas, but their CLR calling semantics should not be reduced to an ordinary tupled function; the interoperation chapter treats that boundary separately.
 
@@ -157,7 +157,7 @@ val applyTwice: ('a -> 'a) -> 'a -> 'a
 
 The parentheses matter. The first argument itself has the function type `'a -> 'a`; the next argument is an `'a` value; and the result is still `'a`. Without parentheses, right association would describe a different shape.
 
-Higher-order does not automatically mean better abstraction. If behavior does not genuinely vary, a direct call to a named function is often clearer. A higher-order function earns its place when it fixes stable structure and makes a changing policy an explicit input, not merely when it removes lines.
+Use a higher-order function when behavior genuinely varies and the function can keep stable structure while accepting that policy as explicit input. For fixed behavior, a direct call to a named function is often clearer. This criterion ties the abstraction to meaning rather than line count.
 
 ## Generic functions do not depend on one concrete type {#generic-functions}
 
@@ -180,7 +180,7 @@ val identity: 'a -> 'a
 
 The three occurrences of the same `'a` in `applyTwice` likewise express a consistency constraint: the transformation's input and output and the value being transformed must align. Different letters such as `'a` and `'b` denote positions that need not have the same type.
 
-Complete function definitions with explicit parameters can usually be generalized when it is safe, but not every expression containing a function can be generalized arbitrarily. Mutable state, partial applications, and complex values can expose the **value restriction**. Do not use tricks to silence that diagnostic yet; Chapter 11 gives the precise rules and remedies.
+Complete function definitions with explicit parameters can usually be generalized when it is safe. Mutable state, partial applications, and complex values may instead expose the **value restriction**. When that diagnostic appears, Chapter 11 provides the precise rule and an explicit repair.
 
 ## Run the shared example {#run-example}
 
@@ -201,7 +201,7 @@ With service fee: 60.50
 Identity values: 42, F#
 ```
 
-Matching output does not prove matching function types. The curried and tupled versions both produce `58.50`, yet their signatures and partial-application abilities differ. Inspect both output and types when verifying a function.
+The curried and tupled versions both produce `58.50`, while their signatures and partial-application abilities differ. Verify a function with both its output and its type.
 
 ## Debugging: parenthesize the application first {#debugging}
 
@@ -213,13 +213,13 @@ Function diagnostics often arise at an application boundary. Check them in this 
 4. distinguish successive application `a b` from one tuple `(a, b)`;
 5. check whether partial application produced a function or already produced the final value.
 
-If a diagnostic says a value was expected but a function was supplied, an argument is often still missing. If it says a value is not a function and cannot be applied, an earlier step may already have produced the final result that you then tried to call again.
+If a diagnostic says a value was expected but a function was supplied, provide or trace the remaining argument. If it says a value cannot be applied as a function, an earlier step may already have produced the final result.
 
 When a long anonymous function produces a confusing diagnostic, bind it to a name temporarily and let FSI display its signature alone. Fix the type first, then decide whether to inline it. This is more effective than guessing inside nested parentheses.
 
 ## Exercises {#exercises}
 
-Write the signature before calculating output. Do not decide that a function is curried merely from the visible number of parameter names; use arrows and tuple types.
+Write the signature before calculating output. Use arrows and tuple types to determine whether a function is curried.
 
 ### Exercise 1: decode the arrows {#exercise-01}
 
@@ -254,7 +254,7 @@ Compare `lineTotal` with `lineTotalTupled`:
 - A function is a value. Defining one establishes a binding; applying one evaluates its body and produces a result.
 - F# applies ordinary functions with spaces; application associates left, while arrow types associate right.
 - A curried function represents successive single-parameter functions, and partial application returns a function awaiting the rest.
-- A tupled function receives one composite value; `decimal * int -> decimal` is not `decimal -> int -> decimal`.
+- A tupled function receives one composite value, while a curried function receives successive arguments; their signatures describe different input shapes.
 - An anonymous function uses `fun parameter -> body` to create a function value directly.
 - A higher-order function receives or returns a function; a closure lets a returned function retain values from its definition environment.
 - Automatic generalization uses type variables such as `'a` for definitions independent of a concrete type while preserving consistency among positions.

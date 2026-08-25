@@ -6,7 +6,7 @@ translationKey: part-06/ch-34-pure-booking-workflow
 
 # Chapter 34: The Pure Booking Workflow and Validation {#overview}
 
-Chapter 33 fixed the words. This chapter connects them with one function. The resulting workflow accepts a protected activity, current booking state, and one raw command; it returns either an accepted fact or an explicit decision error. It reads no database, calls no clock, catches no transport exception, and performs no notification.
+Chapter 33 fixed the words. This chapter connects them with one function. The workflow accepts a protected activity, current booking state, and one raw command; it returns either an accepted fact or an explicit decision error. All required facts arrive through its arguments, and application adapters retain responsibility for databases, clocks, transport failures, and notifications.
 
 The interesting design choice is not the absence of I/O. It is the placement of failure boundaries. Independent malformed fields are all useful at once, so validation accumulates them. A state-dependent decision cannot meaningfully evaluate every later rule after an earlier prerequisite fails, so it short-circuits. Treating both categories with one indiscriminate combinator would either lose useful errors or invent misleading ones.
 
@@ -49,7 +49,7 @@ Each position carries a different trust level:
 
 Currying lets an application partially apply a stable activity or state if that improves a local pipeline, but the argument order primarily tells the story: supply context first and the changing command last.
 
-“Pure” means the same inputs produce the same result and evaluation has no observable external effect. It does not mean every command succeeds, computation is free, exceptions are impossible everywhere in .NET, or two callers can safely commit the same result concurrently.
+“Pure” means the same inputs produce the same result and evaluation has no observable external effect. Command acceptance, computational cost, exceptional behavior elsewhere in .NET, and concurrent commit safety are separate properties.
 
 ## Separate two kinds of failure {#two-failure-kinds}
 
@@ -381,7 +381,15 @@ This evidence proves deterministic decisions for the covered model. It does not 
 
 ### Exercise 1: trace exact precedence {#exercise-01}
 
-For each input, predict the exact `BookingDecisionError` before running tests: (a) blank ID and zero seats against `NotBooked`; (b) valid five-seat placement into a four-seat activity against `NotBooked`; (c) the same valid placement against `Booked existing`; (d) blank ID and blank code against `NotBooked`; and (e) valid confirmation against an already confirmed booking. Name every rule that is skipped.
+Before running tests, predict the exact `BookingDecisionError` for each input:
+
+1. blank ID and zero seats against `NotBooked`;
+2. valid five-seat placement into a four-seat activity against `NotBooked`;
+3. the same valid placement against `Booked existing`;
+4. blank ID and blank code against `NotBooked`;
+5. valid confirmation against an already confirmed booking.
+
+For every prediction, name the rules that evaluation skips.
 
 ### Exercise 2: add a third independent field {#exercise-02}
 

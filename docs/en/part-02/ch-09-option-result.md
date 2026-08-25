@@ -270,11 +270,25 @@ Choose `'T`, `'T option`, or `Result<'T, 'Error>` for each function and justify 
 
 ### Exercise 2: compose optional data {#exercise-02}
 
-Given `tryFindBooking : string -> Booking option` and `tryConfirmedCode : Booking -> string option`, define `tryFindConfirmedCode : string -> string option` without pattern matching and without producing a nested option. Explain why the key operation is `bind`, not `map`.
+Start with these functions:
+
+```fsharp
+tryFindBooking : string -> Booking option
+tryConfirmedCode : Booking -> string option
+```
+
+Define `tryFindConfirmedCode : string -> string option`. Keep the result flat and express the composition directly, without pattern matching. Then explain why `bind` fits this composition and how `map` would change the result type.
 
 ### Exercise 3: preserve validation context {#exercise-03}
 
-Add an `EventClosed` case to `BookingError`. Write `validateOpen : bool -> BookingRequest -> Result<BookingRequest, BookingError>`, compose it after the existing validations, and attach both a request identifier and an event identifier with `Result.mapError`. State which error a doubly invalid request returns and why.
+Complete four steps:
+
+1. Add an `EventClosed` case to `BookingError`.
+2. Write `validateOpen : bool -> BookingRequest -> Result<BookingRequest, BookingError>`.
+3. Compose it after the existing validations.
+4. Use `Result.mapError` to attach both a request identifier and an event identifier.
+
+Finally, state which error a doubly invalid request returns and explain the precedence.
 
 [Read the chapter solutions](../solutions/ch-09-option-result).
 

@@ -23,7 +23,7 @@ type NotificationTarget =
     | Disabled of reason: string
 ```
 
-It is no longer possible to construct “email and SMS at once,” “all three off,” or “disabled without a reason.” The type still does not guarantee that strings have valid formats; smart constructors or validation must address that without adding flags.
+Every constructed value now selects exactly one target: an email address, an SMS number, or a disabled reason. Smart constructors or validation can add the remaining string-format guarantees while preserving this three-case shape.
 
 ## Exercise 2: prove exhaustiveness {#exercise-02}
 

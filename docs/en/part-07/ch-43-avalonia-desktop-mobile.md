@@ -16,23 +16,16 @@ This chapter therefore starts with product and platform constraints, not XAML sy
 
 By the end of this chapter, you should be able to:
 
-- separate domain state, presentation state, view objects, platform hosts, and distributable packages;
-- choose a UI approach from users, devices, native capabilities, team skills, and release channels;
-- explain why shared source, shared UI, and verified behavior are different claims;
-- identify when Avalonia, a Windows-only UI, .NET MAUI, a browser UI, or thin native shells deserve a spike;
-- read an Avalonia project as ordinary .NET plus XAML build tasks and native backends;
-- keep an F# `update` function independent of controls and dispatch UI events into messages;
-- choose deliberately among manual MVU, MVVM adapters, code-behind, and code-only UI;
-- make F# records, unions, options, commands, and collections explicit at a binding boundary;
-- use Avalonia 12 compiled bindings without hiding dynamic reflection behind accidental defaults;
-- distinguish classic desktop, single-view, and Android activity lifetimes;
-- keep blocking work off the UI thread and marshal only view updates through a dispatcher;
-- isolate clipboard, dialogs, notifications, files, camera, permissions, and secure storage behind ports;
-- design layouts for resize, scale, keyboard, touch, localization, and assistive technology;
-- distinguish a XAML build, headless test, native launch, packaged install, signed artifact, and store release;
-- publish per runtime identifier and choose framework-dependent or self-contained delivery consciously;
-- state exactly what the desktop sample verifies and why its attempted native launch did not pass;
-- design a reversible desktop or mobile adoption spike with an explicit evidence matrix.
+- choose a UI boundary from users, devices, native capabilities, team skills, and release channels while separating shared source, shared UI, and verified behavior;
+- structure an application across domain, presentation, view, platform host, and distribution layers, then choose a fitting MVU, MVVM, code-behind, or code-only pattern;
+- adapt F# records, unions, options, commands, and collections at the binding boundary and configure compiled bindings explicitly;
+- model desktop and mobile lifetimes, return asynchronous results safely to the UI thread, and isolate platform services behind ports;
+- design accessible, responsive layouts for window size, display scale, keyboard, touch, localization, and assistive technology;
+- build per-target evidence from project and XAML checks through native launch, packaging, signing, store release, and a reversible adoption spike.
+
+::: tip Two reading passes
+For a first pass, follow the [UI stack](#ui-stack-contracts), [decision map](#decision-map), and [verified desktop slice](#verified-slice). When implementing or adopting a toolkit, use the state, binding, lifetime, platform, evidence, and release sections as focused references.
+:::
 
 ## A UI application is a stack of contracts {#ui-stack-contracts}
 
@@ -48,7 +41,7 @@ domain rules and durable data
 
 The domain can often be a normal F# library. Presentation state turns domain outcomes and UI events into states the screen can render. Avalonia controls are mutable .NET objects owned by a UI dispatcher. The host decides whether the top level is a desktop window, an Android activity, or a single mobile view. Packaging then adds operating-system identity, architecture, metadata, signing, distribution, and upgrade behavior.
 
-A green lower layer does not prove the layers above it. A pure transition test says nothing about XAML names. A XAML build says nothing about a native display. A native debug launch says nothing about signing. A signed package says nothing about upgrade safety or accessibility.
+Each layer needs evidence at its own boundary. Pure transition tests cover presentation logic; a XAML build covers declared names and markup; a native debug launch covers device rendering and interaction; packaging checks cover signing and installation; upgrade and accessibility tests complete the release evidence.
 
 ### Shared is not the same as identical {#shared-not-identical}
 
@@ -95,7 +88,7 @@ Choose from team fluency, tooling, binding needs, styling scale, hot reload or p
 
 ## The desktop sample: one verified desktop slice {#verified-slice}
 
-The desktop sample is deliberately one `net10.0` desktop executable. It has five primary files, no mobile target framework, no platform workload, no MVVM dependency, and no packaging configuration.
+The verified slice is deliberately one `net10.0` desktop executable with five primary files. Mobile target frameworks, platform workloads, MVVM infrastructure, and packaging enter later slices when their corresponding requirements are tested.
 
 ### A pinned ordinary .NET project {#pinned-project}
 
@@ -506,15 +499,33 @@ Compare implementation and operational cost, not screenshot similarity. A framew
 
 ### Exercise 1: choose three UI boundaries {#exercise-01}
 
-Choose a first candidate, rejected alternatives, evidence gap, and reversal condition for each product: (a) a Windows-only trading workstation must reuse mature WPF controls and enterprise deployment; the domain calculations are new F#; (b) an offline field tool needs Windows, macOS, and two named Linux distributions, keyboard and touch, local documents, and no phone release; (c) a consumer app needs Android and iOS, camera, push notifications, deep links, background upload, store distribution, and a small companion desktop viewer. Compare Avalonia, a C# platform shell around an F# core, .NET MAUI, and a browser surface without forcing one answer across all products.
+Evaluate these products separately:
+
+1. A Windows-only trading workstation must reuse mature WPF controls and enterprise deployment; its domain calculations are new F#.
+2. An offline field tool needs Windows, macOS, and two named Linux distributions, plus keyboard, touch, and local documents. It has no phone release.
+3. A consumer app needs Android and iOS, camera, push notifications, deep links, background upload, store distribution, and a small desktop viewer.
+
+For each product, record the first candidate, rejected alternatives, evidence gap, and reversal condition. Compare Avalonia, a C# platform shell around an F# core, .NET MAUI, and a browser surface; each product may lead to a different boundary.
 
 ### Exercise 2: turn the desktop sample into a desktop release {#exercise-02}
 
-Design the minimum changes and evidence needed to turn the desktop sample into a supported Windows/macOS/Linux application. Cover module boundaries, asynchronous effects, persistence, settings migration, accessibility, localization, headless tests, native smoke, runtime identifiers, framework-dependent versus self-contained delivery, native assets, packages, signing/notarization, clean install, update, rollback, crash diagnostics, and the exact platform matrix. Preserve the honest limit of the existing `-6661` launch result.
+Produce two artifacts for turning the desktop sample into a supported Windows/macOS/Linux application:
+
+- **Application plan:** module boundaries, asynchronous effects, persistence, settings migration, accessibility, and localization.
+- **Evidence matrix:** headless tests, native smoke, runtime identifiers, framework-dependent and self-contained delivery, native assets, packages, signing or notarization, clean install, update, rollback, crash diagnostics, and the exact platform matrix.
+
+Keep the existing `-6661` native-launch result in the matrix until a later run supplies stronger evidence.
 
 ### Exercise 3: extend the architecture to mobile {#exercise-03}
 
-Design a Core/Desktop/Android/iOS project graph for a booking client. The shared screen edits a draft, submits it, survives rotation or activity recreation, resumes after process termination, opens a confirmation deep link, and exports a receipt through a platform picker. Define F# state/messages/effects, platform ports, lifetime ownership, persistence checkpoints, permission outcomes, stale-result protection, host language choices, workload locks, simulator/device tests, signing, staged store release, telemetry, and reversal criteria. State what a desktop build proves about the mobile targets.
+Design a Core/Desktop/Android/iOS project graph for a booking client. Organize the design around four concerns:
+
+- **Shared behavior:** edit a draft, submit it, open a confirmation deep link, and export a receipt through a platform picker.
+- **Lifetime and state:** survive rotation or activity recreation, resume after process termination, persist checkpoints, and reject stale results.
+- **Platform boundary:** define F# state, messages, and effects alongside platform ports, permission outcomes, and host-language choices.
+- **Delivery evidence:** lock workloads, run simulator and device tests, sign releases, stage store rollout, collect telemetry, and define reversal criteria.
+
+Finish by stating exactly what a desktop build proves about the mobile targets.
 
 [Read the chapter solutions](../solutions/ch-43-avalonia-desktop-mobile).
 

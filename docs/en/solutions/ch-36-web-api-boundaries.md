@@ -54,7 +54,7 @@ Do not read the body once in middleware merely to measure it and then ask the bi
 
 Run the existing HTTP cases unchanged. Add two requests without `Content-Length`: one exactly at the limit and one byte over it. Add `application/problem+json` or another valid `+json` media type to prove the content-type policy is intentional.
 
-Assert that invalid input never enters `LoadBooking`, not merely that the response is `400`. Assert that cancellation reaches a blocked port, not merely that the client task finishes. Finally, repeat a real Kestrel smoke because `TestServer` does not reproduce all transport limits and headers.
+Assert both the response and the owning boundary: invalid input produces `400` before `LoadBooking`, and cancellation reaches the blocked port before the client task completes as cancelled. Finally, repeat a real Kestrel smoke to cover transport limits and headers outside `TestServer`'s model.
 
 If any status, code, field error, or side-effect count changes, the refactor changed the API. Decide that migration explicitly instead of calling it a binding implementation detail.
 

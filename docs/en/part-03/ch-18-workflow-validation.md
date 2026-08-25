@@ -37,7 +37,7 @@ raw attendee ─────▶ validate name ────┼──▶ construct
 raw seat text ─────▶ validate seats ──┘
 ```
 
-The capacity comparison cannot run without a `SeatCount`; it is dependent on parsing and positivity. The three field branches all have the raw request available and do not require one another, so they are independent. “Independent” here means independent data requirements, not automatic parallel execution.
+The capacity comparison depends on a parsed, positive `SeatCount`. By contrast, all three field branches can read the raw request independently. Here “independent” describes data requirements; execution remains sequential unless the program explicitly introduces parallelism.
 
 Use the following starting rule:
 

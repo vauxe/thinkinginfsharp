@@ -54,7 +54,7 @@ PlaceBookingDto -> CancellationToken -> Task<IResult>
 
 原样运行现有 HTTP 用例。再加入两个没有 `Content-Length` 的请求：一个恰好达到上限，一个超过一个字节。加入 `application/problem+json` 或另一种有效 `+json` 媒体类型，以证明内容类型策略是有意选择的。
 
-断言无效输入绝不会进入 `LoadBooking`，而不只是响应为 `400`。断言取消抵达阻塞端口，而不只是客户端任务结束。最后再次执行真实 Kestrel 冒烟，因为 `TestServer` 不复现所有传输上限与头部。
+同时断言响应与职责边界：无效输入在进入 `LoadBooking` 前产生 `400`；取消抵达阻塞端口后，客户端任务以取消状态结束。最后再次执行真实 Kestrel 冒烟，覆盖 `TestServer` 模型之外的传输上限与头部。
 
 如果任何状态码、代码、字段错误或副作用次数变化，重构就改变了 API。应显式决定这次迁移，而不是把它称为绑定实现细节。
 

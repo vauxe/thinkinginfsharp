@@ -6,7 +6,7 @@ translationKey: part-06/ch-36-web-api-boundaries
 
 # Chapter 36: Web API, JSON, and Input Boundaries {#overview}
 
-Chapter 35 assembled capabilities but had no network boundary. This chapter adds one small ASP.NET Core Minimal API. “Minimal” describes the hosting model, not the amount of boundary judgment: bytes are still untrusted, DTOs are still not domain values, cancellation is still observable, and an exception message is still not a response contract.
+Chapter 35 assembled capabilities inside the process. This chapter adds a network boundary with a small ASP.NET Core Minimal API. “Minimal” describes the hosting model; the boundary still validates incoming bytes, maps DTOs into domain values, propagates observable cancellation, and translates declared failures into stable responses.
 
 The implementation keeps one question visible at every step: which layer is allowed to decide this? HTTP decides media type and status. The JSON contract decides wire shape. DTO mapping decides whether required transport data exists. The domain decides business validity and transitions. Adapters decide effects. The API coordinates those decisions and translates only their declared outcomes.
 
@@ -81,7 +81,7 @@ let mapConsistent (application: WebApplication) (dependencies: ConsistentBooking
         (handleCancelWith execute)
         (handleConsistentGet dependencies)
 ```
-Using a direct delegate is not a claim that automatic Minimal API binding is wrong. It is a local choice to make this chapter's boundary policy executable and contract-testable. Exercise 1 asks you to preserve the same contract with automatic binding.
+Using a direct delegate makes this chapter's boundary policy executable and contract-testable. Automatic Minimal API binding can serve the same contract; Exercise 1 asks you to demonstrate that alternative.
 
 ## Publish four narrow routes {#route-contract}
 
@@ -96,9 +96,15 @@ The API exposes commands rather than a generic endpoint that accepts a serialize
 
 Separate routes make allowed commands discoverable and give each request one stable JSON shape. They also avoid treating the compiler-oriented encoding of `BookingCommand` as a public protocol.
 
-`201 Created` includes a relative `Location` header built from the normalized request ID. After trimming, the domain accepts 1–64 ASCII URI-unreserved characters: letters, digits, `-`, `.`, `_`, and `~`; the complete values `.` and `..` are excluded because URI resolution treats them as dot-segments. The stored value is therefore exactly one stable path segment; `Uri.EscapeDataString` remains a defensive encoding step, and an HTTP test follows the returned location back to `200`. Confirmation and cancellation modify the representation already addressed by that ID, so they return `200`.
+`201 Created` includes a relative `Location` header built from the normalized request ID. After trimming, the ID follows three rules:
 
-This is not a claim that command routes are the only REST design. It is a small, consistent contract for this workflow. Changing route semantics later would be a public API migration, not an internal refactor.
+- its length is 1–64 characters;
+- every character is ASCII URI-unreserved: a letter, digit, `-`, `.`, `_`, or `~`;
+- the complete value is neither `.` nor `..`, because URI resolution treats those values as dot-segments.
+
+Together, these rules make every stored ID one stable path segment. `Uri.EscapeDataString` remains a defensive encoding step, and an HTTP test follows the returned location back to `200`. Confirmation and cancellation modify the representation at that location, so they return `200`.
+
+Command routes provide one small, consistent REST contract for this workflow. Other designs can serve different resource semantics. Changing these route semantics later would be a public API migration rather than an internal refactor.
 
 ## Keep response types at the boundary {#boundary-dtos}
 
@@ -131,19 +137,32 @@ The wire messages are English, while the book explains them in both languages. C
 
 ### Transport and syntax {#transport-syntax}
 
-Before a DTO exists, the API checks that the content type is a recognized JSON media type, that at most 16 KiB are read, and that bytes deserialize under the strict options. The outcomes are `415 unsupported_media_type`, `413 request_too_large`, or `400 invalid_json`.
+Before a DTO exists, the API performs three checks:
 
-`HasJsonContentType` recognizes JSON media types, including the structured `+json` suffix. A malformed document, a wrongly cased property, an unknown property, or a value of the wrong JSON kind fails before any port is called.
+| Check | Failure response |
+|---|---|
+| Recognized JSON media type | `415 unsupported_media_type` |
+| At most 16 KiB read | `413 request_too_large` |
+| Deserialization with strict options | `400 invalid_json` |
+
+`HasJsonContentType` recognizes JSON media types, including the structured `+json` suffix. Strict deserialization rejects malformed documents, wrongly cased or unknown properties, and values of the wrong JSON kind. Each rejection occurs before any port is called.
 
 ### DTO presence {#dto-presence}
 
 JSON `null` can deserialize to a null DTO. A missing `seats` property becomes `Nullable<int>()`. The command mappers therefore report `MissingBody`, `MissingRequestId`, `MissingSeats`, and corresponding command-specific failures as `400 invalid_request`.
 
-This layer answers whether the wire representation supplied the data required to form a raw command. It deliberately does not decide whether `0` seats or a blank identifier is legal business input.
+This layer answers whether the wire representation supplied enough data to form a raw command. The domain-validity layer decides whether values such as `0` seats or a blank identifier are legal business input.
 
 ### Domain validity {#domain-validity}
 
-The existing validation module still owns request identifiers, non-positive seats, blank confirmation codes, and blank cancellation reasons. A request ID must be nonblank, at most 64 characters, URI-unreserved ASCII, and not the complete dot-segment `.` or `..`; values containing `/`, `%`, `?`, or Unicode likewise cannot become ambiguous route identities. The API first validates to obtain a protected storage key and to reject all field problems before I/O. The pure decider validates again when it accepts the raw command; that repeated pure check preserves one domain authority rather than cloning the rule in HTTP code.
+The existing validation module owns request identifiers, non-positive seats, blank confirmation codes, and blank cancellation reasons. A request ID must satisfy four rules:
+
+- contain at least one nonblank character;
+- contain at most 64 characters;
+- use only URI-unreserved ASCII characters;
+- have a complete value other than the dot-segments `.` and `..`.
+
+The character rule excludes `/`, `%`, `?`, and Unicode from route identities. The API validates before I/O to obtain a protected storage key and return all field problems together. The pure decider applies the same validation when it accepts the raw command. Reusing the domain check keeps one authority for the rule while the HTTP layer owns execution order.
 
 Multiple domain errors become one `validation_failed` response with ordered field errors. Request ID failures use the stable field codes `blank`, `too_long`, or `invalid_format`. No storage, payment, or notification call occurs for transport, DTO, or domain-validation failure.
 
@@ -296,7 +315,7 @@ The response table is part of the API contract:
 | `503` | `storage_unavailable` / `dependency_unavailable` | an operational dependency cannot complete |
 | `500` | `internal_error` | an unexpected application fault occurred |
 
-A payment refusal is neither malformed JSON nor an exception. A capacity refusal is neither “not found” nor an infrastructure outage. Keeping those distinctions makes client behavior and diagnostics possible without returning private union payloads.
+A payment refusal is an expected provider outcome, while a capacity refusal is a domain conflict. Malformed JSON, missing resources, and infrastructure outages occupy their own categories. Stable public codes preserve these distinctions for client behavior and diagnostics while private union payloads stay inside the application.
 
 Do not derive `code` from `sprintf "%A" error` or use `exception.Message`. Compiler names, file paths, provider details, and future refactors would become accidental public data.
 
@@ -366,11 +385,15 @@ let private safely handler (context: HttpContext) =
                     [||]
     }
 ```
-Adapters wrap known provider transport or availability failures in `DependencyUnavailableException` and retain the original exception as `InnerException` for internal diagnostics. The exact `Charge` or `Notify` call converts only that typed signal to `503 dependency_unavailable`; an arbitrary programming exception continues to the outer boundary and becomes a safe `500 internal_error`. `BookingStoreAdapterException` likewise retains its typed category for internal code but exposes only `storage_unavailable` over HTTP.
+Declared failures follow three paths:
 
-If an error occurs after response headers have started, writing a second JSON document would corrupt the response. The handler aborts that connection instead. Known DTO serialization is intentionally simple, but the boundary still avoids pretending an already-started response can be replaced.
+- Adapters wrap a known provider transport or availability failure in `DependencyUnavailableException` and retain the original exception as `InnerException`. The corresponding `Charge` or `Notify` handler branch maps that signal to `503 dependency_unavailable`.
+- A storage adapter reports its typed `BookingStoreAdapterException` internally and returns `503 storage_unavailable` at the HTTP boundary.
+- An unexpected programming exception reaches the outer handler and becomes a safe `500 internal_error`.
 
-This chapter does not add detailed fault logging. Chapter 38 will add structured diagnostics with an explicit data classification. Silence is safer than logging an unknown exception message before that policy exists, but production silence is not observability.
+Once response headers have started, replacement JSON would corrupt the response. The handler therefore aborts the connection. DTO serialization is intentionally simple here, while the same rule protects future response paths.
+
+Chapter 38 adds structured fault diagnostics after defining explicit data classification. Until then, this sample keeps unknown exception messages out of logs. A production service still needs an owned observability policy.
 
 ## Load configuration without disclosing it {#configuration-secrets}
 
@@ -509,7 +532,7 @@ This local host deliberately has no authentication, authorization, TLS certifica
 
 For an edge deployment, decide TLS, HSTS, allowed hosts, rate limits, request timeouts, authentication, authorization, and secret storage. Behind a reverse proxy, additionally configure forwarded headers with explicit trusted proxies and decide which layer terminates TLS and enforces each limit.
 
-Do not add every middleware “for security” without a threat model. For example, CORS governs browsers, not arbitrary HTTP clients; enabling a permissive policy would weaken rather than complete the boundary. Chapter 42 revisits deployment choices, while Chapter 38 adds only the diagnostics and release checks needed by this sample.
+Choose middleware from the threat model. For example, CORS governs browser origins, while authentication and network controls govern other HTTP clients; a permissive CORS policy broadens browser access. Chapter 42 revisits deployment choices, while Chapter 38 adds the diagnostics and release checks required by this sample.
 
 ## Avoid common API boundary mistakes {#boundary-mistakes}
 

@@ -88,7 +88,7 @@ let normalizeOpened raw =
     normalize raw
 ```
 
-`open Booking.Text` makes accessible members available by their short names in the following scope. It does not rename `normalize`, load or reference an assembly, change file order, copy the function, or make a private function public. Without the defining file earlier in this project—or the defining assembly referenced from another project—both versions fail.
+`open Booking.Text` adds accessible members to short-name lookup in the following scope. The original names, definitions, file order, assembly references, and access levels stay unchanged. Both forms therefore require either an earlier defining file in this project or a reference to the defining assembly.
 
 Qualification is the better default when a short name is ambiguous or only used once. A focused `open` is reasonable when the consumer repeatedly speaks that module's vocabulary.
 

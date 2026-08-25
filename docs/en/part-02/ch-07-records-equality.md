@@ -96,7 +96,7 @@ printfn "Record update: original=%d updated=%d" original.Seats updated.Seats
 ```
 `{ original with Seats = 3 }` produces a new `BookingDraft`. `original.Seats` remains `2`, while `updated.Seats` is `3`. It states that new state derives from old state with only these fields changed, without repeating the others.
 
-Copy-and-update is not a recursive deep copy. Unchanged field values are retained. If a field contains another reference object, old and new records may continue to refer to that same object. Immutable domain models commonly keep nested values immutable too, removing the need to defend shared state with deep copying.
+Copy-and-update performs a shallow structural update: it creates a new outer record and retains every unchanged field value. A reference-valued field can therefore point to the same object from both records. Immutable domain models commonly use immutable nested values as well, making that sharing safe by construction.
 
 Starting with F# 7, a field path can update nested records, but shorter syntax does not change that semantic boundary. First ask whether the nested model is clear, then decide whether to compress several `with` expressions.
 
@@ -156,9 +156,9 @@ Although an ordinary record is a reference type by default, domain logic normall
 
 A record's generated structural equality comes with structural hashing. The example asserts only one required direction: two structurally equal records produce the same `hash` result.
 
-The reverse is false. Matching hash codes do not prove equality, because unequal values may collide. A hash collection uses a hash code to narrow candidates and then confirms them with consistent equality. If equality and hashing disagree, lookup loses correctness; ordinary records keep that contract automatically.
+Hashing supplies a one-way contract: equal values share a hash code, while different values may collide. A hash collection uses the code to narrow candidates and consistent equality to confirm a match. Ordinary records generate both operations together and preserve that contract.
 
-A hash code is not an object address, database key, request ID, or password digest. Default hash values are not guaranteed to remain stable across runtimes, processes, or platforms. Do not persist, transmit, or display one as a permanent identifier. Cryptographic digests also require a dedicated cryptographic algorithm, not `hash`.
+Treat a hash code as a temporary lookup hint within the current runtime. Durable identity needs an explicit database key or request ID, and persisted or transmitted values need a documented stable format. Security-sensitive digests require a dedicated cryptographic algorithm.
 
 ## Structural comparison supplies a default order {#comparison}
 

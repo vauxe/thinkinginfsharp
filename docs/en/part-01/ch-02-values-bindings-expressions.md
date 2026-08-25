@@ -6,9 +6,9 @@ translationKey: part-01/ch-02-values-bindings-expressions
 
 # Chapter 2: Values, Bindings, and Expressions {#overview}
 
-Chapter 1 temporarily read `let eventName = ...` as “give a value a name.” We can now be precise: F# first evaluates the expression on the right, then the pattern on the left establishes a **binding**. A binding associates a name with a value; by default, it is not a storage slot that can be assigned repeatedly.
+Chapter 1 temporarily read `let eventName = ...` as “give a value a name.” We can now be precise: F# first evaluates the expression on the right, then the pattern on the left establishes a **binding**. A binding associates a name with a value. Repeated assignment requires an explicit mutable storage location.
 
-This may sound like a vocabulary distinction, but it changes how you read a program. When names cannot quietly point at different values at arbitrary times, data dependencies more closely follow the order visible in source. Type inference can also combine the uses into a set of compile-time constraints.
+This vocabulary distinction changes how you read a program. Stable names make data dependencies follow the order visible in source more closely. Type inference can also combine their uses into a set of compile-time constraints.
 
 ## What you will be able to do {#outcomes}
 
@@ -18,8 +18,8 @@ By the end of this chapter, you should be able to:
 - read literals for common basic types and their FSI type signatures;
 - explain simple inference from literals, operations, and annotations;
 - make intentional explicit conversions between numeric types;
-- explain why local shadowing creates a new binding rather than changing an old value;
-- choose a few informative type annotations instead of repeating a type on every name.
+- explain local shadowing as the creation of a new binding;
+- choose a few informative type annotations while leaving obvious local types to inference.
 
 Functions become an important kind of value in the next chapter. Here, treat calls such as `decimal requestedSeats` as available operations; Chapter 3 will explain application syntax and function types.
 
@@ -29,7 +29,7 @@ A **value** is the result of an expression that completes normally. The integer 
 
 An **expression** is code evaluated to produce a result, such as `20 + 4`. Evaluation can also cause an observable effect. `printfn` writes output, yet it still returns the `unit` value `()`.
 
-A **binding** is not another value. It is an association between a name and a value. Start with a group of bindings from the shared script:
+A **binding** is an association between a name and a value. Start with a group of bindings from the shared script:
 
 ```fsharp:line-numbers [ch02-values-bindings-expressions.fsx]
 let eventName = "Functional Foundations"
@@ -50,15 +50,15 @@ Read `let capacity = 40` in three steps:
 2. the compiler determines its type, and evaluation produces the value;
 3. the pattern `capacity` gives that value a name.
 
-The `=` here separates the left and right sides of a binding; it does not mean “store 40 in capacity so it can be assigned later.” In an ordinary expression, `=` tests structural equality. Updating a mutable location uses `<-`. The three forms have different roles, so do not carry over a habit that reads every equals sign as assignment.
+The `=` here separates the left and right sides of a binding. In an ordinary expression, `=` tests structural equality. Updating an explicitly mutable location uses `<-`. Reading each symbol by its role keeps binding, comparison, and mutation distinct.
 
 At the top of a module or script, `let` introduces a declaration. In a local scope, a sequence of `let` bindings and its following body form an expression. Both positions preserve the same core order: evaluate the right side, then make the new name visible in the following scope. An ordinary non-recursive name cannot be used before its definition; recursive bindings wait until Chapter 6.
 
 ### What immutable by default means {#immutability}
 
-An ordinary `let` binding is immutable by default. Once established, the same binding cannot be made to point to another value with `<-`. This removes a time dimension you would otherwise need to track while reading and eliminates one source of shared change in concurrent code.
+An ordinary `let` binding is immutable by default: it keeps pointing to the value established at creation. This removes a time dimension from reading and eliminates one source of shared change in concurrent code.
 
-Keep two ideas separate: **an immutable binding does not imply deep object immutability**. If a name later refers to a .NET object with mutable internals, preventing the name from being rebound does not freeze the object. The chapters on collections and controlled mutation will treat that boundary separately.
+Keep two ideas separate: **binding immutability governs the name; object mutability governs the referenced value**. A name can stay bound to the same .NET object while that object's mutable internals change. The chapters on collections and controlled mutation will treat that boundary separately.
 
 F# also supports `let mutable`, because local counters, array updates, and some interoperation genuinely need changing storage. The choice should be explicit and its scope should stay small. For now, recognize the syntax; Chapter 5 will compare transformation and iteration on the same problem.
 
@@ -74,15 +74,15 @@ let normalizedCapacity =
 
 printfn "Normalized capacity: %d; outer capacity: %d" normalizedCapacity capacity
 ```
-The second local `capacity` **shadows** the first local binding with that name. It uses the old value to compute `24`, then establishes a new binding. The old value was not rewritten; it can merely no longer be reached through the name `capacity` in the rest of that local scope.
+The second local `capacity` **shadows** the first local binding with that name. It uses the earlier value to compute `24`, then establishes a new binding. For the rest of that local scope, the name `capacity` resolves to the new value.
 
 When the local expression ends, both local bindings leave scope, while the script-level `capacity` is still `40`. The output therefore demonstrates both that `normalizedCapacity` is `24` and that the outer `capacity` remains `40`.
 
-Shadowing can express a short, linear refinement and is common across successive FSI experiments. If same-named stages are far apart, readers may struggle to tell which stage a name denotes; distinct stage names are usually clearer then. Shadowing is a scope rule, not a score for “functional style.”
+Shadowing can express a short, linear refinement and is common across successive FSI experiments. When same-named stages are far apart, distinct stage names make the current stage easier to identify. Treat shadowing as a scope rule and choose it for local clarity.
 
 ## Types remain static {#types-are-static}
 
-Omitting annotations does not omit types. The F# compiler determines a type for every value and expression at compile time, and source runs only after it passes type checking. Inference removes information that context can supply reliably; it does not guess at runtime.
+Every value and expression has a compile-time type, including those whose source omits annotations. Source runs after type checking succeeds. Inference supplies information that context already determines reliably.
 
 ### Common basic types {#basic-types}
 
@@ -99,9 +99,9 @@ Learn the frequent types first instead of memorizing every numeric width:
 | `string` | `"F#"` | A .NET string, written with double quotes |
 | `unit` | `()` | A type whose only value is `()` |
 
-F# also has other signed and unsigned integer widths, `float32`, and `bigint`. Let an external protocol, range requirement, or performance evidence decide when to use them. A long type list is not a reason to choose the narrowest representation for every small number.
+F# also has other signed and unsigned integer widths, `float32`, and `bigint`. Let an external protocol, range requirement, or performance evidence decide when to use them. Choose narrower representations when one of those constraints calls for them.
 
-A `float` covers a wide range, but it approximates most decimal fractions in binary. A `decimal` exactly represents many everyday base-10 fractions whose coefficient and scale fit its finite representation, such as `19.50`, so it is often suitable for monetary rules. The two are not interchangeable kinds of “number with a decimal point.”
+A `float` covers a wide range, but it approximates most decimal fractions in binary. A `decimal` exactly represents many everyday base-10 fractions whose coefficient and scale fit its finite representation, such as `19.50`, so it is often suitable for monetary rules. Their distinct representations support different numeric requirements.
 
 ### Inference comes from constraints {#inference-constraints}
 
@@ -113,7 +113,7 @@ The compiler combines several kinds of constraints:
 - annotations add explicit constraints;
 - later uses can make an earlier unknown type definite.
 
-For example, no other context selects a numeric type for `40` in the script, so `capacity` is inferred as `int`; `0.45` is inferred as `float`; and the suffix on `19.50m` makes `ticketPrice` a `decimal`. When no single type can satisfy two uses, the compiler reports a conflict instead of silently converting one value.
+For example, an unsuffixed `40` defaults to `int` in this context; `0.45` is inferred as `float`; and the suffix on `19.50m` makes `ticketPrice` a `decimal`. When two uses require incompatible types, the compiler reports the conflicting constraints and leaves conversion policy to the programmer.
 
 ### Annotations and conversions solve different problems {#annotations-conversions}
 
@@ -146,11 +146,11 @@ val noFurtherResult: unit = ()
 
 Read the colon as “has type”: `capacity` has type `int`. The part to the right of the equals sign is FSI's display of the current value, not part of the type. FSI may display a `decimal` with uppercase `M`; it has the same suffix meaning as lowercase `m` in the source.
 
-Compiler diagnostics also describe incompatible constraints as an expected type and an actual type. Find the colon, the type names, and the conflicting expression first, then decide what the model should be. Do not add random conversions merely to remove a red underline.
+Compiler diagnostics also describe incompatible constraints as an expected type and an actual type. Find the colon, the type names, and the conflicting expression first, then decide what the model should be. Add a conversion only where the model intentionally changes representation.
 
 ## The boundary between expressions and `unit` {#expressions-and-unit}
 
-Saying that F# is expression-oriented does not mean that a file contains no declarations. Top-level `let`, type, and module forms are declarations; their right sides and bodies are made from expressions. The important property is that conditionals, matches, and local bindings all yield results rather than merely directing the next statement. Later chapters will use those results one at a time.
+An expression-oriented F# file still contains declarations. Top-level `let`, type, and module forms are declarations; their right sides and bodies are made from expressions. Conditionals, matches, and local bindings all yield results that later computation can use. Later chapters will apply this property one construct at a time.
 
 When expressions run in sequence, a non-final expression should normally return `unit`. Otherwise, ignoring a meaningful value is often a mistake, and the compiler may warn about it. `printfn` fits such a position because its meaningful behavior is output and its returned value is `()`.
 
@@ -178,7 +178,7 @@ Compare these deterministic outputs in this order. Formatting in the script chan
 
 When a type error appears, narrow it in this order:
 
-1. find the smallest expression named by the diagnostic instead of rewriting the whole block;
+1. start with the smallest expression named by the diagnostic;
 2. inspect the types of its input values separately in FSI;
 3. identify constraints supplied by literal suffixes, operators, and known APIs;
 4. decide whether the data model really needs one common type;
@@ -228,7 +228,7 @@ Explain the `local-shadowing` region one line at a time:
 ## Summary {#summary}
 
 - An expression produces a value; `let` uses a pattern to bind names to the value of its right-side expression.
-- Ordinary bindings are immutable by default, but that does not automatically make a referenced object deeply immutable.
+- Ordinary bindings retain their established values; referenced objects have a separate mutability contract.
 - Shadowing creates a same-named new binding without changing the old value; the outer binding remains after the local scope ends.
 - F# static inference solves constraints from literals, operations, known uses, and annotations.
 - A type annotation constrains an expression; an explicit conversion creates a value in another representation.
@@ -241,7 +241,7 @@ The next chapter brings functions into this model. Functions are values, applica
 - **value:** a result produced when an expression completes normally and available to later expressions.
 - **expression:** code evaluated to produce a result, possibly causing effects during evaluation.
 - **binding:** an association between a name and a value, normally established by `let` and a pattern.
-- **immutability:** the property of not changing in place; binding immutability does not imply deep object immutability.
+- **immutability:** the property of retaining an established value; bindings and referenced objects have separate mutability contracts.
 - **type inference:** the compiler's deduction of a static type for each construct from constraints.
 - **type annotation:** an explicitly written type constraint in source.
 - **numeric conversion:** explicitly producing one numeric representation from another.

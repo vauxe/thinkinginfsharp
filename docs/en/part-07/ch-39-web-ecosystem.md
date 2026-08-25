@@ -380,7 +380,13 @@ Record implementation size only after recording correctness gaps, unfamiliar con
 
 ### Exercise 1: choose for three teams {#exercise-01}
 
-Choose a starting web surface for each scenario and state the evidence that could change your choice: (a) a mixed C#/F# team building a small internal JSON API under an organization-wide ASP.NET platform; (b) an F# team building server-rendered HTML with reusable functional handlers and HTMX; (c) an existing Saturn service moving to .NET 10 while adding no product features. Compare at least two candidates per scenario, including package and operational boundaries.
+Evaluate these teams separately:
+
+1. A mixed C#/F# team is building a small internal JSON API under an organization-wide ASP.NET platform.
+2. An F# team is building server-rendered HTML with reusable functional handlers and HTMX.
+3. An existing Saturn service is moving to .NET 10 while adding no product features.
+
+For each team, choose a starting web surface, compare at least two candidates, and describe their package and operational boundaries. Finish with the evidence that would change the choice.
 
 ### Exercise 2: preserve the greeting contract in a spike {#exercise-02}
 

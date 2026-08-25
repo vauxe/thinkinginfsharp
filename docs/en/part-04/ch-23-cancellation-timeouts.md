@@ -34,7 +34,7 @@ By the end of this chapter, you should be able to:
 - each operation decides where it can observe the request safely;
 - `OperationCanceledException` can report that cooperative cancellation was observed.
 
-The token does not kill a thread and cannot roll back already-visible effects. After a payment has been accepted or a file has been replaced, cancellation cannot pretend the effect never occurred. Operations should check before irreversible work, pass the token into cancellation-aware APIs, and define what happens when a request arrives after the commit point.
+Cancellation is cooperative and forward-looking. An operation checks the token at safe points and passes it into cancellation-aware APIs. A payment acceptance or file replacement remains visible after its commit point, so the contract must define the outcome of a cancellation request that arrives afterward.
 
 F# `task {}` does not implicitly obtain or check a token. Make it an argument and pass the same token down every cancelable call:
 

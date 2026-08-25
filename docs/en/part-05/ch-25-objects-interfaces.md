@@ -6,9 +6,9 @@ translationKey: part-05/ch-25-objects-interfaces
 
 # Chapter 25: Defining Objects in F# {#overview}
 
-F# is a .NET language, so classes, members, interfaces, inheritance, and value types are native parts of the language—not foreign escape hatches. They are also not a maturity layer that every functional model must eventually acquire. A function can express behavior, a record can name data, and a discriminated union can close a set of states without a class wrapper.
+F# is a .NET language, so classes, members, interfaces, inheritance, and value types are native tools. Functions express behavior, records name data, and discriminated unions close a set of states. Classes become useful when the model needs their specific runtime semantics.
 
-This chapter starts from the meaning a type must preserve. It introduces an object only when reference identity, hidden state, construction work, a lifetime, subtype dispatch, or a .NET contract makes that representation useful. The goal is not “functional versus object-oriented”; it is the smallest honest boundary for the problem.
+This chapter starts from the meaning a type must preserve. It introduces an object when reference identity, hidden state, construction work, a lifetime, subtype dispatch, or a .NET contract makes that representation useful. The goal is the smallest honest boundary for the problem, using functional and object-oriented tools where their semantics fit.
 
 ## What you will be able to do {#outcomes}
 
@@ -40,7 +40,7 @@ Ask what callers must know and what the runtime must preserve:
 | One local implementation of an existing object contract | Object expression | No reusable named implementation is needed |
 | Small measured value with copy semantics or required interop layout | Struct | Value-type representation is part of the requirement |
 
-These are starting points, not syntax bans. Records and unions can have members and implement interfaces. Classes can be immutable. A member does not prove that a class is needed, and a class does not by itself provide better architecture.
+Treat these as starting points. Records and unions can have members and implement interfaces, while classes can be immutable. Choose a class when its identity, state, lifetime, or dispatch semantics improve the model; the presence of a member alone supplies little evidence.
 
 Two quick tests expose ceremonial wrappers:
 

@@ -156,7 +156,7 @@ module Text =
 open ThinkingInFSharp.Ch16.Domain
 ```
 
-在该声明之后，可以把 `Domain` 中可访问的名称写成 `Capacity`、`BookingRequest` 和 `BookingId`，而不必写完整路径。`open` 不会加载程序集、复制定义、重排文件，也不会扩大 `private`/`internal` 的访问范围。所在项目或程序集引用必须已经使这个命名空间或模块可用。
+在该声明之后，可以把 `Domain` 中可访问的名称写成 `Capacity`、`BookingRequest` 和 `BookingId`，省去完整路径。`open` 只改变后续作用域中的名称查找。项目成员或程序集引用提供定义，编译顺序决定可见时机，访问修饰符继续控制可用名称。
 
 在边界处，限定名称通常更清楚：
 
@@ -192,7 +192,7 @@ let requested = request |> Domain.BookingRequest.seats |> Domain.SeatCount.value
 | `<OutputType>Exe</OutputType>` | 项目是否打包为可执行程序，而不是默认的库？ |
 | `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` | 编译器警告是否必须使构建失败？ |
 
-这些控制项彼此相关，却不能互换。选择 SDK `10.0.301` 并不等于声明项目面向 `net10.0`，而面向 `net10.0` 本身也不会冻结每项 F# 语言特性。可复现项目应明确声明两类策略，不依赖机器上碰巧安装了什么。
+这些控制项分别负责不同决策：SDK 选择构建工具集，`TargetFramework` 选择 API 与运行时契约，`LangVersion` 选择编译器接受的 F# 语言特性。可复现项目应显式声明每项策略。
 
 共享策略可以放在 `Directory.Build.props` 中；MSBuild 会为其子目录中的项目导入它。较大的代码库可以在那里集中设置 `LangVersion`、空值检查、警告视为错误、确定性输出和锁定包还原。小型独立教学项目应保持自包含；只有多个真实项目共享策略时才值得集中配置。
 
@@ -200,7 +200,7 @@ let requested = request |> Domain.BookingRequest.seats |> Domain.SeatCount.value
 
 ## 最小的可空引用模型 {#nullable-minimum}
 
-启用 F# 空值检查后，`string` 表达非空引用契约，`string | null` 则显式允许 null。该标注是编译期契约，不是类似 `option` 的运行时包装器，也不能证明外部代码或未检查代码永远不会产生 null。
+启用 F# 空值检查后，`string` 表达非空引用契约，`string | null` 则显式允许 null。该标注指导编译期分析，运行时仍使用普通 .NET 引用表示。来自外部或未检查代码的值仍需在边界验证。
 
 领域边界有意接收可空文本：
 

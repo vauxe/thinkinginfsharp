@@ -263,13 +263,13 @@ The browser sample already contains the center of this shape without the library
 
 An HTTP command still performs I/O and can fail, time out, complete late, or be cancelled. The gain is that `update` returns a description and receives the outcome as another message instead of hiding the effect inside a state mutation.
 
-Give every effect explicit outcome cases. For example, `SearchStarted`, `SearchSucceeded`, `SearchFailed`, and `SearchCancelled` preserve more meaning than one `SetResults` message. Do not catch every error and return an empty list; the view then cannot distinguish no matches from no connection.
+Give every effect explicit outcome cases. For example, `SearchStarted`, `SearchSucceeded`, `SearchFailed`, and `SearchCancelled` let the view distinguish an empty successful result from a connection failure, while one `SetResults` message collapses those meanings.
 
 ### Subscriptions own external event lifecycles {#subscriptions}
 
 Timers, WebSockets, browser observers, and global event sources can emit independently of a command. Elmish subscriptions associate those sources with model-dependent identities and start or stop them as the program changes.
 
-The hard requirement is cleanup. Re-rendering must not register duplicate listeners, reconnect a socket without disposing the previous one, or let an obsolete subscription continue dispatching. Test start, replacement, disposal, reconnection, and page teardown.
+Cleanup is the hard requirement. Each active source should have one current registration; socket replacement disposes the previous connection; obsolete subscriptions stop dispatching. Test start, replacement, disposal, reconnection, and page teardown.
 
 ### Reject stale asynchronous outcomes {#stale-results}
 
@@ -460,7 +460,13 @@ Adopt the larger stack only when it removes more risk than it adds. Keep the los
 
 ### Exercise 1: choose three browser architectures {#exercise-01}
 
-Choose a first candidate and a reversal condition for each case: (a) a server-rendered documentation page needs one accessible preference toggle with no shared application state; (b) a booking client has a multi-step draft, URL navigation, overlapping availability/payment requests, retries, and recoverable failures; (c) a product must integrate five maintained React components already owned by the frontend team while most state is local to each component. Compare plain Fable DOM, Elmish, and Feliz/React rather than giving one stack to all three.
+Evaluate these browser surfaces separately:
+
+1. A server-rendered documentation page needs one accessible preference toggle and has no shared application state.
+2. A booking client has a multi-step draft, URL navigation, overlapping availability and payment requests, retries, and recoverable failures.
+3. A product must integrate five maintained React components owned by the frontend team; most state remains local to each component.
+
+For each surface, choose a first candidate and a reversal condition. Compare plain Fable DOM, Elmish, and Feliz/React; each surface may lead to a different architecture.
 
 ### Exercise 2: model stale search results {#exercise-02}
 

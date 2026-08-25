@@ -84,7 +84,7 @@ Classify failure by what the caller can do:
 | unavailable external resource or corrupted state | exception, possibly mapped at an application boundary | retry, degrade, log, or abort by policy |
 | cancellation | preserve cancellation token and cancellation exception/task state | stop work without reporting an ordinary failure |
 
-Do not turn every exception into `Result`: allocation failure, a broken invariant, and an expected rejected booking do not have the same recovery contract. Do not throw for every negative business outcome either. If callers routinely branch on it, make the branch visible in the return model.
+Choose the representation from the recovery contract. Allocation failure and a broken invariant normally propagate exceptionally; an expected rejected booking belongs in `Result` or a domain union. When callers routinely branch on an outcome, make that branch visible in the return model.
 
 When adapting a C# API that already uses exceptions, first characterize which exception types are contractual. Catch only exceptions you can interpret, retain the original cause where relevant, and never use a blanket catch to convert cancellation into a generic error.
 
@@ -241,4 +241,3 @@ A mixed F#/C# solution is a valid destination, not an unfinished migration. Keep
 - [Microsoft Learn: F# task expressions](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/task-expressions)
 - [Microsoft Learn: guidelines for collections](https://learn.microsoft.com/en-us/dotnet/standard/design-guidelines/guidelines-for-collections)
 - [Microsoft Learn: breaking changes and .NET libraries](https://learn.microsoft.com/en-us/dotnet/standard/library-guidance/breaking-changes)
-

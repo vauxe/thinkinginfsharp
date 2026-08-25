@@ -60,7 +60,7 @@ translationKey: glossary
 
 ### 不可变性 {#immutability}
 
-值建立后不被原地改写的性质；对绑定而言，它表示名称不会被重新赋给另一个值，但不自动保证所引用对象的内部也不可变。
+保持已建立值的性质。绑定维持名称与值的关联，被引用对象的内部则遵循自己的可变性契约。
 
 **首次讲解:** [第 2 章：值、绑定与表达式](./part-01/ch-02-values-bindings-expressions#overview)
 

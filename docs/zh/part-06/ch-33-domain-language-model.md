@@ -295,11 +295,20 @@ let start rawEventId rawCapacity =
     | Error errors, Ok _
     | Ok _, Error errors -> Error errors
 ```
-`PublicApi.BookingModel` 与 `BookingView` 隐藏了表示。消费者使用 `start`、`place`、`confirm`、`cancel` 和观察函数；其自身签名无需提到 `Event`、`Booking`、`BookingState`、`BookingEvent`、`RequestId` 或 `SeatCount`。公共模块把内部错误投影为更小的 `BookingError` 词汇。
+公共模块为消费者提供四种小而明确的角色：
 
-这并不会让程序集中的所有其他类型都无法访问。它建立了一条稳定路径，让消费者无需耦合教学工作流的表示。如果将来的库契约要求更严格，还可用签名文件或独立的内部程序集进一步限制表面。
+| 角色 | 公共名称 | 消费者操作 |
+|---|---|---|
+| 不透明状态 | `PublicApi.BookingModel` | 从 `start` 取得，再传给状态转换 |
+| 命令 | `place`、`confirm`、`cancel` | 请求一次领域转换 |
+| 观察 | `BookingView` 与观察函数 | 读取投影后的视图 |
+| 失败 | `BookingError` | 匹配较小的公共错误词汇 |
 
-稳定 API 与边界 DTO 解决不同问题。前者保护同一库生态内的 F# 源码依赖；后者固定序列化或跨语言契约。第 27 章已经说明：面向 C# 的 API 可能需要类、枚举、成员、可空标注和异常，而不应直接暴露这种 F# 形状的表面。
+内部工作流继续使用 `Event`、`Booking`、`BookingState`、`BookingEvent`、`RequestId` 和 `SeatCount`。消费者签名只需使用公共角色。
+
+这个模块建立了稳定的消费路径，程序集中的其他类型仍然可访问。将来的库若需要程序集级限制，可以加入签名文件，或把实现类型移入独立的内部程序集。
+
+稳定 API 与边界 DTO 解决不同问题。前者保护同一库生态内的 F# 源码依赖；后者固定序列化或跨语言契约。正如第 27 章所示，面向 C# 的 API 通常用类、枚举、成员、可空标注和异常表达公共表面。
 
 ## 迁移名称，但不复制模型 {#compatibility-aliases}
 
@@ -379,7 +388,17 @@ type BookingEvent = Booking.Domain.BookingEvent
 
 ### 练习 1：按角色分类值 {#exercise-01}
 
-把下列值分别归类为命令、已验证命令、领域事件、状态、边界 DTO、端口或领域错误：`PlaceBooking`、`ValidPlaceBooking`、`BookingPlaced`、`Booked booking`、`PlaceBookingRequestDto`、`AppendEvent` 与 `RequestedSeatsExceedCapacity`。逐项说明谁能创建它，以及仅仅构造该值是否就表示请求的预约已经发生。
+对以下值进行分类：
+
+- `PlaceBooking`
+- `ValidPlaceBooking`
+- `BookingPlaced`
+- `Booked booking`
+- `PlaceBookingRequestDto`
+- `AppendEvent`
+- `RequestedSeatsExceedCapacity`
+
+逐项记录它的角色——命令、已验证命令、领域事件、状态、边界 DTO、端口或领域错误——谁能创建它，以及构造该值是否表示请求的预约已经发生。
 
 ### 练习 2：先扩展语言，再扩展代码 {#exercise-02}
 

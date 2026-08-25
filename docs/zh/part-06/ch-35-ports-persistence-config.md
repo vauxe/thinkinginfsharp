@@ -390,7 +390,7 @@ type FileBookingStore(configuration: BookingStoreConfiguration) =
 
 固定上限会阻止损坏或被替换的本地文件导致无界分配。64 KiB 是针对一个小快照的样例上限，不是通用 JSON 限制。集合存储需要根据真实基数与流式策略推导上限。
 
-文件或目录缺失意味着 `Ok None`，不属于损坏。读取或权限失败有独立运维案例。语法无效的 JSON、无效 UTF-8，以及不能变成受保护预约的有效 JSON，是三种不同损坏类别。
+文件或目录缺失表示普通缺失，并映射为 `Ok None`。读取与权限失败使用独立运维案例。损坏则分为 JSON 语法无效、UTF-8 无效，以及结构有效的 JSON 无法转换成受保护预约三类。
 
 ## 通过同一目录完成替换 {#replacement}
 

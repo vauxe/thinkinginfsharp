@@ -286,7 +286,7 @@ let checkManifest sourceDirectory outputFile =
 ```
 This gives the useful idempotence property: after one successful `write`, another `write` over unchanged inputs reports `Unchanged` and does not alter the output timestamp. The same-directory temporary file keeps the final move on one filesystem and narrows the window in which a partial destination is visible.
 
-Do not overstate that guarantee. The code does not request durable flushes, coordinate concurrent writers, preserve every prior permission or metadata bit, or recover an interrupted network filesystem. “Replace after complete local write” is accurate; “transactionally durable under every crash” is not.
+State the guarantee precisely: the script replaces the destination after a complete local write on the same filesystem. Durable flushes, concurrent-writer coordination, full permission and metadata preservation, crash durability, and interrupted network-filesystem recovery all require additional mechanisms.
 
 `check` compares the same plan without writing. That makes CI failure actionable: exit `2` means regenerate or commit the manifest, while exit `1` means the operation itself failed. Scripts that always print an error but exit `0` break automation composition.
 

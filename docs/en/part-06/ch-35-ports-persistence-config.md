@@ -390,7 +390,7 @@ Internally, save maps the booking to `BookingDto`, serializes UTF-8 without a by
 
 The fixed bound prevents a damaged or replaced local file from causing unbounded allocation. Sixty-four KiB is a sample-specific limit for one small snapshot, not a universal JSON limit. A collection store would need a limit derived from its real cardinality and streaming policy.
 
-Missing file or directory means `Ok None`; it is not corruption. Read or permission failure has a separate operational case. Syntactically invalid JSON, invalid UTF-8, and valid JSON that cannot become a protected booking are three distinct corruption categories.
+A missing file or directory maps to ordinary absence as `Ok None`. Read and permission failures use separate operational cases. Corruption is classified as invalid JSON syntax, invalid UTF-8, or structurally valid JSON that fails conversion into a protected booking.
 
 ## Replace through the same directory {#replacement}
 

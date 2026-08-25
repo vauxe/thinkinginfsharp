@@ -156,7 +156,7 @@ Do not create one module per type mechanically. Group definitions that change to
 open ThinkingInFSharp.Ch16.Domain
 ```
 
-After that declaration, accessible names from `Domain` can be written as `Capacity`, `BookingRequest`, and `BookingId` instead of with their full path. `open` does not load an assembly, copy definitions, reorder files, or widen `private`/`internal` access. The containing project or an assembly reference must already make the namespace or module available.
+After that declaration, accessible names from `Domain` can be written as `Capacity`, `BookingRequest`, and `BookingId` instead of with their full path. `open` changes name lookup within the following scope. Project membership or an assembly reference supplies the definitions; compile order supplies their visibility; access modifiers continue to control which names are available.
 
 Qualification is often clearer at boundaries:
 
@@ -192,7 +192,7 @@ Read settings by the question they answer:
 | `<OutputType>Exe</OutputType>` | Is the project packaged as an executable rather than the default library? |
 | `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` | Must compiler warnings fail the build? |
 
-These controls are related but not interchangeable. Selecting SDK `10.0.301` does not itself say that a project targets `net10.0`, and targeting `net10.0` does not by itself freeze every F# language feature. A reproducible project states both policies rather than relying on whatever happens to be installed.
+These controls govern separate decisions. The SDK selects the build toolset, `TargetFramework` selects the API and runtime contract, and `LangVersion` selects accepted F# language features. A reproducible project states each policy explicitly.
 
 Shared policy can live in `Directory.Build.props`; MSBuild imports it for descendant projects. A larger codebase can centralize `LangVersion`, nullable checking, warnings as errors, deterministic output, and locked package restore there. Keep a small standalone teaching project self-contained; centralize stable policy only when several real projects share it.
 
@@ -200,7 +200,7 @@ Prefer fixing a diagnostic to globally suppressing it. Warnings-as-errors makes 
 
 ## The minimum nullable-reference model {#nullable-minimum}
 
-With F# null checking enabled, `string` expresses a non-null reference contract and `string | null` explicitly admits null. The annotation is a compile-time contract, not an `option`-like runtime wrapper and not proof that no foreign or unchecked code can ever produce null.
+With F# null checking enabled, `string` expresses a non-null reference contract and `string | null` explicitly admits null. The annotation guides compile-time analysis and uses the ordinary .NET reference representation at runtime. Foreign and unchecked code still require validation at the boundary.
 
 The domain boundary deliberately accepts nullable text:
 

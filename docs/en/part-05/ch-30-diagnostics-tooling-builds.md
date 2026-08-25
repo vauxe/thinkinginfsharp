@@ -191,7 +191,7 @@ Pinning matters because formatter output can change across releases. Upgrade the
 
 Fantomas normalizes layout. The F# compiler checks parsing, name resolution, types, constraints, and enabled warnings. `TreatWarningsAsErrors` makes emitted warnings fail the build; optional warnings such as unused bindings must still be enabled deliberately. Nullable checking and analyzers likewise need explicit project configuration.
 
-Do not treat a formatted file as correct, or a warning-free build as fully tested. Formatting, static compilation, property tests, boundary tests, and runtime observation cover different risks.
+Formatting, static compilation, property tests, boundary tests, and runtime observation cover different risks. A release claim combines the relevant evidence instead of treating layout or a warning-free build as a complete verdict.
 
 When suppressing a warning, scope the suppression narrowly and record why the flagged condition is safe. A global suppression that merely makes a gate green discards future evidence.
 
