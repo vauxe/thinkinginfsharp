@@ -9,6 +9,32 @@ export const enLocale = {
   themeConfig: {
     nav: enNavigation.nav,
     sidebar: enNavigation.sidebar,
+    search: {
+      provider: 'local',
+      options: {
+        translations: {
+          button: {
+            buttonText: 'Search',
+            buttonAriaLabel: 'Search this book'
+          },
+          modal: {
+            displayDetails: 'Display detailed results',
+            resetButtonTitle: 'Reset search',
+            backButtonTitle: 'Close search',
+            noResultsText: 'No results for',
+            footer: {
+              selectText: 'to select',
+              selectKeyAriaLabel: 'Enter',
+              navigateText: 'to navigate',
+              navigateUpKeyAriaLabel: 'Up arrow',
+              navigateDownKeyAriaLabel: 'Down arrow',
+              closeText: 'to close',
+              closeKeyAriaLabel: 'Escape'
+            }
+          }
+        }
+      }
+    },
     outline: { label: 'On this page', level: [2, 3] as [number, number] },
     lastUpdated: { text: 'Last updated' },
     docFooter: { prev: 'Previous', next: 'Next' },

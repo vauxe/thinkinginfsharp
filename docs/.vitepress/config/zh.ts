@@ -9,6 +9,32 @@ export const zhLocale = {
   themeConfig: {
     nav: zhNavigation.nav,
     sidebar: zhNavigation.sidebar,
+    search: {
+      provider: 'local',
+      options: {
+        translations: {
+          button: {
+            buttonText: '搜索',
+            buttonAriaLabel: '搜索本书'
+          },
+          modal: {
+            displayDetails: '显示详细结果',
+            resetButtonTitle: '清空搜索',
+            backButtonTitle: '关闭搜索',
+            noResultsText: '没有找到',
+            footer: {
+              selectText: '选择',
+              selectKeyAriaLabel: '回车键',
+              navigateText: '切换结果',
+              navigateUpKeyAriaLabel: '上方向键',
+              navigateDownKeyAriaLabel: '下方向键',
+              closeText: '关闭',
+              closeKeyAriaLabel: 'Escape 键'
+            }
+          }
+        }
+      }
+    },
     outline: { label: '本页目录', level: [2, 3] as [number, number] },
     lastUpdated: { text: '最后更新' },
     docFooter: { prev: '上一页', next: '下一页' },

@@ -21,6 +21,14 @@
   --book-choice-border: #465365;
 }
 
+html[lang="en"] {
+  --vp-code-copy-copied-text-content: "Copied";
+}
+
+html[lang="zh-Hans"] {
+  --vp-code-copy-copied-text-content: "已复制";
+}
+
 :focus-visible {
   outline: 3px solid var(--vp-c-brand-1);
   outline-offset: 3px;
