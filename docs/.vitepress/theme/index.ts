@@ -1,6 +1,7 @@
 import { defineComponent, h, nextTick, onMounted, watch } from 'vue'
 import { useRoute } from 'vitepress'
 import DefaultTheme from 'vitepress/theme'
+import ReadingProgress from './ReadingProgress.vue'
 import './styles.css'
 
 function localizeThemeLabels() {
@@ -49,7 +50,9 @@ const Layout = defineComponent({
     const route = useRoute()
     onMounted(localizeThemeLabels)
     watch(() => route.path, () => nextTick(localizeThemeLabels))
-    return () => h(DefaultTheme.Layout)
+    return () => h(DefaultTheme.Layout, null, {
+      'layout-top': () => h(ReadingProgress)
+    })
   }
 })
 

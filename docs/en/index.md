@@ -10,7 +10,9 @@ aside: false
 
 This book teaches F# from expressions, values, types, and functions, then grows toward effects, testing, .NET interoperability, and complete applications.
 
-If F# is new to you, read the [preface](./preface/) and Parts I–III in order, beginning with Chapter 1. Use the later parts when you need their topics.
+::: tip Start here
+If F# is new to you, read the [preface](./preface/) and then [start Chapter 1](./part-01/ch-01-first-session). Continue through Parts I–III in order; use the later parts when you need their topics.
+:::
 
 ## Part I · Expressions and functions {#part-1}
 

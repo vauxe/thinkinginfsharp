@@ -11,7 +11,7 @@ export const zhLocale = {
     search: {
       provider: 'local',
       options: {
-        detailedView: false,
+        detailedView: 'auto',
         disableQueryPersistence: true,
         translations: {
           button: {
@@ -19,6 +19,7 @@ export const zhLocale = {
             buttonAriaLabel: '搜索本书'
           },
           modal: {
+            displayDetails: '显示详细结果',
             resetButtonTitle: '清空搜索',
             backButtonTitle: '关闭搜索',
             noResultsText: '没有找到',

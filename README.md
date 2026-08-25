@@ -23,7 +23,7 @@ Before committing, run:
 npm run check
 ```
 
-`npm run check` verifies that the English and Chinese pages, heading anchors, and code blocks correspond, then builds the VitePress site.
+`npm run check` tests the reading theme, verifies that the English and Chinese pages, heading anchors, and code blocks correspond, then builds the VitePress site.
 
 ## Repository layout
 

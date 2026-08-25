@@ -11,7 +11,7 @@ export const enLocale = {
     search: {
       provider: 'local',
       options: {
-        detailedView: false,
+        detailedView: 'auto',
         disableQueryPersistence: true,
         translations: {
           button: {
@@ -19,6 +19,7 @@ export const enLocale = {
             buttonAriaLabel: 'Search this book'
           },
           modal: {
+            displayDetails: 'Display detailed results',
             resetButtonTitle: 'Reset search',
             backButtonTitle: 'Close search',
             noResultsText: 'No results for',

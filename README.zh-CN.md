@@ -23,7 +23,7 @@ npm run dev
 npm run check
 ```
 
-`npm run check` 检查中英文页面、标题锚点和代码块是否对应，然后构建 VitePress 站点。
+`npm run check` 测试阅读主题，检查中英文页面、标题锚点和代码块是否对应，然后构建 VitePress 站点。
 
 ## 仓库结构
 
