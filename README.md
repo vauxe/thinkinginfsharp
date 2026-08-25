@@ -1,34 +1,36 @@
-# F# 思维
+# Thinking in F#
 
-一个面向 F# 初学者的中英文静态学习站点。中文与英文内容分别组织，根页面只用于选择语言。
+English | [简体中文](README.zh-CN.md)
 
-- [在线阅读](https://vauxe.github.io/thinkinginfsharp/)
-- [中文书稿](docs/zh/index.md)
-- [English edition](docs/en/index.md)
+A bilingual static learning site for F# beginners. English is the default edition, Chinese has its own path, and readers can switch languages from the site navigation.
 
-## 本地运行
+- [Read online](https://vauxe.github.io/thinkinginfsharp/)
+- [English manuscript](docs/en/index.md)
+- [Chinese manuscript](docs/zh/index.md)
 
-只需要 Node.js 22+（npm 随 Node 一起安装）：
+## Run locally
+
+You only need Node.js 24 or later; npm is included with Node.js.
 
 ```console
 npm ci
 npm run dev
 ```
 
-提交前运行：
+Before committing, run:
 
 ```console
 npm run check
 ```
 
-`npm run check` 只做两件事：检查中英文页面、标题锚点和代码块是否对应，然后构建 VitePress 站点。
+`npm run check` verifies that the English and Chinese pages, heading anchors, and code blocks correspond, then builds the VitePress site.
 
-## 目录
+## Repository layout
 
 ```text
-docs/                         书稿与站点配置
-scripts/check-book.mjs        最小双语一致性检查
-.github/workflows/            GitHub Pages 部署
+docs/                         Book content and site configuration
+scripts/check-book.mjs        Minimal bilingual consistency check
+.github/workflows/            GitHub Pages deployment
 ```
 
-代码示例直接写在书页中，因此仓库不再包含独立的 .NET 解决方案、Aspire 工程、测试矩阵或内容生成器。
+Code examples live directly in the book pages. The repository therefore has no separate .NET solution, Aspire project, test matrix, or content generator.
