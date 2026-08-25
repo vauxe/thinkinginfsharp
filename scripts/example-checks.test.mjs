@@ -182,6 +182,25 @@ test('supports all seven kinds and executes their required checks', (t) => {
   assert.ok(scriptCalls.every((call) => call.includes('--warnaserror+')))
 })
 
+test('stops when solution restore fails instead of running stale outputs', (t) => {
+  const root = createFixture(t)
+  writeCompleteFixture(root)
+  const calls = []
+
+  const runner = (command, args) => {
+    calls.push([command, ...args])
+    return { status: 1, stdout: '', stderr: 'locked restore failed' }
+  }
+
+  const errors = runExampleChecks({ repoRoot: root, runner })
+
+  assert.equal(calls.length, 1)
+  assert.ok(calls[0].includes('restore'))
+  assert.equal(errors.length, 1)
+  assert.match(errors[0], /ThinkingInFSharp\.slnx restore/)
+  assert.match(errors[0], /locked restore failed/)
+})
+
 test('rejects exercise solutions embedded in chapter scripts', (t) => {
   const root = createFixture(t)
   write(

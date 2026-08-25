@@ -682,27 +682,31 @@ export function runExampleChecks({ runner = spawnSync, ...options } = {}) {
       'ThinkingInFSharp.slnx',
       '--locked-mode'
     ])
-    if (!restore.error && restore.status === 0) {
-      const build = run('ThinkingInFSharp.slnx Release build', [
-        'build',
+    if (restore.error || restore.status !== 0) {
+      return [...new Set(errors)].sort()
+    }
+
+    const build = run('ThinkingInFSharp.slnx Release build', [
+      'build',
+      'ThinkingInFSharp.slnx',
+      '--configuration',
+      'Release',
+      '--no-restore'
+    ])
+    if (build.error || build.status !== 0) {
+      return [...new Set(errors)].sort()
+    }
+
+    if (parsed.entries.some(
+      (entry) => entry.kind === 'test' || entry.kind === 'contract'
+    )) {
+      run('ThinkingInFSharp.slnx tests', [
+        'test',
         'ThinkingInFSharp.slnx',
         '--configuration',
         'Release',
-        '--no-restore'
+        '--no-build'
       ])
-      if (
-        !build.error &&
-        build.status === 0 &&
-        parsed.entries.some((entry) => entry.kind === 'test' || entry.kind === 'contract')
-      ) {
-        run('ThinkingInFSharp.slnx tests', [
-          'test',
-          'ThinkingInFSharp.slnx',
-          '--configuration',
-          'Release',
-          '--no-build'
-        ])
-      }
     }
   }
 
