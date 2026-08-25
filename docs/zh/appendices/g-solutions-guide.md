@@ -417,7 +417,7 @@ sources: []
 
 **各题答案:** [练习 1](../solutions/ch-42-cloud-containers-aspire#exercise-01) · [练习 2](../solutions/ch-42-cloud-containers-aspire#exercise-02) · [练习 3](../solutions/ch-42-cloud-containers-aspire#exercise-03)
 
-**评审重点:** 选择合乎比例的计算模型，把 X42 切片转化为发布提案，并用诚实的未知结果设计幂等事件消费者。
+**评审重点:** 选择合乎比例的计算模型，把本地云样例转化为发布提案，并用诚实的未知结果设计幂等事件消费者。
 
 ### 第 43 章：Avalonia、桌面端与移动端 {#chapter-43}
 
@@ -433,7 +433,7 @@ sources: []
 
 **各题答案:** [练习 1](../solutions/ch-44-unity#exercise-01) · [练习 2](../solutions/ch-44-unity#exercise-02) · [练习 3](../solutions/ch-44-unity#exercise-03)
 
-**评审重点:** 选择合乎比例的 F#/C# Unity 边界，通过诚实的 IL2CPP 证据计划提升 X44，并在不隐藏 AOT 风险的前提下设计带版本任务数据。
+**评审重点:** 选择合乎比例的 F#/C# Unity 边界，通过诚实的 IL2CPP 证据计划提升托管插件样例，并在不隐藏 AOT 风险的前提下设计带版本任务数据。
 
 ### 第 45 章：脚本、自动化、包生态与继续学习 {#chapter-45}
 

@@ -55,7 +55,8 @@ This appendix targets F# 10 and .NET 10. Installation pages and supported operat
 | Activity | Required | Optional or later |
 |---|---|---|
 | read the static book | a current browser | nothing else |
-| run Chapters 1–38 and ordinary `.fsx` files | .NET 10 SDK | Git, an editor |
+| work through Chapters 1–37 and run ordinary `.fsx` files | .NET 10 SDK | Git, an editor |
+| run Chapter 38's automated `pnpm check:capstone` acceptance command | .NET 10 SDK, Node.js 22+, pnpm 11.7, and a frozen workspace install | public NuGet access when the cache is empty |
 | edit F# with language services | .NET 10 SDK plus an F#-capable editor | debugger integrations |
 | build this documentation repository | .NET 10 SDK, Git, Node.js 22+, pnpm 11.7 | a system Chrome for browser smoke |
 | run Fable sample and the full repository gate | preceding repository tools | Chrome-compatible browser automation |
@@ -211,7 +212,7 @@ The root `global.json` contains:
 
 Target frameworks such as `net10.0` answer a different question: which API/runtime contract a project compiles against. `global.json` selects the SDK toolchain. A machine can have several SDKs and runtimes side by side.
 
-To read and run the ordinary F# chapters, the SDK is sufficient. To maintain the whole static site, also use the Node.js and pnpm versions declared by `package.json`, then perform a frozen install. Fable adds its locked .NET tool and npm graph. Browser tests require an available compatible browser. These are repository contribution requirements, not prerequisites for understanding functions, records, unions, or workflows.
+To read and run the ordinary F# chapters, the SDK is sufficient. Chapter 38's canonical automated acceptance command also invokes the repository's JavaScript runner, so it needs the declared Node.js and pnpm versions plus a frozen install. To maintain the whole static site, use that same toolchain. Fable adds its locked .NET tool and npm graph. Browser tests require an available compatible browser. These are repository automation requirements, not prerequisites for understanding functions, records, unions, or workflows.
 
 ## Diagnose by layer {#troubleshooting}
 

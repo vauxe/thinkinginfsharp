@@ -11,6 +11,8 @@ verifiedWith:
   dotnetSdk: "10.0.301"
 exampleIds:
   - ch06-recursion-folds
+  - ch06-non-tail-recursion
+  - capstone-part-01-booking-basics
 exerciseIds:
   - ch06-exercise-01
   - ch06-exercise-02
@@ -27,7 +29,10 @@ termIds:
 sources:
   - id: microsoft-recursive-functions
     url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/recursive-functions-the-rec-keyword
-    checked: "2026-08-24"
+    checked: "2026-08-25"
+  - id: microsoft-fsi-options
+    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/fsharp-interactive-options
+    checked: "2026-08-25"
   - id: microsoft-functions
     url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/
     checked: "2026-08-24"
@@ -114,7 +119,11 @@ sources:
 
 ### `[<TailCall>]` 检查意图 {#tailcall-attribute}
 
-F# 8 起可在模块函数或方法上使用 `[<TailCall>]`。编译器若发现该函数中的递归调用不在尾位置，会给出警告。本书使用 F# 10，并把警告视为错误，因此共享循环的尾调用意图可以自动检查。
+F# 8 起可在模块函数或方法上使用 `[<TailCall>]`。编译器若发现该函数中的递归调用不在尾位置，会给出警告。为了让这个诊断成为可执行证据，仓库会把下面这个刻意无效的 `.fs` 项目按“警告即错误”单独编译，并要求出现 `FS3569`：
+
+<<< @/../examples/expected-errors/ch06-non-tail-recursion/NonTailRecursion.fs#non-tail-recursion{fsharp:line-numbers} [NonTailRecursion.fs]
+
+普通脚本门禁也会用 `--warnaserror+` 运行 FSI，但脚本成功运行本身不被当成 `TailCall` 诊断的证明。上面的编译型反例提供负向证据；代码位置与下面的有界运行则为共享循环提供正向证据。
 
 这个属性不会把非尾递归魔法般改写成尾递归，也不证明函数一定终止。它只检查相关调用位置。尾位置是编译器消除递归栈增长的重要前提，但跨函数、运行时、调试设置、计算表达式与其他执行模型可能有不同限制；不要从一个同步自递归示例推导“所有递归都是栈安全的”。
 
@@ -199,7 +208,7 @@ folder a (folder b (folder c initial))
 从仓库根目录执行：
 
 ```console
-dotnet fsi --exec examples/scripts/ch06-recursion-folds.fsx
+dotnet fsi --warnaserror+ --exec examples/scripts/ch06-recursion-folds.fsx
 ```
 
 应得到：
@@ -266,7 +275,17 @@ Fold order: left=-6 right=2
 - `List.fold` 从左向右穿行状态；`foldBack` 从右组合且 folder 参数顺序不同。
 - 尾递归、时间复杂度、算术安全与领域正确性必须分别验证。
 
-至此，第一部分的语言基础闭合：值、绑定、函数、分支、列表数据流与递归。接下来的贯穿项目会把它们组合成一个纯脚本预约切片，然后第二部分用记录和联合类型把隐含约束提升为领域模型。
+## 第一部分检查点 {#part-checkpoint}
+
+从仓库根目录运行集成后的预约脚本：
+
+```console
+dotnet fsi --warnaserror+ --exec examples/capstone/part-01/BookingBasics.fsx
+```
+
+输出必须区分有效与无效输入行，只接受容量允许的请求，拒绝超容量请求，并得到正确的已预约与剩余容量。这闭合了第一部分的语言路径，但不声称已经具备持久化或并发保证。
+
+[继续阅读第 7 章](../part-02/ch-07-records-equality)，用记录与联合类型把更多隐含规则提升为类型。
 
 ## 词汇 {#vocabulary}
 

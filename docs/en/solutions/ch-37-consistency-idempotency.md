@@ -48,7 +48,7 @@ Use the normalized event ID as the aggregate or partition key. One durable aggre
 - all unfinished reservations that contribute to occupancy;
 - the operation key, payload fingerprint, phase, and replay result for each command.
 
-This is the same information needed by K11, but the storage engine—not a process-local semaphore—must reject a stale commit. A relational design might lock one activity row and update its dependent rows in one transaction. A key-value or document design might conditionally replace one activity document only when its ETag matches.
+This is the same information needed by the current consistency design, but the storage engine—not a process-local semaphore—must reject a stale commit. A relational design might lock one activity row and update its dependent rows in one transaction. A key-value or document design might conditionally replace one activity document only when its ETag matches.
 
 Partitioning by event ID means one hot event can contend with itself without blocking unrelated events. That benefit holds only if no global table lock, singleton worker, or shared transaction serializes every partition. A booking that spans multiple events would cross this boundary and require a different model.
 

@@ -259,7 +259,7 @@ dotnet test tests/ContractTests/ContractTests.fsproj \
   --filter FullyQualifiedName~Ch19NullTests
 ```
 
-六项测试在启用空值检查并将警告视为错误的情况下编译。它们验证构造函数/成员/重载/接口调用、null 输入收窄、`Type.GetType` 的真实可空返回、`Nullable<int>` 的两个转换方向、可空引用的两个转换方向，以及 `Some null` 反例。
+契约测试在启用空值检查并将警告视为错误的情况下编译。它们验证构造函数/成员/重载/接口调用、null 输入收窄、`Type.GetType` 的真实可空返回、`Nullable<int>` 的两个转换方向、可空引用的两个转换方向，以及 `Some null` 反例。
 
 这些是契约测试，不是关于每个 .NET 库的主张。对于实际调用的 API，始终要检查目标框架当前的标注与有文档的行为。
 

@@ -164,7 +164,6 @@ You should see:
 Functional Foundations: 22 seats remaining
 Seats available: true
 Printing returned: ()
-Lin booked 3 seats.
 ```
 
 In interactive mode, FSI proactively displays the values and types of submissions. Under `--exec`, every line above comes from an explicit `printfn` call in the script. The repository's example manifest also asserts key lines, so the prose and executable behavior share one source of evidence.
@@ -190,7 +189,7 @@ Answer independently before running or editing a local copy. The solution is use
 Use the output you just observed to answer these questions:
 
 1. What are the types of `remaining`, `hasSeats`, `summary`, and `printResult`?
-2. In what order do the four output lines appear? Why does the summary appear before `printResult` is printed?
+2. In what order do the output lines appear? Why does the summary appear before `printResult` is printed?
 3. Before editing, predict: if `booked` changes to `40`, which values change, and how should the output change?
 
 Then copy the script to a temporary location and test the prediction in question 3. Do not edit the repository's shared answer.

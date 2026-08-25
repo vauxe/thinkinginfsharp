@@ -11,6 +11,8 @@ verifiedWith:
   dotnetSdk: "10.0.301"
 exampleIds:
   - ch18-workflow-validation
+  - capstone-booking-domain
+  - foundation-example-tests
 exerciseIds:
   - ch18-exercise-01
   - ch18-exercise-02
@@ -286,7 +288,17 @@ result {
 - `and!` 表达独立绑定；其合并行为属于选定的构建器。
 - 在自定义语法赢得成本之前，普通函数提供可读的语义基线。
 
-第三部分的贯穿项目现在会把两种策略应用于预约领域：独立命令错误会累积，依赖状态的业务决策则短路为显式事件或失败。
+## 第三部分检查点 {#part-checkpoint}
+
+从仓库根目录运行聚焦工作流测试：
+
+```console
+dotnet test tests/ExampleTests/ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~BookingWorkflowTests
+```
+
+测试通过表明：独立命令错误按字段顺序累积，有效命令产生事件，已有状态会使后续容量工作短路。它们直接调用普通函数，因此证据不依赖未声明的计算表达式构建器。
+
+[继续阅读第 19 章](../part-04/ch-19-dotnet-null-boundaries)，让外部 .NET 值第一次穿过显式边界。
 
 ## 资料来源 {#sources}
 

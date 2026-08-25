@@ -259,7 +259,7 @@ dotnet test tests/ContractTests/ContractTests.fsproj \
   --filter FullyQualifiedName~Ch19NullTests
 ```
 
-Six tests compile with nullable checking and warnings as errors. They verify constructor/member/overload/interface calls, null-input narrowing, the real nullable return of `Type.GetType`, both `Nullable<int>` conversion directions, both nullable-reference conversion directions, and the `Some null` counterexample.
+The contract tests compile with nullable checking and warnings as errors. They verify constructor/member/overload/interface calls, null-input narrowing, the real nullable return of `Type.GetType`, both `Nullable<int>` conversion directions, both nullable-reference conversion directions, and the `Some null` counterexample.
 
 These are contract tests, not claims about every .NET library. Always inspect the target framework's current annotations and documented behavior for the API you actually call.
 

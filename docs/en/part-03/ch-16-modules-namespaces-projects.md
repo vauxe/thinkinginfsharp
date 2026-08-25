@@ -291,7 +291,7 @@ The executable prints:
 accepted:REQ-16 remaining=1
 ```
 
-Four focused tests cover nullable and whitespace identifiers, component validation errors, the cross-file workflow, and final program composition. Building the reversed expected-error project instead must fail with `FS0039`; that negative check protects the explanation of compilation order.
+Focused tests cover nullable and whitespace identifiers, component validation errors, the cross-file workflow, and final program composition. Building the reversed expected-error project instead must fail with `FS0039`; that negative check protects the explanation of compilation order.
 
 ## Exercises {#exercises}
 

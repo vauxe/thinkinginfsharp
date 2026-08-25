@@ -11,6 +11,8 @@ verifiedWith:
   dotnetSdk: "10.0.301"
 exampleIds:
   - ch24-concurrency-agents-state
+  - capstone-booking-domain
+  - foundation-example-tests
 exerciseIds:
   - ch24-exercise-01
   - ch24-exercise-02
@@ -246,7 +248,17 @@ dotnet fsi --checknulls+ --exec examples/scripts/ch24-concurrency-agents-state.f
 - 并发集合具有方法级保证；应阅读工厂和组合语义。
 - 缓存正确性包括时间、所有权、失败与资源策略。
 
-下一个实现切片会把这些规则应用到异步预约端口，并用确定性替身表示成功、故障、取消与延迟完成。
+## 第四部分检查点 {#part-checkpoint}
+
+用确定性异步替身运行预约端口契约：
+
+```console
+dotnet test tests/ExampleTests/ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~BookingAsyncPortTests
+```
+
+测试通过表明：调用方取消令牌会到达每个端口，受控操作在显式成功、失败或观察取消前会保持等待。它们不建立跨进程一致性或持久性保证。
+
+[继续阅读第 25 章](../part-05/ch-25-objects-interfaces)，考察更广泛 .NET 生态中的面向对象边界。
 
 ## 资料来源 {#sources}
 

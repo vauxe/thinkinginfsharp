@@ -11,6 +11,7 @@ verifiedWith:
   dotnetSdk: "10.0.301"
 exampleIds:
   - ch01-first-session
+  - ch01-exercise-02-solution
 exerciseIds:
   - ch01-exercise-01
   - ch01-exercise-02
@@ -42,7 +43,7 @@ The types are:
 | `summary` | `string` | `"Functional Foundations: 22 seats remaining"` |
 | `printResult` | `unit` | `()` |
 
-To evaluate the right side of `printResult`, `printfn "%s" summary` must run first, so the summary is the first output line. After that print finishes, the call returns `()`, and that value is bound to `printResult`. The next two `printfn` calls print the Boolean and `()` in order. The exercise example at the end of the script then prints the confirmation.
+To evaluate the right side of `printResult`, `printfn "%s" summary` must run first, so the summary is the first output line. After that print finishes, the call returns `()`, and that value is bound to `printResult`. The next two `printfn` calls print the Boolean and `()` in order.
 
 If `booked` changes to `40`, `remaining` changes from `22` to `0`, and `hasSeats` changes from `true` to `false`. Because `summary` depends on `remaining`, it now ends in `0 seats remaining`. The type and value of `printResult` do not change: printing different text still returns `()`.
 
@@ -50,9 +51,9 @@ The point is not the subtraction. It is to reason in the direction of dependency
 
 ## Exercise 2: migrate a small program {#exercise-02}
 
-One direct answer is in the shared script:
+One direct answer is in the separate solution script:
 
-<<< @/../examples/scripts/ch01-first-session.fsx#exercise-02{fsharp:line-numbers} [ch01-first-session.fsx]
+<<< @/../examples/solutions/ch01-exercise-02.fsx#solution{fsharp:line-numbers} [ch01-exercise-02.fsx]
 
 The three `let` bindings state data dependencies rather than declaring three storage slots that must later be rewritten. `confirmation` depends only on the two values already named. The final `printfn` writes the text to standard output and returns `()`.
 

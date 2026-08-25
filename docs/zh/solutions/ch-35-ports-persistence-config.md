@@ -123,7 +123,7 @@ val startBorrowed:
     BorrowedInfrastructureComposition
 ```
 
-这份 `.fsi` 风格声明表达接口契约，不是 K09 已经实现的代码。生产实现会把现有端口记录构造移到 `startBorrowed` 后面，而且借用型组合不会暴露具体 `PaymentStub` 或 `NotificationStub` 属性。
+这份 `.fsi` 风格声明表达接口契约，不是本章适配器已经实现的代码。生产实现会把现有端口记录构造移到 `startBorrowed` 后面，而且借用型组合不会暴露具体 `PaymentStub` 或 `NotificationStub` 属性。
 
 宿主创建长生命周期客户端、注册它们、启动一个或多个借用型组合，并在释放共享客户端之前先释放各组合。如果客户端实现 `IAsyncDisposable`，宿主会在自己的关闭边界等待它们。借用型组合绝不能调用任一释放接口。
 

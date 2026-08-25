@@ -192,10 +192,9 @@ You should see:
 Functional Foundations (F): capacity=40, fill=0.45, open=true
 Ticket total: 58.50
 Normalized capacity: 24; outer capacity: 40
-Next attendee count: 25
 ```
 
-The manifest asserts all four deterministic outputs in this order. Formatting in the script changes only the display, not the types of `fillRatio` or `totalPrice`.
+The manifest asserts these deterministic outputs in this order. Formatting in the script changes only the display, not the types of `fillRatio` or `totalPrice`.
 
 ## Debugging: trace the first conflicting constraint {#debugging}
 

@@ -210,11 +210,11 @@ test('accepts paired pages, stable anchors, valid links, and one shared snippet'
     '@/../examples/scripts/example.fsx#sample{2 fsharp:line-numbers}'
   const zh = validBody(
     '中文首页',
-    '这是一段完整的中文说明，为只阅读中文的读者解释页面目的和学习路径。'
+    '这是一段完整的中文说明，为只阅读中文的读者解释页面目的和学习路径。第一个测试可以包含多个断言，两种测试框架也可以共享夹具。'
   )
   const en = validBody(
     'English home',
-    'This complete English introduction explains the page purpose and learning path without relying on Chinese context.'
+    'This complete English introduction explains the page purpose and learning path without relying on Chinese context. Run the Chapter 23 tests explicitly. One test may contain several assertions, and two test frameworks can share fixtures.'
   )
 
   write(
@@ -236,6 +236,44 @@ test('accepts paired pages, stable anchors, valid links, and one shared snippet'
 
   assert.deepEqual(checkParity({ docsDir }), [])
   assert.deepEqual(checkContent({ docsDir }), [])
+})
+
+test('rejects authoring artifacts and missing part checkpoints in reader prose', (t) => {
+  const { docsDir } = createFixture(t)
+  writeTerminology(docsDir)
+  write(
+    docsDir,
+    'en/part-01/ch-06-recursion-folds.md',
+    markdown(
+      metadata({
+        title: 'Chapter 6',
+        description: 'A complete chapter fixture for reader-facing evidence rules.',
+        translationKey: 'part-01/ch-06-recursion-folds',
+        kind: 'chapter',
+        part: 1,
+        chapter: 6,
+        verifiedWith: { fsharp: '10', dotnetSdk: '10.0.301' },
+        sources: [
+          {
+            id: 'official-source',
+            url: 'https://learn.microsoft.com/dotnet/fsharp/',
+            checked: '2026-08-25'
+          }
+        ]
+      }),
+      validBody(
+        'Chapter 6',
+        'K07 and K08a are internal implementation labels. The focused filter passes 27 tests.\n\nThe suite contains four passing tests.\n\nSeven `TestServer` cases run the route.\n\nRun the same seven cases unchanged.\n\n| contract | seven passing cases |'
+      )
+    )
+  )
+
+  const errors = checkContent({ docsDir })
+
+  assert.ok(errors.some((error) => error.includes('internal implementation id "K07"')))
+  assert.ok(errors.some((error) => error.includes('internal implementation id "K08a"')))
+  assert.equal(errors.filter((error) => error.includes('mutable test-suite total')).length, 5)
+  assert.ok(errors.some((error) => error.includes('part-checkpoint')))
 })
 
 test('the parity CLI returns a non-zero status and prints file paths', (t) => {

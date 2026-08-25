@@ -417,7 +417,7 @@ Every exercise link below targets its exact answer heading. “Review focus” c
 
 **Answers:** [Exercise 1](../solutions/ch-42-cloud-containers-aspire#exercise-01) · [Exercise 2](../solutions/ch-42-cloud-containers-aspire#exercise-02) · [Exercise 3](../solutions/ch-42-cloud-containers-aspire#exercise-03)
 
-**Review focus:** Choose proportional compute models, turn the X42 slice into a release proposal, and design an idempotent event consumer with honest unknown outcomes.
+**Review focus:** Choose proportional compute models, turn the local cloud sample into a release proposal, and design an idempotent event consumer with honest unknown outcomes.
 
 ### Chapter 43: Avalonia, Desktop, and Mobile {#chapter-43}
 
@@ -433,7 +433,7 @@ Every exercise link below targets its exact answer heading. “Review focus” c
 
 **Answers:** [Exercise 1](../solutions/ch-44-unity#exercise-01) · [Exercise 2](../solutions/ch-44-unity#exercise-02) · [Exercise 3](../solutions/ch-44-unity#exercise-03)
 
-**Review focus:** Choose proportional F#/C# Unity boundaries, promote X44 through an honest IL2CPP evidence plan, and design versioned quest data without hiding AOT risk.
+**Review focus:** Choose proportional F#/C# Unity boundaries, promote the managed plug-in sample through an honest IL2CPP evidence plan, and design versioned quest data without hiding AOT risk.
 
 ### Chapter 45: Scripting, Automation, Packages, and What Comes Next {#chapter-45}
 

@@ -11,6 +11,7 @@ verifiedWith:
   dotnetSdk: "10.0.301"
 exampleIds:
   - ch32-functions-to-applications
+  - foundation-example-tests
 exerciseIds:
   - ch32-exercise-01
   - ch32-exercise-02
@@ -332,6 +333,18 @@ lifecycle: store-disposed=true
 - 指标维度必须有界；每请求标识符属于受控日志或追踪，而不是指标标签。
 - 固定演示证明装配，而不证明持久性、原子性、恢复或后端交付。
 - 更强宿主应由真实的配置、作用域、工作器和关闭需求来证明必要性。
+
+## 第五部分检查点 {#part-checkpoint}
+
+从仓库根目录运行聚焦组合测试：
+
+```console
+dotnet test tests/ExampleTests/ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~Ch32CompositionTests
+```
+
+测试通过表明：配置错误会累积，端口调用前会观察取消，受所有权管理的资源会释放，并且样例会发出结构化日志、指标与已结束活动。它们仍只证明进程内装配，不证明生产导出或持久交付。
+
+[继续阅读第 33 章](../part-06/ch-33-domain-language-model)，把贯穿项目重建为一条连贯的应用路径。
 
 ## 来源 {#sources}
 

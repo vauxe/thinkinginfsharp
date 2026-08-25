@@ -249,7 +249,7 @@ type BookingEvent = Booking.Domain.BookingEvent
 
 避免在整个领域范围使用 `Request`、`Response`、`Data` 或 `StatusChanged` 等泛化容器；它们迫使读者从文件夹或注释恢复上下文。也不要把实现承诺编码进领域名称：`BookingSavedToJson` 是适配器结果，不是预约事实。
 
-## 严格限定 K06 证据的含义 {#evidence}
+## 严格限定领域模型证据的含义 {#evidence}
 
 收束后的实现和聚焦测试确定了以下事实：
 
@@ -308,7 +308,7 @@ type BookingEvent = Booking.Domain.BookingEvent
 - 类型别名帮助迁移，却不能永久保留两套词汇。
 - 领域事件可以只是普通返回数据；消息代理和处理器是可选的应用选择。
 - 事件溯源与 CQRS 是独立架构承诺，不是定义事件联合后的必然结果。
-- 当前 K06 证据证明词汇与封装，而非持久化或并发保证。
+- 当前领域模型证据证明词汇与封装，而非持久化或并发保证。
 
 ## 资料来源 {#sources}
 

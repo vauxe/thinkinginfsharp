@@ -249,7 +249,7 @@ Names should use the language of the people defining the rule. Technical precisi
 
 Avoid generic containers such as `Request`, `Response`, `Data`, or `StatusChanged` at a domain-wide scope. They force readers to recover context from folders or comments. Also avoid encoding implementation promises into domain names: `BookingSavedToJson` is an adapter outcome, not a booking fact.
 
-## Read the K06 evidence narrowly {#evidence}
+## Read the domain-model evidence narrowly {#evidence}
 
 The consolidated implementation and focused tests establish that:
 
@@ -308,7 +308,7 @@ Compare current-state persistence with event sourcing for this booking system. T
 - Type aliases help migration but must not preserve two permanent vocabularies.
 - Domain events can be ordinary returned data; brokers and handlers are optional application choices.
 - Event sourcing and CQRS are separate architectural commitments, not consequences of an event union.
-- Current K06 evidence proves vocabulary and encapsulation, not persistence or concurrency guarantees.
+- Current domain-model evidence proves vocabulary and encapsulation, not persistence or concurrency guarantees.
 
 ## Sources {#sources}
 

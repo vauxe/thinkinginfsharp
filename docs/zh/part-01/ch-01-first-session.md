@@ -164,7 +164,6 @@ dotnet fsi --exec examples/scripts/ch01-first-session.fsx
 Functional Foundations: 22 seats remaining
 Seats available: true
 Printing returned: ()
-Lin booked 3 seats.
 ```
 
 FSI 在交互模式下会主动显示提交的值和类型；以 `--exec` 运行脚本时，上面这些行都来自脚本显式调用 `printfn`。仓库的示例 manifest 还断言其中的关键输出，因此正文与可运行行为共用同一份证据。
@@ -190,7 +189,7 @@ FSI 在交互模式下会主动显示提交的值和类型；以 `--exec` 运行
 根据刚才的运行结果，回答以下问题：
 
 1. `remaining`、`hasSeats`、`summary` 和 `printResult` 的类型分别是什么？
-2. 四行输出按什么顺序出现？为什么摘要会在打印 `printResult` 之前出现？
+2. 输出按什么顺序出现？为什么摘要会在打印 `printResult` 之前出现？
 3. 在实际修改前预测：把 `booked` 改为 `40` 后，哪些值会变化，输出怎样变化？
 
 然后复制脚本到临时位置验证第 3 问的预测，不要修改仓库中的共享答案。

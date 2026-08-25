@@ -1,6 +1,6 @@
 ---
 title: "第 44 章练习答案"
-description: "选择合乎比例的 F#/C# Unity 边界，通过诚实的 IL2CPP 证据计划提升 X44，并在不隐藏 AOT 风险的前提下设计带版本任务数据。"
+description: "选择合乎比例的 F#/C# Unity 边界，通过诚实的 IL2CPP 证据计划提升托管插件样例，并在不隐藏 AOT 风险的前提下设计带版本任务数据。"
 translationKey: solutions/ch-44-unity
 kind: solution
 part: 7
@@ -125,7 +125,7 @@ C# 应拥有 `AssetDatabase`、导入回调、GUID/路径查找、`UnityEditor` 
 
 **反转条件：** 如果规则从根本上依赖活的 Editor 对象，且 DTO 映射比规则更大，就把该规则移入 C#。只有源格式、GUID 解析与导入语义真正独立时，才把整个验证器移出 Unity。
 
-## 练习 2：把 X44 提升为 IL2CPP 垂直切片 {#exercise-02}
+## 练习 2：把托管插件样例提升为 IL2CPP 垂直切片 {#exercise-02}
 
 目标不是增加很多功能，而是用可复现证据把每个缺失边界执行一次。
 
@@ -212,7 +212,7 @@ Edit Mode 测试验证 DTO/映射帮助器，以及预期插件类型与程序�
 | Player 行为 | 代表检查与日志通过 | 集成应用 |
 | 诊断 | 刻意失败可符号化到有用 F# 与 C# 帧 | 符号/崩溃流水线 |
 
-只有全部行通过，声明才能变成：“X44 的代表切片能在该 build profile 下的 Unity 6000.3.22f1 macOS ARM64 IL2CPP Player 中工作。”它仍不说明 Windows、移动、主机、Web、另一裁剪级别或整个游戏。
+只有全部行通过，声明才能变成：“托管插件样例的代表切片能在该 build profile 下的 Unity 6000.3.22f1 macOS ARM64 IL2CPP Player 中工作。”它仍不说明 Windows、移动、主机、Web、另一裁剪级别或整个游戏。
 
 ## 练习 3：存档、异步效果与动态内容 {#exercise-03}
 
@@ -291,7 +291,7 @@ C# 适配器读取创作字段或资源，把它们快照为桥 DTO，并调用 
 - 复杂回合/重放规则是很强的 F# 核心候选；场景呈现仍由 Unity 拥有。
 - Burst 密集动作游戏可以合理地把 Player 留在 C#，只在非热路径使用 F#，或完全不用。
 - 只有 `UnityEditor` 留在薄适配器时，Editor 工具才会从纯 F# 验证器受益。
-- 提升 X44 要把干净 Unity 导入、Edit/Play Mode、目标性能分析、IL2CPP 构建、图形启动、行为与诊断作为独立行。
+- 提升托管插件样例要把干净 Unity 导入、Edit/Play Mode、目标性能分析、IL2CPP 构建、图形启动、行为与诊断作为独立行。
 - 精确 DLL 身份与哈希是导入契约的一部分，尤其是 FSharp.Core。
 - 把 Unity 支持的创作 DTO、丰富已验证 F# 状态、CLR 桥类型与带版本存档 DTO 作为不同模型。
 - 逐步迁移存储 schema，绝不要把持久数据直接反序列化成今天的领域表示。

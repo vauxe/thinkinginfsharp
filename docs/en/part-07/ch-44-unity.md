@@ -92,7 +92,7 @@ Unity does not need to compile F# source in order to execute code written in F#.
 
 A library that builds under `dotnet` may still fail Unity's reference validation. A plug-in that imports may still fail when a scene loads. Play Mode may work while an IL2CPP Player fails during ahead-of-time compilation, stripping, native linking, startup, or one device-only path. The right question is therefore not “Does Unity support F#?” but “Which F# boundary can this exact Unity version, platform, scripting backend, and release pipeline prove?”
 
-This chapter uses X44 as a deliberately small answer: keep game rules in a normal F# library, publish a C#-friendly surface, and let a thin C# component own Unity-specific behavior. It also explains when a direct F# component deserves a spike, when F# adds little value, and how to avoid turning a successful class-library build into an imaginary Player result.
+This chapter uses the managed plug-in sample as a deliberately small answer: keep game rules in a normal F# library, publish a C#-friendly surface, and let a thin C# component own Unity-specific behavior. It also explains when a direct F# component deserves a spike, when F# adds little value, and how to avoid turning a successful class-library build into an imaginary Player result.
 
 ## What you will be able to do {#outcomes}
 
@@ -113,7 +113,7 @@ By the end of this chapter, you should be able to:
 - treat Burst and the Job System as a separate HPC# contract, not an automatic property of an F# DLL;
 - climb an evidence ladder from ordinary unit tests to an imported, launched, stripped Player on target hardware;
 - pin an exact Unity patch and build profile in automation;
-- state exactly what X44 proves, what it deliberately leaves to Unity, and why those limits matter.
+- state exactly what the managed plug-in sample proves, what it deliberately leaves to Unity, and why those limits matter.
 
 ## Unity integration is a stack of contracts {#unity-contract-stack}
 
@@ -186,9 +186,9 @@ Do not introduce an F# DLL merely to wrap calls such as `transform.Translate`, p
 
 Likewise, do not push a frame-critical Burst kernel through F# because the rest of the game uses F#. Burst documents an HPC# subset and a Unity IL post-processing pipeline. Keep such kernels in the supported C# data-oriented shape unless an exact F# experiment proves the required package, attributes, IL, Editor, AOT, performance, and Player behavior.
 
-## X44: one verified managed plug-in boundary {#x44-verified-slice}
+## The managed plug-in sample: one verified managed plug-in boundary {#x44-verified-slice}
 
-X44 implements one horizontal-motion rule. The rule is intentionally too small to justify a production architecture by itself; its purpose is to make the build, API, dependency, host, allocation, linker, and evidence boundaries inspectable.
+The managed plug-in sample implements one horizontal-motion rule. The rule is intentionally too small to justify a production architecture by itself; its purpose is to make the build, API, dependency, host, allocation, linker, and evidence boundaries inspectable.
 
 ### The project contract and dependency output {#project-contract}
 
@@ -226,7 +226,7 @@ The C# file is registered as illustrative because this repository has no UnityEn
 
 <<< @/../examples/ecosystem/unity/FSharpGameplay/link.xml{xml:line-numbers} [link.xml]
 
-Direct calls from the C# adapter should be visible to static reachability analysis. X44 still includes two explicit roots to make the intended cross-assembly bridge visible and to provide a concrete stripping artifact for the chapter.
+Direct calls from the C# adapter should be visible to static reachability analysis. The managed plug-in sample still includes two explicit roots to make the intended cross-assembly bridge visible and to provide a concrete stripping artifact for the chapter.
 
 The file does not preserve all of `FSharp.Core`. Broad preservation can hide missing reflection design, enlarge the Player, and increase IL2CPP work. Add a type or member only because an actual dynamic path needs it, then prove the relevant stripping level.
 
@@ -234,14 +234,14 @@ Copy `link.xml` under the Unity project's `Assets` tree. A source file next to t
 
 ### Read the evidence ledger literally {#evidence-ledger}
 
-As of 2026-08-25, X44 records:
+As of 2026-08-25, the managed plug-in sample records:
 
 | Layer | Result | What it proves |
 | --- | --- | --- |
 | Locked .NET restore | Pass | `netstandard2.1` graph resolves to FSharp.Core package 10.1.301 |
 | Release plug-in build | Pass, 0 warnings/errors | F# source compiles on .NET SDK 10.0.301 |
 | Output inspection | Pass | 8,704-byte plug-in and 2,407,760-byte FSharp.Core are adjacent; assembly reference is present |
-| Focused rule/API test | Pass, 1/1 | Clamp/step behavior, struct state, no explicit `box` in `Step`, FSharp.Core reference, and no F#-specific public signature types |
+| Focused rule/API test | Pass | Clamp/step behavior, struct state, no explicit `box` in `Step`, FSharp.Core reference, and no F#-specific public signature types |
 | Repository example matrix | Pass | The complete ExampleTests suite, other examples, Fable build, and browser smoke remain green |
 | Unity 6000.3.22f1 import | Not run | Editor is absent from this machine |
 | C# compilation and Play Mode | Not run | UnityEngine host and scene behavior are unverified |
@@ -317,7 +317,7 @@ Units of measure are erased in emitted .NET signatures. A C# float cannot prove 
 
 Do not throw on every expected gameplay branch. Model domain outcomes internally with unions or results, then translate them once into a C#-friendly result class, enum plus payload, `Try...` method, or explicit callback message.
 
-Reserve exceptions for broken contracts and failures the current call cannot represent. X44 rejects NaN, infinity, negative speed, and negative delta time because they indicate an invalid boundary call. The C# adapter prevents ordinary authoring errors before reaching it.
+Reserve exceptions for broken contracts and failures the current call cannot represent. The managed plug-in sample rejects NaN, infinity, negative speed, and negative delta time because they indicate an invalid boundary call. The C# adapter prevents ordinary authoring errors before reaching it.
 
 For asynchronous work, do not leak an F# `Async<'T>` into Unity. Publish `Task`, `ValueTask`, a C#-friendly polling handle, or a message interface according to the host. Define cancellation ownership and which thread receives completion. Unity object access still belongs to the main thread even if pure computation or I/O runs elsewhere.
 
@@ -359,7 +359,7 @@ Unity can reload scripts and assemblies, recreate components from serialized fie
 
 Treat `Awake` or another explicit composition point as construction from serialized configuration. Use `OnEnable` and `OnDisable` to pair subscriptions and cancellation. Do not assume a private managed cache survives reload, or that a non-null-looking `UnityEngine.Object` still owns a live native object.
 
-X44 reconstructs `MotionState` in `Awake` and resets input in `OnDisable`. It does not claim save-game persistence or domain-reload evidence; those belong in a larger Unity project test.
+The managed plug-in sample reconstructs `MotionState` in `Awake` and resets input in `OnDisable`. It does not claim save-game persistence or domain-reload evidence; those belong in a larger Unity project test.
 
 ## Respect the game loop and allocation budget {#game-loop}
 
@@ -442,7 +442,7 @@ Preservation prevents removal; it does not make an unsupported API, runtime code
 
 Burst documents HPC#, a restricted high-performance C#/.NET subset built around unmanaged values, Unity collections, jobs or function pointers, attributes, and IL post-processing. Managed objects, many runtime services, and ordinary exception behavior are outside that kernel model.
 
-X44 is a managed F# plug-in and contains no Burst or Job System evidence. Do not add `[BurstCompile]` to an F#-produced method and infer support from the attribute's presence.
+The managed plug-in sample is a managed F# plug-in and contains no Burst or Job System evidence. Do not add `[BurstCompile]` to an F#-produced method and infer support from the attribute's presence.
 
 When profiling justifies Burst, a practical boundary is:
 
@@ -479,7 +479,7 @@ Unity is part of the compiler and asset pipeline. Version it like one.
 
 ### Pin the Editor, modules, packages, and plug-in {#pin-editor}
 
-Record the full Editor patch, not only “Unity 6.3.” X44 selects 6000.3.22f1 because it was the current 6.3 LTS patch when checked on 2026-08-25; that is a review target, not an installed-tool claim.
+Record the full Editor patch, not only “Unity 6.3.” The managed plug-in sample selects 6000.3.22f1 because it was the current 6.3 LTS patch when checked on 2026-08-25; that is a review target, not an installed-tool claim.
 
 Lock Unity packages and the F# NuGet graph. Build the F# DLL once from a clean locked restore, copy the exact dependency set into the Unity project, and hash or otherwise identify the imported artifacts. Avoid rebuilding the plug-in differently inside each platform job unless platform-specific output is intentional.
 
@@ -556,9 +556,9 @@ Adopt only the boundary that passes. The result may be “F# owns the entire det
 
 Choose the first F# boundary, rejected alternatives, proof matrix, and reversal condition for: (a) a turn-based tactics game with complex deterministic combat, replay, mod validation, and a modest presentation layer; (b) a console action game whose risk is thousands of physics-like entities, Jobs/Burst performance, platform SDKs, and designer-authored behaviors; (c) a Unity Editor content pipeline that validates dialogue graphs, generates localization reports, and runs headlessly in CI. Do not choose one language split for all three.
 
-### Exercise 2: turn X44 into a Unity vertical slice {#exercise-02}
+### Exercise 2: turn the managed plug-in sample into a Unity vertical slice {#exercise-02}
 
-Design the smallest Unity project and evidence record that could promote X44 from “managed DLL builds” to “representative macOS ARM64 IL2CPP Player works.” Include artifact copying, FSharp.Core identity, assembly definitions, Validate References, scene and input setup, Edit/Play Mode tests, reload behavior, allocation profiling, stripping level, `link.xml`, command-line build profile, launch, logs, symbols, and exact failure semantics. Preserve every unrun row until it actually executes.
+Design the smallest Unity project and evidence record that could promote the managed plug-in sample from “managed DLL builds” to “representative macOS ARM64 IL2CPP Player works.” Include artifact copying, FSharp.Core identity, assembly definitions, Validate References, scene and input setup, Edit/Play Mode tests, reload behavior, allocation profiling, stripping level, `link.xml`, command-line build profile, launch, logs, symbols, and exact failure semantics. Preserve every unrun row until it actually executes.
 
 ### Exercise 3: add saves, asynchronous effects, and dynamic content {#exercise-03}
 
@@ -579,14 +579,14 @@ Extend the architecture for a quest system whose rules are F#, configuration is 
 - Reconstruct runtime state deliberately across reload, enable/disable, scene, and process lifetimes.
 - Pass input, time, randomness, and effects explicitly to pure logic.
 - Measure frame code in a target Player; functional style neither guarantees nor forbids allocation.
-- X44 uses a small struct state after a regression test exposed a per-step class allocation.
+- The managed plug-in sample uses a small struct state after a regression test exposed a per-step class allocation.
 - IL2CPP strips managed code, converts IL to C++, invokes a native toolchain, and creates a platform package.
 - Reflection, runtime generation, dynamic generics, callbacks, and native libraries enlarge the AOT proof surface.
 - Use narrow, tested preservation rules; preservation is not compatibility or behavior evidence.
-- Burst/Jobs use a separate HPC# contract and are not verified by X44.
+- Burst/Jobs use a separate HPC# contract and are not verified by the managed plug-in sample.
 - Pin the exact Unity patch, modules, packages, build profile, backend, stripping level, tools, and artifacts.
 - Keep logs, PDBs, native symbols, hashes, and launch results so failures remain attributable.
-- X44 proves a locked F# plug-in build, dependency output, pure rule, CLR-facing API, and repository compatibility.
+- The managed plug-in sample proves a locked F# plug-in build, dependency output, pure rule, CLR-facing API, and repository compatibility.
 - It does not prove Unity 6000.3.22f1 import, Play Mode, or a macOS ARM64 IL2CPP Player because the Editor is absent.
 
 Chapter 45 returns to ordinary .NET tooling: scripts, automation, package evaluation, lock discipline, and a practical map for continuing to learn F#.

@@ -28,6 +28,28 @@ const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 const defaultDocsDir = resolve(scriptDirectory, '../docs')
 const MAX_EXAMPLE_BYTES = 5 * 1024 * 1024
 const MAX_TERMINOLOGY_BYTES = 1024 * 1024
+const PART_CHECKPOINT_CHAPTERS = new Set([6, 12, 18, 24, 32])
+const INTERNAL_IMPLEMENTATION_ID =
+  /(?<![A-Za-z0-9_-])(?:K(?:0[1-9]|1[0-2])(?:[ab])?|X(?:39|4[0-5]))(?![A-Za-z0-9_-])/g
+const COUNTED_TEST_EN =
+  /\b(?<!chapter )(?:two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(?:(?:focused|contract|property|chapter|repository|complete|unit|integration|passing)\s+)*(?:tests\b|test executions\b|focused cases\b)/i
+const TEST_EVIDENCE_EN =
+  /\b(?:assert(?:s|ed)?|compile(?:s|d)?|cover(?:s|ed)?|establish(?:es|ed)?|green|pass(?:ed|es|ing)?|ran|run(?:s|ning)?)\b/i
+const COUNTED_TEST_ZH =
+  /(?<!第)(?:两|[二三四五六七八九十百]+|\d+)\s*(?:项|个)?\s*(?:(?:聚焦|契约|性质|单元|集成|通过的)\s*)?(?:测试|聚焦用例)/
+const TEST_EVIDENCE_ZH = /(?:断言|编译|覆盖|建立|绿色|通过|运行|证明)/
+const MUTABLE_TEST_COMMAND_EN =
+  /\brun\b[^.\n]{0,32}\b(?:two|three|four|five|six|seven|eight|nine|ten|\d+)\s+chapter\s+\d+\s+tests?\b/i
+const MUTABLE_TEST_COMMAND_ZH =
+  /运行第\s*\d+\s*章的(?:两|[二三四五六七八九十百]+|\d+)\s*(?:项|个)?测试/
+const MUTABLE_TEST_TABLE_EN = /^\s*\|.*\b\d+\s+tests?\b.*\|\s*$/i
+const MUTABLE_TEST_TABLE_ZH = /^\s*\|.*\b\d+\s*(?:项|个)?测试.*\|\s*$/
+const MUTABLE_TEST_RATIO_EN = /(?:test|focused run)[^.\n]{0,48}\b\d+\/\d+\b/i
+const MUTABLE_TEST_RATIO_ZH = /(?:测试|聚焦运行)[^。\n]{0,48}\b\d+\/\d+\b/
+const MUTABLE_TEST_CASE_TOTAL_EN =
+  /(?:\bsame\s+(?:two|three|four|five|six|seven|eight|nine|ten|\d+)\s+cases\b|\b(?:two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(?:`TestServer`\s+|HTTP\s+|passing\s+)cases\b)/i
+const MUTABLE_TEST_CASE_TOTAL_ZH =
+  /(?:相同(?:的)?\s*(?:两|[二三四五六七八九十百]+|\d+)\s*(?:项|个)?\s*用例|(?:两|[二三四五六七八九十百]+|\d+)\s*(?:项|个)?\s*(?:`TestServer`|HTTP|通过的?)\s*(?:测试|用例))/
 
 function diagnostic(page, line, message) {
   return `${page.relativePath}:${line}: ${message}`
@@ -211,6 +233,66 @@ function validateCodeReferences(page, docsDir) {
   return errors
 }
 
+function validateReaderProse(page) {
+  const errors = []
+  let fence
+
+  for (const [index, line] of page.body.split('\n').entries()) {
+    const fenceMatch = /^\s*(`{3,}|~{3,})/.exec(line)
+    if (fenceMatch) {
+      const marker = fenceMatch[1][0]
+      if (fence === marker) fence = undefined
+      else if (!fence) fence = marker
+      continue
+    }
+    if (fence) continue
+
+    const lineNumber = index + page.bodyStartLine
+    for (const [implementationId] of line.matchAll(INTERNAL_IMPLEMENTATION_ID)) {
+      errors.push(
+        diagnostic(
+          page,
+          lineNumber,
+          `reader prose must not expose internal implementation id "${implementationId}"`
+        )
+      )
+    }
+
+    const mutableTestTotal = page.relativePath.startsWith('en/')
+      ? (COUNTED_TEST_EN.test(line) && TEST_EVIDENCE_EN.test(line)) ||
+        MUTABLE_TEST_COMMAND_EN.test(line) ||
+        MUTABLE_TEST_TABLE_EN.test(line) ||
+        MUTABLE_TEST_RATIO_EN.test(line) ||
+        MUTABLE_TEST_CASE_TOTAL_EN.test(line)
+      : (COUNTED_TEST_ZH.test(line) && TEST_EVIDENCE_ZH.test(line)) ||
+        MUTABLE_TEST_COMMAND_ZH.test(line) ||
+        MUTABLE_TEST_TABLE_ZH.test(line) ||
+        MUTABLE_TEST_RATIO_ZH.test(line) ||
+        MUTABLE_TEST_CASE_TOTAL_ZH.test(line)
+    if (mutableTestTotal) {
+      errors.push(
+        diagnostic(
+          page,
+          lineNumber,
+          'reader prose must describe tested behavior instead of a mutable test-suite total'
+        )
+      )
+    }
+  }
+
+  if (
+    page.frontmatter.kind === 'chapter' &&
+    PART_CHECKPOINT_CHAPTERS.has(page.frontmatter.chapter) &&
+    !page.anchors.includes('part-checkpoint')
+  ) {
+    errors.push(
+      `${page.relativePath}: part-ending chapters must contain a {#part-checkpoint} heading`
+    )
+  }
+
+  return errors
+}
+
 function loadTerminology(terminologyPath, docsDir) {
   const displayPath = relative(docsDir, terminologyPath).replaceAll('\\', '/')
   if (!existsSync(terminologyPath)) {
@@ -276,6 +358,8 @@ export function checkContent({
           errors.push(`${page.relativePath}: unknown term id "${termId}"`)
         }
       }
+
+      errors.push(...validateReaderProse(page))
     }
 
     for (const finding of page.placeholderFindings) {

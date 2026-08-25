@@ -182,13 +182,13 @@ Do not disable nullable checking for a whole project because one interop boundar
 
 ## What was actually run {#verification}
 
-On 2026-08-25, `dotnet --version` selected SDK 10.0.301 and FSI reported F# 10. The small probes ran with `--warnaserror+ --checknulls+`; each exited nonzero and emitted its listed code. The three durable expected-error fixtures are checked by the repository manifest:
+On 2026-08-25, `dotnet --version` selected SDK 10.0.301 and FSI reported F# 10. The small probes ran with `--warnaserror+ --checknulls+`; each exited nonzero and emitted its listed code. Durable expected-error fixtures are checked by the repository manifest:
 
 ```console
 pnpm check:examples
 ```
 
-That gate requires the Chapter 11 script to fail with `FS0030`, the Chapter 16 project to fail with `FS0039`, and the Chapter 17 external consumer to fail with `FS0800`. It fails if a fixture unexpectedly compiles, emits the wrong diagnostic, times out, or is missing from the manifest. Other one- or two-line probes were temporary evidence, not extra production examples.
+That gate requires the Chapter 6 non-tail-recursion project to fail with `FS3569`, the Chapter 11 script with `FS0030`, the Chapter 16 project with `FS0039`, and the Chapter 17 external consumer with `FS0800`. It fails if a fixture unexpectedly compiles, emits the wrong diagnostic, times out, or is missing from the manifest. Other one- or two-line probes were temporary evidence, not extra production examples.
 
 ## Before asking for help {#before-help}
 
@@ -204,4 +204,3 @@ Provide the smallest source that retains the failure, the full first diagnostic,
 - [Microsoft Learn: automatic generalization](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/automatic-generalization)
 - [Microsoft Learn: F# signature files](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/signature-files)
 - [Microsoft Learn: null values and nullable checking in F#](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/values/null-values)
-

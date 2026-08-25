@@ -11,6 +11,8 @@ verifiedWith:
   dotnetSdk: "10.0.301"
 exampleIds:
   - ch12-making-illegal-states-unrepresentable
+  - capstone-booking-domain
+  - foundation-example-tests
 exerciseIds:
   - ch12-exercise-01
   - ch12-exercise-02
@@ -277,7 +279,17 @@ Write the public portion of a `.fsi` signature for `Capacity` plus a `tryReserve
 - “Unrepresentable” is relative to the supported API; it does not solve corruption, null interop, or concurrency.
 - Protect values whose invariants matter broadly; transparent types remain better when exhaustive construction is the feature.
 
-The second-part capstone now turns these patterns into a compiled booking domain library with tests proving that its public API rejects invalid capacity, identifiers, and states.
+## Part II checkpoint {#part-checkpoint}
+
+Compile the booking domain and run its focused public-API tests:
+
+```console
+dotnet test tests/ExampleTests/ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~BookingDomainTests
+```
+
+Passing tests show that the supported constructors reject invalid identifiers, capacity, seat counts, and state transitions while valid values remain usable through the public API. They do not prove that an external adapter preserves those invariants; later boundary chapters test that separately.
+
+[Continue to Chapter 13](../part-03/ch-13-composition-pipeline-api), which begins composing these typed operations.
 
 ## Sources {#sources}
 

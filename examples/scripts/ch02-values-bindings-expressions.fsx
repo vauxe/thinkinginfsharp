@@ -26,11 +26,3 @@ let normalizedCapacity =
 
 printfn "Normalized capacity: %d; outer capacity: %d" normalizedCapacity capacity
 // #endregion local-shadowing
-
-// #region exercise-02
-let rawAttendeeCount = "24"
-let attendeeCount = int rawAttendeeCount
-let nextAttendeeCount = attendeeCount + 1
-
-printfn "Next attendee count: %d" nextAttendeeCount
-// #endregion exercise-02

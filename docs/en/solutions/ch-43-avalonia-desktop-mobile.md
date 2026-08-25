@@ -130,9 +130,9 @@ The comparison should measure:
 
 **Reversal condition:** choose Avalonia only if the shared UI materially reduces total cost and all critical native paths remain supportable. Choose the C# shell if native integrations, tooling, or platform UX are substantially safer. The F# core survives either result.
 
-## Exercise 2: turn X43 into a desktop release {#exercise-02}
+## Exercise 2: turn the desktop sample into a desktop release {#exercise-02}
 
-Begin with the evidence ledger. X43 currently proves a locked Avalonia 12.1.1 graph, `net10.0` Release compilation, AXAML compilation, and one passing pure-state test; the complete repository example suite also proves that the sample remains integrated. It does not prove a displayed native window: the automated macOS attempt stopped before window creation with RenderTimer error `-6661`. Windows, Linux, publish output, packages, signing, installation, updates, and accessibility are unexecuted.
+Begin with the evidence ledger. The desktop sample currently proves a locked Avalonia 12.1.1 graph, `net10.0` Release compilation, AXAML compilation, and passing pure-state tests; the complete repository example suite also proves that the sample remains integrated. It does not prove a displayed native window: the automated macOS attempt stopped before window creation with RenderTimer error `-6661`. Windows, Linux, publish output, packages, signing, installation, updates, and accessibility are unexecuted.
 
 ### Restructure without losing the small core {#desktop-structure}
 
@@ -167,7 +167,7 @@ For local documents:
 
 ### Close view and accessibility gaps {#desktop-view-quality}
 
-Adopt compiled bindings with explicit `x:DataType` if the application moves from the X43 renderer to MVVM. Add stable automation IDs and labels, keyboard navigation and shortcuts, focus restoration, error/live announcements, contrast, large text, high DPI, reduced motion where relevant, and screen-reader checks.
+Adopt compiled bindings with explicit `x:DataType` if the application moves from the desktop sample renderer to MVVM. Add stable automation IDs and labels, keyboard navigation and shortcuts, focus restoration, error/live announcements, contrast, large text, high DPI, reduced motion where relevant, and screen-reader checks.
 
 Externalize strings and test English, Chinese, long translations, missing glyphs, number/date formats, and narrow layouts. Do not infer touch support from pointer clicks; test touch targets, scrolling, selection, drag behavior, and software keyboards on representative hardware.
 
@@ -280,7 +280,7 @@ Release one immutable backend contract and compatible client sequence. Mobile cl
 
 ### State the desktop inference limit {#mobile-inference-limit}
 
-The X43 desktop build proves that the shared compiler can build its current desktop project and that its pure counter transitions pass. After extracting a mobile-neutral Domain/Presentation project, those pure tests can become evidence for shared logic.
+The desktop sample build proves that the shared compiler can build its current desktop project and that its pure counter transitions pass. After extracting a mobile-neutral Domain/Presentation project, those pure tests can become evidence for shared logic.
 
 It proves nothing about `net10.0-android` or `net10.0-ios` restore, workload compatibility, host startup, Activity/scenes, AXAML on those targets, permissions, native services, touch, accessibility, package metadata, signing, physical devices, stores, or lifecycle recovery. Every one of those needs its own row.
 
@@ -292,7 +292,7 @@ It proves nothing about `net10.0-android` or `net10.0-ios` restore, workload com
 - Reuse an existing Windows UI when cross-platform reach has no product value.
 - Avalonia is a strong first candidate for a named cross-platform desktop scope, subject to native and package evidence.
 - Mobile capability and lifecycle paths should decide the mobile shell; shared markup percentage comes later.
-- Grow X43 through supervised effects, persistence, accessibility, headless tests, native smoke, per-RID packages, signing, update, and recovery.
+- Grow the desktop sample through supervised effects, persistence, accessibility, headless tests, native smoke, per-RID packages, signing, update, and recovery.
 - Keep the `-6661` attempt as a failed native row until an interactive macOS run replaces it with new evidence.
 - Mobile architecture needs shared Core plus distinct Android/iOS hosts, durable checkpoints, stale-result protection, and idempotent server cooperation.
 - A desktop build proves no mobile workload, device, signing, or store path.

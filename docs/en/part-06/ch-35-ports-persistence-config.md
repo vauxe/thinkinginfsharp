@@ -151,7 +151,7 @@ The choices are part of the boundary contract:
 
 Strict unknown-member rejection is a fail-closed compatibility policy. It catches misspellings and unexpected producer changes, but it also means additive fields require an intentional version or policy change. That trade-off must be documented for clients; “JSON is flexible” is not a compatibility contract.
 
-Nine K08a contract tests pin tags, property sets, casing, unknown fields, version precedence, all protected-status round trips, missing values, impossible payload combinations, and raw command preservation.
+JSON contract tests pin tags, property sets, casing, unknown fields, version precedence, all protected-status round trips, missing values, impossible payload combinations, and raw command preservation.
 
 ## Treat path as validated configuration {#configuration}
 
@@ -205,7 +205,7 @@ Each function keeps the caller's `CancellationToken`. Store errors become `Booki
 
 `LoadBooking` honors the requested key and returns `NotBooked` for a different stored request. `AppendEvent` rejects a mismatch between its key and the event's protected request ID before saving the event's resulting booking.
 
-The current adapter stores only one snapshot. Therefore a different request can replace the prior snapshot after a later successful append. This is an acknowledged teaching-stage limitation, not a multi-booking repository. K11 replaces this read/write model before the API is called consistency-safe.
+The current adapter stores only one snapshot. Therefore a different request can replace the prior snapshot after a later successful append. This is an acknowledged teaching-stage limitation, not a multi-booking repository. Chapter 37 replaces this read/write model before the API is called consistency-safe.
 
 ## Use deterministic substitutes, not pretend integrations {#deterministic-stubs}
 
@@ -247,11 +247,11 @@ One generic `Error of string` would erase which layer has authority to recover o
 
 ## Verify effects with real boundaries {#testing}
 
-K08b's eight contract tests write only to unique system temporary directories. They prove real JSON round trips, replacement without temporary residue, missing-file behavior, strict encoding, corruption categories, the size cap, path validation, and cancellation before save preserving the prior complete snapshot.
+File-store contract tests write only to unique system temporary directories. They prove real JSON round trips, replacement without temporary residue, missing-file behavior, strict encoding, corruption categories, the size cap, path validation, and cancellation before save preserving the prior complete snapshot.
 
-K09's six tests run the real file adapter and deterministic substitutes. They cover authorization, decline, delivery, exact faults, cancellation without recorded side effects, token propagation to the clock, persistence through the composed ports, typed corruption errors, repeated disposal, and use-after-disposal rejection.
+Adapter tests run the real file adapter and deterministic substitutes. They cover authorization, decline, delivery, exact faults, cancellation without recorded side effects, token propagation to the clock, persistence through the composed ports, typed corruption errors, repeated disposal, and use-after-disposal rejection.
 
-The Release solution build passes with F# 10 null checking and warnings as errors. The complete example gate restores locked dependencies, builds every registered project, runs tests and scripts, and introduces no service account or third-party package.
+The Release solution build passes with F# 10 null checking and warnings as errors. The complete example gate restores locked dependencies, builds every registered project, and runs tests and scripts. The capstone runtime projects add no third-party runtime package and require no service account; the test and tooling gate still restores its locked packages.
 
 This evidence does not yet cover HTTP input, concurrent capacity, retry, restart of a multi-booking store, or a C# client. Those are the next three chapters, not hidden assumptions here.
 
@@ -299,7 +299,7 @@ Suppose production payment and notification clients are created by a host contai
 - Deterministic stubs control outcomes without pretending to be network integrations.
 - Cancellation is propagated before recording substitute side effects.
 - The composition root constructs, exposes, and disposes what it owns.
-- K08 and K09 prove this boundary; later chapters must still prove HTTP and consistency.
+- JSON, file-store, and adapter evidence proves this boundary; later chapters must still prove HTTP and consistency.
 
 ## Sources {#sources}
 

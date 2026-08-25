@@ -123,7 +123,7 @@ val startBorrowed:
     BorrowedInfrastructureComposition
 ```
 
-This `.fsi`-style declaration states an interface contract, not code already implemented by K09. A production implementation would move the existing port-record construction behind `startBorrowed` and expose no concrete `PaymentStub` or `NotificationStub` properties from the borrowed composition.
+This `.fsi`-style declaration states an interface contract, not code already implemented by the chapter's adapter. A production implementation would move the existing port-record construction behind `startBorrowed` and expose no concrete `PaymentStub` or `NotificationStub` properties from the borrowed composition.
 
 The host creates long-lived clients, registers them, starts one or more borrowed compositions, and disposes the compositions before disposing the shared clients. If clients implement `IAsyncDisposable`, the host awaits them at its own shutdown boundary. A borrowed composition must never call either disposal interface.
 

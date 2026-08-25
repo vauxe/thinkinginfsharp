@@ -11,6 +11,7 @@ verifiedWith:
   dotnetSdk: "10.0.301"
 exampleIds:
   - ch32-functions-to-applications
+  - foundation-example-tests
 exerciseIds:
   - ch32-exercise-01
   - ch32-exercise-02
@@ -332,6 +333,18 @@ Choose between explicit construction and the Generic Host for: (a) a command tha
 - Metric dimensions must be bounded; per-request identifiers belong in controlled logs or traces, not metric tags.
 - The fixed demo proves wiring, not durability, atomicity, recovery, or backend delivery.
 - A stronger host is justified by real configuration, scope, worker, and shutdown needs.
+
+## Part V checkpoint {#part-checkpoint}
+
+Run the focused composition tests from the repository root:
+
+```console
+dotnet test tests/ExampleTests/ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~Ch32CompositionTests
+```
+
+Passing tests show that configuration errors accumulate, cancellation is observed before a port call, owned resources are disposed, and the sample emits its structured log, metric, and completed activity. They still prove only in-process wiring, not production export or durable delivery.
+
+[Continue to Chapter 33](../part-06/ch-33-domain-language-model), where the capstone is rebuilt as one coherent application path.
 
 ## Sources {#sources}
 

@@ -238,7 +238,7 @@ Arrange-Act-Assert is a reading boundary, not a demand for mechanical comments. 
 
 The test-driven loop is: write the smallest failing test and run it to confirm the expected reason; write the smallest implementation that passes; improve names, duplication, and boundaries under a green suite. A green test never observed failing may not exercise its intended path.
 
-This chapter's sample first produced an FS0039 compile failure for missing types, then implemented the shared API, and finally separated DTO errors from domain errors while all eight tests stayed green. A compilation failure can be a valid red light when it precisely proves the required contract does not exist yet.
+This chapter's sample first produced an FS0039 compile failure for missing types, then implemented the shared API, and finally separated DTO errors from domain errors while the focused suite stayed green. A compilation failure can be a valid red light when it precisely proves the required contract does not exist yet.
 
 ### Test public behavior without locking private implementation {#implementation-details}
 
@@ -250,13 +250,13 @@ Code coverage can reveal locations never executed, but it cannot prove assertion
 
 ## Run focused and complete tests {#running-tests}
 
-From the repository root, run only this chapter's two test modules:
+From the repository root, run only this chapter's focused tests:
 
 ```console
 dotnet test ThinkingInFSharp.slnx --configuration Release --filter FullyQualifiedName~Ch28
 ```
 
-The filter runs four tests in ExampleTests and four in ContractTests. Before committing, also run `pnpm check:examples`; it performs locked restore, builds the solution, runs all tests, and executes every registered example. The focused command shortens feedback while the full gate finds cross-chapter wiring regressions; neither replaces the other.
+The filter selects this chapter's checks from ExampleTests and ContractTests. Before committing, also run `pnpm check:examples`; it performs locked restore, builds the solution, runs all tests, and executes every registered example. The focused command shortens feedback while the full gate finds cross-chapter wiring regressions; neither replaces the other.
 
 ## A practical selection checklist {#selection-checklist}
 

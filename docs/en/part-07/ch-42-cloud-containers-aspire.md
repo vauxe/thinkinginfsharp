@@ -109,7 +109,7 @@ By the end of this chapter, you should be able to:
 - decide whether Aspire Service Defaults or a smaller F#-friendly composition is justified;
 - distinguish `aspire publish`, `aspire deploy`, and the surrounding CI/CD responsibilities;
 - promote an immutable artifact through environments instead of rebuilding it;
-- state exactly what X42's build, local run, dashboard, and image archive prove;
+- state exactly what the local cloud sample's build, local run, dashboard, and image archive prove;
 - design a reversible deployment spike with cost, security, operations, and rollback evidence.
 
 ## Deployment is a stack of contracts {#deployment-contracts}
@@ -150,9 +150,9 @@ The answer may be one small managed Web service. Distributed topology is not a m
 
 These are starting points, not a ranking. A managed container product can scale to zero; a Serverless product may accept container images; Kubernetes may be managed; a VM can run containers. Decide from the contract you must own, not the marketing category.
 
-## X42: one verified local slice {#verified-slice}
+## The local cloud sample: one verified local slice {#verified-slice}
 
-X42 deliberately contains one F# HTTP service, one C# project-based AppHost, and no cloud account or external service. It demonstrates the boundary between application code, development orchestration, and container packaging without pretending to validate a provider deployment.
+The local cloud sample deliberately contains one F# HTTP service, one C# project-based AppHost, and no cloud account or external service. It demonstrates the boundary between application code, development orchestration, and container packaging without pretending to validate a provider deployment.
 
 ### The F# service and pinned image base {#fsharp-service}
 
@@ -244,7 +244,7 @@ Different consumers need different answers:
 | Synthetic/user journey | Can an important operation succeed through real boundaries? | Alert, halt rollout, or investigate |
 | Business health | Are domain outcomes, queues, latency, errors, and cost within objectives? | Operational or product response |
 
-Kubernetes explicitly gives startup, liveness, and readiness probes different effects. Aspire also distinguishes AppHost resource checks from service endpoint checks. X42 connects the AppHost check to the service's readiness URL, but one green local check does not configure a production load balancer.
+Kubernetes explicitly gives startup, liveness, and readiness probes different effects. Aspire also distinguishes AppHost resource checks from service endpoint checks. The local cloud sample connects the AppHost check to the service's readiness URL, but one green local check does not configure a production load balancer.
 
 Keep liveness cheap and independent of transient downstream systems. Readiness may include required dependencies, but an unbounded dependency chain can make every instance unready during a shared outage. Set timeouts, avoid leaking internals, control caching, restrict exposure, and test both failure and recovery.
 
@@ -265,7 +265,7 @@ Tags are convenient names; a digest identifies image content. Promote the same d
 
 Multi-architecture indexes do not prove identical behavior. Native libraries, globalization, JIT behavior, available images, and performance can differ between `amd64` and `arm64`. Build and smoke each deployed architecture, then test under the target's security context and resource limits.
 
-### The lock-file lesson from X42 {#lock-file-lesson}
+### The lock-file lesson from the local cloud sample {#lock-file-lesson}
 
 The first container command added `--os linux`. Restore then rewrote the project's lock graph with runtime identifier `linux-arm64`, and the next ordinary solution `--locked-mode` restore failed because the project itself declared no RID.
 
@@ -315,7 +315,7 @@ A provider advertising “.NET” does not prove first-class F# templates, analy
 
 As of 2026-08-25, Azure Functions 4.x isolated worker documentation lists .NET 10 and notes that F# applications may need explicit registration for some binding extensions. It also records plan-specific restrictions and minimum worker package versions. This chapter reviewed that documentation but did not build or deploy an Azure Function.
 
-AWS currently documents a .NET 10 Lambda base image and .NET packaging paths, mostly using C# terminology and examples. A compiled F# handler can be a candidate only after an F# project spike verifies handler discovery, serializer behavior, packages, architecture, local invocation, cold path, deployment, and telemetry. X42 did none of those steps.
+AWS currently documents a .NET 10 Lambda base image and .NET packaging paths, mostly using C# terminology and examples. A compiled F# handler can be a candidate only after an F# project spike verifies handler discovery, serializer behavior, packages, architecture, local invocation, cold path, deployment, and telemetry. The local cloud sample did none of those steps.
 
 Do not choose Serverless to avoid learning deployment. It adds a provider runtime, trigger contract, identity, limits, pricing dimensions, local emulator/tooling, and event failure semantics. Choose it when those additions remove more owned infrastructure than they create application risk.
 
@@ -335,13 +335,13 @@ Name resources as stable operational concepts. Treat generated connection data a
 
 AppHost resource health answers whether orchestration considers a resource ready, including whether a dependent `WaitFor` may proceed. Service endpoint health answers whether a running application instance should receive traffic or restart under its production platform.
 
-The dashboard can display an HTTP resource check, as X42 verified. Production still needs platform probe configuration aimed at the right service path, port, timeout, threshold, and security boundary. Copying a green dashboard screenshot into a runbook does not create that configuration.
+The dashboard can display an HTTP resource check, as the local cloud sample verified. Production still needs platform probe configuration aimed at the right service path, port, timeout, threshold, and security boundary. Copying a green dashboard screenshot into a runbook does not create that configuration.
 
 ### Service Defaults are source code, not magic {#service-defaults}
 
 The current C# Service Defaults template composes OpenTelemetry, health checks, service discovery, and standard `HttpClient` resilience. It is a customizable shared project. Calling `AddServiceDefaults` and `MapDefaultEndpoints` is what installs those behaviors; merely running under AppHost does not instrument an application.
 
-X42 intentionally omits Service Defaults. The AppHost injects OTLP-related environment variables, but the F# service has no OpenTelemetry SDK/exporter packages, so the chapter claims no traces or metrics. Its health endpoints are explicit teaching handlers, not ASP.NET Core `IHealthCheck` registrations.
+The local cloud sample intentionally omits Service Defaults. The AppHost injects OTLP-related environment variables, but the F# service has no OpenTelemetry SDK/exporter packages, so the chapter claims no traces or metrics. Its health endpoints are explicit teaching handlers, not ASP.NET Core `IHealthCheck` registrations.
 
 For a real F# solution, choose one of three honest paths:
 
@@ -359,7 +359,7 @@ Current Aspire deployment is pipeline-based. A deployment target or compute envi
 - `aspire deploy` evaluates the model, resolves parameters, generates target output, and applies it directly.
 - `aspire do <step>` invokes named pipeline steps when CI/CD needs a split flow.
 
-These commands require an appropriate current CLI and target integrations. X42 uses neither a deployment target nor the CLI, so it cannot publish Docker Compose, Kubernetes, Azure, or another environment from Aspire. The AppHost build is only a local application-model and orchestration check.
+These commands require an appropriate current CLI and target integrations. The local cloud sample uses neither a deployment target nor the CLI, so it cannot publish Docker Compose, Kubernetes, Azure, or another environment from Aspire. The AppHost build is only a local application-model and orchestration check.
 
 ### Environment is not execution mode {#environment-execution-mode}
 
@@ -469,9 +469,9 @@ The spike should be cheap to remove. Keep provider types outside the domain core
 
 Choose a first candidate, rejected alternatives, evidence gap, and reversal condition for each case: (a) one team owns a steady internal HTTP API with a managed database, moderate traffic, no custom network or sidecar requirement, and no platform team; (b) image metadata processing arrives in sharp bursts, each item is bounded to seconds, duplicate delivery is possible, and the downstream media API is rate-limited; (c) twenty regulated services need common admission policy, private networking, sidecars, controlled multi-tenant scheduling, and an existing staffed Kubernetes platform. Compare managed process/container, Serverless, and Kubernetes without forcing one answer across all cases.
 
-### Exercise 2: turn X42 into a release proposal {#exercise-02}
+### Exercise 2: turn the local cloud sample into a release proposal {#exercise-02}
 
-Design the minimum work required to deploy the X42 F# service to a managed container environment. Cover architecture, immutable image identity, registry, SBOM/signature/vulnerability policy, configuration and secret identity, Service Defaults or alternative telemetry, production probes, non-root/read-only execution, resource limits, shutdown, staging smoke, load, rollout, rollback, data compatibility, cost, and cleanup. Separate what the repository already proves from what requires target-environment evidence.
+Design the minimum work required to deploy the F# service from the local cloud sample to a managed container environment. Cover architecture, immutable image identity, registry, SBOM/signature/vulnerability policy, configuration and secret identity, Service Defaults or alternative telemetry, production probes, non-root/read-only execution, resource limits, shutdown, staging smoke, load, rollout, rollback, data compatibility, cost, and cleanup. Separate what the repository already proves from what requires target-environment evidence.
 
 ### Exercise 3: design an idempotent Serverless booking consumer {#exercise-03}
 
@@ -496,6 +496,6 @@ A provider event delivers `BookingConfirmed` at least once. The handler must res
 - Service Defaults are optional owned source code; environment injection alone does not instrument a service.
 - `aspire publish` emits a handoff, `aspire deploy` applies a target pipeline, and CI/CD still owns governance.
 - Promote one immutable artifact, design compatible data changes, observe progressive rollout, and rehearse rollback or forward fix.
-- X42 verifies a local F# service, C# AppHost, dashboard health, and image archive only; all provider paths remain unexecuted.
+- The local cloud sample verifies a local F# service, C# AppHost, dashboard health, and image archive only; all provider paths remain unexecuted.
 
 Chapter 43 returns from cloud topology to a user-facing .NET runtime: Avalonia desktop applications, platform packaging, and the honest boundary of mobile support.

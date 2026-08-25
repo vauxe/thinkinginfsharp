@@ -198,10 +198,9 @@ Availability: available
 Capacity bands: full, last seat, limited, available
 Booking: Lin requested 3 seats
 Queues: empty | one: Lin | next: Lin, then Ada
-Requests: invalid, accepted, too large
 ```
 
-The manifest checks all five lines in order. Each branch function returns data and output is kept outside the function, so decision and display can be verified separately.
+The manifest checks each line in order. Each branch function returns data and output is kept outside the function, so decision and display can be verified separately.
 
 ## Debugging: simulate each rule {#debugging}
 
@@ -238,7 +237,7 @@ Then answer: what happens if `_ -> "available"` moves to the first rule? If only
 
 ### Exercise 3: decompose composite input {#exercise-03}
 
-The shared `classifyRequest` examines remaining and requested seats together:
+Write a `classifyRequest` function that examines remaining and requested seats together. It should return `"invalid"` for a nonpositive request, `"accepted"` when a positive request fits, and `"too large"` otherwise. Then:
 
 1. explain the results for `(5, 0)`, `(5, 3)`, and `(2, 3)`;
 2. explain why the invalid-request rule must precede requested-not-greater-than-remaining;

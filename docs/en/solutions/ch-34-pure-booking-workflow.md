@@ -33,7 +33,7 @@ sources:
 
 # Chapter 34 Solutions {#overview}
 
-These solutions follow K07's observable order rather than collecting every imaginable complaint. Field validation is complete within its independent phase; state and lifecycle decisions then stop as soon as a prerequisite fails.
+These solutions follow the current workflow's observable order rather than collecting every imaginable complaint. Field validation is complete within its independent phase; state and lifecycle decisions then stop as soon as a prerequisite fails.
 
 [Return to Chapter 34](../part-06/ch-34-pure-booking-workflow).
 
@@ -134,7 +134,7 @@ The example checks only blank email because that is the stated rule. A productio
 
 ## Exercise 3: specify cancellation precedence {#exercise-03}
 
-### Current K07 policy {#exercise-03-current}
+### Current policy {#exercise-03-current}
 
 Assume the state contains request `REQ-7` with `Cancelled oldReason`:
 
@@ -164,7 +164,7 @@ Whichever policy is chosen, tests should state the exact precedence. Vague claim
 - Error order is part of observable behavior when a list is returned.
 - Activity-wide availability is a stateful rule, not an email or integer field check.
 - Email policy should come from requirements, not a convenient regular expression.
-- Current K07 validates all command fields before state lookup.
+- The current policy validates all command fields before state lookup.
 - A public security boundary may deliberately conceal lookup and validation details.
 - Changing precedence requires new types or orchestration, documentation, and tests.
 - No precedence policy substitutes for an atomic load-decide-commit boundary.

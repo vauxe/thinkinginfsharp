@@ -199,7 +199,7 @@ dotnet run --project examples/chapters/ch25/Ch25.fsproj --configuration Release
 dotnet test ThinkingInFSharp.slnx --configuration Release --filter FullyQualifiedName~Ch25Object
 ```
 
-程序打印类、接口、扩展与结构体观察结果。六项测试覆盖两个构造函数、成员验证、显式接口视图、对象表达式替身、扩展派生成员、值复制、不同装箱对象，以及无效的零初始化修订号。
+程序打印类、接口、扩展与结构体观察结果。聚焦测试覆盖两个构造函数、成员验证、显式接口视图、对象表达式替身、扩展派生成员、值复制、不同装箱对象，以及无效的零初始化修订号。
 
 ## 练习 {#exercises}
 

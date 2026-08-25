@@ -121,7 +121,7 @@ The handler must pass the request cancellation token into deserialization and re
 
 ### Use the same executable evidence {#exercise-02-evidence}
 
-Reference the spike from a copy of `WebSampleTests` and run the same seven cases unchanged. Add only framework-specific assertions that matter, such as endpoint metadata or middleware ordering. Then run:
+Reference the spike from a copy of `WebSampleTests` and run the same contract cases unchanged. Add only framework-specific assertions that matter, such as endpoint metadata or middleware ordering. Then run:
 
 - locked restore and Release build with warnings as errors;
 - the unchanged `TestServer` contract;
@@ -134,7 +134,7 @@ Compare:
 
 | Dimension | Direct sample baseline | Falco spike question |
 |---|---|---|
-| public HTTP contract | seven passing cases | unchanged? |
+| public HTTP contract | passing contract cases | unchanged? |
 | concepts | `RequestDelegate`, endpoint routing | endpoint list, handler, request/response helpers |
 | direct dependencies | shared framework only | Falco plus resolved graph |
 | platform access | direct | is an escape hatch clear? |

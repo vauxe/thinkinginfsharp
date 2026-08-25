@@ -11,6 +11,8 @@ verifiedWith:
   dotnetSdk: "10.0.301"
 exampleIds:
   - ch18-workflow-validation
+  - capstone-booking-domain
+  - foundation-example-tests
 exerciseIds:
   - ch18-exercise-01
   - ch18-exercise-02
@@ -286,7 +288,17 @@ Explain why FSharp.Core alone does not establish that this compiles or accumulat
 - `and!` expresses independent bindings; its merge behavior belongs to the selected builder.
 - Ordinary functions provide a readable semantic baseline before custom syntax earns its cost.
 
-The third-part capstone now applies both policies to the booking domain: independent command errors accumulate, while state-dependent business decisions short-circuit into explicit events or failures.
+## Part III checkpoint {#part-checkpoint}
+
+Run the focused workflow tests from the repository root:
+
+```console
+dotnet test tests/ExampleTests/ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~BookingWorkflowTests
+```
+
+Passing tests show that independent command errors accumulate in field order, valid commands produce events, and existing state short-circuits later capacity work. They exercise ordinary functions, so the evidence does not depend on an unstated computation-expression builder.
+
+[Continue to Chapter 19](../part-04/ch-19-dotnet-null-boundaries), where external .NET values first cross an explicit boundary.
 
 ## Sources {#sources}
 

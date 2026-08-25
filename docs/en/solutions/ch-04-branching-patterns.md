@@ -11,6 +11,7 @@ verifiedWith:
   dotnetSdk: "10.0.301"
 exampleIds:
   - ch04-branching-patterns
+  - ch04-exercise-03-solution
 exerciseIds:
   - ch04-exercise-01
   - ch04-exercise-02
@@ -59,7 +60,7 @@ Move the wildcard first and it matches every input before the other rules, makin
 
 The definition is:
 
-<<< @/../examples/scripts/ch04-branching-patterns.fsx#exercise-03{fsharp:line-numbers} [ch04-branching-patterns.fsx]
+<<< @/../examples/solutions/ch04-exercise-03.fsx#solution{fsharp:line-numbers} [ch04-exercise-03.fsx]
 
 `(5, 0)` first satisfies requested-not-positive and produces `"invalid"`. `(5, 3)` skips that rule and satisfies `3 <= 5`, producing `"accepted"`. Both guards fail for `(2, 3)`, so `_` produces `"too large"`. The function type is `int * int -> string`.
 

@@ -11,6 +11,8 @@ verifiedWith:
   dotnetSdk: "10.0.301"
 exampleIds:
   - ch06-recursion-folds
+  - ch06-non-tail-recursion
+  - capstone-part-01-booking-basics
 exerciseIds:
   - ch06-exercise-01
   - ch06-exercise-02
@@ -27,7 +29,10 @@ termIds:
 sources:
   - id: microsoft-recursive-functions
     url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/recursive-functions-the-rec-keyword
-    checked: "2026-08-24"
+    checked: "2026-08-25"
+  - id: microsoft-fsi-options
+    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/fsharp-interactive-options
+    checked: "2026-08-25"
   - id: microsoft-functions
     url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/
     checked: "2026-08-24"
@@ -114,7 +119,11 @@ Outer `sumTailRecursive` hides the initial accumulator and leaves callers a clea
 
 ### `[<TailCall>]` checks intent {#tailcall-attribute}
 
-Starting with F# 8, `[<TailCall>]` can be placed on a module function or method. The compiler warns when it finds recursive calls in that function that are not in tail position. The book uses F# 10 and treats warnings as errors, so the shared loops have an automated check on their tail-call intent.
+Starting with F# 8, `[<TailCall>]` can be placed on a module function or method. The compiler warns when it finds recursive calls in that function that are not in tail position. To make that diagnostic executable evidence, the repository separately compiles this deliberately invalid `.fs` project with warnings as errors and requires `FS3569`:
+
+<<< @/../examples/expected-errors/ch06-non-tail-recursion/NonTailRecursion.fs#non-tail-recursion{fsharp:line-numbers} [NonTailRecursion.fs]
+
+The ordinary script gate also runs FSI with `--warnaserror+`, but a successful script run is not used as proof of the `TailCall` diagnostic. The compiled negative fixture above supplies that proof; code position and the bounded run below supply the positive evidence for the shared loops.
 
 The attribute does not magically rewrite non-tail recursion and does not prove termination. It checks relevant call positions. Tail position is an important prerequisite for eliminating recursive stack growth, but cross-function calls, runtimes, debug settings, computation expressions, and other execution models can impose different limits. Do not infer “all recursion is stack-safe” from one synchronous self-recursive example.
 
@@ -199,7 +208,7 @@ None automatically prevents `int` range overflow or validates the business meani
 From the repository root, run:
 
 ```console
-dotnet fsi --exec examples/scripts/ch06-recursion-folds.fsx
+dotnet fsi --warnaserror+ --exec examples/scripts/ch06-recursion-folds.fsx
 ```
 
 You should see:
@@ -266,7 +275,17 @@ Then imagine changing the recursive branch to recurse first and add `head` after
 - `List.fold` threads state from the left; `foldBack` combines from the right and reverses folder argument order.
 - Tail recursion, time complexity, arithmetic safety, and domain correctness require separate verification.
 
-The language foundations of Part I now close: values, bindings, functions, branches, list data flow, and recursion. The capstone slice next combines them into a pure booking script before Part II turns implicit constraints into a domain model with records and unions.
+## Part I checkpoint {#part-checkpoint}
+
+Run the integrated booking script from the repository root:
+
+```console
+dotnet fsi --warnaserror+ --exec examples/capstone/part-01/BookingBasics.fsx
+```
+
+Its output must distinguish valid from invalid input rows, accept only requests that fit, reject the over-capacity request, and finish with the correct booked and remaining capacity. This closes the Part I language path without claiming persistence or concurrency guarantees.
+
+[Continue to Chapter 7](../part-02/ch-07-records-equality), where records and unions turn more of those implicit rules into types.
 
 ## Vocabulary {#vocabulary}
 

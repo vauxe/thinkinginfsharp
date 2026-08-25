@@ -79,7 +79,7 @@ Microsoft's [.NET 10 API guidance](https://learn.microsoft.com/en-us/aspnet/core
 
 ## Inspect the representative Minimal API {#representative-sample}
 
-X39 is intentionally much smaller than the booking capstone. It answers one question: what does a direct F# endpoint look like when input, output, and errors remain explicit?
+The web sample is intentionally much smaller than the booking capstone. It answers one question: what does a direct F# endpoint look like when input, output, and errors remain explicit?
 
 The project uses `Microsoft.NET.Sdk.Web`, targets `net10.0`, and has no third-party package reference. Its lock file records `FSharp.Core` 10.1.301. The public JSON types are ordinary CLR-friendly records rather than domain discriminated unions:
 
@@ -111,7 +111,7 @@ The mapping style is lower-level than automatic Minimal API parameter binding. T
 
 ### State exactly what the test proves {#sample-evidence}
 
-Seven `TestServer` cases run the real route and handler:
+Focused `TestServer` cases run the real route and handler:
 
 - one valid body is trimmed and returns the exact success JSON shape;
 - malformed JSON, absent name, blank name, incorrect property case, and an unknown member fail safely;
@@ -228,7 +228,7 @@ The following is a dated observation, not an evergreen ranking:
 
 | Choice | Stable surface checked on 2026-08-25 | Verified in this repository | Key adoption question |
 |---|---|---:|---|
-| ASP.NET Core Minimal API | .NET SDK/runtime 10.0.301 | yes, Release + 7 HTTP cases | can the team contain C#-shaped API friction? |
+| ASP.NET Core Minimal API | .NET SDK/runtime 10.0.301 | yes, Release + HTTP contract cases | can the team contain C#-shaped API friction? |
 | controller API | ASP.NET Core 10 platform docs | no | do required controller extension points justify the ceremony? |
 | Giraffe | NuGet 8.3.0 | no | does continuation-style handler composition fit the team? |
 | Falco | NuGet 5.2.0 stable | no | do its focused endpoints and related packages cover required integrations? |
@@ -351,7 +351,7 @@ Choose a starting web surface for each scenario and state the evidence that coul
 
 ### Exercise 2: preserve the greeting contract in a spike {#exercise-02}
 
-Select Giraffe, Falco, or Oxpecker and sketch a bounded spike that replaces only `WebSample.map` and its handler. Preserve the exact success/error JSON, strict member policy, cancellation behavior, and seven HTTP cases. List the package version, new transitive surface, framework concepts introduced, and a deletion criterion if the spike loses. Do not move DTO validation into a domain project reference to the framework.
+Select Giraffe, Falco, or Oxpecker and sketch a bounded spike that replaces only `WebSample.map` and its handler. Preserve the exact success/error JSON, strict member policy, cancellation behavior, and HTTP contract cases. List the package version, new transitive surface, framework concepts introduced, and a deletion criterion if the spike loses. Do not move DTO validation into a domain project reference to the framework.
 
 ### Exercise 3: design a reversible migration {#exercise-03}
 

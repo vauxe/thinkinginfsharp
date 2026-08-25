@@ -11,6 +11,8 @@ verifiedWith:
   dotnetSdk: "10.0.301"
 exampleIds:
   - ch24-concurrency-agents-state
+  - capstone-booking-domain
+  - foundation-example-tests
 exerciseIds:
   - ch24-exercise-01
   - ch24-exercise-02
@@ -246,7 +248,17 @@ Explain why a thread-safe dictionary alone cannot guarantee freshness, bounded m
 - Concurrent collections have method-specific guarantees; read the factory and composition semantics.
 - Cache correctness includes time, ownership, failure, and resource policies.
 
-The next implementation slice applies these rules to asynchronous booking ports with deterministic substitutes for success, fault, cancellation, and delayed completion.
+## Part IV checkpoint {#part-checkpoint}
+
+Run the booking port contract against deterministic asynchronous substitutes:
+
+```console
+dotnet test tests/ExampleTests/ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~BookingAsyncPortTests
+```
+
+Passing tests show that caller cancellation tokens reach every port and that controlled operations remain pending until they explicitly succeed, fail, or observe cancellation. They do not establish cross-process consistency or durability.
+
+[Continue to Chapter 25](../part-05/ch-25-objects-interfaces), which examines object-oriented boundaries in the wider .NET ecosystem.
 
 ## Sources {#sources}
 

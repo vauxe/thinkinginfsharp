@@ -198,10 +198,9 @@ Availability: available
 Capacity bands: full, last seat, limited, available
 Booking: Lin requested 3 seats
 Queues: empty | one: Lin | next: Lin, then Ada
-Requests: invalid, accepted, too large
 ```
 
-manifest 按顺序检查全部五行。每个分支函数返回数据，输出集中在函数外部，因此可以分别验证决策与显示。
+manifest 会按顺序检查每行输出。每个分支函数返回数据，输出集中在函数外部，因此可以分别验证决策与显示。
 
 ## 调试：按规则逐项模拟 {#debugging}
 
@@ -238,7 +237,7 @@ manifest 按顺序检查全部五行。每个分支函数返回数据，输出�
 
 ### 练习 3：分解组合输入 {#exercise-03}
 
-共享脚本的 `classifyRequest` 同时查看余量与请求数：
+编写一个同时查看余量与请求数的 `classifyRequest` 函数：请求数不大于零时返回 `"invalid"`，正数请求不超过余量时返回 `"accepted"`，否则返回 `"too large"`。然后：
 
 1. 解释 `(5, 0)`、`(5, 3)` 与 `(2, 3)` 的结果；
 2. 说明为什么“无效请求”规则必须先于“请求不超过余量”；

@@ -47,7 +47,7 @@ sources:
 
 Chapter 36 made a dangerous interval observable: two requests can both read old capacity, a payment can succeed before local state changes, and a notification can fail after the booking is committed. Catching exceptions does not close any of those intervals. This chapter gives each one a state model and a deliberately narrow consistency boundary.
 
-K11 adds `AtomicBookingStore` and `IdempotentBookingService`. The first stores the whole activity aggregate and command progress; the second coordinates payment and notification against that progress. The focused tests call this service directly. The K10 HTTP endpoint still uses its earlier `AsyncPorts` workflow; Chapter 38 will connect the consistent service to the final API. Keeping that staging explicit prevents test evidence below HTTP from being misreported as deployed endpoint behavior.
+This chapter adds `AtomicBookingStore` and `IdempotentBookingService`. The first stores the whole activity aggregate and command progress; the second coordinates payment and notification against that progress. The focused tests call this service directly. The Chapter 36 HTTP endpoint still uses its earlier `AsyncPorts` workflow; Chapter 38 will connect the consistent service to the final API. Keeping that staging explicit prevents test evidence below HTTP from being misreported as deployed endpoint behavior.
 
 ## What you will be able to do {#outcomes}
 
@@ -110,7 +110,7 @@ load all capacity-relevant state
 
 ## Define seat accounting before choosing a primitive {#seat-accounting}
 
-K11 uses one explicit policy:
+The consistency boundary uses one explicit policy:
 
 ```text
 occupied = seats in Pending bookings + seats in Confirmed bookings
@@ -126,7 +126,7 @@ Capacity rejection itself is not persisted as a terminal idempotent result. If a
 
 ## Store the activity aggregate, not one booking {#aggregate-snapshot}
 
-The earlier `FileBookingStore` saved one `BookingDto`; saving another request replaced it. K11 introduces a separate versioned snapshot containing:
+The earlier `FileBookingStore` saved one `BookingDto`; saving another request replaced it. This chapter introduces a separate versioned snapshot containing:
 
 - the event ID and configured capacity;
 - every current booking keyed by normalized request ID;
@@ -168,7 +168,7 @@ Within this process, cooperating readers use the same state gate, so they do not
 
 ## Give an operation a stable identity {#idempotency-identity}
 
-A request ID identifies a booking, but one booking legitimately receives placement, confirmation, and cancellation commands. Therefore K11 defines an operation key from:
+A request ID identifies a booking, but one booking legitimately receives placement, confirmation, and cancellation commands. Therefore the consistency design defines an operation key from:
 
 ```text
 operation kind + normalized request ID
@@ -195,7 +195,7 @@ An idempotency key without payload comparison is dangerous: a client bug could r
 
 RFC 9110 defines an idempotent HTTP method by the intended server effect of repeated identical requests. It identifies safe methods, `PUT`, and `DELETE` as idempotent; `POST` is not inherently so. It also says a client should not automatically retry a non-idempotent request unless it knows the request semantics are idempotent or knows the original was not applied. See [HTTP Semantics, section 9.2.2](https://www.rfc-editor.org/rfc/rfc9110.html#section-9.2.2).
 
-K11 makes one application command retry-safe under its stored identity rules. That does not relabel every `POST` request, authorize an arbitrary proxy to retry it, or make a reused ID with different content safe. The eventual HTTP boundary must expose conflict and ambiguous-payment outcomes so a client can act deliberately.
+The stored identity rules make one application command retry-safe. That does not relabel every `POST` request, authorize an arbitrary proxy to retry it, or make a reused ID with different content safe. The eventual HTTP boundary must expose conflict and ambiguous-payment outcomes so a client can act deliberately.
 
 The Microsoft [Retry pattern](https://learn.microsoft.com/en-us/azure/architecture/patterns/retry) makes the same distinction operationally: classify faults, bound attempts, and ask whether an operation is idempotent before repeating it. “Received `503`” is not enough context to decide that a charge is safe to repeat.
 
@@ -263,7 +263,7 @@ There are only honest ways to narrow the gap:
 
 Microsoft's [transactional outbox guidance](https://learn.microsoft.com/en-us/azure/architecture/databases/guide/transactional-out-box-cosmos) stores the business object and event in the same database transaction, then has another process publish pending events. It also discusses duplicate publication during replay and downstream duplicate detection. The transaction prevents a lost local intent; it does not turn the remote send into the same transaction.
 
-K11 resembles a tiny inline outbox because `NotificationPending` is stored with the booking. It is not a full outbox: there is no independent worker, lease, backoff, dead-letter policy, ordering policy, or retention cleanup. Calling it one would overstate the implementation.
+Persisting `NotificationPending` with the booking resembles a tiny inline outbox. It is not a full outbox: there is no independent worker, lease, backoff, dead-letter policy, ordering policy, or retention cleanup. Calling it one would overstate the implementation.
 
 ## Recover from an orderly restart {#restart-recovery}
 
@@ -283,7 +283,7 @@ This is orderly restart evidence. It does not prove simultaneous multi-process w
 
 ## State the guarantee as a table {#guarantee-table}
 
-| Question | K11 answer |
+| Question | Current answer |
 |---|---|
 | Can two controlled commands in one process oversell one activity? | no, when they use `IdempotentBookingService` and the same configured path |
 | Do pending and confirmed bookings consume seats? | yes |
@@ -296,7 +296,7 @@ This is orderly restart evidence. It does not prove simultaneous multi-process w
 | Does state survive a new process with matching activity configuration? | yes, in the tested orderly-restart scenario |
 | Can two OS processes or containers safely write the file concurrently? | no |
 | Is the snapshot an ACID, replicated, encrypted, backed-up database? | no |
-| Do the K10 HTTP endpoints already use this service? | no; final integration is Chapter 38 |
+| Do the Chapter 36 HTTP endpoints already use this service? | no; final integration is Chapter 38 |
 
 The narrow wording is part of correctness. “Thread safe,” “atomic,” “durable,” and “idempotent” are incomplete claims unless they name scope, state, failures, and observers.
 
@@ -315,7 +315,7 @@ The duplicate test releases two normalized forms of the same command together. B
 
 Other tests prove that notification failure commits the booking and retries only notification, payment fault becomes unknown and is not charged twice, cancellation frees capacity for a previously refused request, and a separate process replays completion.
 
-The exact `BookingConsistency` filter passed 20 consecutive runs: six tests per run, 120 executions. Repetition does not prove every schedule, but a controlled happens-before structure plus repetition is stronger evidence than `Task.Delay(50)` and an assertion that usually wins.
+The focused tests use a controlled happens-before structure instead of timing sleeps. This does not prove every possible schedule, but causal control is stronger evidence than `Task.Delay(50)` followed by an assertion that merely tends to win.
 
 ## Choose a production boundary from requirements {#production-upgrades}
 

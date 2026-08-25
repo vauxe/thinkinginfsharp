@@ -98,7 +98,7 @@ Accumulation is not “more functional” than short-circuiting. They answer dif
 
 ## Turn raw records into protected commands {#validated-commands}
 
-The place command already had a private validated form. K07 adds corresponding forms for confirmation and cancellation:
+The place command already had a private validated form. This chapter adds corresponding forms for confirmation and cancellation:
 
 <<< @/../examples/capstone/src/Booking.Domain/Validation.fs#validated-lifecycle-commands{fsharp:line-numbers} [Validation.fs]
 
@@ -253,7 +253,7 @@ Rule ownership is easier to review when written down:
 
 ## Test behavior without effects {#testing}
 
-K07's focused tests call ordinary values and functions. They need no mock framework because the decider has no ports. Ten tests establish:
+The focused workflow tests call ordinary values and functions. They need no mock framework because the decider has no ports. They establish:
 
 - place, confirm, and cancel each accumulate their independent malformed fields in order;
 - invalid lifecycle fields win before a missing-state check;
@@ -266,7 +266,7 @@ K07's focused tests call ordinary values and functions. They need no mock framew
 - cancellation emits a normalized final fact;
 - repeated cancellation preserves `CannotCancelFrom`.
 
-The wider domain, workflow, property, and decider filter passes 27 tests. The full example gate restores locked dependencies, builds Release with null checking and warnings as errors, runs every test and script, and verifies expected compiler diagnostics.
+The wider domain, workflow, property, and decider filter also passes. The full example gate restores locked dependencies, builds Release with null checking and warnings as errors, runs every test and script, and verifies expected compiler diagnostics.
 
 This evidence proves deterministic decisions for the covered model. It does not prove that several bookings cannot consume the same activity capacity, that state was loaded consistently, or that a fact was committed exactly once. Those guarantees need an atomic persistence boundary and later integration tests.
 
@@ -293,7 +293,7 @@ Imagine placement also receives `AttendeeEmail: string`, with a protected `Email
 
 ### Exercise 3: specify cancellation precedence {#exercise-03}
 
-Consider a cancelled booking and three cancel commands: blank ID plus blank reason, a valid different ID, and the correct ID with a valid new reason. State the result of each under K07. Then propose one alternative precedence policy, its user or security motivation, and the tests and public contract that would need to change.
+Consider a cancelled booking and three cancel commands: blank ID plus blank reason, a valid different ID, and the correct ID with a valid new reason. State the result of each under the current policy. Then propose one alternative precedence policy, its user or security motivation, and the tests and public contract that would need to change.
 
 [Read the chapter solutions](../solutions/ch-34-pure-booking-workflow).
 
@@ -309,7 +309,7 @@ Consider a cancelled booking and three cancel commands: blank ID plus blank reas
 - Error projection preserves structure instead of flattening to text.
 - `decide` accepts or refuses; `evolve` projects only accepted facts.
 - Purity makes decisions deterministic and cheap to test, not commits atomic.
-- K07 proves single-booking workflow behavior; aggregate capacity and persistence remain later work.
+- The focused evidence proves single-booking workflow behavior; aggregate capacity and persistence remain later work.
 
 ## Sources {#sources}
 

@@ -11,6 +11,8 @@ verifiedWith:
   dotnetSdk: "10.0.301"
 exampleIds:
   - ch12-making-illegal-states-unrepresentable
+  - capstone-booking-domain
+  - foundation-example-tests
 exerciseIds:
   - ch12-exercise-01
   - ch12-exercise-02
@@ -277,7 +279,17 @@ type BookingRequest = private { EventId: EventId; Seats: SeatCount }
 - “无法表示”相对于受支持 API 而言；它不解决损坏、null 互操作或并发。
 - 保护那些在广泛范围内重要的不变量；当穷尽构造本身就是特性时，透明类型仍更好。
 
-第二部分贯穿项目现在会把这些模式变成已编译的预约领域库，并以测试证明其公开 API 会拒绝无效容量、标识与状态。
+## 第二部分检查点 {#part-checkpoint}
+
+编译预约领域并运行它的聚焦公开 API 测试：
+
+```console
+dotnet test tests/ExampleTests/ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~BookingDomainTests
+```
+
+测试通过表明：受支持的构造函数会拒绝无效标识、容量、座位数与状态转换，有效值仍可通过公开 API 使用。它们不证明外部适配器也保持这些不变量；后续边界章节会单独验证。
+
+[继续阅读第 13 章](../part-03/ch-13-composition-pipeline-api)，开始组合这些带类型的操作。
 
 ## 资料来源 {#sources}
 

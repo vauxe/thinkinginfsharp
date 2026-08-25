@@ -238,7 +238,7 @@ Arrange—Act—Assert 是阅读边界，不要求机械注释。较短测试可
 
 测试驱动循环是：写最小失败测试，运行并确认它因预期原因失败；写最小实现使其通过；在绿灯保护下改善名称、重复与边界。一个从未观察过的绿灯可能根本没有执行目标路径。
 
-本章样例先以缺失类型获得 FS0039 编译红灯，再实现共享 API，最后把 DTO 错误从领域错误中分离并保持 8 项测试绿色。编译失败也可以是有效红灯，只要它准确证明所需契约尚不存在。
+本章样例先以缺失类型获得 FS0039 编译红灯，再实现共享 API，最后把 DTO 错误从领域错误中分离并保持聚焦测试套件绿色。编译失败也可以是有效红灯，只要它准确证明所需契约尚不存在。
 
 ### 测试公共行为，不给私有实现上锁 {#implementation-details}
 
@@ -250,13 +250,13 @@ Arrange—Act—Assert 是阅读边界，不要求机械注释。较短测试可
 
 ## 运行聚焦测试与完整测试 {#running-tests}
 
-从仓库根目录只运行本章两个测试模块：
+从仓库根目录只运行本章聚焦测试：
 
 ```console
 dotnet test ThinkingInFSharp.slnx --configuration Release --filter FullyQualifiedName~Ch28
 ```
 
-该过滤器分别运行 ExampleTests 与 ContractTests 中的 4 项测试。提交前再运行 `pnpm check:examples`，它锁定还原、构建整个解决方案、运行全部测试并执行所有登记示例。聚焦命令缩短反馈，完整门发现跨章节接线回归；两者不是替代关系。
+该过滤器从 ExampleTests 与 ContractTests 中选择本章检查。提交前再运行 `pnpm check:examples`，它锁定还原、构建整个解决方案、运行全部测试并执行所有登记示例。聚焦命令缩短反馈，完整门发现跨章节接线回归；两者不是替代关系。
 
 ## 一份实用的选择清单 {#selection-checklist}
 

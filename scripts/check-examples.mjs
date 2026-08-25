@@ -390,6 +390,23 @@ function parseManifest({ repoRoot, manifestPath }) {
       expectedOutput = stringArray(rawEntry.expectedOutput, `${fieldPrefix}.expectedOutput`, manifestLabel, errors, {
         required: true
       })
+
+      if (/^examples\/scripts\/ch\d{2}-/.test(path)) {
+        const scriptSource = readCappedText(
+          resolve(repoRoot, path),
+          MAX_TEXT_BYTES,
+          path,
+          errors
+        )
+        if (/^\s*\/\/\s*#region\s+exercise-/m.test(scriptSource ?? '')) {
+          errors.push(
+            manifestDiagnostic(
+              manifestLabel,
+              `${path}: chapter scripts must not embed exercise solution regions; place them under examples/solutions/`
+            )
+          )
+        }
+      }
     }
 
     if (path && PROJECT_KINDS.has(kind)) {
@@ -706,13 +723,13 @@ export function runExampleChecks({ runner = spawnSync, ...options } = {}) {
   }
 
   for (const entry of parsed.entries.filter(({ kind }) => kind === 'script')) {
-    const result = run(entry.path, ['fsi', '--exec', entry.path])
+    const result = run(entry.path, ['fsi', '--warnaserror+', '--exec', entry.path])
     checkExpectedOutput(entry.path, result, entry.expectedOutput, errors)
   }
 
   for (const entry of parsed.entries.filter(({ kind }) => kind === 'expected-error')) {
     const args = extname(entry.path) === '.fsx'
-      ? ['fsi', '--exec', entry.path]
+      ? ['fsi', '--warnaserror+', '--exec', entry.path]
       : ['build', entry.path, '--configuration', 'Release']
     const result = runner('dotnet', args, {
       cwd: resolved.repoRoot,

@@ -11,6 +11,7 @@ verifiedWith:
   dotnetSdk: "10.0.301"
 exampleIds:
   - ch01-first-session
+  - ch01-exercise-02-solution
 exerciseIds:
   - ch01-exercise-01
   - ch01-exercise-02
@@ -42,7 +43,7 @@ sources:
 | `summary` | `string` | `"Functional Foundations: 22 seats remaining"` |
 | `printResult` | `unit` | `()` |
 
-求 `printResult` 的右侧时，`printfn "%s" summary` 必须先执行，所以摘要是第一行输出。完成这次打印后，调用返回 `()`，这个值才被绑定到 `printResult`。接下来两个 `printfn` 依次打印布尔值与 `()`；脚本最后的练习示例再打印确认文本。
+求 `printResult` 的右侧时，`printfn "%s" summary` 必须先执行，所以摘要是第一行输出。完成这次打印后，调用返回 `()`，这个值才被绑定到 `printResult`。接下来两个 `printfn` 依次打印布尔值与 `()`。
 
 若把 `booked` 改为 `40`，`remaining` 从 `22` 变为 `0`，`hasSeats` 从 `true` 变为 `false`。`summary` 也因依赖 `remaining` 而变成以 `0 seats remaining` 结尾。`printResult` 的类型和值不变：打印不同文本仍然返回 `()`。
 
@@ -50,9 +51,9 @@ sources:
 
 ## 练习 2：迁移一个小程序 {#exercise-02}
 
-共享脚本中的一种直接答案如下：
+独立答案脚本中的一种直接写法如下：
 
-<<< @/../examples/scripts/ch01-first-session.fsx#exercise-02{fsharp:line-numbers} [ch01-first-session.fsx]
+<<< @/../examples/solutions/ch01-exercise-02.fsx#solution{fsharp:line-numbers} [ch01-exercise-02.fsx]
 
 三个 `let` 依次描述数据依赖，而不是声明三个以后必须改写的存储槽。`confirmation` 只依赖前两个已命名的值。最后的 `printfn` 把文本写到标准输出，并返回 `()`。
 

@@ -103,7 +103,7 @@ An F# user interface is not “some controls around the real program.” It is a
 
 Avalonia is a cross-platform .NET UI framework with official F# templates. It draws its own controls and provides desktop, mobile, and browser hosts, but that does not make every platform identical. A shared view can compile while its font, input, lifecycle, permission, native integration, package, signing, or accessibility path fails on one target. “Cross-platform” describes an architecture and support surface; it is not a test result.
 
-This chapter therefore starts with product and platform constraints, not XAML syntax. It uses X43 to show one small, verified desktop slice, then expands outward to state patterns, binding boundaries, threading, platform services, mobile hosts, testing, packaging, and release evidence.
+This chapter therefore starts with product and platform constraints, not XAML syntax. It uses the desktop sample to show one small, verified desktop slice, then expands outward to state patterns, binding boundaries, threading, platform services, mobile hosts, testing, packaging, and release evidence.
 
 ## What you will be able to do {#outcomes}
 
@@ -124,7 +124,7 @@ By the end of this chapter, you should be able to:
 - design layouts for resize, scale, keyboard, touch, localization, and assistive technology;
 - distinguish a XAML build, headless test, native launch, packaged install, signed artifact, and store release;
 - publish per runtime identifier and choose framework-dependent or self-contained delivery consciously;
-- state exactly what X43 verifies and why its attempted native launch did not pass;
+- state exactly what the desktop sample verifies and why its attempted native launch did not pass;
 - design a reversible desktop or mobile adoption spike with an explicit evidence matrix.
 
 ## A UI application is a stack of contracts {#ui-stack-contracts}
@@ -184,11 +184,11 @@ Avalonia supplies a retained control tree, styling, layout, input routing, data 
 
 AXAML is compiled by XamlX and creates the same runtime object graph that code can create. XAML offers declarative layout, styles, resources, previews, and familiar designer workflows. Code-only UI keeps construction in the language, can improve refactoring and F# expression flow, and can use community F#-first libraries such as Avalonia.FuncUI. They can be mixed.
 
-Choose from team fluency, tooling, binding needs, styling scale, hot reload or preview requirements, generated-code tolerance, and library maturity. Code-only does not make mutable controls pure. XAML does not require domain logic in a view model. X43 uses AXAML plus a tiny F# code-behind because that exposes the boundary without another framework.
+Choose from team fluency, tooling, binding needs, styling scale, hot reload or preview requirements, generated-code tolerance, and library maturity. Code-only does not make mutable controls pure. XAML does not require domain logic in a view model. The desktop sample uses AXAML plus a tiny F# code-behind because that exposes the boundary without another framework.
 
-## X43: one verified desktop slice {#verified-slice}
+## The desktop sample: one verified desktop slice {#verified-slice}
 
-X43 is deliberately one `net10.0` desktop executable. It has five primary files, no mobile target framework, no platform workload, no MVVM dependency, and no packaging configuration.
+The desktop sample is deliberately one `net10.0` desktop executable. It has five primary files, no mobile target framework, no platform workload, no MVVM dependency, and no packaging configuration.
 
 ### A pinned ordinary .NET project {#pinned-project}
 
@@ -226,11 +226,11 @@ Desktop assumptions are explicit here. iOS and browser use `ISingleViewApplicati
 
 The repository's xUnit suite references the sample and checks three additions, reset, lower-bound removal, and the unchanged initial value. It runs without Avalonia initialization because the tested function has no toolkit dependency. That speed and determinism are the payoff of the boundary.
 
-The final focused run passed 1/1, and the complete repository example suite passed. The sample's Release build under .NET SDK 10.0.301 completed with zero warnings and zero errors, and the full locked example gate—including the other .NET projects and Fable browser smoke—passed.
+The focused run and the complete repository example suite passed. The sample's Release build under .NET SDK 10.0.301 completed with zero warnings and zero errors, and the full locked example gate—including the other .NET projects and Fable browser smoke—passed.
 
 ### State the native launch result exactly {#native-launch-result}
 
-| Evidence | X43 result | What it proves | What it does not prove |
+| Evidence | Desktop sample result | What it proves | What it does not prove |
 | --- | --- | --- | --- |
 | Locked restore | Passed | The recorded NuGet graph resolves | Future versions or other runtime graphs |
 | Release build | Passed, 0 warnings/errors | F# and AXAML compile for `net10.0` | A usable native window or package |
@@ -252,7 +252,7 @@ F# offers several useful boundaries; toolkit choice does not dictate one archite
 | Code-behind orchestration | Small local state and event handlers in the view, domain calls delegated outward | Direct control references | Easy to let business decisions, I/O, and cancellation accumulate in the window |
 | Code-only/FuncUI-style | UI tree expressed in F# and commonly driven by messages/state | Language-level combinators or DSL | Community dependency, API churn, tooling and performance need their own evaluation |
 
-X43 uses manual MVU at the smallest useful scale: one pure update and one imperative renderer. A larger application would normally separate model, update, effect descriptions, view adapters, navigation, and composition into modules or projects.
+The desktop sample uses manual MVU at the smallest useful scale: one pure update and one imperative renderer. A larger application would normally separate model, update, effect descriptions, view adapters, navigation, and composition into modules or projects.
 
 ### Effects are messages, not hidden branches {#effects-as-messages}
 
@@ -287,7 +287,7 @@ Named lookup and event hookup are simple for small views. Binding scales better 
 
 In Avalonia 12, ordinary `{Binding ...}` maps to compiled binding by default. A compiled binding needs an `x:DataType`; the XAML compiler can then reject missing paths and incompatible types. Use `{ReflectionBinding ...}` only for an intentionally dynamic value, not as a blanket escape from type errors.
 
-X43 contains no binding expression, so it does not need an `x:DataType` and proves nothing about a view-model binding surface. A real binding spike should include nested templates, two-way editing, commands, validation, design data, trimming or AOT if planned, and the actual IDE used by the team.
+The desktop sample contains no binding expression, so it does not need an `x:DataType` and proves nothing about a view-model binding surface. A real binding spike should include nested templates, two-way editing, commands, validation, design data, trimming or AOT if planned, and the actual IDE used by the team.
 
 ### Adapt functional types instead of weakening them {#binding-adapters}
 
@@ -344,7 +344,7 @@ Test keyboard and high-DPI behavior, multiple monitors, clipboard and dialogs, r
 
 The default Avalonia macOS backend ships its own native library and can be built without the `net10.0-macos` workload. Distribution still needs a correctly structured `.app` bundle and `Info.plist`; normal external distribution requires code signing and notarization, and those signing steps require macOS/Xcode tooling even when bundle construction was cross-platform.
 
-Publish and test Apple Silicon and Intel artifacts when both are supported. Verify native menus, shortcuts, file dialogs, sandbox or entitlement choices, accessibility, app identity, quarantine/Gatekeeper behavior, upgrade, and uninstall. X43's `-6661` launch result is specifically not a passed macOS smoke test.
+Publish and test Apple Silicon and Intel artifacts when both are supported. Verify native menus, shortcuts, file dialogs, sandbox or entitlement choices, accessibility, app identity, quarantine/Gatekeeper behavior, upgrade, and uninstall. The desktop sample's `-6661` launch result is specifically not a passed macOS smoke test.
 
 ### Linux {#linux}
 
@@ -468,9 +468,9 @@ Compare implementation and operational cost, not screenshot similarity. A framew
 
 Choose a first candidate, rejected alternatives, evidence gap, and reversal condition for each product: (a) a Windows-only trading workstation must reuse mature WPF controls and enterprise deployment; the domain calculations are new F#; (b) an offline field tool needs Windows, macOS, and two named Linux distributions, keyboard and touch, local documents, and no phone release; (c) a consumer app needs Android and iOS, camera, push notifications, deep links, background upload, store distribution, and a small companion desktop viewer. Compare Avalonia, a C# platform shell around an F# core, .NET MAUI, and a browser surface without forcing one answer across all products.
 
-### Exercise 2: turn X43 into a desktop release {#exercise-02}
+### Exercise 2: turn the desktop sample into a desktop release {#exercise-02}
 
-Design the minimum changes and evidence needed to turn X43 into a supported Windows/macOS/Linux application. Cover module boundaries, asynchronous effects, persistence, settings migration, accessibility, localization, headless tests, native smoke, runtime identifiers, framework-dependent versus self-contained delivery, native assets, packages, signing/notarization, clean install, update, rollback, crash diagnostics, and the exact platform matrix. Preserve the honest limit of the existing `-6661` launch result.
+Design the minimum changes and evidence needed to turn the desktop sample into a supported Windows/macOS/Linux application. Cover module boundaries, asynchronous effects, persistence, settings migration, accessibility, localization, headless tests, native smoke, runtime identifiers, framework-dependent versus self-contained delivery, native assets, packages, signing/notarization, clean install, update, rollback, crash diagnostics, and the exact platform matrix. Preserve the honest limit of the existing `-6661` launch result.
 
 ### Exercise 3: extend the architecture to mobile {#exercise-03}
 
@@ -484,7 +484,7 @@ Design a Core/Desktop/Android/iOS project graph for a booking client. The shared
 - Measure shared logic, shared UI, and shared evidence separately.
 - Choose a UI boundary from users, devices, native capabilities, team skills, and release channels.
 - Avalonia supplies official F# templates, compiled AXAML, shared controls, and multiple platform hosts; it does not erase platform behavior.
-- X43 pins Avalonia 12.1.1 and separates a pure `Counter.update` from an imperative desktop view.
+- The desktop sample pins Avalonia 12.1.1 and separates a pure `Counter.update` from an imperative desktop view.
 - Its locked restore, build, tests, and repository gate pass; its automated macOS native launch did not, so native success is not claimed.
 - Manual MVU, MVVM adapters, code-behind, and code-only UI are choices with different pressure points.
 - Avalonia 12 bindings are compiled by default and require an explicit data type; reflection binding is an intentional exception.

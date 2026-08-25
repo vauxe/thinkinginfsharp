@@ -8,7 +8,14 @@
       "expectedOutput": [
         "Functional Foundations: 22 seats remaining",
         "Seats available: true",
-        "Printing returned: ()",
+        "Printing returned: ()"
+      ]
+    },
+    {
+      "id": "ch01-exercise-02-solution",
+      "kind": "script",
+      "path": "examples/solutions/ch01-exercise-02.fsx",
+      "expectedOutput": [
         "Lin booked 3 seats."
       ]
     },
@@ -19,7 +26,14 @@
       "expectedOutput": [
         "Functional Foundations (F): capacity=40, fill=0.45, open=true",
         "Ticket total: 58.50",
-        "Normalized capacity: 24; outer capacity: 40",
+        "Normalized capacity: 24; outer capacity: 40"
+      ]
+    },
+    {
+      "id": "ch02-exercise-02-solution",
+      "kind": "script",
+      "path": "examples/solutions/ch02-exercise-02.fsx",
+      "expectedOutput": [
         "Next attendee count: 25"
       ]
     },
@@ -44,7 +58,14 @@
         "Availability: available",
         "Capacity bands: full, last seat, limited, available",
         "Booking: Lin requested 3 seats",
-        "Queues: empty | one: Lin | next: Lin, then Ada",
+        "Queues: empty | one: Lin | next: Lin, then Ada"
+      ]
+    },
+    {
+      "id": "ch04-exercise-03-solution",
+      "kind": "script",
+      "path": "examples/solutions/ch04-exercise-03.fsx",
+      "expectedOutput": [
         "Requests: invalid, accepted, too large"
       ]
     },
@@ -69,6 +90,17 @@
         "Singleton sums: 5, 5, 5",
         "Tail-recursive count: 100000",
         "Fold order: left=-6 right=2"
+      ]
+    },
+    {
+      "id": "ch06-non-tail-recursion",
+      "kind": "expected-error",
+      "path": "examples/expected-errors/ch06-non-tail-recursion/Ch06NonTailRecursion.fsproj",
+      "sources": [
+        "examples/expected-errors/ch06-non-tail-recursion/NonTailRecursion.fs"
+      ],
+      "diagnostics": [
+        "FS3569"
       ]
     },
     {

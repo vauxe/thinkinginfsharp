@@ -113,7 +113,7 @@ The session remembers earlier bindings, opened namespaces, loaded files, referen
 
 ### Use a script for a complete, reviewable operation {#script-operation}
 
-A script should state its inputs, outputs, failure behavior, and owned effects as clearly as a small application. It may still be concise. X45 has one file, uses only libraries included with .NET, creates no global installation, and can be invoked from the repository root.
+A script should state its inputs, outputs, failure behavior, and owned effects as clearly as a small application. It may still be concise. The manifest script has one file, uses only libraries included with .NET, creates no global installation, and can be invoked from the repository root.
 
 The useful distinction is not “throwaway versus production.” It is “bounded operation versus growing product.” A one-off data repair may deserve stricter validation, backups, and audit evidence than a long-lived developer convenience.
 
@@ -127,7 +127,7 @@ If contributors should invoke one versioned command from the repository, a local
 
 Microsoft documents the command shape as `dotnet fsi [options] [script-file [arguments]]`. When a script runs, `fsi.CommandLineArgs[0]` is the script path and later elements are its arguments. `--` tells FSI to treat the remaining tokens as script arguments when an argument might otherwise look like an FSI option.
 
-X45 accepts these forms:
+The manifest script accepts these forms:
 
 ```console
 dotnet fsi --exec examples/scripts/ch45-scripting-packages-next.fsx write ./artifacts ./artifacts.manifest.json
@@ -158,9 +158,9 @@ These are not ordinary runtime function calls. A missing or incompatible referen
 
 Keep reusable loaded scripts effect-free at the top level. Put behavior in named functions and let one entry script own execution. If a growing set of `#load` directives starts recreating project file order, use a project.
 
-## X45: generate a stable artifact manifest {#x45}
+## The manifest script: generate a stable artifact manifest {#x45}
 
-X45 solves a practical local problem: enumerate files beneath an artifact directory, record normalized relative paths, byte lengths, and SHA-256 digests in deterministic JSON, then either update the manifest or verify that it is current.
+The manifest script solves a practical local problem: enumerate files beneath an artifact directory, record normalized relative paths, byte lengths, and SHA-256 digests in deterministic JSON, then either update the manifest or verify that it is current.
 
 Its contract is deliberately narrow:
 
@@ -219,7 +219,7 @@ Do not overstate that guarantee. The code does not request durable flushes, coor
 
 ### Verify idempotence with a real temporary fixture {#script-evidence}
 
-With no arguments, X45 creates two files in a unique directory under `Path.GetTempPath()`. It writes once, sets the output timestamp to a sentinel, writes again, checks without mutation, verifies ordinal normalized paths, and removes only that owned directory in `finally`.
+With no arguments, the manifest script creates two files in a unique directory under `Path.GetTempPath()`. It writes once, sets the output timestamp to a sentinel, writes again, checks without mutation, verifies ordinal normalized paths, and removes only that owned directory in `finally`.
 
 Run the verified slice from the repository root:
 
@@ -272,7 +272,7 @@ When invoking a process, pass an argument list rather than constructing an unesc
 
 ### Bound untrusted and expensive inputs {#automation-safety}
 
-X45 targets a trusted local artifact tree. A tool exposed to untrusted paths would also need file-count and byte limits, permission policy, special-file handling, race analysis, timeout/cancellation, output-size bounds, and perhaps a sandbox. A checksum manifest is not a reason to read an attacker-controlled device file forever.
+The manifest script targets a trusted local artifact tree. A tool exposed to untrusted paths would also need file-count and byte limits, permission policy, special-file handling, race analysis, timeout/cancellation, output-size bounds, and perhaps a sandbox. A checksum manifest is not a reason to read an attacker-controlled device file forever.
 
 Resolve destructive targets before acting. Never derive a recursive delete root from an absent environment variable, broad wildcard, repository root, or home directory. Prefer task-owned temporary directories and recoverable moves. Validate that the resolved target remains inside the intended root.
 
@@ -280,7 +280,7 @@ Credentials belong in the environment's secret mechanism, not source, fixture fi
 
 ## Add a package only after naming the missing capability {#package-choice}
 
-The first X45 design question was whether it needed a package. `System.IO`, `SHA256`, and `Utf8JsonWriter` already satisfied the bounded contract, so the correct dependency count was zero beyond the SDK and FSharp.Core.
+The manifest script's first design question was whether it needed a package. `System.IO`, `SHA256`, and `Utf8JsonWriter` already satisfied the bounded contract, so the correct dependency count was zero beyond the SDK and FSharp.Core.
 
 That choice is not anti-package minimalism. A maintained parser, protocol client, database driver, testing library, or framework can remove far more risk than it adds. The point is to compare a package against a written need rather than using package discovery as architecture.
 
@@ -403,7 +403,7 @@ Use this loop:
 | browser application | Fable state machine with one real API | URL ownership, cancellation, accessibility, bundle budget | 20, 22–24, 41 |
 | desktop or mobile | Avalonia desktop slice with pure update logic | packaging, platform service, signed target artifact | 25–32, 43 |
 | game and simulation | deterministic F# rules behind a thin host | replay, save migration, frame profile, real IL2CPP Player | 12, 20, 24, 27–31, 44 |
-| tooling and libraries | promote X45 into a tested console tool | stable API/CLI, package publication, upgrade compatibility | 16–17, 26–31, this chapter |
+| tooling and libraries | promote the manifest script into a tested console tool | stable API/CLI, package publication, upgrade compatibility | 16–17, 26–31, this chapter |
 
 Do not build seven starter projects. Pick the track whose unknowns resemble your work or curiosity, then deepen it until deployment and maintenance change your design.
 
@@ -450,7 +450,7 @@ Contribute back at the smallest durable boundary: improve a reproduction, docume
 
 ### Exercise 1: add exclusion without losing determinism {#exercise-01}
 
-Extend the X45 design to accept repeatable `--exclude GLOB` rules for generated logs and symbol files. Define glob semantics, separator/case policy, whether rules match files or directories, behavior for invalid patterns, how excluded links are reported, and how the rule set appears in the manifest schema. Preserve `write`/`check` agreement, stable ordering, output exclusion, idempotence, and bounded tests across Windows and Unix-like paths. Decide whether to implement a tiny documented matcher or adopt a package.
+Extend the manifest script design to accept repeatable `--exclude GLOB` rules for generated logs and symbol files. Define glob semantics, separator/case policy, whether rules match files or directories, behavior for invalid patterns, how excluded links are reported, and how the rule set appears in the manifest schema. Preserve `write`/`check` agreement, stable ordering, output exclusion, idempotence, and bounded tests across Windows and Unix-like paths. Decide whether to implement a tiny documented matcher or adopt a package.
 
 ### Exercise 2: write a package adoption record {#exercise-02}
 
@@ -468,7 +468,7 @@ Choose one project track from this chapter. Define three four-week increments th
 - FSI executes declarations in order, exposes explicit script arguments, and distinguishes caller working directory from source directory.
 - Directives affect compilation and restore; loaded scripts should not hide top-level effects.
 - Reliable automation has explicit inputs, deterministic desired output, bounded effects, meaningful exit codes, and a check mode.
-- X45 creates a stable SHA-256 JSON manifest, skips links by policy, writes only on change, and proves idempotence in a real temporary fixture.
+- The manifest script creates a stable SHA-256 JSON manifest, skips links by policy, writes only on change, and proves idempotence in a real temporary fixture.
 - A digest detects byte differences but does not authenticate provenance; same-directory replacement is not universal crash durability.
 - Add a package for a named capability after testing API fit, target support, provenance, closure, operations, maintenance, and exit cost.
 - An exact `#r "nuget:"` version pins one request but is not a committed transitive lock graph.

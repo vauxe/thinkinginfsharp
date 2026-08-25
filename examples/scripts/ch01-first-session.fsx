@@ -10,11 +10,3 @@ let printResult = printfn "%s" summary
 printfn "Seats available: %b" hasSeats
 printfn "Printing returned: %A" printResult
 // #endregion first-session
-
-// #region exercise-02
-let guest = "Lin"
-let requestedSeats = 3
-let confirmation = $"{guest} booked {requestedSeats} seats."
-
-printfn "%s" confirmation
-// #endregion exercise-02

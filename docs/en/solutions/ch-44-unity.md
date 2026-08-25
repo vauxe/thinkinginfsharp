@@ -1,6 +1,6 @@
 ---
 title: "Chapter 44 Solutions"
-description: "Choose proportional F#/C# Unity boundaries, promote X44 through an honest IL2CPP evidence plan, and design versioned quest data without hiding AOT risk."
+description: "Choose proportional F#/C# Unity boundaries, promote the managed plug-in sample through an honest IL2CPP evidence plan, and design versioned quest data without hiding AOT risk."
 translationKey: solutions/ch-44-unity
 kind: solution
 part: 7
@@ -125,7 +125,7 @@ Use one command-line invocation with the exact Editor, `-batchmode`, `-quit`, `-
 
 **Reversal condition:** move a rule into C# if it fundamentally depends on live Editor objects and the DTO mapping is larger than the rule. Move the entire validator outside Unity only when its source format, GUID resolution, and import semantics are genuinely independent.
 
-## Exercise 2: promote X44 to an IL2CPP vertical slice {#exercise-02}
+## Exercise 2: promote the managed plug-in sample to an IL2CPP vertical slice {#exercise-02}
 
 The goal is not to add many features. It is to execute every missing boundary once with reproducible evidence.
 
@@ -212,7 +212,7 @@ Record rows independently:
 | Player behavior | Representative checks and logs pass | Integrated application |
 | Diagnostics | Deliberate failure symbolizes to useful F# and C# frames | Symbols/crash pipeline |
 
-Only after all rows pass may the statement become: “X44's representative slice works in a Unity 6000.3.22f1 macOS ARM64 IL2CPP Player under this build profile.” It still says nothing about Windows, mobile, consoles, Web, another stripping level, or the whole game.
+Only after all rows pass may the statement become: “The managed plug-in sample's representative slice works in a Unity 6000.3.22f1 macOS ARM64 IL2CPP Player under this build profile.” It still says nothing about Windows, mobile, consoles, Web, another stripping level, or the whole game.
 
 ## Exercise 3: saves, asynchronous effects, and dynamic content {#exercise-03}
 
@@ -291,7 +291,7 @@ The minimum evidence includes:
 - Complex turn/replay rules are a strong F# core candidate; scene presentation remains Unity-owned.
 - A Burst-heavy action game may reasonably keep the Player in C# and use F# only off the hot path or not at all.
 - Editor tooling benefits from a pure F# validator only when `UnityEditor` stays in a thin adapter.
-- Promoting X44 requires clean Unity import, Edit/Play Mode, target profiling, IL2CPP build, graphical launch, behavior, and diagnostics as separate rows.
+- Promoting the managed plug-in sample requires clean Unity import, Edit/Play Mode, target profiling, IL2CPP build, graphical launch, behavior, and diagnostics as separate rows.
 - Exact DLL identities and hashes are part of the import contract, especially for FSharp.Core.
 - Use Unity-supported authoring DTOs, rich validated F# state, CLR bridge types, and versioned save DTOs as distinct models.
 - Migrate stored schemas stepwise and never deserialize durable data directly into today's domain representation.

@@ -127,7 +127,7 @@ ML.NET is the countercandidate because it can import ONNX and add .NET transform
 
 ### Make version recognition explicit {#exercise-02-recognition}
 
-Do not replace the X40 sample and hope every producer changed atomically. Define two source contracts and select one from an envelope version, manifest, filename convention controlled by the receiver, or a bounded header inspection. Header guessing is a fallback only when the distinguishing sets cannot overlap.
+Do not replace the data sample and hope every producer changed atomically. Define two source contracts and select one from an envelope version, manifest, filename convention controlled by the receiver, or a bounded header inspection. Header guessing is a fallback only when the distinguishing sets cannot overlap.
 
 | Source contract | Required columns | Optional/extension rule |
 |---|---|---|

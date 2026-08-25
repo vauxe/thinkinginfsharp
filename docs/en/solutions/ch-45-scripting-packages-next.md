@@ -42,7 +42,7 @@ sources:
 
 # Chapter 45 Solutions {#overview}
 
-These are engineering solutions, not the only valid code. A strong answer makes semantics explicit before choosing syntax or a package, preserves X45's existing evidence, and marks research separately from executed proof.
+These are engineering solutions, not the only valid code. A strong answer makes semantics explicit before choosing syntax or a package, preserves the manifest script's existing evidence, and marks research separately from executed proof.
 
 ## Exercise 1: add exclusion without losing determinism {#exercise-01}
 
@@ -106,7 +106,7 @@ For this answer, choose a package only if a spike proves all of the following:
 - explicit ordinal case-sensitive comparison is supported;
 - `**` and separator normalization match the written contract;
 - malformed patterns can be rejected before filesystem effects;
-- traversal can remain under X45's link and root policy rather than letting the library walk independently;
+- traversal can remain under the manifest script's link and root policy rather than letting the library walk independently;
 - the package target and transitive graph fit the promoted console project;
 - a lock file and locked restore reproduce the graph.
 
@@ -118,7 +118,7 @@ Use pure path/pattern tests plus real temporary directories:
 
 | Case | Expected evidence |
 |---|---|
-| no rules | version 2 contains the same two X45 files |
+| no rules | version 2 contains the same two files as the manifest script |
 | `**/*.pdb` | nested and root `.pdb` files are absent; `.PDB` remains |
 | `logs/**` | every file below normalized `logs/` is absent |
 | `a/?eta.bin` | `a/beta.bin` matches; `a/longbeta.bin` does not |
@@ -146,7 +146,7 @@ The official NuGet pages reviewed for this answer show:
 | Argu | 6.2.5 | F#-oriented declarative parser using discriminated unions; targets .NET Standard 2.0 | package last updated in December 2024; brings FSharp.Core and `System.Configuration.ConfigurationManager`; trimming/AOT behavior needs a real spike |
 | System.CommandLine | 2.0.11 | commands, options, arguments, validation, help, completions, and async actions; targets .NET 8 and .NET Standard 2.0 | object/builder API is C#-shaped; F# overload/null adaptation and exact help/error stability need a spike |
 
-Both package versions are research facts checked on that date, not packages compiled by this repository. The X45 automated evidence still covers only the BCL parser in the script.
+Both package versions are research facts checked on that date, not packages compiled by this repository. The manifest script's automated evidence still covers only the BCL parser in the script.
 
 Do not compare download counts as if they were correctness. Inspect owners, MIT licenses, source repositories, dependency tabs, release history, advisories, and the exact `.nupkg`; then run restore audit under the repository's effective sources.
 
@@ -182,7 +182,7 @@ Capture restore, lock diff, build warnings, package audit, published size, start
 
 ### Reversible decision {#package-decision}
 
-Keep the hand-written parser in X45 because the current contract has only a mode plus two paths. For the promoted tool with repeatable exclusions and generated help, provisionally choose System.CommandLine `2.0.11` if the spike passes the vectors. Its command model matches the planned CLI and the recent stable release has a direct .NET ownership path.
+Keep the hand-written parser in the manifest script because the current contract has only a mode plus two paths. For the promoted tool with repeatable exclusions and generated help, provisionally choose System.CommandLine `2.0.11` if the spike passes the vectors. Its command model matches the planned CLI and the recent stable release has a direct .NET ownership path.
 
 This is not a universal preference over Argu. Choose Argu if the team values a DU-declared F# surface and its spike produces clearer code with acceptable maintenance and deployment evidence. The deciding artifact is the adapter and test matrix, not language branding.
 
@@ -203,9 +203,9 @@ If the package fails a required vector, retain hand parsing or spike the other c
 
 This example chooses the tooling-and-libraries track. Each four-week increment ships a usable boundary and ends with a review that can reduce scope.
 
-### Weeks 1–4: promote X45 without changing its semantics {#weeks-01-04}
+### Weeks 1–4: promote the manifest script without changing its semantics {#weeks-01-04}
 
-**Outcome:** a `net10.0` console project with `Manifest.Core`, a thin CLI, and a published executable that preserves X45 schema version 1.
+**Outcome:** a `net10.0` console project with `Manifest.Core`, a thin CLI, and a published executable that preserves the manifest script's schema version 1.
 
 Work includes:
 

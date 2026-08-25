@@ -243,7 +243,7 @@ match runner.Result with
 
 ## 运行并诊断本章 {#running}
 
-从仓库根目录运行第 29 章的四项测试：
+从仓库根目录运行第 29 章测试：
 
 ```console
 dotnet test tests/ExampleTests/ExampleTests.fsproj \

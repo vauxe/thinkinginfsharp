@@ -170,6 +170,37 @@ test('supports all seven kinds and executes their required checks', (t) => {
   assert.ok(
     calls.some((call) => call.some((part) => part.endsWith('/type-mismatch.fsx')))
   )
+
+  const scriptCalls = calls.filter(
+    (call) => call.includes('fsi') && call.includes('--exec')
+  )
+  assert.ok(scriptCalls.length >= 2)
+  assert.ok(scriptCalls.every((call) => call.includes('--warnaserror+')))
+})
+
+test('rejects exercise solutions embedded in chapter scripts', (t) => {
+  const root = createFixture(t)
+  write(
+    root,
+    'examples/scripts/ch01-leaky.fsx',
+    '// #region exercise-02\nprintfn "answer"\n// #endregion exercise-02\n'
+  )
+  writeManifest(root, [
+    {
+      id: 'ch01-leaky',
+      kind: 'script',
+      path: 'examples/scripts/ch01-leaky.fsx',
+      expectedOutput: ['answer']
+    }
+  ])
+
+  const errors = checkExamples({ repoRoot: root })
+
+  assert.ok(
+    errors.some((error) =>
+      error.includes('chapter scripts must not embed exercise solution regions')
+    )
+  )
 })
 
 test('project execution requires an executable and expected output', (t) => {

@@ -107,7 +107,7 @@ Microsoft 的 [ASP.NET Core 集成测试指南](https://learn.microsoft.com/en-u
 
 端到端夹具构建真实 `WebApplication`，选择 `TestServer`，注册相同诊断中间件，映射相同的一致性端点，并使用临时快照。受控支付与通知函数通过线程安全计数器记录调用。
 
-四项测试建立了以下事实：
+聚焦集成测试建立了以下事实：
 
 - 规范化后完全相同的放置命令重放相同 `201` 正文，而且不重复效果；
 - 同一操作身份下变更座位数会返回 `409 idempotency_conflict`；
@@ -193,7 +193,7 @@ Booking request completed correlationId=<trace-id> method=<method> endpoint=<rou
 
 ## 把验证收束为一条命令 {#release-check}
 
-在仓库的 JavaScript 依赖已经安装后，收官项目验收命令是：
+使用 Node.js 22+、pnpm 11.7，并执行 `pnpm install --frozen-lockfile` 安装工作区后，收官项目验收命令是：
 
 ```console
 pnpm check:capstone

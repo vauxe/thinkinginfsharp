@@ -291,7 +291,7 @@ dotnet test tests/ExampleTests/ExampleTests.fsproj -c Release --no-restore --fil
 accepted:REQ-16 remaining=1
 ```
 
-四项聚焦测试覆盖可空和空白标识符、组件验证错误、跨文件工作流与最终程序组合。反过来，构建顺序颠倒的预期错误项目必须以 `FS0039` 失败；这项负向检查保护了编译顺序的解释。
+聚焦测试覆盖可空和空白标识符、组件验证错误、跨文件工作流与最终程序组合。反过来，构建顺序颠倒的预期错误项目必须以 `FS0039` 失败；这项负向检查保护了编译顺序的解释。
 
 ## 练习 {#exercises}
 

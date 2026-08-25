@@ -11,6 +11,7 @@ verifiedWith:
   dotnetSdk: "10.0.301"
 exampleIds:
   - ch04-branching-patterns
+  - ch04-exercise-03-solution
 exerciseIds:
   - ch04-exercise-01
   - ch04-exercise-02
@@ -59,7 +60,7 @@ sources:
 
 定义如下：
 
-<<< @/../examples/scripts/ch04-branching-patterns.fsx#exercise-03{fsharp:line-numbers} [ch04-branching-patterns.fsx]
+<<< @/../examples/solutions/ch04-exercise-03.fsx#solution{fsharp:line-numbers} [ch04-exercise-03.fsx]
 
 `(5, 0)` 先命中请求数不大于零，结果 `"invalid"`；`(5, 3)` 跳过第一条，在第二条满足 `3 <= 5`，结果 `"accepted"`；`(2, 3)` 两个守卫都失败，由 `_` 得到 `"too large"`。函数类型是 `int * int -> string`。
 

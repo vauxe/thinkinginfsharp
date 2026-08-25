@@ -107,7 +107,7 @@ Microsoft's [ASP.NET Core integration-testing guidance](https://learn.microsoft.
 
 The end-to-end fixture builds a real `WebApplication`, selects `TestServer`, registers the same diagnostic middleware, maps the same consistent endpoints, and uses a temporary snapshot. Controlled payment and notification functions increment thread-safe counters.
 
-Four tests establish these facts:
+Focused integration tests establish these facts:
 
 - normalized exact placement replays the same `201` body and does not repeat effects;
 - changed seats under the same operation identity return `409 idempotency_conflict`;
@@ -193,7 +193,7 @@ Most importantly, `Meter`, `ActivitySource`, and log calls are producers. They d
 
 ## Turn the proof into one command {#release-check}
 
-From a repository whose JavaScript dependencies are already installed, the capstone acceptance command is:
+With Node.js 22+, pnpm 11.7, and the workspace installed by `pnpm install --frozen-lockfile`, the capstone acceptance command is:
 
 ```console
 pnpm check:capstone

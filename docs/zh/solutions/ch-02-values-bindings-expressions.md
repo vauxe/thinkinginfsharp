@@ -11,6 +11,7 @@ verifiedWith:
   dotnetSdk: "10.0.301"
 exampleIds:
   - ch02-values-bindings-expressions
+  - ch02-exercise-02-solution
 exerciseIds:
   - ch02-exercise-01
   - ch02-exercise-02
@@ -51,9 +52,9 @@ sources:
 
 ## 练习 2：修复表示边界 {#exercise-02}
 
-一种直接答案已经进入共享脚本：
+一种直接答案放在独立答案脚本中：
 
-<<< @/../examples/scripts/ch02-values-bindings-expressions.fsx#exercise-02{fsharp:line-numbers} [ch02-values-bindings-expressions.fsx]
+<<< @/../examples/solutions/ch02-exercise-02.fsx#solution{fsharp:line-numbers} [ch02-exercise-02.fsx]
 
 `rawAttendeeCount` 是 `string`，而整数加法的另一侧是 `int`；F# 不会把任意文本隐式解释为整数。`int rawAttendeeCount` 显式产生 `int` 值，所以 `attendeeCount` 与 `nextAttendeeCount` 都是 `int`，最终输出为 `Next attendee count: 25`。
 

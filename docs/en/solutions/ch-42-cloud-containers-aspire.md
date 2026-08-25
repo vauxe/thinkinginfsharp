@@ -1,6 +1,6 @@
 ---
 title: "Chapter 42 Solutions"
-description: "Choose proportional compute models, turn the X42 slice into a release proposal, and design an idempotent event consumer with honest unknown outcomes."
+description: "Choose proportional compute models, turn the local cloud sample into a release proposal, and design an idempotent event consumer with honest unknown outcomes."
 translationKey: solutions/ch-42-cloud-containers-aspire
 kind: solution
 part: 7
@@ -112,7 +112,7 @@ Serverless can still win for one isolated event edge, and a managed service can 
 
 Reverse an individual workload when the platform adds more latency, cost, coupling, or incident load than its policy value. Reverse the platform decision only with migration evidence for the shared regulated controls, not with a cheaper compute quote alone.
 
-## Exercise 2: turn X42 into a release proposal {#exercise-02}
+## Exercise 2: turn the local cloud sample into a release proposal {#exercise-02}
 
 ### Begin with the exact baseline {#exercise-02-baseline}
 
@@ -139,7 +139,7 @@ The policy gate checks base support, non-root user, no unexpected writable or pr
 
 Run the image locally or in CI under the target architecture, UID, read-only root filesystem, temporary writable mount, dropped capabilities, CPU/memory limits, and port 8080. Verify startup, all API responses, liveness, readiness, signal-driven drain, forced termination, and recovery after restart.
 
-The platform service account receives only the permission required by this sample. Because X42 has no data dependency, no database or secret is invented. Add non-secret `DEPLOYMENT_MODE` through versioned configuration. If a future secret appears, use the platform secret/identity path and test rotation without printing its value.
+The platform service account receives only the permission required by this sample. Because the local cloud sample has no data dependency, no database or secret is invented. Add non-secret `DEPLOYMENT_MODE` through versioned configuration. If a future secret appears, use the platform secret/identity path and test rotation without printing its value.
 
 Expose application traffic and probe paths only through intended platform routes. Protect or isolate operational endpoints. Use encrypted authenticated management and telemetry connections; the anonymous loopback dashboard exception is not copied into the deployment.
 
@@ -163,7 +163,7 @@ Use separate staging and production configuration, but the same digest. A stagin
 
 Release to a small traffic slice or revision. Gate expansion on error rate, tail latency, readiness churn, restarts, resource pressure, one synthetic request, and cost. Define numbers and observation windows before deployment.
 
-Rollback routes traffic to the retained previous digest and compatible configuration. X42 has no data migration, so reversal is simple; the first persistent dependency must add schema compatibility and forward-fix analysis. Rehearse rollback from a deliberately unhealthy candidate.
+Rollback routes traffic to the retained previous digest and compatible configuration. The local cloud sample has no data migration, so reversal is simple; the first persistent dependency must add schema compatibility and forward-fix analysis. Rehearse rollback from a deliberately unhealthy candidate.
 
 After the observation window, retain evidence, remove failed revisions and unused temporary resources, and reconcile registry, telemetry, egress, and compute cost. Cleanup is part of the proposal because abandoned environments are both expense and attack surface.
 

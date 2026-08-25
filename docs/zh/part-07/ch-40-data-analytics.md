@@ -115,9 +115,9 @@ F# 的记录、度量单位、模式匹配、序列与高阶函数能直接描�
 
 ## 检查已验证的本地 CSV 切片 {#representative-sample}
 
-X40 以 `net10.0` 为目标，并锁定 [FSharp.Data 8.2.0](https://www.nuget.org/packages/FSharp.Data/8.2.0)。其包锁文件记录解析后的完整传递图。唯一编译期数据源是 `tests/ContentFixtures/data/sample.csv`；编译不依赖 URL、数据库、账号或机密。
+数据样例以 `net10.0` 为目标，并锁定 [FSharp.Data 8.2.0](https://www.nuget.org/packages/FSharp.Data/8.2.0)。其包锁文件记录解析后的完整传递图。唯一编译期数据源是 `tests/ContentFixtures/data/sample.csv`；编译不依赖 URL、数据库、账号或机密。
 
-官方 [CSV 提供器指南](https://fsprojects.github.io/FSharp.Data/library/CsvProvider.html) 解释了两个不同时刻：检查代码时由样本提供列名和推断类型，运行时则由 `Load` 或 `Parse` 提供数据。X40 让设计期位置不受构建工作目录影响：
+官方 [CSV 提供器指南](https://fsprojects.github.io/FSharp.Data/library/CsvProvider.html) 解释了两个不同时刻：检查代码时由样本提供列名和推断类型，运行时则由 `Load` 或 `Parse` 提供数据。数据样例让设计期位置不受构建工作目录影响：
 
 <<< @/../examples/ecosystem/data/Program.fs#data-sample-provider{fsharp:line-numbers} [Program.fs]
 
@@ -127,7 +127,7 @@ X40 以 `net10.0` 为目标，并锁定 [FSharp.Data 8.2.0](https://www.nuget.or
 
 ### 把生成行留在适配器内 {#generated-row-boundary}
 
-X40 不返回 `Orders.Row`，而是把生成行转换成普通记录：
+数据样例不返回 `Orders.Row`，而是把生成行转换成普通记录：
 
 <<< @/../examples/ecosystem/data/Program.fs#data-sample-results{fsharp:line-numbers} [Program.fs]
 
@@ -155,7 +155,7 @@ X40 不返回 `Orders.Row`，而是把生成行转换成普通记录：
 
 这里的 `Orders.Load(path).Rows` 是进程内序列，因此筛选、排序与投影都在本地执行。语法像数据库查询，但根本没有 SQL。
 
-两项测试精确断言六行数据的聚合、`DateOnly` 值、阈值与降序。锁定还原后，Release `--no-restore` 构建与测试无需网络模式即可通过。控制台把用户提供的路径解析为绝对路径，并打印三条确定汇总。这些证据只覆盖固定本地形状和计算；不覆盖任意上传、巨型文件、编码攻击或数据库提供器。
+聚焦测试精确断言六行数据的聚合、`DateOnly` 值、阈值与降序。锁定还原后，Release `--no-restore` 构建与测试无需网络模式即可通过。控制台把用户提供的路径解析为绝对路径，并打印三条确定汇总。这些证据只覆盖固定本地形状和计算；不覆盖任意上传、巨型文件、编码攻击或数据库提供器。
 
 ## 把模式视为版本化依赖 {#schema-dependency}
 
@@ -351,7 +351,7 @@ SDK 自带 [F# Interactive](https://learn.microsoft.com/en-us/dotnet/fsharp/tool
 
 | 选择 | 2026-08-25 核对的稳定表面 | 本仓库内已验证 | 关键采用问题 |
 |---|---|---|---|
-| FSharp.Data | 8.2.0；含 `net8.0` 与 `netstandard2.0` 资产 | 是，在 `net10.0` 上使用本地 CSV 与 2 项测试 | 固定样本是否是诚实的模式见证？ |
+| FSharp.Data | 8.2.0；含 `net8.0` 与 `netstandard2.0` 资产 | 是，在 `net10.0` 上使用本地 CSV 与聚焦检查 | 固定样本是否是诚实的模式见证？ |
 | Dapper | 2.1.79 | 否 | 显式 SQL 加 DTO 映射是否契合所有权？ |
 | EF Core | .NET 10 上的 10 LTS | 否 | 跟踪、迁移与 LINQ 翻译能否偿还实体摩擦？ |
 | SQLProvider | 1.5.27 | 否 | 能否安全复现设计期模式与目标驱动？ |
@@ -404,7 +404,7 @@ SDK 自带 [F# Interactive](https://learn.microsoft.com/en-us/dotnet/fsharp/tool
 
 ### 练习 2：为 CSV 模式漂移设计 {#exercise-02}
 
-供应商把 `UnitPrice` 改成 `Price`，加入 `Currency`，有时发送空白 `OrderedAt`，还可能追加未知列。围绕 X40 设计 v1/v2 摄取边界。指定编译期样本、语法解析、源 DTO、兼容规则、领域验证、隔离证据、夹具用例与删除 v1 支持的条件。不要通过把所有小数视为可互换来解决货币问题。
+供应商把 `UnitPrice` 改成 `Price`，加入 `Currency`，有时发送空白 `OrderedAt`，还可能追加未知列。围绕数据样例设计 v1/v2 摄取边界。指定编译期样本、语法解析、源 DTO、兼容规则、领域验证、隔离证据、夹具用例与删除 v1 支持的条件。不要通过把所有小数视为可互换来解决货币问题。
 
 ### 练习 3：把探索模型生产化 {#exercise-03}
 

@@ -217,7 +217,7 @@ The current sequence has observable interruption windows:
 | event append | booking snapshot is new | `503` if notification fails | a retry may see “already exists” while notification is missing |
 | notification | all modeled effects completed | response may still be lost to cancellation | absence of a response does not prove failure |
 
-K10 exposes these facts rather than hiding them behind a generic `try/with`. K11 will introduce atomic capacity and idempotency policy, then define retry and restart behavior. Until then, this API is a runnable boundary demonstration, not a consistency-safe commercial booking service.
+This HTTP boundary exposes these facts rather than hiding them behind a generic `try/with`. Chapter 37 introduces atomic capacity and idempotency policy, then defines retry and restart behavior. Until then, this API is a runnable boundary demonstration, not a consistency-safe commercial booking service.
 
 The test named “dependency failures are safe and reveal the post-commit notification window” proves that notification failure returns a safe `503` while the recorded state is already `Booked`. That is evidence of the problem, not evidence that the problem is solved.
 
@@ -251,7 +251,7 @@ Kestrel's `Server` header is disabled to reduce needless implementation disclosu
 
 The contract tests use the official `Microsoft.AspNetCore.TestHost` package. Each test builds the real `WebApplication`, maps the real endpoints, injects controlled ports, starts the in-memory pipeline, and sends requests through `HttpClient`.
 
-The 15 focused cases cover:
+The focused cases cover:
 
 - exact success JSON, `Location`, lookup, confirmation, and cancellation;
 - malformed JSON, wrong property case, unknown property, missing field, null body, and wrong media type;

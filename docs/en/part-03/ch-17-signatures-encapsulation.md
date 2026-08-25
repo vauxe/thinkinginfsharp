@@ -205,7 +205,7 @@ Before freezing a signature, write representative successful, failure, pipeline,
 
 ## Test through the same boundary consumers see {#consumer-tests}
 
-The chapter tests live in another project and reference the library assembly. They can construct values only through `Capacity.create` and `SeatCount.create`, allocate through the public function, and observe results through the published modules. Four tests cover both smart constructors, successful allocation, and insufficient capacity.
+The chapter tests live in another project and reference the library assembly. They can construct values only through `Capacity.create` and `SeatCount.create`, allocate through the public function, and observe results through the published modules. They cover both smart constructors, successful allocation, and insufficient capacity.
 
 That positive suite proves the surface is sufficient. A separate expected-error consumer proves it is restrictive:
 
@@ -261,7 +261,7 @@ dotnet build examples/chapters/ch17/Ch17.fsproj -c Release --locked-mode
 dotnet test tests/ExampleTests/ExampleTests.fsproj -c Release --no-restore --filter FullyQualifiedName~Ch17SignatureTests
 ```
 
-The focused suite contains four passing tests. This command is intentionally expected to fail and is checked separately:
+The focused suite passes. This command is intentionally expected to fail and is checked separately:
 
 ```console
 dotnet build examples/expected-errors/ch17-hidden-representation/Ch17HiddenRepresentation.fsproj -c Release

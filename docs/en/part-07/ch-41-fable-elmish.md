@@ -78,7 +78,7 @@ By the end of this chapter, you should be able to:
 - distinguish F# language support from .NET runtime and BCL compatibility;
 - keep browser APIs and JavaScript interoperability behind narrow typed adapters;
 - manage NuGet and npm as separate, locked dependency graphs;
-- read X41's pure `update` function and effectful DOM shell;
+- read the browser sample's pure `update` function and effectful DOM shell;
 - decide when direct DOM code is enough and when Elmish earns its loop;
 - model asynchronous browser work without accepting stale responses;
 - distinguish Elmish state management from React, Feliz, or another renderer;
@@ -102,7 +102,7 @@ F# source + .fsproj + compatible NuGet packages
 
 The F# compiler still type-checks the project. Fable then translates the supported program. Vite or another JavaScript tool resolves modules, tree-shakes, minifies, hashes, and emits assets. The browser loads those assets; it does not load the project's `.dll` or start the CLR.
 
-This is transpilation to a target ecosystem, not remote control of a .NET process and not the same mechanism as .NET WebAssembly. Fable can also target other languages, but this chapter and X41 verify only JavaScript in a browser.
+This is transpilation to a target ecosystem, not remote control of a .NET process and not the same mechanism as .NET WebAssembly. Fable can also target other languages, but this chapter and the browser sample verify only JavaScript in a browser.
 
 ### Keep three compatibility questions separate {#three-compatibility-questions}
 
@@ -114,9 +114,9 @@ For every dependency or API, ask:
 
 A `netstandard2.0` asset answers neither the second nor the third question by itself. Conversely, a JavaScript library can work well through a typed Fable binding even though it has no .NET implementation.
 
-## X41: one verified browser boundary {#verified-slice}
+## The browser sample: one verified browser boundary {#verified-slice}
 
-X41 intentionally avoids React and Elmish packages. It isolates the smallest end-to-end claim: locked F# source can become a production JavaScript bundle, attach accessible DOM events, update visible state, and pass a real Chrome smoke test.
+The browser sample intentionally avoids React and Elmish packages. It isolates the smallest end-to-end claim: locked F# source can become a production JavaScript bundle, attach accessible DOM events, update visible state, and pass a real Chrome smoke test.
 
 ### The locked project surface {#locked-project}
 
@@ -229,7 +229,7 @@ Prefer `textContent` or renderer text nodes for untrusted content. Raw HTML requ
 
 ### Accessibility belongs to the rendering boundary {#accessibility}
 
-F# types can make states explicit, but they do not automatically produce semantic HTML, accessible names, focus movement, keyboard operation, announcements, contrast, reduced motion, or responsive layout. X41 uses a real heading hierarchy, buttons, a live `output`, a disabled reset state, visible focus, and narrow-screen tests because those are browser contracts.
+F# types can make states explicit, but they do not automatically produce semantic HTML, accessible names, focus movement, keyboard operation, announcements, contrast, reduced motion, or responsive layout. The browser sample uses a real heading hierarchy, buttons, a live `output`, a disabled reset state, visible focus, and narrow-screen tests because those are browser contracts.
 
 Test with the accessibility tree and keyboard, not only CSS selectors. A virtual DOM, Feliz DSL, or Elmish loop changes construction mechanics; none exempts the resulting DOM from accessibility requirements.
 
@@ -259,7 +259,7 @@ view Model dispatch -> rendered UI
 
 The model is an immutable snapshot. A message names what happened. `update` decides the next state and describes commands. The runtime executes commands, dispatches later messages, and asks the renderer to update the view.
 
-X41 already contains the center of this shape without the library: `Message`, `Model`, and pure `update`. Its hand-written mutable shell performs dispatch and render. Elmish earns its dependency when standard command, subscription, composition, instrumentation, or renderer integration replaces enough custom lifecycle code.
+The browser sample already contains the center of this shape without the library: `Message`, `Model`, and pure `update`. Its hand-written mutable shell performs dispatch and render. Elmish earns its dependency when standard command, subscription, composition, instrumentation, or renderer integration replaces enough custom lifecycle code.
 
 ### Commands describe effects; they do not purify them {#commands}
 
@@ -304,7 +304,7 @@ These tools solve different problems:
 - Elmish supplies model-message-update-command organization;
 - Fable.Elmish.React connects an Elmish program to the React renderer.
 
-Adding all four is not automatically more functional. For a small isolated component, Feliz hooks may be enough. For application-wide workflows and coordinated effects, Elmish may help. For one counter, X41's direct DOM shell is easier to audit.
+Adding all four is not automatically more functional. For a small isolated component, Feliz hooks may be enough. For application-wide workflows and coordinated effects, Elmish may help. For one counter, the browser sample's direct DOM shell is easier to audit.
 
 The Fable.React package page itself recommends Feliz for new React projects because Fable.React is less actively maintained. Treat that as current maintainer guidance, not a reason to rewrite a stable application without migration evidence.
 
@@ -343,7 +343,7 @@ Form typing needs restraint. Raw text belongs in editing state because partially
 
 If a state should survive reload, deep link, history navigation, or sharing, decide whether the URL owns it. Parse the route into a validated application case and render unknown routes explicitly. Do not maintain unrelated copies in router state, global model, and component state without a synchronization rule.
 
-Client-side routing requires hosting fallback configuration. X41 is an MPA with one entry and deliberately does not verify SPA rewrites. A bundle that works on `/` may still return 404 when a user directly requests `/bookings/42` from static hosting.
+Client-side routing requires hosting fallback configuration. The browser sample is an MPA with one entry and deliberately does not verify SPA rewrites. A bundle that works on `/` may still return 404 when a user directly requests `/bookings/42` from static hosting.
 
 ## Build a browser evidence ladder {#testing}
 
@@ -377,7 +377,7 @@ Do not publish source maps containing sensitive source or paths without an expli
 
 The official Fable/Vite workflow can run Fable in watch mode and Vite for fast development. Production must still start from locked clean inputs and create an immutable artifact.
 
-X41's production sequence is conceptually:
+The browser sample's production sequence is conceptually:
 
 ```sh
 dotnet tool restore
@@ -395,7 +395,7 @@ Deploy `dist` to static hosting with correct MIME types, cache rules, compressio
 
 Choose MPA, SPA fallback, or server routing deliberately. Define how old HTML behaves with new assets during rollout, how a service worker updates if one exists, and how to roll back both assets and API compatibility.
 
-No application server is required for X41's artifact. The local Node server exists only in the test harness; it is not a production dependency or a claim about hosting choice.
+No application server is required for the browser sample's artifact. The local Node server exists only in the test harness; it is not a production dependency or a claim about hosting choice.
 
 ### Measure bundle and runtime cost {#browser-performance}
 
@@ -418,7 +418,7 @@ These are dated observations, not a preapproved stack:
 | Feliz | 3.3.3 | no | does its typed React surface fit component and upgrade needs? |
 | Fable.React | 9.4.0 stable; package recommends Feliz for new work | no | is this an existing-stack maintenance case rather than a new default? |
 
-“Yes” covers only X41's exact locked compile, bundle, and interaction. It does not generalize to every API in those packages. “No” means official docs or metadata were reviewed; this repository did not restore, compile, execute, benchmark, accessibility-test, or security-test that candidate.
+“Yes” covers only the browser sample's exact locked compile, bundle, and interaction. It does not generalize to every API in those packages. “No” means official docs or metadata were reviewed; this repository did not restore, compile, execute, benchmark, accessibility-test, or security-test that candidate.
 
 ## Run a reversible browser-stack spike {#adoption-spike}
 
@@ -490,6 +490,6 @@ A team wants to share a server pricing project with a Fable checkout. It current
 - Renderer choice does not automate semantic HTML, focus, keyboard behavior, or responsive layout.
 - Test pure logic, bindings, wire contracts, production assets, and real browser behavior at separate layers.
 - Static deployment still owns base paths, route fallback, MIME, caching, security headers, updates, and rollback.
-- Version metadata is dated evidence; only the X41 plain-DOM slice is executed here.
+- Version metadata is dated evidence; only the browser sample plain-DOM slice is executed here.
 
 Chapter 42 moves from a static browser artifact to deployed service topology: containers, cloud boundaries, serverless constraints, and .NET Aspire orchestration.

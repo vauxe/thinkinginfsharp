@@ -205,7 +205,7 @@ let tryAllocate capacity requested =
 
 ## 通过消费者所见的同一边界测试 {#consumer-tests}
 
-本章测试位于另一个项目中，并引用库程序集。它们只能通过 `Capacity.create` 和 `SeatCount.create` 构造值，只能通过公共函数分配，并通过已发布模块观察结果。四项测试覆盖两个智能构造函数、成功分配和容量不足。
+本章测试位于另一个项目中，并引用库程序集。它们只能通过 `Capacity.create` 和 `SeatCount.create` 构造值，只能通过公共函数分配，并通过已发布模块观察结果。它们覆盖两个智能构造函数、成功分配和容量不足。
 
 这组正向测试证明表面足够使用。另一个独立的预期错误消费者证明它具有约束力：
 
@@ -261,7 +261,7 @@ dotnet build examples/chapters/ch17/Ch17.fsproj -c Release --locked-mode
 dotnet test tests/ExampleTests/ExampleTests.fsproj -c Release --no-restore --filter FullyQualifiedName~Ch17SignatureTests
 ```
 
-聚焦测试集包含四项通过的测试。下面这条命令被有意设计为失败，并由独立检查验证：
+聚焦测试集会通过。下面这条命令被有意设计为失败，并由独立检查验证：
 
 ```console
 dotnet build examples/expected-errors/ch17-hidden-representation/Ch17HiddenRepresentation.fsproj -c Release

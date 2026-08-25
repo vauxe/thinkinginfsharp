@@ -243,7 +243,7 @@ One hundred well-distributed cases with a readable shrinker can be more useful t
 
 ## Run and diagnose this chapter {#running}
 
-Run the four Chapter 29 tests from the repository root:
+Run the Chapter 29 tests from the repository root:
 
 ```console
 dotnet test tests/ExampleTests/ExampleTests.fsproj \

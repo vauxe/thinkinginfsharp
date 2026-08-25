@@ -115,9 +115,9 @@ No row library removes the need to model domain meaning. A database `NULL`, an e
 
 ## Inspect the verified local CSV slice {#representative-sample}
 
-X40 targets `net10.0` and pins [FSharp.Data 8.2.0](https://www.nuget.org/packages/FSharp.Data/8.2.0). Its package lock records the resolved transitive graph. The only compile-time data source is `tests/ContentFixtures/data/sample.csv`; no URL, database, account, or secret participates in compilation.
+The data sample targets `net10.0` and pins [FSharp.Data 8.2.0](https://www.nuget.org/packages/FSharp.Data/8.2.0). Its package lock records the resolved transitive graph. The only compile-time data source is `tests/ContentFixtures/data/sample.csv`; no URL, database, account, or secret participates in compilation.
 
-The official [CSV provider guide](https://fsprojects.github.io/FSharp.Data/library/CsvProvider.html) explains the two distinct moments: a sample supplies column names and inferred types when code is checked, while `Load` or `Parse` supplies runtime data. X40 makes the design-time location independent of the build working directory:
+The official [CSV provider guide](https://fsprojects.github.io/FSharp.Data/library/CsvProvider.html) explains the two distinct moments: a sample supplies column names and inferred types when code is checked, while `Load` or `Parse` supplies runtime data. The data sample makes the design-time location independent of the build working directory:
 
 <<< @/../examples/ecosystem/data/Program.fs#data-sample-provider{fsharp:line-numbers} [Program.fs]
 
@@ -127,7 +127,7 @@ This is useful feedback, but it is not runtime proof. A later file can still be 
 
 ### Keep generated rows inside the adapter {#generated-row-boundary}
 
-X40 does not return `Orders.Row`. It converts generated rows into ordinary records:
+The data sample does not return `Orders.Row`. It converts generated rows into ordinary records:
 
 <<< @/../examples/ecosystem/data/Program.fs#data-sample-results{fsharp:line-numbers} [Program.fs]
 
@@ -155,7 +155,7 @@ The second function uses F# query syntax:
 
 Here `Orders.Load(path).Rows` is an in-process sequence, so filtering, sorting, and projection execute locally. The syntax resembles a database query, but no SQL exists.
 
-Two tests assert the exact six-row aggregation, `DateOnly` values, threshold, and descending order. A locked restore followed by Release `--no-restore` build and test passes with no network schema. The console resolves its user-supplied path to an absolute path and prints three deterministic summaries. This evidence covers only the fixed local shape and calculations; it does not cover arbitrary uploads, huge files, encoding attacks, or a database provider.
+Focused tests assert the exact six-row aggregation, `DateOnly` values, threshold, and descending order. A locked restore followed by Release `--no-restore` build and test passes with no network schema. The console resolves its user-supplied path to an absolute path and prints three deterministic summaries. This evidence covers only the fixed local shape and calculations; it does not cover arbitrary uploads, huge files, encoding attacks, or a database provider.
 
 ## Treat schema as a versioned dependency {#schema-dependency}
 
@@ -351,7 +351,7 @@ These are dated observations, not a universal stack recommendation:
 
 | Choice | Stable surface checked on 2026-08-25 | Verified in this repository | Key adoption question |
 |---|---|---|---|
-| FSharp.Data | 8.2.0; `net8.0` and `netstandard2.0` assets | yes, on `net10.0`, local CSV, 2 tests | is a fixed sample an honest schema witness? |
+| FSharp.Data | 8.2.0; `net8.0` and `netstandard2.0` assets | yes, on `net10.0`, with local CSV and focused checks | is a fixed sample an honest schema witness? |
 | Dapper | 2.1.79 | no | does explicit SQL plus DTO mapping fit ownership? |
 | EF Core | 10 LTS on .NET 10 | no | do tracking, migrations, and LINQ translation repay entity friction? |
 | SQLProvider | 1.5.27 | no | can design-time schema and target driver be reproduced safely? |
@@ -404,7 +404,7 @@ Choose and justify a first candidate for each case: (a) an F# booking service ne
 
 ### Exercise 2: design for CSV schema drift {#exercise-02}
 
-The supplier changes `UnitPrice` to `Price`, adds `Currency`, sometimes sends a blank `OrderedAt`, and may append unknown columns. Design a v1/v2 ingestion boundary around X40. Specify compile-time samples, syntax parsing, source DTOs, compatibility rules, domain validation, quarantine evidence, fixture cases, and the condition for deleting v1 support. Do not solve currency by treating all decimals as interchangeable.
+The supplier changes `UnitPrice` to `Price`, adds `Currency`, sometimes sends a blank `OrderedAt`, and may append unknown columns. Design a v1/v2 ingestion boundary around the data sample. Specify compile-time samples, syntax parsing, source DTOs, compatibility rules, domain validation, quarantine evidence, fixture cases, and the condition for deleting v1 support. Do not solve currency by treating all decimals as interchangeable.
 
 ### Exercise 3: productionize an exploratory model {#exercise-03}
 

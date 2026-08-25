@@ -79,7 +79,7 @@ Microsoft 的 [.NET 10 API 指南](https://learn.microsoft.com/en-us/aspnet/core
 
 ## 检查代表性 Minimal API {#representative-sample}
 
-X39 有意远小于预约收官项目。它只回答一个问题：当输入、输出与错误保持显式时，直接的 F# 端点是什么样？
+Web 样例有意远小于预约收官项目。它只回答一个问题：当输入、输出与错误保持显式时，直接的 F# 端点是什么样？
 
 项目使用 `Microsoft.NET.Sdk.Web`、目标为 `net10.0`，没有第三方包引用。锁文件记录 `FSharp.Core` 10.1.301。公开 JSON 类型是普通 CLR 友好记录，而不是领域可辨识联合：
 
@@ -111,7 +111,7 @@ F# 10 空值检查还迫使处理器先匹配 `value.Name`，然后才能调用 
 
 ### 精确说明测试证明了什么 {#sample-evidence}
 
-七个 `TestServer` 用例运行真实路由与处理器：
+聚焦的 `TestServer` 用例运行真实路由与处理器：
 
 - 一个有效正文会被修剪，并返回精确成功 JSON 形状；
 - 格式错误 JSON、名称缺失、名称空白、属性大小写错误和未知成员都会安全失败；
@@ -228,7 +228,7 @@ F# 能定义控制器类、特性、方法、任务与 CLR DTO。摩擦来自架
 
 | 选择 | 2026-08-25 核对的稳定表面 | 本仓库已验证 | 关键采用问题 |
 |---|---|---:|---|
-| ASP.NET Core Minimal API | .NET SDK/运行时 10.0.301 | 是，Release + 7 个 HTTP 用例 | 团队能否限制 C# 形状 API 的摩擦？ |
+| ASP.NET Core Minimal API | .NET SDK/运行时 10.0.301 | 是，Release + HTTP 契约用例 | 团队能否限制 C# 形状 API 的摩擦？ |
 | 控制器 API | ASP.NET Core 10 平台文档 | 否 | 必要的控制器扩展点是否值得这些仪式？ |
 | Giraffe | NuGet 8.3.0 | 否 | 延续式处理器组合是否契合团队？ |
 | Falco | NuGet 5.2.0 稳定版 | 否 | 聚焦端点与相关包能否覆盖必要集成？ |
@@ -351,7 +351,7 @@ Microsoft 的[集成测试指南](https://learn.microsoft.com/en-us/aspnet/core/
 
 ### 练习 2：在试验中保留问候契约 {#exercise-02}
 
-选择 Giraffe、Falco 或 Oxpecker，勾勒一个只替换 `WebSample.map` 及其处理器的有界试验。保留精确成功/错误 JSON、严格成员策略、取消行为与七个 HTTP 用例。列出包版本、新传递表面、引入的框架概念，以及试验落败时的删除条件。不要为了框架而让 DTO 验证进入领域项目。
+选择 Giraffe、Falco 或 Oxpecker，勾勒一个只替换 `WebSample.map` 及其处理器的有界试验。保留精确成功/错误 JSON、严格成员策略、取消行为与 HTTP 契约用例。列出包版本、新传递表面、引入的框架概念，以及试验落败时的删除条件。不要为了框架而让 DTO 验证进入领域项目。
 
 ### 练习 3：设计可逆迁移 {#exercise-03}
 

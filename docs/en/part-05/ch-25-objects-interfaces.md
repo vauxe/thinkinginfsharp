@@ -199,7 +199,7 @@ dotnet run --project examples/chapters/ch25/Ch25.fsproj --configuration Release
 dotnet test ThinkingInFSharp.slnx --configuration Release --filter FullyQualifiedName~Ch25Object
 ```
 
-The program prints class, interface, extension, and struct observations. Six tests cover both constructors, member validation, the explicit interface view, an object-expression substitute, derived extension members, value copying, distinct boxes, and the invalid zero-initialized revision.
+The program prints class, interface, extension, and struct observations. Focused tests cover both constructors, member validation, the explicit interface view, an object-expression substitute, derived extension members, value copying, distinct boxes, and the invalid zero-initialized revision.
 
 ## Exercises {#exercises}
 

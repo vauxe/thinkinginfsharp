@@ -33,13 +33,3 @@ let describeQueue queue =
 
 printfn "Queues: %s | %s | %s" (describeQueue []) (describeQueue [ "Lin" ]) (describeQueue [ "Lin"; "Ada"; "Sam" ])
 // #endregion list-pattern
-
-// #region exercise-03
-let classifyRequest (remaining, requested) =
-    match remaining, requested with
-    | _, requested when requested <= 0 -> "invalid"
-    | remaining, requested when requested <= remaining -> "accepted"
-    | _ -> "too large"
-
-printfn "Requests: %s, %s, %s" (classifyRequest (5, 0)) (classifyRequest (5, 3)) (classifyRequest (2, 3))
-// #endregion exercise-03

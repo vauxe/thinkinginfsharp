@@ -11,6 +11,7 @@ verifiedWith:
   dotnetSdk: "10.0.301"
 exampleIds:
   - ch02-values-bindings-expressions
+  - ch02-exercise-02-solution
 exerciseIds:
   - ch02-exercise-01
   - ch02-exercise-02
@@ -51,9 +52,9 @@ The compiler still determines all these types at compile time without annotation
 
 ## Exercise 2: repair a representation boundary {#exercise-02}
 
-One direct answer is in the shared script:
+One direct answer is in the separate solution script:
 
-<<< @/../examples/scripts/ch02-values-bindings-expressions.fsx#exercise-02{fsharp:line-numbers} [ch02-values-bindings-expressions.fsx]
+<<< @/../examples/solutions/ch02-exercise-02.fsx#solution{fsharp:line-numbers} [ch02-exercise-02.fsx]
 
 `rawAttendeeCount` is a `string`, while the other side of integer addition is an `int`; F# will not implicitly interpret arbitrary text as an integer. `int rawAttendeeCount` explicitly produces an `int`, so both `attendeeCount` and `nextAttendeeCount` are `int`. The final output is `Next attendee count: 25`.
 

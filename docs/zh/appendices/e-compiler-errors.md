@@ -182,13 +182,13 @@ F# 10 给出简短的 `FS0800: Invalid use of a type name`。周围签名补足�
 
 ## 实际运行了什么 {#verification}
 
-2026-08-25，`dotnet --version` 选中 SDK 10.0.301，FSI 报告 F# 10。小型探针以 `--warnaserror+ --checknulls+` 运行；每一个都以非零状态退出，并产生表中对应编号。仓库清单持续检查三项可复现 expected-error 夹具：
+2026-08-25，`dotnet --version` 选中 SDK 10.0.301，FSI 报告 F# 10。小型探针以 `--warnaserror+ --checknulls+` 运行；每一个都以非零状态退出，并产生表中对应编号。仓库清单持续检查可复现的 expected-error 夹具：
 
 ```console
 pnpm check:examples
 ```
 
-该关卡要求第 11 章脚本以 `FS0030` 失败、第 16 章项目以 `FS0039` 失败、第 17 章外部消费者以 `FS0800` 失败。若夹具意外编译、产生错误编号、超时或未登记，检查都会失败。其余一两行探针只是临时证据，不是额外生产示例。
+该关卡要求第 6 章非尾递归项目以 `FS3569` 失败、第 11 章脚本以 `FS0030` 失败、第 16 章项目以 `FS0039` 失败、第 17 章外部消费者以 `FS0800` 失败。若夹具意外编译、产生错误编号、超时或未登记，检查都会失败。其余一两行探针只是临时证据，不是额外生产示例。
 
 ## 求助前应提供什么 {#before-help}
 
@@ -204,4 +204,3 @@ pnpm check:examples
 - [Microsoft Learn：自动泛化](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/automatic-generalization)
 - [Microsoft Learn：F# 签名文件](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/signature-files)
 - [Microsoft Learn：F# 的 null 值与可空检查](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/values/null-values)
-

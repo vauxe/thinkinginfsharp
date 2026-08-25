@@ -42,4 +42,4 @@ dotnet test tests/ContractTests/ContractTests.fsproj \
   --filter FullyQualifiedName~WebSampleTests
 ```
 
-The test uses ASP.NET Core `TestServer` and covers one successful request plus six transport/validation failures. `TestServer` does not prove socket, proxy, TLS, authentication, rate-limit, body-size, deployment, or production dependency behavior. Those concerns are intentionally not duplicated from the capstone.
+The test uses ASP.NET Core `TestServer` and covers the success contract plus the transport and validation failures listed above. `TestServer` does not prove socket, proxy, TLS, authentication, rate-limit, body-size, deployment, or production dependency behavior. Those concerns are intentionally not duplicated from the capstone.

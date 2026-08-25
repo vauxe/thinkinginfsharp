@@ -192,10 +192,9 @@ dotnet fsi --exec examples/scripts/ch02-values-bindings-expressions.fsx
 Functional Foundations (F): capacity=40, fill=0.45, open=true
 Ticket total: 58.50
 Normalized capacity: 24; outer capacity: 40
-Next attendee count: 25
 ```
 
-manifest 按这个顺序断言四个确定性输出。脚本中的格式化只影响显示，不改变 `fillRatio` 或 `totalPrice` 的类型。
+manifest 按这个顺序断言这些确定性输出。脚本中的格式化只影响显示，不改变 `fillRatio` 或 `totalPrice` 的类型。
 
 ## 调试：追踪第一个冲突约束 {#debugging}
 
