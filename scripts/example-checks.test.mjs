@@ -6,7 +6,11 @@ import { dirname, join } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-import { checkExamples, runExampleChecks } from './check-examples.mjs'
+import {
+  checkExamples,
+  formatExampleErrors,
+  runExampleChecks
+} from './check-examples.mjs'
 
 const checkerCommand = fileURLToPath(
   new URL('./check-examples.mjs', import.meta.url)
@@ -327,6 +331,17 @@ test('requires expected script output to appear in manifest order', (t) => {
   assert.ok(errors.some((error) => error.includes('out of order')))
 })
 
+test('formats failures as safe GitHub annotations when requested', () => {
+  assert.deepEqual(
+    formatExampleErrors(['build failed\n100% complete'], true),
+    ['::error title=Executable example check::build failed%0A100%25 complete']
+  )
+  assert.deepEqual(
+    formatExampleErrors(['first failure', 'second failure'], false),
+    ['first failure\nsecond failure']
+  )
+})
+
 test('rejects traversal paths and the CLI reports manifest failures', (t) => {
   const root = createFixture(t)
   writeManifest(root, [
@@ -344,8 +359,12 @@ test('rejects traversal paths and the CLI reports manifest failures', (t) => {
   const result = spawnSync(
     process.execPath,
     [checkerCommand, '--root', root],
-    { encoding: 'utf8' }
+    {
+      encoding: 'utf8',
+      env: { ...process.env, GITHUB_ACTIONS: 'true' }
+    }
   )
   assert.notEqual(result.status, 0)
+  assert.match(result.stderr, /^::error title=Executable example check::/)
   assert.match(result.stderr, /examples\/manifest\.json/)
 })

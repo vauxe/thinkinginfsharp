@@ -758,6 +758,16 @@ export function runExampleChecks({ runner = spawnSync, ...options } = {}) {
   return [...new Set(errors)].sort()
 }
 
+export function formatExampleErrors(errors, githubActions) {
+  if (!githubActions) return [errors.join('\n')]
+  return errors.map((error) =>
+    `::error title=Executable example check::${error
+      .replaceAll('%', '%25')
+      .replaceAll('\r', '%0D')
+      .replaceAll('\n', '%0A')}`
+  )
+}
+
 function optionValue(argv, name, fallback) {
   const index = argv.indexOf(name)
   if (index < 0) return fallback
@@ -775,7 +785,12 @@ export function runExamplesCli(argv = process.argv.slice(2)) {
     )
     const errors = runExampleChecks({ repoRoot, manifestPath })
     if (errors.length > 0) {
-      console.error(errors.join('\n'))
+      for (const message of formatExampleErrors(
+        errors,
+        process.env.GITHUB_ACTIONS === 'true'
+      )) {
+        console.error(message)
+      }
       return 1
     }
     console.log('Example build and execution checks passed.')
