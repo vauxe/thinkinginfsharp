@@ -182,7 +182,12 @@ module BookingConsistencyTests =
             cancellationToken.ThrowIfCancellationRequested()
 
             if notificationCalls.Next() = 1 then
-                Task.FromException<unit>(InvalidOperationException "controlled notification failure")
+                Task.FromException<unit>(
+                    DependencyUnavailableException(
+                        "Notification dependency is unavailable.",
+                        InvalidOperationException "controlled notification failure"
+                    )
+                )
             else
                 Task.FromResult()
 
@@ -210,7 +215,13 @@ module BookingConsistencyTests =
         let failPayment (_: PaymentRequest) (cancellationToken: CancellationToken) =
             cancellationToken.ThrowIfCancellationRequested()
             paymentCalls.Increment()
-            Task.FromException<PaymentOutcome>(InvalidOperationException "controlled payment failure")
+
+            Task.FromException<PaymentOutcome>(
+                DependencyUnavailableException(
+                    "Payment dependency is unavailable.",
+                    InvalidOperationException "controlled payment failure"
+                )
+            )
 
         let store, application =
             service (Path.Combine(temporary.Path, "bookings.json")) event failPayment (deliver notificationCalls)
@@ -222,6 +233,26 @@ module BookingConsistencyTests =
         Assert.Equal(1, paymentCalls.Value)
         Assert.Equal(0, notificationCalls.Value)
         Assert.Equal(Ok None, load store event "REQ-PAYMENT-UNKNOWN")
+
+    [<Fact>]
+    let ``unexpected payment bugs are not classified as dependency outages`` () =
+        use temporary = new TemporaryDirectory()
+        let event = activity 4
+        let notificationCalls = Counter()
+
+        let buggyPayment (_: PaymentRequest) (_: CancellationToken) =
+            Task.FromException<PaymentOutcome>(InvalidOperationException "programming defect")
+
+        let _, application =
+            service (Path.Combine(temporary.Path, "bookings.json")) event buggyPayment (deliver notificationCalls)
+
+        let command = BookingCommand.Place(Commands.place "REQ-PAYMENT-BUG" 2)
+
+        let failure =
+            Assert.Throws<InvalidOperationException>(fun () -> execute application command |> ignore)
+
+        Assert.Equal("programming defect", failure.Message)
+        Assert.Equal(0, notificationCalls.Value)
 
     [<Fact>]
     let ``capacity rejection may succeed after cancellation releases seats`` () =

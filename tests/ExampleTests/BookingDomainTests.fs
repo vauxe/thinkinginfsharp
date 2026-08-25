@@ -26,6 +26,27 @@ module BookingDomainTests =
         Assert.Equal("REQ-9", RequestId.value requestId)
 
     [<Fact>]
+    let ``request identifiers are bounded URI path segment values`` () =
+        for invalid in [ "A/B"; "A%B"; "A?B"; "请求" ] do
+            match RequestId.create invalid with
+            | Error(InvalidRequestIdCharacter _) -> ()
+            | result -> failwithf "Expected an invalid-character error for %A, received %A" invalid result
+
+        for invalid in [ "."; ".." ] do
+            Assert.Equal(InvalidRequestIdFormat, RequestId.create invalid |> expectError)
+
+        let maximum = String.replicate 59 "A" + "-._~Z"
+
+        Assert.Equal(RequestId.MaxLength, maximum.Length)
+        Assert.Equal(maximum, RequestId.create maximum |> expectOk |> RequestId.value)
+
+        match RequestId.create (maximum + "Z") with
+        | Error(RequestIdTooLong(maximumLength, actualLength)) ->
+            Assert.Equal(RequestId.MaxLength, maximumLength)
+            Assert.Equal(RequestId.MaxLength + 1, actualLength)
+        | result -> failwithf "Expected a length error, received %A" result
+
+    [<Fact>]
     let ``capacity and seat count reject non-positive values`` () =
         Assert.Equal(NonPositiveCapacity 0, Capacity.create 0 |> expectError)
         Assert.Equal(NonPositiveCapacity -2, Capacity.create -2 |> expectError)

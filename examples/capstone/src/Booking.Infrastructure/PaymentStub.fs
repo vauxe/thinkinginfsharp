@@ -38,7 +38,14 @@ type PaymentStub(behavior: PaymentStubBehavior) =
             match behavior with
             | PaymentStubBehavior.Authorize transactionId -> return Authorized transactionId
             | PaymentStubBehavior.Decline reason -> return Declined reason
-            | PaymentStubBehavior.Fail message -> return raise (InvalidOperationException message)
+            | PaymentStubBehavior.Fail message ->
+                return
+                    raise (
+                        DependencyUnavailableException(
+                            "Payment dependency is unavailable.",
+                            InvalidOperationException message
+                        )
+                    )
         }
 
     interface IDisposable with

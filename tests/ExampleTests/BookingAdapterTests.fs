@@ -32,6 +32,11 @@ module BookingAdapterTests =
 
     let private complete (operation: Task<'value>) = operation.GetAwaiter().GetResult()
 
+    let private requireInnerException (error: exn) =
+        match error.InnerException with
+        | null -> failwithf "Expected %s to retain an inner exception." (error.GetType().Name)
+        | inner -> inner
+
     let private createBooking requestId =
         let eventId = EventId.create "EVT-K09" |> expectOk
         let capacity = Capacity.create 8 |> expectOk
@@ -67,10 +72,11 @@ module BookingAdapterTests =
         use failing = new PaymentStub(PaymentStubBehavior.Fail "payment offline")
 
         let failure =
-            Assert.Throws<InvalidOperationException>(fun () ->
+            Assert.Throws<DependencyUnavailableException>(fun () ->
                 failing.Invoke request CancellationToken.None |> complete |> ignore)
 
-        Assert.Equal("payment offline", failure.Message)
+        Assert.Equal("Payment dependency is unavailable.", failure.Message)
+        Assert.Equal("payment offline", (requireInnerException failure).Message)
         Assert.Single(failing.Calls) |> ignore
 
         use cancelled = new PaymentStub(PaymentStubBehavior.Authorize "TX-UNUSED")
@@ -92,10 +98,11 @@ module BookingAdapterTests =
         delivered.Invoke request CancellationToken.None |> complete
 
         let failure =
-            Assert.Throws<InvalidOperationException>(fun () ->
+            Assert.Throws<DependencyUnavailableException>(fun () ->
                 failing.Invoke request CancellationToken.None |> complete)
 
-        Assert.Equal("mailbox offline", failure.Message)
+        Assert.Equal("Notification dependency is unavailable.", failure.Message)
+        Assert.Equal("mailbox offline", (requireInnerException failure).Message)
         Assert.Equal<NotificationRequest>([| request |], delivered.Calls)
         Assert.Equal<NotificationRequest>([| request |], failing.Calls)
 

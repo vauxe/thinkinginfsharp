@@ -36,7 +36,14 @@ type NotificationStub(behavior: NotificationStubBehavior) =
 
             match behavior with
             | NotificationStubBehavior.Deliver -> return ()
-            | NotificationStubBehavior.Fail message -> return raise (InvalidOperationException message)
+            | NotificationStubBehavior.Fail message ->
+                return
+                    raise (
+                        DependencyUnavailableException(
+                            "Notification dependency is unavailable.",
+                            InvalidOperationException message
+                        )
+                    )
         }
 
     interface IDisposable with

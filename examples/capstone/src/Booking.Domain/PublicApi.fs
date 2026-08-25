@@ -16,6 +16,7 @@ module PublicApi =
         | BlankEventId
         | NonPositiveCapacity of actual: int
         | BlankRequestId
+        | InvalidRequestId
         | NonPositiveSeatCount of actual: int
         | RequestedSeatsExceedCapacity of requested: int * capacity: int
         | BookingAlreadyExists of existingRequestId: string
@@ -80,6 +81,9 @@ module PublicApi =
     let private mapCommandError error =
         match error with
         | InvalidRequestId BlankRequestId -> BookingError.BlankRequestId
+        | InvalidRequestId(RequestIdTooLong _)
+        | InvalidRequestId InvalidRequestIdFormat
+        | InvalidRequestId(InvalidRequestIdCharacter _) -> BookingError.InvalidRequestId
         | InvalidSeatCount(NonPositiveSeatCount actual) -> BookingError.NonPositiveSeatCount actual
         | InvalidConfirmationCode BlankConfirmationCode -> BookingError.BlankConfirmationCode
         | InvalidCancellationReason BlankCancellationReason -> BookingError.BlankCancellationReason

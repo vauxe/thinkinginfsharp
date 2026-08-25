@@ -24,15 +24,37 @@ module EventId =
 
     let value (EventId eventId) = eventId
 
-type RequestIdError = | BlankRequestId
+type RequestIdError =
+    | BlankRequestId
+    | RequestIdTooLong of maximum: int * actual: int
+    | InvalidRequestIdFormat
+    | InvalidRequestIdCharacter of actual: char
 
 type RequestId = private RequestId of string
 
 module RequestId =
+    [<Literal>]
+    let MaxLength = 64
+
+    let private isUriUnreserved character =
+        (character >= 'A' && character <= 'Z')
+        || (character >= 'a' && character <= 'z')
+        || (character >= '0' && character <= '9')
+        || character = '-'
+        || character = '.'
+        || character = '_'
+        || character = '~'
+
     let create raw =
         match NormalizedText.create raw with
-        | Some value -> Ok(RequestId value)
         | None -> Error BlankRequestId
+        | Some "."
+        | Some ".." -> Error InvalidRequestIdFormat
+        | Some value when value.Length > MaxLength -> Error(RequestIdTooLong(MaxLength, value.Length))
+        | Some value ->
+            match value |> Seq.tryFind (isUriUnreserved >> not) with
+            | Some invalid -> Error(InvalidRequestIdCharacter invalid)
+            | None -> Ok(RequestId value)
 
     let value (RequestId requestId) = requestId
 

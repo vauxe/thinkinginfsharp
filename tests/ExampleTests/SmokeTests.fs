@@ -1,11 +1,67 @@
 namespace ThinkingInFSharp.ExampleTests
 
 open System
+open System.Reflection
+open System.Reflection.Emit
 open Xunit
 open ThinkingInFSharp.AvaloniaSample
 open ThinkingInFSharp.UnitySample
 
 module SmokeTests =
+    let private opCodes =
+        typeof<OpCodes>.GetFields(BindingFlags.Public ||| BindingFlags.Static)
+        |> Array.map (fun field ->
+            let opCode = field.GetValue null :?> OpCode
+            int opCode.Value &&& 0xFFFF, opCode)
+        |> Map.ofArray
+
+    let private readOpCodes (methodInfo: MethodInfo) =
+        let body =
+            match methodInfo.GetMethodBody() with
+            | null -> failwithf "Expected %s to have a managed method body." methodInfo.Name
+            | value -> value
+
+        let il =
+            match body.GetILAsByteArray() with
+            | null -> failwithf "Expected %s to contain IL." methodInfo.Name
+            | bytes -> bytes
+
+        let operandSize offset (opCode: OpCode) =
+            match opCode.OperandType with
+            | OperandType.InlineNone -> 0
+            | OperandType.ShortInlineBrTarget
+            | OperandType.ShortInlineI
+            | OperandType.ShortInlineVar -> 1
+            | OperandType.InlineVar -> 2
+            | OperandType.InlineBrTarget
+            | OperandType.InlineField
+            | OperandType.InlineI
+            | OperandType.InlineMethod
+            | OperandType.ShortInlineR
+            | OperandType.InlineSig
+            | OperandType.InlineString
+            | OperandType.InlineTok
+            | OperandType.InlineType -> 4
+            | OperandType.InlineI8
+            | OperandType.InlineR -> 8
+            | OperandType.InlineSwitch -> 4 + BitConverter.ToInt32(il, offset) * 4
+            | unsupported -> failwithf "Unsupported IL operand type %A." unsupported
+
+        let rec decode offset decoded =
+            if offset >= il.Length then
+                List.rev decoded
+            else
+                let key, operandOffset =
+                    if il[offset] = 0xFEuy then
+                        0xFE00 ||| int il[offset + 1], offset + 2
+                    else
+                        int il[offset], offset + 1
+
+                let opCode = opCodes[key]
+                decode (operandOffset + operandSize operandOffset opCode) (opCode :: decoded)
+
+        decode 0 []
+
     [<Fact>]
     let ``F# tests execute on the pinned toolchain`` () =
         let doubled = [ 1; 2; 3 ] |> List.map ((*) 2)
@@ -39,6 +95,22 @@ module SmokeTests =
         Assert.Equal(13.0f, stopped.PositionX)
         Assert.Equal(0.0f, stopped.VelocityX)
         Assert.True(typeof<MotionState>.IsValueType, "The fixed-step state must not allocate a class per tick.")
+
+        let step =
+            match
+                typeof<Gameplay>
+                    .GetMethod(
+                        "Step",
+                        BindingFlags.Public ||| BindingFlags.Static,
+                        null,
+                        [| typeof<MotionState>; typeof<single>; typeof<single>; typeof<single> |],
+                        null
+                    )
+            with
+            | null -> failwith "Expected the CLR-facing Gameplay.Step method."
+            | methodInfo -> methodInfo
+
+        Assert.DoesNotContain(OpCodes.Box, readOpCodes step)
 
         let assembly = typeof<Gameplay>.Assembly
         let references = assembly.GetReferencedAssemblies()

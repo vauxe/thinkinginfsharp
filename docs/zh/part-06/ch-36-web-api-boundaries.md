@@ -35,6 +35,9 @@ sources:
   - id: microsoft-testserver
     url: https://learn.microsoft.com/en-us/aspnet/core/test/middleware?view=aspnetcore-10.0
     checked: "2026-08-25"
+  - id: ietf-rfc3986-unreserved
+    url: https://www.rfc-editor.org/rfc/rfc3986.html#section-2.3
+    checked: "2026-08-25"
   - id: microsoft-kestrel-security
     url: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/servers/kestrel/security-considerations?view=aspnetcore-10.0
     checked: "2026-08-25"
@@ -105,7 +108,7 @@ API 暴露命令，而不是用一个通用端点接收可辨识联合的序列�
 
 独立路由让允许的命令容易发现，也让每个请求只有一种稳定 JSON 形状。它们还避免把面向编译器的 `BookingCommand` 编码当成公共协议。
 
-`201 Created` 带有由规范化请求 ID 构造的相对 `Location` 头。请求 ID 进入头部前会经过 `Uri.EscapeDataString` 编码。确认与取消修改的是该 ID 已经标识的表示，因此返回 `200`。
+`201 Created` 带有由规范化请求 ID 构造的相对 `Location` 头。去除首尾空白后，领域只接受 1–64 个 ASCII URI 非保留字符：字母、数字、`-`、`.`、`_` 与 `~`；完整值 `.` 与 `..` 会被排除，因为 URI 解析把它们视为点段。因此存储值恰好是一个稳定路径段；`Uri.EscapeDataString` 仍作为防御性编码步骤，HTTP 测试还会沿返回的位置取得 `200`。确认与取消修改的是该 ID 已经标识的表示，因此返回 `200`。
 
 这并不是说命令式路由是唯一的 REST 设计，而是为这个工作流选择一份小而一致的契约。以后改变路由语义会是公共 API 迁移，不是内部重构。
 
@@ -137,9 +140,9 @@ JSON `null` 可以反序列化为空 DTO。缺少 `seats` 属性会得到 `Nulla
 
 ### 领域有效性 {#domain-validity}
 
-现有验证模块仍然拥有空白标识符、非正座位数、空白确认码与空白取消原因。API 先验证以取得受保护的存储键，并在 I/O 前拒绝全部字段问题。纯决策器接收原始命令时会再次验证；这次重复的纯检查保留了唯一领域权威，而不是在 HTTP 代码中复制规则。
+现有验证模块仍然拥有请求 ID、非正座位数、空白确认码与空白取消原因。请求 ID 必须非空、至多 64 个字符、只含 ASCII URI 非保留字符，且完整值不能是点段 `.` 或 `..`；包含 `/`、`%`、`?` 或 Unicode 的值同样不能成为有歧义的路由身份。API 先验证以取得受保护的存储键，并在 I/O 前拒绝全部字段问题。纯决策器接收原始命令时会再次验证；这次重复的纯检查保留了唯一领域权威，而不是在 HTTP 代码中复制规则。
 
-多个领域错误会成为一个 `validation_failed` 响应，其中包含有序字段错误。传输、DTO 或领域验证失败时，不会发生存储、支付或通知调用。
+多个领域错误会成为一个 `validation_failed` 响应，其中包含有序字段错误。请求 ID 失败使用稳定字段代码 `blank`、`too_long` 或 `invalid_format`。传输、DTO 或领域验证失败时，不会发生存储、支付或通知调用。
 
 ## 在解释 JSON 前限制字节 {#bounded-body}
 
@@ -224,7 +227,7 @@ K10 暴露这些事实，而不是用通用 `try/with` 把它们藏起来。K11 
 
 <<< @/../examples/capstone/src/Booking.Api/Endpoints.fs#safe-error-boundary{fsharp:line-numbers} [Endpoints.fs]
 
-提供商故障会在具体 `Charge` 或 `Notify` 调用处转换为依赖结果，所以它们的消息绝不会进入通用异常管线。`BookingStoreAdapterException` 为内部代码保留类型化类别，但通过 HTTP 只暴露 `storage_unavailable`。
+适配器把已知的提供商传输或可用性故障包装为 `DependencyUnavailableException`，并把原异常保留为 `InnerException` 供内部诊断。具体 `Charge` 或 `Notify` 调用只把这一类型化信号转换为 `503 dependency_unavailable`；任意程序缺陷异常会继续到最外层边界，成为安全的 `500 internal_error`。`BookingStoreAdapterException` 同样为内部代码保留类型化类别，但通过 HTTP 只暴露 `storage_unavailable`。
 
 如果响应头已经开始后才发生错误，写入第二份 JSON 文档会破坏响应。处理程序会改为中止该连接。已知 DTO 的序列化刻意很简单，但边界仍不会假装已经开始的响应可以被替换。
 

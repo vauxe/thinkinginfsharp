@@ -206,7 +206,7 @@ Package version and assembly version are not the same identifier. The locked NuG
 
 `Gameplay.Create` and `Gameplay.Step` are tupled static methods, so C# sees ordinary method calls instead of curried `FSharpFunc` values. `MotionState` exposes read-only float properties and hides its fields and non-default constructor.
 
-The state is a struct. An earlier implementation used a class and therefore allocated a new managed object on every `FixedUpdate`. A regression test now checks `IsValueType`; this removes that specific state allocation without pretending the whole Player allocates zero bytes. A large struct would introduce copying costs, so keep state small and profile the real target.
+The state is a struct. An earlier implementation used a class and therefore allocated a new managed object on every `FixedUpdate`. A regression test now checks `IsValueType` and decodes the managed body of `Gameplay.Step` to reject an explicit `box` instruction. This removes that specific state-object allocation in the managed build without pretending the whole Player allocates zero bytes. A large struct would introduce copying costs, so keep state small and profile the real target.
 
 The transition clamps directional input, rejects non-finite values and negative time or speed, calculates velocity, and returns a new state. It has no `UnityEngine` reference, no current time lookup, and no mutation. Tests can supply every input directly.
 
@@ -241,8 +241,8 @@ As of 2026-08-25, X44 records:
 | Locked .NET restore | Pass | `netstandard2.1` graph resolves to FSharp.Core package 10.1.301 |
 | Release plug-in build | Pass, 0 warnings/errors | F# source compiles on .NET SDK 10.0.301 |
 | Output inspection | Pass | 8,704-byte plug-in and 2,407,760-byte FSharp.Core are adjacent; assembly reference is present |
-| Focused rule/API test | Pass, 1/1 | Clamp/step behavior, struct state, FSharp.Core reference, and no F#-specific public signature types |
-| Repository example matrix | Pass | Locked solution, 69 ExampleTests, other examples, Fable build, and browser smoke remain green |
+| Focused rule/API test | Pass, 1/1 | Clamp/step behavior, struct state, no explicit `box` in `Step`, FSharp.Core reference, and no F#-specific public signature types |
+| Repository example matrix | Pass | Locked solution, 70 ExampleTests, other examples, Fable build, and browser smoke remain green |
 | Unity 6000.3.22f1 import | Not run | Editor is absent from this machine |
 | C# compilation and Play Mode | Not run | UnityEngine host and scene behavior are unverified |
 | macOS ARM64 IL2CPP Player | Not run | Native conversion, stripping, link, launch, and runtime behavior are unverified |

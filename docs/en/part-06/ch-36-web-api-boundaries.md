@@ -35,6 +35,9 @@ sources:
   - id: microsoft-testserver
     url: https://learn.microsoft.com/en-us/aspnet/core/test/middleware?view=aspnetcore-10.0
     checked: "2026-08-25"
+  - id: ietf-rfc3986-unreserved
+    url: https://www.rfc-editor.org/rfc/rfc3986.html#section-2.3
+    checked: "2026-08-25"
   - id: microsoft-kestrel-security
     url: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/servers/kestrel/security-considerations?view=aspnetcore-10.0
     checked: "2026-08-25"
@@ -105,7 +108,7 @@ The API exposes commands rather than a generic endpoint that accepts a serialize
 
 Separate routes make allowed commands discoverable and give each request one stable JSON shape. They also avoid treating the compiler-oriented encoding of `BookingCommand` as a public protocol.
 
-`201 Created` includes a relative `Location` header built from the normalized request ID. `Uri.EscapeDataString` encodes it before it enters a header. Confirmation and cancellation modify the representation already addressed by that ID, so they return `200`.
+`201 Created` includes a relative `Location` header built from the normalized request ID. After trimming, the domain accepts 1–64 ASCII URI-unreserved characters: letters, digits, `-`, `.`, `_`, and `~`; the complete values `.` and `..` are excluded because URI resolution treats them as dot-segments. The stored value is therefore exactly one stable path segment; `Uri.EscapeDataString` remains a defensive encoding step, and an HTTP test follows the returned location back to `200`. Confirmation and cancellation modify the representation already addressed by that ID, so they return `200`.
 
 This is not a claim that command routes are the only REST design. It is a small, consistent contract for this workflow. Changing route semantics later would be a public API migration, not an internal refactor.
 
@@ -137,9 +140,9 @@ This layer answers whether the wire representation supplied the data required to
 
 ### Domain validity {#domain-validity}
 
-The existing validation module still owns blank identifiers, non-positive seats, blank confirmation codes, and blank cancellation reasons. The API first validates to obtain a protected storage key and to reject all field problems before I/O. The pure decider validates again when it accepts the raw command; that repeated pure check preserves one domain authority rather than cloning the rule in HTTP code.
+The existing validation module still owns request identifiers, non-positive seats, blank confirmation codes, and blank cancellation reasons. A request ID must be nonblank, at most 64 characters, URI-unreserved ASCII, and not the complete dot-segment `.` or `..`; values containing `/`, `%`, `?`, or Unicode likewise cannot become ambiguous route identities. The API first validates to obtain a protected storage key and to reject all field problems before I/O. The pure decider validates again when it accepts the raw command; that repeated pure check preserves one domain authority rather than cloning the rule in HTTP code.
 
-Multiple domain errors become one `validation_failed` response with ordered field errors. No storage, payment, or notification call occurs for transport, DTO, or domain-validation failure.
+Multiple domain errors become one `validation_failed` response with ordered field errors. Request ID failures use the stable field codes `blank`, `too_long`, or `invalid_format`. No storage, payment, or notification call occurs for transport, DTO, or domain-validation failure.
 
 ## Bound bytes before interpreting JSON {#bounded-body}
 
@@ -224,7 +227,7 @@ The outer handler separates client cancellation, Kestrel's oversized-body except
 
 <<< @/../examples/capstone/src/Booking.Api/Endpoints.fs#safe-error-boundary{fsharp:line-numbers} [Endpoints.fs]
 
-Provider faults are converted to a dependency outcome at the exact `Charge` or `Notify` call, so their messages never reach the general exception pipeline. `BookingStoreAdapterException` retains its typed category for internal code but exposes only `storage_unavailable` over HTTP.
+Adapters wrap known provider transport or availability failures in `DependencyUnavailableException` and retain the original exception as `InnerException` for internal diagnostics. The exact `Charge` or `Notify` call converts only that typed signal to `503 dependency_unavailable`; an arbitrary programming exception continues to the outer boundary and becomes a safe `500 internal_error`. `BookingStoreAdapterException` likewise retains its typed category for internal code but exposes only `storage_unavailable` over HTTP.
 
 If an error occurs after response headers have started, writing a second JSON document would corrupt the response. The handler aborts that connection instead. Known DTO serialization is intentionally simple, but the boundary still avoids pretending an already-started response can be replaced.
 

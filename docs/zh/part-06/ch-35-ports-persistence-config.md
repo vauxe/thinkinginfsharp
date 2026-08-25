@@ -213,7 +213,7 @@ K08a 的九项契约测试固定标签、属性集合、大小写、未知字段
 
 <<< @/../examples/capstone/src/Booking.Infrastructure/PaymentStub.fs#payment-stub{fsharp:line-numbers} [PaymentStub.fs]
 
-它使用给定交易 ID 授权，返回给定拒绝原因，或抛出给定故障。通知替身同样会交付或抛出固定故障：
+它使用给定交易 ID 授权，返回给定拒绝原因，或抛出 `DependencyUnavailableException`，其 `InnerException` 携带给定故障详情。通知替身同样会交付，或抛出相同的类型化可用性信号：
 
 <<< @/../examples/capstone/src/Booking.Infrastructure/NotificationStub.fs#notification-stub{fsharp:line-numbers} [NotificationStub.fs]
 
@@ -239,7 +239,7 @@ K08a 的九项契约测试固定标签、属性集合、大小写、未知字段
 | 损坏或过大快照 | `BookingStoreError` | 保留类型化存储分类 |
 | I/O 或替换失败 | `BookingStoreError` | 作为运维适配器失败向外传递 |
 | 支付拒绝 | `PaymentOutcome.Declined` | 预期服务结果，不是异常 |
-| 替身提供商离线 | `InvalidOperationException` | 让异步操作进入故障状态 |
+| 替身提供商离线 | `DependencyUnavailableException` | 让异步操作进入故障状态，并把替身原因保留为 `InnerException` |
 | 调用方取消 | 已取消的 `Task` / `OperationCanceledException` | 传播调用方令牌；不记录新的替身工作 |
 | 领域拒绝 | `BookingDecisionError` | 仍留在纯工作流，不进入适配器 |
 

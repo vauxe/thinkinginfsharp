@@ -175,7 +175,12 @@ module BookingEndToEndTests =
         use temporary = new TemporaryDirectory()
 
         let failPayment (_: PaymentRequest) (_: CancellationToken) =
-            Task.FromException<PaymentOutcome>(InvalidOperationException "controlled payment fault")
+            Task.FromException<PaymentOutcome>(
+                DependencyUnavailableException(
+                    "Payment dependency is unavailable.",
+                    InvalidOperationException "controlled payment fault"
+                )
+            )
 
         use api = new TestApi(Path.Combine(temporary.Path, "bookings.json"), failPayment)
 

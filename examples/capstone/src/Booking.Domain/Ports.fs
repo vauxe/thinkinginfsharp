@@ -6,6 +6,12 @@ open System.Threading.Tasks
 open Booking.Domain.Workflow
 
 module Ports =
+    /// Signals an expected transport or availability failure at an external port.
+    /// Adapters retain the provider exception as InnerException for diagnostics.
+    [<Sealed>]
+    type DependencyUnavailableException(message: string, innerException: Exception) =
+        inherit Exception(message, innerException)
+
     type PaymentRequest =
         { RequestId: RequestId
           Seats: SeatCount }

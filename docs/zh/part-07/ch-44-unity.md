@@ -200,17 +200,17 @@ X44 实现一条水平移动规则。这条规则刻意小到不足以单独证�
 
 包版本与程序集版本不是同一个标识符。锁定的 NuGet 包是 10.1.301；构建后的插件记录了对 `FSharp.Core, Version=10.1.0.0` 的程序集引用。应导入锁定构建产生的依赖，而不是从任一数字猜测文件。
 
-### CLR 形状表面后的纯逻辑 {#pure-gameplay}
+### 普通 CLR API 表面背后的纯逻辑 {#pure-gameplay}
 
 <<< @/../examples/ecosystem/unity/FSharpGameplay/Gameplay.fs{fsharp:line-numbers} [Gameplay.fs]
 
 `Gameplay.Create` 与 `Gameplay.Step` 是元组式静态方法，因此 C# 看到的是普通方法调用，而不是柯里化的 `FSharpFunc` 值。`MotionState` 暴露只读 float 属性，并隐藏字段及非默认构造器。
 
-状态是 struct。较早实现使用 class，因而每次 `FixedUpdate` 都分配新的托管对象。回归测试现在检查 `IsValueType`；它消除了这项特定状态分配，但并不假装整个 Player 每帧分配零字节。大型 struct 会带来复制成本，所以应让状态保持小巧并分析真实目标。
+状态是 struct。较早实现使用 class，因而每次 `FixedUpdate` 都分配新的托管对象。回归测试现在检查 `IsValueType`，并解码 `Gameplay.Step` 的托管方法体以拒绝显式 `box` 指令。它消除了托管构建中的这项特定状态对象分配，但并不假装整个 Player 每帧分配零字节。大型 struct 会带来复制成本，所以应让状态保持小巧并分析真实目标。
 
 转换会夹紧方向输入，拒绝非有限值与负时间或速度，计算速度并返回新状态。它没有 `UnityEngine` 引用，不读取当前时间，也不发生可变更新。测试可以直接提供所有输入。
 
-### 很薄的 Unity 所有适配器 {#csharp-adapter}
+### Unity 所有的薄适配层 {#csharp-adapter}
 
 <<< @/../examples/ecosystem/unity/FSharpGameplay/UnityAdapter.cs{csharp:line-numbers} [UnityAdapter.cs]
 
@@ -222,7 +222,7 @@ X44 实现一条水平移动规则。这条规则刻意小到不足以单独证�
 
 C# 文件被登记为说明性代码，因为本仓库没有 UnityEngine 程序集。它经过源码审阅，但没有在这里编译。发明假的引擎类型只能证明一个假的宿主。
 
-### 窄链接器根 {#linker-roots}
+### 最小化链接器保留根 {#linker-roots}
 
 <<< @/../examples/ecosystem/unity/FSharpGameplay/link.xml{xml:line-numbers} [link.xml]
 
@@ -241,8 +241,8 @@ C# 适配器的直接调用应对静态可达性分析可见。X44 仍包含两�
 | 锁定 .NET 还原 | 通过 | `netstandard2.1` 图解析到 FSharp.Core 包 10.1.301 |
 | Release 插件构建 | 通过，0 警告/错误 | F# 源码能在 .NET SDK 10.0.301 上编译 |
 | 产物检查 | 通过 | 8,704 字节插件与 2,407,760 字节 FSharp.Core 相邻；程序集引用存在 |
-| 聚焦规则/API 测试 | 通过，1/1 | 夹紧/步进行为、struct 状态、FSharp.Core 引用，以及公开签名不含 F# 专属类型 |
-| 仓库示例矩阵 | 通过 | 锁定解决方案、69 个 ExampleTests、其他示例、Fable 构建与浏览器冒烟仍为绿色 |
+| 聚焦规则/API 测试 | 通过，1/1 | 夹紧/步进行为、struct 状态、`Step` 中无显式 `box`、FSharp.Core 引用，以及公开签名不含 F# 专属类型 |
+| 仓库示例矩阵 | 通过 | 锁定解决方案、70 个 ExampleTests、其他示例、Fable 构建与浏览器冒烟仍为绿色 |
 | Unity 6000.3.22f1 导入 | 未运行 | 此机器没有 Editor |
 | C# 编译与 Play Mode | 未运行 | UnityEngine 宿主与场景行为未验证 |
 | macOS ARM64 IL2CPP Player | 未运行 | 原生转换、裁剪、链接、启动与运行期行为未验证 |

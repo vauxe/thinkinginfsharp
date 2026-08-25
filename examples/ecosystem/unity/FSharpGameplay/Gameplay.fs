@@ -32,9 +32,6 @@ type Gameplay private () =
         MotionState(positionX, 0.0f)
 
     static member Step(state: MotionState, horizontal: single, speed: single, deltaTime: single) =
-        if Object.ReferenceEquals(state, null) then
-            nullArg (nameof state)
-
         Guard.finite (nameof horizontal) horizontal
         Guard.nonNegative (nameof speed) speed
         Guard.nonNegative (nameof deltaTime) deltaTime

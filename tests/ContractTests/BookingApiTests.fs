@@ -222,6 +222,73 @@ module BookingApiTests =
 
         Assert.Empty recorded.Calls
 
+    [<Theory>]
+    [<InlineData("A/B", "invalid_format")>]
+    [<InlineData("A%B", "invalid_format")>]
+    [<InlineData("A?B", "invalid_format")>]
+    [<InlineData("请求", "invalid_format")>]
+    [<InlineData(".", "invalid_format")>]
+    [<InlineData("..", "invalid_format")>]
+    let ``request identifiers reject values that cannot round trip through the location route``
+        rawRequestId
+        expectedFieldCode
+        =
+        let recorded = recordingPorts NotBooked
+        use api = new TestApi(recorded.Ports)
+
+        let json =
+            JsonSerializer.Serialize(
+                {| requestId = rawRequestId
+                   seats = 2 |}
+            )
+
+        use response =
+            sendJson api.Client HttpMethod.Post "/api/bookings/place" "application/json" json
+
+        let error = readError response
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode)
+        Assert.Equal("validation_failed", error.Code)
+
+        Assert.Equal<ApiFieldErrorDto>(
+            [| { Field = "requestId"
+                 Code = expectedFieldCode } |],
+            error.Errors
+        )
+
+        Assert.Empty recorded.Calls
+
+    [<Fact>]
+    let ``maximum request identifier returns a dereferenceable location`` () =
+        let recorded = recordingPorts NotBooked
+        use api = new TestApi(recorded.Ports)
+        let requestId = String.replicate 59 "A" + "-._~Z"
+        let json = JsonSerializer.Serialize({| requestId = requestId; seats = 2 |})
+
+        use created =
+            sendJson api.Client HttpMethod.Post "/api/bookings/place" "application/json" json
+
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode)
+        Assert.Equal($"/api/bookings/{requestId}", string created.Headers.Location)
+
+        use loaded = api.Client.GetAsync(created.Headers.Location) |> complete
+        Assert.Equal(HttpStatusCode.OK, loaded.StatusCode)
+        Assert.Equal(readText created, readText loaded)
+
+        let tooLong = requestId + "Z"
+        let tooLongJson = JsonSerializer.Serialize({| requestId = tooLong; seats = 2 |})
+
+        use rejected =
+            sendJson api.Client HttpMethod.Post "/api/bookings/place" "application/json" tooLongJson
+
+        let error = readError rejected
+        Assert.Equal(HttpStatusCode.BadRequest, rejected.StatusCode)
+
+        Assert.Equal<ApiFieldErrorDto>(
+            [| { Field = "requestId"
+                 Code = "too_long" } |],
+            error.Errors
+        )
+
     [<Fact>]
     let ``request bodies are bounded even before json parsing`` () =
         let recorded = recordingPorts NotBooked
@@ -321,7 +388,13 @@ module BookingApiTests =
                     fun _ cancellationToken ->
                         paymentFailure.Calls.Add "charge"
                         paymentFailure.Tokens.Add cancellationToken
-                        Task.FromException<PaymentOutcome>(InvalidOperationException "PAYMENT-SECRET") }
+
+                        Task.FromException<PaymentOutcome>(
+                            DependencyUnavailableException(
+                                "Payment dependency is unavailable.",
+                                InvalidOperationException "PAYMENT-SECRET"
+                            )
+                        ) }
 
         use paymentApi = new TestApi(paymentPorts)
 
@@ -345,7 +418,13 @@ module BookingApiTests =
                     fun _ cancellationToken ->
                         notificationFailure.Calls.Add "notify"
                         notificationFailure.Tokens.Add cancellationToken
-                        Task.FromException<unit>(InvalidOperationException "NOTIFICATION-SECRET") }
+
+                        Task.FromException<unit>(
+                            DependencyUnavailableException(
+                                "Notification dependency is unavailable.",
+                                InvalidOperationException "NOTIFICATION-SECRET"
+                            )
+                        ) }
 
         use notificationApi = new TestApi(notificationPorts)
 
@@ -364,6 +443,28 @@ module BookingApiTests =
         match notificationFailure.State() with
         | Booked booking -> Assert.Equal("REQ-NOTIFICATION-FAULT", booking |> Booking.requestId |> RequestId.value)
         | NotBooked -> failwith "The booking must already be committed before notification."
+
+    [<Fact>]
+    let ``unexpected external port faults remain internal errors`` () =
+        let recorded = recordingPorts NotBooked
+
+        let buggyPorts =
+            { recorded.Ports with
+                Charge = fun _ _ -> Task.FromException<PaymentOutcome>(InvalidOperationException "BUG-SECRET") }
+
+        use api = new TestApi(buggyPorts)
+
+        use response =
+            sendJson
+                api.Client
+                HttpMethod.Post
+                "/api/bookings/place"
+                "application/json"
+                """{"requestId":"REQ-BUG","seats":2}"""
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode)
+        Assert.Equal("internal_error", (readError response).Code)
+        Assert.DoesNotContain("BUG-SECRET", readText response)
 
     [<Fact>]
     let ``storage and unexpected faults never expose exception or configuration details`` () =

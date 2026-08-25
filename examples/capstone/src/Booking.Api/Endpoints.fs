@@ -84,6 +84,13 @@ module BookingEndpoints =
 
     let private fieldError field code = { Field = field; Code = code }
 
+    let private requestIdErrorCode error =
+        match error with
+        | BlankRequestId -> "blank"
+        | RequestIdTooLong _ -> "too_long"
+        | InvalidRequestIdFormat
+        | InvalidRequestIdCharacter _ -> "invalid_format"
+
     let private dtoErrorDetail error =
         match error with
         | DtoMappingError.MissingBody -> None
@@ -94,7 +101,7 @@ module BookingEndpoints =
         | DtoMappingError.MissingStatus -> Some(fieldError "status" "missing")
         | DtoMappingError.MissingConfirmationCode -> Some(fieldError "confirmationCode" "missing")
         | DtoMappingError.MissingCancellationReason -> Some(fieldError "reason" "missing")
-        | DtoMappingError.InvalidRequestId _ -> Some(fieldError "requestId" "blank")
+        | DtoMappingError.InvalidRequestId error -> Some(fieldError "requestId" (requestIdErrorCode error))
         | DtoMappingError.InvalidEventId _ -> Some(fieldError "eventId" "blank")
         | DtoMappingError.InvalidSeatCount _ -> Some(fieldError "seats" "non_positive")
         | DtoMappingError.InvalidConfirmationCode _ -> Some(fieldError "confirmationCode" "blank")
@@ -105,7 +112,7 @@ module BookingEndpoints =
 
     let private commandErrorDetail error =
         match error with
-        | CommandValidationError.InvalidRequestId _ -> fieldError "requestId" "blank"
+        | CommandValidationError.InvalidRequestId error -> fieldError "requestId" (requestIdErrorCode error)
         | CommandValidationError.InvalidSeatCount _ -> fieldError "seats" "non_positive"
         | CommandValidationError.InvalidConfirmationCode _ -> fieldError "confirmationCode" "blank"
         | CommandValidationError.InvalidCancellationReason _ -> fieldError "reason" "blank"
@@ -307,7 +314,7 @@ module BookingEndpoints =
                 return Ok value
             with
             | :? OperationCanceledException as error -> return raise error
-            | _ -> return Error()
+            | :? DependencyUnavailableException -> return Error()
         }
 
     let private authorize ports payment cancellationToken =
@@ -447,18 +454,18 @@ module BookingEndpoints =
 
         RequestId.create rawRequestId
 
-    let private writeInvalidRouteRequestId context =
+    let private writeInvalidRouteRequestId context error =
         writeError
             context
             StatusCodes.Status400BadRequest
             "validation_failed"
             "One or more fields are invalid."
-            [| fieldError "requestId" "blank" |]
+            [| fieldError "requestId" (requestIdErrorCode error) |]
 
     let private handleGet dependencies (context: HttpContext) =
         task {
             match routeRequestId context with
-            | Error _ -> return! writeInvalidRouteRequestId context
+            | Error error -> return! writeInvalidRouteRequestId context error
             | Ok requestId ->
                 let! state = dependencies.Ports.LoadBooking requestId context.RequestAborted
 
@@ -479,7 +486,7 @@ module BookingEndpoints =
     let private handleConsistentGet (dependencies: ConsistentBookingApiDependencies) (context: HttpContext) =
         task {
             match routeRequestId context with
-            | Error _ -> return! writeInvalidRouteRequestId context
+            | Error error -> return! writeInvalidRouteRequestId context error
             | Ok requestId ->
                 let! loaded = dependencies.Load requestId context.RequestAborted
 

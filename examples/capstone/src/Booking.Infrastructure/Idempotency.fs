@@ -109,7 +109,8 @@ type IdempotentBookingService
             with
             | :? OperationCanceledException as error when cancellationToken.IsCancellationRequested ->
                 return raise error
-            | _ -> return Error BookingConsistencyError.DependencyUnavailable
+            | :? OperationCanceledException -> return Error BookingConsistencyError.DependencyUnavailable
+            | :? DependencyUnavailableException -> return Error BookingConsistencyError.DependencyUnavailable
         }
 
     let notificationFor (token: AtomicOperationToken) : NotificationRequest =

@@ -213,7 +213,7 @@ The payment substitute fixes its behavior at construction:
 
 <<< @/../examples/capstone/src/Booking.Infrastructure/PaymentStub.fs#payment-stub{fsharp:line-numbers} [PaymentStub.fs]
 
-It authorizes with a supplied transaction ID, returns a supplied decline reason, or raises a supplied failure. The notification substitute similarly delivers or raises a fixed failure:
+It authorizes with a supplied transaction ID, returns a supplied decline reason, or raises `DependencyUnavailableException` whose `InnerException` carries the supplied failure detail. The notification substitute similarly delivers or raises the same typed availability signal:
 
 <<< @/../examples/capstone/src/Booking.Infrastructure/NotificationStub.fs#notification-stub{fsharp:line-numbers} [NotificationStub.fs]
 
@@ -239,7 +239,7 @@ Ownership would be ambiguous if a composition accepted arbitrary externally owne
 | Corrupt or oversized snapshot | `BookingStoreError` | Keep a typed storage classification |
 | I/O or replacement failure | `BookingStoreError` | Surface as an operational adapter failure |
 | Payment refusal | `PaymentOutcome.Declined` | Expected service outcome, not an exception |
-| Stubbed provider outage | `InvalidOperationException` | Fault the asynchronous operation |
+| Stubbed provider outage | `DependencyUnavailableException` | Fault the asynchronous operation and retain the stub cause as `InnerException` |
 | Caller cancellation | cancelled `Task` / `OperationCanceledException` | Propagate the caller token; do not record new stub work |
 | Domain refusal | `BookingDecisionError` | Remains in the pure workflow, not in the adapter |
 
