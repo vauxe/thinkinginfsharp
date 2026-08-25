@@ -1,8 +1,14 @@
 import { defineComponent, h, nextTick, onMounted, watch } from 'vue'
-import { useRoute } from 'vitepress'
+import { useData, useRoute } from 'vitepress'
 import DefaultTheme from 'vitepress/theme'
 import ReadingProgress from './ReadingProgress.vue'
+// Source: vauxe/hatsune-miku-theme@d9fd1a2, ports/web/hatsune-miku-theme.css
+import './hatsune-miku-theme.css'
 import './styles.css'
+
+function syncWebTheme(isDark: boolean) {
+  document.documentElement.dataset.hmTheme = isDark ? 'dark' : 'light'
+}
 
 function localizeThemeLabels() {
   const isChinese = /(?:^|\/)zh(?:\/|$)/.test(location.pathname)
@@ -48,7 +54,13 @@ function localizeThemeLabels() {
 const Layout = defineComponent({
   setup() {
     const route = useRoute()
-    onMounted(localizeThemeLabels)
+    const { isDark } = useData()
+
+    onMounted(() => {
+      localizeThemeLabels()
+      syncWebTheme(isDark.value)
+    })
+    watch(isDark, syncWebTheme)
     watch(() => route.path, () => nextTick(localizeThemeLabels))
     return () => h(DefaultTheme.Layout, null, {
       'layout-top': () => h(ReadingProgress)
