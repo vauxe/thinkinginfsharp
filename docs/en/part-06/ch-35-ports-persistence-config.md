@@ -2,44 +2,6 @@
 title: "Chapter 35: Ports, Persistence, Configuration, and Stubs"
 description: "Keep F# domain values behind explicit DTO mappings, persist one bounded local snapshot safely, and assemble deterministic adapters with clear ownership."
 translationKey: part-06/ch-35-ports-persistence-config
-kind: chapter
-part: 6
-chapter: 35
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - capstone-booking-domain
-  - capstone-booking-contracts
-  - capstone-booking-infrastructure
-exerciseIds:
-  - ch35-exercise-01
-  - ch35-exercise-02
-  - ch35-exercise-03
-termIds: []
-sources:
-  - id: microsoft-json-property-names
-    url: https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/customize-properties
-    checked: "2026-08-25"
-  - id: microsoft-json-unmapped-members
-    url: https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/missing-members
-    checked: "2026-08-25"
-  - id: fsharp-core-climutable
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-climutableattribute.html
-    checked: "2026-08-25"
-  - id: microsoft-file-move
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.io.file.move?view=net-10.0
-    checked: "2026-08-25"
-  - id: microsoft-filestream-flush
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.io.filestream.flush?view=net-10.0
-    checked: "2026-08-25"
-  - id: microsoft-configuration-providers
-    url: https://learn.microsoft.com/en-us/dotnet/core/extensions/configuration-providers
-    checked: "2026-08-25"
-  - id: microsoft-cancellation-token
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.threading.cancellationtoken?view=net-10.0
-    checked: "2026-08-25"
 ---
 
 # Chapter 35: Ports, Persistence, Configuration, and Stubs {#overview}
@@ -86,8 +48,24 @@ This is not ceremonial layering. If the domain referenced `JsonPropertyNameAttri
 
 The snapshot DTO is intentionally ordinary .NET data:
 
-<<< @/../examples/capstone/src/Booking.Contracts/Dtos.fs#booking-dto{fsharp:line-numbers} [Dtos.fs]
-
+```fsharp:line-numbers [Dtos.fs]
+[<CLIMutable>]
+type BookingDto =
+    { [<JsonPropertyName("schemaVersion")>]
+      SchemaVersion: int
+      [<JsonPropertyName("requestId")>]
+      RequestId: string | null
+      [<JsonPropertyName("eventId")>]
+      EventId: string | null
+      [<JsonPropertyName("seats")>]
+      Seats: Nullable<int>
+      [<JsonPropertyName("status")>]
+      Status: string | null
+      [<JsonPropertyName("confirmationCode")>]
+      ConfirmationCode: string | null
+      [<JsonPropertyName("cancellationReason")>]
+      CancellationReason: string | null }
+```
 `[<CLIMutable>]` adds a parameterless constructor and property setters for CLI-oriented consumers. It does not make this record a domain entity. `[<JsonPropertyName>]` fixes the wire names in both serialization directions, independently of future F# field renames.
 
 The DTO admits states the domain forbids: null identifiers, a missing seat count, an unknown status string, or two status payloads at once. That is correct at an untrusted boundary. If its type pretended those values were impossible, deserialization failure would merely move into reflection or exceptions without giving the application an explicit mapping policy.
@@ -112,12 +90,65 @@ Omitted null payloads make each successful shape smaller, but omission is not am
 
 The mapping error union names representation failures without flattening them to text:
 
-<<< @/../examples/capstone/src/Booking.Contracts/Mapping.fs#mapping-errors{fsharp:line-numbers} [Mapping.fs]
-
+```fsharp:line-numbers [Mapping.fs]
+[<RequireQualifiedAccess>]
+type DtoMappingError =
+    | MissingBody
+    | UnsupportedSchemaVersion of actual: int
+    | MissingRequestId
+    | MissingEventId
+    | MissingSeats
+    | MissingStatus
+    | MissingConfirmationCode
+    | MissingCancellationReason
+    | InvalidRequestId of RequestIdError
+    | InvalidEventId of EventIdError
+    | InvalidSeatCount of SeatCountError
+    | InvalidConfirmationCode of ConfirmationCodeError
+    | InvalidCancellationReason of CancellationReasonError
+    | UnknownStatus of actual: string
+    | UnexpectedConfirmationCode of status: string
+    | UnexpectedCancellationReason of status: string
+```
 Reverse snapshot mapping proceeds in a stated order:
 
-<<< @/../examples/capstone/src/Booking.Contracts/Mapping.fs#snapshot-mapping{fsharp:line-numbers} [Mapping.fs]
+```fsharp:line-numbers [Mapping.fs]
+module BookingMapping =
+    let ofDomain (booking: Booking) : BookingDto =
+        let nullableText (value: string) : string | null = value
+        let noText: string | null = null
 
+        let status, confirmationCode, cancellationReason =
+            match Booking.status booking with
+            | Pending -> "pending", noText, noText
+            | Confirmed code -> "confirmed", code |> ConfirmationCode.value |> nullableText, noText
+            | Cancelled reason -> "cancelled", noText, reason |> CancellationReason.value |> nullableText
+
+        { SchemaVersion = BookingContract.CurrentSchemaVersion
+          RequestId = booking |> Booking.requestId |> RequestId.value
+          EventId = booking |> Booking.eventId |> EventId.value
+          Seats = booking |> Booking.seats |> SeatCount.value |> int |> Nullable
+          Status = status
+          ConfirmationCode = confirmationCode
+          CancellationReason = cancellationReason }
+
+    let toDomain (dto: BookingDto | null) =
+        match dto with
+        | null -> Error DtoMappingError.MissingBody
+        | value when value.SchemaVersion <> BookingContract.CurrentSchemaVersion ->
+            Error(DtoMappingError.UnsupportedSchemaVersion value.SchemaVersion)
+        | value ->
+            MappingInternals.requestId value.RequestId
+            |> Result.bind (fun requestId ->
+                MappingInternals.eventId value.EventId
+                |> Result.map (fun eventId -> requestId, eventId))
+            |> Result.bind (fun (requestId, eventId) ->
+                MappingInternals.seats value.Seats
+                |> Result.map (fun seats -> requestId, eventId, seats))
+            |> Result.bind (fun (requestId, eventId, seats) ->
+                MappingInternals.status value
+                |> Result.map (Booking.restore requestId eventId seats))
+```
 The schema version is checked first. A version 2 document is incompatible even if its remaining fields happen to resemble version 1, so the mapper returns `UnsupportedSchemaVersion 2` before interpreting that payload.
 
 Next, identifier and seat primitives pass through their existing smart constructors. Status mapping then checks both the exact tag and its legal payload combination. Only after every value is protected does `Booking.restore` rebuild the private record. That function accepts protected values; it does not accept raw JSON strings or integers.
@@ -128,8 +159,48 @@ Forward mapping cannot fail for a valid `Booking`: every union case has one decl
 
 Command DTOs perform a narrower job:
 
-<<< @/../examples/capstone/src/Booking.Contracts/Mapping.fs#command-mapping{fsharp:line-numbers} [Mapping.fs]
+```fsharp:line-numbers [Mapping.fs]
+module PlaceBookingMapping =
+    let ofDomain (command: PlaceBooking) : PlaceBookingDto =
+        { RequestId = command.RequestId
+          Seats = Nullable command.Seats }
 
+    let toDomain (dto: PlaceBookingDto | null) =
+        match dto with
+        | null -> Error DtoMappingError.MissingBody
+        | value ->
+            match value.RequestId with
+            | null -> Error DtoMappingError.MissingRequestId
+            | requestId -> MappingInternals.rawSeats value.Seats |> Result.map (Commands.place requestId)
+
+module ConfirmBookingMapping =
+    let ofDomain (command: ConfirmBooking) : ConfirmBookingDto =
+        { RequestId = command.RequestId
+          ConfirmationCode = command.ConfirmationCode }
+
+    let toDomain (dto: ConfirmBookingDto | null) =
+        match dto with
+        | null -> Error DtoMappingError.MissingBody
+        | value ->
+            match value.RequestId, value.ConfirmationCode with
+            | null, _ -> Error DtoMappingError.MissingRequestId
+            | _, null -> Error DtoMappingError.MissingConfirmationCode
+            | requestId, confirmationCode -> Ok(Commands.confirm requestId confirmationCode)
+
+module CancelBookingMapping =
+    let ofDomain (command: CancelBooking) : CancelBookingDto =
+        { RequestId = command.RequestId
+          Reason = command.Reason }
+
+    let toDomain (dto: CancelBookingDto | null) =
+        match dto with
+        | null -> Error DtoMappingError.MissingBody
+        | value ->
+            match value.RequestId, value.Reason with
+            | null, _ -> Error DtoMappingError.MissingRequestId
+            | _, null -> Error DtoMappingError.MissingCancellationReason
+            | requestId, reason -> Ok(Commands.cancel requestId reason)
+```
 They reject transport absence such as a missing body, request ID, seat property, code, or reason. They deliberately preserve blank strings and zero seats in raw domain commands. Chapter 34's validators own those rules and can accumulate their errors; repeating them in DTO mapping would create competing authorities and different precedence.
 
 Thus “mapping succeeded” means the transport supplied the fields needed to express an intent. It does not mean the intent passed domain validation or business decision.
@@ -138,8 +209,43 @@ Thus “mapping succeeded” means the transport supplied the fields needed to e
 
 The JSON helper configures one private options object before use:
 
-<<< @/../examples/capstone/src/Booking.Contracts/Dtos.fs#json-options{fsharp:line-numbers} [Dtos.fs]
+```fsharp:line-numbers [Dtos.fs]
+module BookingJson =
+    // Wire names: https://learn.microsoft.com/dotnet/standard/serialization/system-text-json/customize-properties
+    // Unmapped data: https://learn.microsoft.com/dotnet/standard/serialization/system-text-json/missing-members
+    let configure (options: JsonSerializerOptions) =
+        ArgumentNullException.ThrowIfNull(options, nameof options)
+        options.PropertyNamingPolicy <- JsonNamingPolicy.CamelCase
+        options.PropertyNameCaseInsensitive <- false
+        options.UnmappedMemberHandling <- JsonUnmappedMemberHandling.Disallow
+        options.DefaultIgnoreCondition <- JsonIgnoreCondition.WhenWritingNull
+        options.MaxDepth <- 8
 
+    let private options =
+        let settings = JsonSerializerOptions()
+        configure settings
+        settings
+
+    let serializeBooking (dto: BookingDto) =
+        ArgumentNullException.ThrowIfNull(dto, nameof dto)
+        JsonSerializer.Serialize(dto, options)
+
+    let deserializeBooking (json: string) : BookingDto | null =
+        ArgumentNullException.ThrowIfNull(json, nameof json)
+        JsonSerializer.Deserialize<BookingDto>(json, options)
+
+    let deserializePlaceBooking (json: string) : PlaceBookingDto | null =
+        ArgumentNullException.ThrowIfNull(json, nameof json)
+        JsonSerializer.Deserialize<PlaceBookingDto>(json, options)
+
+    let deserializeConfirmBooking (json: string) : ConfirmBookingDto | null =
+        ArgumentNullException.ThrowIfNull(json, nameof json)
+        JsonSerializer.Deserialize<ConfirmBookingDto>(json, options)
+
+    let deserializeCancelBooking (json: string) : CancelBookingDto | null =
+        ArgumentNullException.ThrowIfNull(json, nameof json)
+        JsonSerializer.Deserialize<CancelBookingDto>(json, options)
+```
 The choices are part of the boundary contract:
 
 - property names are camel-case and explicitly attributed;
@@ -157,8 +263,44 @@ JSON contract tests pin tags, property sets, casing, unknown fields, version pre
 
 The file adapter receives a protected configuration value:
 
-<<< @/../examples/capstone/src/Booking.Infrastructure/Configuration.fs#store-configuration{fsharp:line-numbers} [Configuration.fs]
+```fsharp:line-numbers [Configuration.fs]
+[<RequireQualifiedAccess>]
+module BookingStoreConfiguration =
+    [<Literal>]
+    let PathEnvironmentVariable = "BOOKING_STORE_PATH"
 
+    let create (configuredPath: string | null) =
+        match configuredPath with
+        | null -> Error BookingStoreConfigurationError.MissingSnapshotPath
+        | raw when String.IsNullOrWhiteSpace raw -> Error BookingStoreConfigurationError.MissingSnapshotPath
+        | raw ->
+            try
+                let fullPath = raw.Trim() |> Path.GetFullPath
+                let fileName = Path.GetFileName fullPath
+                let directory = Path.GetDirectoryName fullPath
+
+                match directory with
+                | null -> Error BookingStoreConfigurationError.InvalidSnapshotPath
+                | value when String.IsNullOrWhiteSpace fileName || Directory.Exists fullPath ->
+                    Error BookingStoreConfigurationError.InvalidSnapshotPath
+                | value ->
+                    Ok
+                        { SnapshotPath = fullPath
+                          DirectoryPath = value }
+            with
+            | :? ArgumentException
+            | :? NotSupportedException
+            | :? PathTooLongException -> Error BookingStoreConfigurationError.InvalidSnapshotPath
+
+    // Environment variables override file settings in the default .NET configuration stack:
+    // https://learn.microsoft.com/dotnet/core/extensions/configuration-providers#environment-variable-configuration-provider
+    let fromEnvironment () =
+        Environment.GetEnvironmentVariable PathEnvironmentVariable |> create
+
+    let snapshotPath configuration = configuration.SnapshotPath
+
+    let internal directoryPath configuration = configuration.DirectoryPath
+```
 `create` distinguishes a missing value from an invalid file path, normalizes to an absolute path, and rejects a path that already names a directory. The adapter therefore does not repeatedly reinterpret raw configuration.
 
 `BOOKING_STORE_PATH` can come from an environment-variable provider, while tests call `create` with a path under the operating system's temporary directory. A storage path is configuration, not a secret. Credentials, API keys, and certificates would require a secret provider and must not be committed merely because environment variables also carry configuration.
@@ -169,8 +311,81 @@ The path is controlled by deployment configuration, never derived from a request
 
 `FileBookingStore` exposes asynchronous `Load` and `Save` operations over a protected `Booking`:
 
-<<< @/../examples/capstone/src/Booking.Infrastructure/FileStore.fs#file-booking-store{fsharp:line-numbers} [FileStore.fs]
+```fsharp:line-numbers [FileStore.fs]
+type FileBookingStore(configuration: BookingStoreConfiguration) =
+    let snapshotPath = BookingStoreConfiguration.snapshotPath configuration
+    let directoryPath = BookingStoreConfiguration.directoryPath configuration
 
+    static member MaxSnapshotBytes = FileStoreImplementation.MaxSnapshotBytes
+
+    member _.Load(cancellationToken: CancellationToken) : Task<Result<Booking option, BookingStoreError>> =
+        task {
+            cancellationToken.ThrowIfCancellationRequested()
+
+            let! bytesResult =
+                FileStoreImplementation.readBounded
+                    FileStoreImplementation.MaxSnapshotBytes
+                    snapshotPath
+                    cancellationToken
+
+            match bytesResult with
+            | Error error -> return Error error
+            | Ok None -> return Ok None
+            | Ok(Some bytes) ->
+                match FileStoreImplementation.decode bytes with
+                | Error error -> return Error error
+                | Ok json ->
+                    try
+                        return
+                            BookingJson.deserializeBooking json
+                            |> BookingMapping.toDomain
+                            |> Result.map Some
+                            |> Result.mapError (
+                                SnapshotCorruption.InvalidDomainData >> BookingStoreError.CorruptSnapshot
+                            )
+                    with :? JsonException ->
+                        return Error(BookingStoreError.CorruptSnapshot SnapshotCorruption.InvalidJson)
+        }
+
+    member _.Save(booking: Booking, cancellationToken: CancellationToken) : Task<Result<unit, BookingStoreError>> =
+        task {
+            cancellationToken.ThrowIfCancellationRequested()
+
+            let bytes =
+                booking
+                |> BookingMapping.ofDomain
+                |> BookingJson.serializeBooking
+                |> Encoding.UTF8.GetBytes
+
+            if bytes.Length > FileStoreImplementation.MaxSnapshotBytes then
+                return Error(BookingStoreError.SnapshotTooLarge FileStoreImplementation.MaxSnapshotBytes)
+            else
+                let temporaryPath =
+                    Path.Combine(directoryPath, $".{Path.GetFileName(snapshotPath)}.{Guid.NewGuid():N}.tmp")
+
+                try
+                    let directoryResult =
+                        try
+                            Directory.CreateDirectory directoryPath |> ignore
+                            Ok()
+                        with
+                        | :? IOException
+                        | :? UnauthorizedAccessException -> Error BookingStoreError.CannotWriteTemporarySnapshot
+
+                    match directoryResult with
+                    | Error error -> return Error error
+                    | Ok() ->
+                        let! writeResult = FileStoreImplementation.writeTemporary temporaryPath bytes cancellationToken
+
+                        match writeResult with
+                        | Error error -> return Error error
+                        | Ok() ->
+                            cancellationToken.ThrowIfCancellationRequested()
+                            return FileStoreImplementation.replace temporaryPath snapshotPath
+                finally
+                    FileStoreImplementation.cleanup temporaryPath
+        }
+```
 Internally, save maps the booking to `BookingDto`, serializes UTF-8 without a byte-order mark, and rejects output larger than 64 KiB. Load reads at most 64 KiB plus one sentinel byte before deciding whether parsing is allowed. It accepts an optional UTF-8 BOM but rejects invalid byte sequences.
 
 The fixed bound prevents a damaged or replaced local file from causing unbounded allocation. Sixty-four KiB is a sample-specific limit for one small snapshot, not a universal JSON limit. A collection store would need a limit derived from its real cardinality and streaming policy.
@@ -199,8 +414,97 @@ It is also not a transaction around load, domain decision, payment, notification
 
 The infrastructure composition object supplies the domain's `AsyncPorts` record:
 
-<<< @/../examples/capstone/src/Booking.Infrastructure/Composition.fs#infrastructure-composition{fsharp:line-numbers} [Composition.fs]
+```fsharp:line-numbers [Composition.fs]
+type InfrastructureComposition
+    internal
+    (
+        configuration: BookingStoreConfiguration,
+        paymentBehavior: PaymentStubBehavior,
+        notificationBehavior: NotificationStubBehavior,
+        getUtcNow: CancellationToken -> Task<DateTimeOffset>
+    ) =
 
+    let syncRoot = obj ()
+    let store = FileBookingStore configuration
+    let payment = new PaymentStub(paymentBehavior)
+    let notification = new NotificationStub(notificationBehavior)
+    let mutable disposed = false
+
+    let ensureActive (cancellationToken: CancellationToken) =
+        cancellationToken.ThrowIfCancellationRequested()
+
+        lock syncRoot (fun () ->
+            if disposed then
+                raise (ObjectDisposedException(nameof InfrastructureComposition)))
+
+    let unwrapStoreResult result =
+        match result with
+        | Ok value -> value
+        | Error error -> raise (BookingStoreAdapterException error)
+
+    let ports: AsyncPorts =
+        { LoadBooking =
+            fun requestId cancellationToken ->
+                task {
+                    ensureActive cancellationToken
+                    let! stored = store.Load cancellationToken
+
+                    return
+                        match unwrapStoreResult stored with
+                        | Some booking when Booking.requestId booking = requestId -> Booked booking
+                        | Some _
+                        | None -> NotBooked
+                }
+          AppendEvent =
+            fun requestId bookingEvent cancellationToken ->
+                task {
+                    ensureActive cancellationToken
+                    let booking = BookingEvent.booking bookingEvent
+
+                    if Booking.requestId booking <> requestId then
+                        invalidArg (nameof requestId) "The event request ID must match the storage key."
+
+                    let! saved = store.Save(booking, cancellationToken)
+                    return unwrapStoreResult saved
+                }
+          Charge =
+            fun request cancellationToken ->
+                ensureActive cancellationToken
+                payment.Invoke request cancellationToken
+          Notify =
+            fun request cancellationToken ->
+                ensureActive cancellationToken
+                notification.Invoke request cancellationToken
+          GetUtcNow =
+            fun cancellationToken ->
+                ensureActive cancellationToken
+                getUtcNow cancellationToken }
+
+    member _.Ports = ports
+    member _.PaymentStub = payment
+    member _.NotificationStub = notification
+    member _.IsDisposed = lock syncRoot (fun () -> disposed)
+
+    interface IDisposable with
+        member _.Dispose() =
+            let shouldDispose =
+                lock syncRoot (fun () ->
+                    if disposed then
+                        false
+                    else
+                        disposed <- true
+                        true)
+
+            if shouldDispose then
+                (notification :> IDisposable).Dispose()
+                (payment :> IDisposable).Dispose()
+
+[<RequireQualifiedAccess>]
+module Composition =
+    // The returned composition creates and owns both stubs; dispose it at the application boundary.
+    let start configuration paymentBehavior notificationBehavior getUtcNow =
+        new InfrastructureComposition(configuration, paymentBehavior, notificationBehavior, getUtcNow)
+```
 Each function keeps the caller's `CancellationToken`. Store errors become `BookingStoreAdapterException`, retaining a typed internal category while giving a later HTTP layer one place to map a safe response. The exception message contains neither file contents nor a configured path.
 
 `LoadBooking` honors the requested key and returns `NotBooked` for a different stored request. `AppendEvent` rejects a mismatch between its key and the event's protected request ID before saving the event's resulting booking.
@@ -211,12 +515,87 @@ The current adapter stores only one snapshot. Therefore a different request can 
 
 The payment substitute fixes its behavior at construction:
 
-<<< @/../examples/capstone/src/Booking.Infrastructure/PaymentStub.fs#payment-stub{fsharp:line-numbers} [PaymentStub.fs]
+```fsharp:line-numbers [PaymentStub.fs]
+type PaymentStub(behavior: PaymentStubBehavior) =
+    let syncRoot = obj ()
+    let calls = ResizeArray<PaymentRequest>()
+    let mutable disposed = false
 
+    let ensureActive () =
+        if disposed then
+            raise (ObjectDisposedException(nameof PaymentStub))
+
+    member _.Calls: IReadOnlyList<PaymentRequest> =
+        lock syncRoot (fun () -> calls.ToArray())
+
+    member _.IsDisposed = lock syncRoot (fun () -> disposed)
+
+    member _.Invoke (request: PaymentRequest) (cancellationToken: CancellationToken) : Task<PaymentOutcome> =
+        task {
+            cancellationToken.ThrowIfCancellationRequested()
+
+            lock syncRoot (fun () ->
+                ensureActive ()
+                calls.Add request)
+
+            match behavior with
+            | PaymentStubBehavior.Authorize transactionId -> return Authorized transactionId
+            | PaymentStubBehavior.Decline reason -> return Declined reason
+            | PaymentStubBehavior.Fail message ->
+                return
+                    raise (
+                        DependencyUnavailableException(
+                            "Payment dependency is unavailable.",
+                            InvalidOperationException message
+                        )
+                    )
+        }
+
+    interface IDisposable with
+        member _.Dispose() =
+            lock syncRoot (fun () -> disposed <- true)
+```
 It authorizes with a supplied transaction ID, returns a supplied decline reason, or raises `DependencyUnavailableException` whose `InnerException` carries the supplied failure detail. The notification substitute similarly delivers or raises the same typed availability signal:
 
-<<< @/../examples/capstone/src/Booking.Infrastructure/NotificationStub.fs#notification-stub{fsharp:line-numbers} [NotificationStub.fs]
+```fsharp:line-numbers [NotificationStub.fs]
+type NotificationStub(behavior: NotificationStubBehavior) =
+    let syncRoot = obj ()
+    let calls = ResizeArray<NotificationRequest>()
+    let mutable disposed = false
 
+    let ensureActive () =
+        if disposed then
+            raise (ObjectDisposedException(nameof NotificationStub))
+
+    member _.Calls: IReadOnlyList<NotificationRequest> =
+        lock syncRoot (fun () -> calls.ToArray())
+
+    member _.IsDisposed = lock syncRoot (fun () -> disposed)
+
+    member _.Invoke (request: NotificationRequest) (cancellationToken: CancellationToken) : Task<unit> =
+        task {
+            cancellationToken.ThrowIfCancellationRequested()
+
+            lock syncRoot (fun () ->
+                ensureActive ()
+                calls.Add request)
+
+            match behavior with
+            | NotificationStubBehavior.Deliver -> return ()
+            | NotificationStubBehavior.Fail message ->
+                return
+                    raise (
+                        DependencyUnavailableException(
+                            "Notification dependency is unavailable.",
+                            InvalidOperationException message
+                        )
+                    )
+        }
+
+    interface IDisposable with
+        member _.Dispose() =
+            lock syncRoot (fun () -> disposed <- true)
+```
 Both check cancellation before recording a call. Neither uses HTTP, clocks, randomness, sleeps, credentials, or environment state. Their call lists are synchronized snapshots, which makes assertions deterministic without a mocking library.
 
 These are substitutes for learning and integration control. They do not model payment authorization protocols, retries, webhook delivery, message durability, fraud checks, or provider idempotency. Naming them `Stub` prevents a reader from mistaking deterministic behavior for a production integration.

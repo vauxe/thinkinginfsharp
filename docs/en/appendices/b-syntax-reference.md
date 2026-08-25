@@ -2,54 +2,13 @@
 title: "Appendix B: Syntax and Operator Quick Reference"
 description: "Read common F# types, expressions, patterns, declarations, computation expressions, and operators without turning a quick reference into a second language specification."
 translationKey: appendices/b-syntax-reference
-kind: appendix
-appendix: B
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch02-values-bindings-expressions
-  - ch03-functions-as-values
-  - ch04-branching-patterns
-  - ch08-discriminated-unions
-exerciseIds: []
-termIds: []
-sources:
-  - id: microsoft-fsharp-language-reference
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-types
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/fsharp-types
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-type-inference
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/type-inference
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-functions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-patterns
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/pattern-matching
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-discriminated-unions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-computation-expressions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/computation-expressions
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-symbols
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/symbol-and-operator-reference/
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-formatting
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/formatting
-    checked: "2026-08-25"
 ---
 
 # Appendix B: Syntax and Operator Quick Reference {#overview}
 
 This appendix is a lookup surface for syntax already explained in the chapters. It is not a substitute for the type checker, the F# Language Reference, or the problem-specific discussion. When unfamiliar code is dense, read its inferred or declared types first; punctuation becomes easier once the data flow is known.
 
-All complete F# blocks below are pulled from examples already registered and executed by the repository gate. Tiny forms inside tables are syntax shapes, not new untested programs.
+The complete F# blocks below are self-contained examples you can copy into FSI or a small project. Tiny forms inside tables show syntax shapes rather than complete programs.
 
 ## Read a type from the outside inward {#read-types}
 
@@ -107,8 +66,17 @@ The parentheses around the folder matter because that whole function is the firs
 
 `let` binds a name to the value of an expression. It is not a statement terminator or a promise of mutability.
 
-<<< @/../examples/scripts/ch02-values-bindings-expressions.fsx#basic-values{fsharp:line-numbers} [ch02-values-bindings-expressions.fsx]
+```fsharp:line-numbers [ch02-values-bindings-expressions.fsx]
+let eventName = "Functional Foundations"
+let capacity = 40
+let fillRatio = 0.45
+let ticketPrice = 19.50m
+let eventCode = 'F'
+let registrationOpen = true
+let noFurtherResult = ()
 
+printfn "%s (%c): capacity=%d, fill=%.2f, open=%b" eventName eventCode capacity fillRatio registrationOpen
+```
 | Form | Meaning |
 |---|---|
 | `let name = expression` | immutable binding |
@@ -127,8 +95,13 @@ Shadowing creates a new binding with the same name. It does not mutate the earli
 
 ## Define and apply functions {#functions}
 
-<<< @/../examples/scripts/ch03-functions-as-values.fsx#curried-function{fsharp:line-numbers} [ch03-functions-as-values.fsx]
+```fsharp:line-numbers [ch03-functions-as-values.fsx]
+let lineTotal unitPrice seats = unitPrice * decimal seats
+let standardLineTotal = lineTotal 19.50m
+let totalForThree = standardLineTotal 3
 
+printfn "Curried total: %M" totalForThree
+```
 | Form | Meaning |
 |---|---|
 | `let f x y = body` | named curried function |
@@ -149,8 +122,16 @@ Choose parameter order so the stable configuration arrives first and the changin
 
 `if/then/else` is an expression. Both branches must have a compatible type. Omitting `else` is allowed only when the `then` branch has type `unit`.
 
-<<< @/../examples/scripts/ch04-branching-patterns.fsx#guarded-match{fsharp:line-numbers} [ch04-branching-patterns.fsx]
+```fsharp:line-numbers [ch04-branching-patterns.fsx]
+let capacityBand remaining =
+    match remaining with
+    | value when value <= 0 -> "full"
+    | 1 -> "last seat"
+    | value when value <= 5 -> "limited"
+    | _ -> "available"
 
+printfn "Capacity bands: %s, %s, %s, %s" (capacityBand 0) (capacityBand 1) (capacityBand 4) (capacityBand 8)
+```
 Match cases run top to bottom. Prefer structural cases before a final wildcard, and let compiler exhaustiveness feedback expose new domain states.
 
 | Pattern | Meaning |
@@ -185,10 +166,25 @@ A lowercase identifier in a pattern usually **binds**; it does not compare again
 
 Union cases begin with uppercase identifiers. Case fields may be named to improve generated signatures and interoperation.
 
-<<< @/../examples/scripts/ch08-discriminated-unions.fsx#union-definition{fsharp:line-numbers} [ch08-discriminated-unions.fsx]
+```fsharp:line-numbers [ch08-discriminated-unions.fsx]
+type BookingStatus =
+    | Pending
+    | Confirmed of confirmationCode: string
+    | Cancelled of reason: string
+```
+```fsharp:line-numbers [ch08-discriminated-unions.fsx]
+let describeStatus status =
+    match status with
+    | Pending -> "pending"
+    | Confirmed confirmationCode -> $"confirmed:{confirmationCode}"
+    | Cancelled reason -> $"cancelled:{reason}"
 
-<<< @/../examples/scripts/ch08-discriminated-unions.fsx#exhaustive-match{fsharp:line-numbers} [ch08-discriminated-unions.fsx]
+let statuses = [ Pending; Confirmed "C-42"; Cancelled "duplicate" ]
 
+let descriptions = statuses |> List.map describeStatus
+
+printfn "Statuses: %A" descriptions
+```
 Use records for simultaneous facts and unions for alternatives. Do not reproduce a union with independent Boolean flags unless contradictory combinations are genuinely valid.
 
 ## Recognize collection syntax {#collections}

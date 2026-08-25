@@ -2,49 +2,6 @@
 title: "Chapter 42 Solutions"
 description: "Choose proportional compute models, turn the local cloud sample into a release proposal, and design an idempotent event consumer with honest unknown outcomes."
 translationKey: solutions/ch-42-cloud-containers-aspire
-kind: solution
-part: 7
-chapter: 42
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ecosystem-cloud-service
-  - ecosystem-cloud-apphost
-exerciseIds:
-  - ch42-exercise-01
-  - ch42-exercise-02
-  - ch42-exercise-03
-termIds: []
-sources:
-  - id: aspire-architecture
-    url: https://aspire.dev/architecture/overview/
-    checked: "2026-08-25"
-  - id: aspire-health-checks
-    url: https://aspire.dev/fundamentals/health-checks/
-    checked: "2026-08-25"
-  - id: aspire-service-defaults
-    url: https://aspire.dev/get-started/csharp-service-defaults/
-    checked: "2026-08-25"
-  - id: aspire-deployment
-    url: https://aspire.dev/deployment/
-    checked: "2026-08-25"
-  - id: aspire-cicd
-    url: https://aspire.dev/deployment/ci-cd/
-    checked: "2026-08-25"
-  - id: dotnet-container-overview
-    url: https://learn.microsoft.com/dotnet/core/containers/overview
-    checked: "2026-08-25"
-  - id: kubernetes-probes
-    url: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes
-    checked: "2026-08-25"
-  - id: azure-functions-retries
-    url: https://learn.microsoft.com/azure/azure-functions/functions-bindings-error-pages
-    checked: "2026-08-25"
-  - id: aws-lambda-best-practices
-    url: https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html
-    checked: "2026-08-25"
 ---
 
 # Chapter 42 Solutions {#overview}
@@ -116,7 +73,7 @@ Reverse an individual workload when the platform adds more latency, cost, coupli
 
 ### Begin with the exact baseline {#exercise-02-baseline}
 
-The repository currently proves:
+Before proposing a release, a copied sample must first prove:
 
 - the F# service and C# AppHost restore from locks and build on the checked macOS arm64 environment;
 - the direct service and Aspire-orchestrated service answer the three tested endpoints;
@@ -125,7 +82,7 @@ The repository currently proves:
 - the base tag is 10.0.11, the image user is 1654, the port is 8080, and the entry point is known;
 - the ordinary package lock remains unchanged after the final container command.
 
-It does not prove a running container, target platform, cloud identity, registry, production probe, telemetry export, load, security policy, rollout, or rollback. The release proposal starts at that line instead of rebranding local evidence.
+Those local checks still do not prove a running target platform, cloud identity, registry, production probe, telemetry export, load, security policy, rollout, or rollback. The release proposal starts at that line instead of rebranding local evidence.
 
 ### Define one immutable artifact {#exercise-02-artifact}
 

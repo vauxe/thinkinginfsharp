@@ -2,42 +2,6 @@
 title: "Chapter 36 Solutions"
 description: "Preserve an HTTP contract under automatic binding, reason about ambiguous effects, and assign security controls across deployment topologies."
 translationKey: solutions/ch-36-web-api-boundaries
-kind: solution
-part: 6
-chapter: 36
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - capstone-booking-domain
-  - capstone-booking-contracts
-  - capstone-booking-infrastructure
-  - capstone-booking-api
-exerciseIds:
-  - ch36-exercise-01
-  - ch36-exercise-02
-  - ch36-exercise-03
-termIds: []
-sources:
-  - id: microsoft-minimal-api
-    url: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: microsoft-request-aborted
-    url: https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.http.defaulthttpcontext.requestaborted?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: microsoft-testserver
-    url: https://learn.microsoft.com/en-us/aspnet/core/test/middleware?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: microsoft-kestrel-security
-    url: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/servers/kestrel/security-considerations?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: microsoft-app-secrets
-    url: https://learn.microsoft.com/en-us/aspnet/core/security/app-secrets?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: microsoft-http-logging
-    url: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/http-logging/?view=aspnetcore-10.0
-    checked: "2026-08-25"
 ---
 
 # Chapter 36 Solutions {#overview}

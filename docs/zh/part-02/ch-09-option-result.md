@@ -2,38 +2,6 @@
 title: "第 9 章：缺失与预期失败"
 description: "从有意义的缺失推导 option，从预期失败推导 Result，再在不丢失错误上下文的前提下组合二者。"
 translationKey: part-02/ch-09-option-result
-kind: chapter
-part: 2
-chapter: 9
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch09-option-result
-exerciseIds:
-  - ch09-exercise-01
-  - ch09-exercise-02
-  - ch09-exercise-03
-termIds:
-  - discriminated-union
-  - option
-  - result
-  - short-circuit
-  - union-case
-sources:
-  - id: microsoft-options
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/options
-    checked: "2026-08-24"
-  - id: microsoft-results
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/results
-    checked: "2026-08-24"
-  - id: fsharp-core-option
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-optionmodule.html
-    checked: "2026-08-24"
-  - id: fsharp-core-result
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-resultmodule.html
-    checked: "2026-08-24"
 ---
 
 # 第 9 章：缺失与预期失败 {#overview}
@@ -72,8 +40,18 @@ type Option<'T> =
 
 共享脚本遵循标准的 `try` 命名惯例，用它命名可能无法产生值的操作：
 
-<<< @/../examples/scripts/ch09-option-result.fsx#option-lookup{fsharp:line-numbers} [ch09-option-result.fsx]
+```fsharp:line-numbers [ch09-option-result.fsx]
+let attendees = [ "B-101", "Lin"; "B-102", "Ada" ]
 
+let tryFindAttendee bookingId =
+    attendees |> List.tryFind (fun (id, _) -> id = bookingId) |> Option.map snd
+
+let knownAttendee = tryFindAttendee "B-101" |> Option.defaultValue "none"
+
+let missingAttendee = tryFindAttendee "B-999" |> Option.defaultValue "none"
+
+printfn "Lookup: known=%s missing=%s" knownAttendee missingAttendee
+```
 `List.tryFind` 返回 option。`Option.map snd` 只在元组存在时变换它：`Some (id, name)` 变成 `Some name`，`None` 仍为 `None`。这个函数不会编造一个替代参与者。
 
 ### 有意识地处理缺失 {#consuming-option}
@@ -102,8 +80,25 @@ rowOption |> Option.map tryPositiveSeats
 
 `Option.bind` 会连接这两个可能缺失的步骤：
 
-<<< @/../examples/scripts/ch09-option-result.fsx#option-composition{fsharp:line-numbers} [ch09-option-result.fsx]
+```fsharp:line-numbers [ch09-option-result.fsx]
+let requestedSeats = [ "B-101", 3; "B-102", 0 ]
 
+let tryPositiveSeats seats = if seats > 0 then Some seats else None
+
+let tryRequestedSeats bookingId =
+    requestedSeats
+    |> List.tryFind (fun (id, _) -> id = bookingId)
+    |> Option.map snd
+    |> Option.bind tryPositiveSeats
+
+let positiveSeats =
+    tryRequestedSeats "B-101" |> Option.map string |> Option.defaultValue "none"
+
+let nonPositiveSeats =
+    tryRequestedSeats "B-102" |> Option.map string |> Option.defaultValue "none"
+
+printfn "Option bind: positive=%s nonPositive=%s" positiveSeats nonPositiveSeats
+```
 根据后续函数的返回类型来选择：
 
 | 后续函数 | 操作 | 输入 `Some x` 时的结果 | 输入 `None` 时的结果 |
@@ -128,8 +123,44 @@ type Result<'T, 'TError> =
 
 `Ok value` 携带成功值；`Error error` 携带领域所选的原因。可辨识联合通常优于裸错误字符串，因为每种失败形状仍可供程序读取：
 
-<<< @/../examples/scripts/ch09-option-result.fsx#result-validation{fsharp:line-numbers} [ch09-option-result.fsx]
+```fsharp:line-numbers [ch09-option-result.fsx]
+let validateAttendee request =
+    if String.IsNullOrWhiteSpace request.Attendee then
+        Error EmptyAttendee
+    else
+        Ok request
 
+let validateSeats maximum request =
+    if request.Seats <= 0 then
+        Error(NonPositiveSeats request.Seats)
+    elif request.Seats > maximum then
+        Error(TooManySeats(request.Seats, maximum))
+    else
+        Ok request
+
+let validate maximum request =
+    request |> validateAttendee |> Result.bind (validateSeats maximum)
+
+let describeError error =
+    match error with
+    | EmptyAttendee -> "attendee is empty"
+    | NonPositiveSeats actual -> $"seat count {actual} is not positive"
+    | TooManySeats(requested, maximum) -> $"requested {requested} exceeds maximum {maximum}"
+
+let describeResult result =
+    match result with
+    | Ok request -> $"ok:{request.Attendee}:{request.Seats}"
+    | Error error -> $"error:{describeError error}"
+
+let validRequest = { Attendee = "Lin"; Seats = 2 }
+
+let emptyAttendeeRequest = { Attendee = ""; Seats = 2 }
+
+printfn
+    "Validation: success=%s failure=%s"
+    (validate 4 validRequest |> describeResult)
+    (validate 4 emptyAttendeeRequest |> describeResult)
+```
 `BookingError` 区分参与者为空、非正座位数及其实际值，以及超过已知上限的请求。格式化集中在 `describeError`，因此验证策略没有与英文界面文本耦合。
 
 `validateAttendee` 和 `validateSeats` 返回 `Result<BookingRequest, BookingError>`。`validate` 管道使用 `Result.bind`，因为第二项验证本身也返回 result。若参与者验证返回 `Error`，座位验证会被跳过，同一个错误则被保留。
@@ -149,8 +180,23 @@ type Result<'T, 'TError> =
 
 底层验证错误可能没有指出是哪个请求导致了它。不要依赖拼接字符串的约定，而要使用结构化上下文：
 
-<<< @/../examples/scripts/ch09-option-result.fsx#error-context{fsharp:line-numbers} [ch09-option-result.fsx]
+```fsharp:line-numbers [ch09-option-result.fsx]
+type RequestFailure =
+    { RequestId: string
+      Cause: BookingError }
 
+let addRequestContext requestId result =
+    result
+    |> Result.mapError (fun error -> { RequestId = requestId; Cause = error })
+
+let oversizedRequest = { Attendee = "Ada"; Seats = 6 }
+
+let contextualFailure = oversizedRequest |> validate 4 |> addRequestContext "R-9"
+
+match contextualFailure with
+| Ok _ -> printfn "Context: unexpected success"
+| Error failure -> printfn "Context: %s -> %s" failure.RequestId (describeError failure.Cause)
+```
 `addRequestContext` 只改变错误类型。`Ok request` 原样通过；`Error BookingError` 变成 `Error RequestFailure`。外层代码可以记录 `RequestId`、翻译 `Cause`，或把领域失败映射为 HTTP 响应，而无需解析文本。
 
 不要在最深层函数里附上所有可能的细节。每一层提供自己拥有的错误事实，再在值向外移动时加入请求、文件或端点上下文。这样既能复用核心领域函数，也不会把诊断身份丢进字符串。
@@ -159,8 +205,11 @@ type Result<'T, 'TError> =
 
 共享请求违反了两条规则，但管道返回参与者错误：
 
-<<< @/../examples/scripts/ch09-option-result.fsx#result-short-circuit{fsharp:line-numbers} [ch09-option-result.fsx]
+```fsharp:line-numbers [ch09-option-result.fsx]
+let doublyInvalidRequest = { Attendee = ""; Seats = 0 }
 
+printfn "Short circuit: %s" (validate 4 doublyInvalidRequest |> describeResult)
+```
 对相互依赖的步骤而言，这种行为正确：只有前面的数据有效后，座位验证才可能有意义。它不是累积式验证器。如果表单应一次展示所有相互独立的错误，就要显式收集这些结果，或采用适用型验证设计；第 18 章会回到这个区别。
 
 `Error` 应描述调用方能够合理检查或处理的失败。不要捕获所有异常并将它们变成模糊的 `Error "failed"`；这会破坏堆栈和原因信息。程序缺陷、取消、资源失败和领域拒绝各有不同边界，第 21 章会建立这项策略。
@@ -184,21 +233,29 @@ type Result<'T, 'TError> =
 
 option 包装一个值，却不会清洗该值。因此，可空引用仍能被包装进 `Some`：
 
-<<< @/../examples/scripts/ch09-option-result.fsx#some-null{fsharp:line-numbers} [ch09-option-result.fsx]
+```fsharp:line-numbers [ch09-option-result.fsx]
+let riskyPayload: (string | null) option = Some null
 
+let payloadIsNull =
+    match riskyPayload with
+    | Some value -> isNull value
+    | None -> false
+
+printfn "Some null: isSome=%b payloadIsNull=%b" riskyPayload.IsSome payloadIsNull
+```
 这样会产生三种可表示状态：`None`、`Some null` 和 `Some "Lin"`。这通常是意外复杂度。在 .NET 边界处，应先把可空结果规范化为 `None`，或拒绝它，再让核心代码接收该值。
 
 在启用 F# nullness 检查时，标注 `(string | null) option` 会明确表示负载可以为 null。本章只需记住这一警告：`Some` 并不能证明其中的引用负载非 null。第 19 章会完整解释 `T | null`、`Nullable<T>`、旧式 .NET 标注与边界转换。
 
 ## 运行共享示例 {#run-example}
 
-在仓库根目录执行：
+在示例所在目录执行：
 
 ```console
-dotnet fsi --exec examples/scripts/ch09-option-result.fsx
+dotnet fsi --exec ch09-option-result.fsx
 ```
 
-六行确定性输出覆盖成功查找、缺失、option 组合、验证成功与失败、附加错误上下文、第一个错误短路，以及 `Some null` 边界情况。manifest 会检查精确输出。
+六行确定性输出覆盖成功查找、缺失、option 组合、验证成功与失败、附加错误上下文、第一个错误短路，以及 `Some null` 边界情况。请比较精确输出。
 
 ## 练习 {#exercises}
 

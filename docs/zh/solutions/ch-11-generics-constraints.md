@@ -2,30 +2,6 @@
 title: "第 11 章练习答案"
 description: "推断泛型签名、按意图修复值限制，并跨边界保留度量量纲。"
 translationKey: solutions/ch-11-generics-constraints
-kind: solution
-part: 2
-chapter: 11
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch11-generics-constraints
-exerciseIds:
-  - ch11-exercise-01
-  - ch11-exercise-02
-  - ch11-exercise-03
-termIds: []
-sources:
-  - id: microsoft-automatic-generalization
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/automatic-generalization
-    checked: "2026-08-24"
-  - id: microsoft-generic-constraints
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/constraints
-    checked: "2026-08-24"
-  - id: microsoft-units-of-measure
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/units-of-measure
-    checked: "2026-08-24"
 ---
 
 # 第 11 章练习答案 {#overview}

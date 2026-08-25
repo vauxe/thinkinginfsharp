@@ -2,27 +2,6 @@
 title: "Chapter 9 Solutions"
 description: "Reasoning about option, Result, composition, short-circuiting, and structured error context."
 translationKey: solutions/ch-09-option-result
-kind: solution
-part: 2
-chapter: 9
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch09-option-result
-exerciseIds:
-  - ch09-exercise-01
-  - ch09-exercise-02
-  - ch09-exercise-03
-termIds: []
-sources:
-  - id: microsoft-options
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/options
-    checked: "2026-08-24"
-  - id: microsoft-results
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/results
-    checked: "2026-08-24"
 ---
 
 # Chapter 9 Solutions {#overview}

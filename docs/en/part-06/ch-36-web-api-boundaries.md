@@ -2,51 +2,6 @@
 title: "Chapter 36: Web API, JSON, and Input Boundaries"
 description: "Expose the booking workflow through a small F# Minimal API while keeping JSON, validation, cancellation, failures, and secrets at explicit boundaries."
 translationKey: part-06/ch-36-web-api-boundaries
-kind: chapter
-part: 6
-chapter: 36
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - capstone-booking-domain
-  - capstone-booking-contracts
-  - capstone-booking-infrastructure
-  - capstone-booking-api
-exerciseIds:
-  - ch36-exercise-01
-  - ch36-exercise-02
-  - ch36-exercise-03
-termIds: []
-sources:
-  - id: microsoft-minimal-api
-    url: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: microsoft-http-json
-    url: https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.http.httprequestjsonextensions?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: microsoft-json-unmapped
-    url: https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/missing-members
-    checked: "2026-08-25"
-  - id: microsoft-request-aborted
-    url: https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.http.defaulthttpcontext.requestaborted?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: microsoft-testserver
-    url: https://learn.microsoft.com/en-us/aspnet/core/test/middleware?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: ietf-rfc3986-unreserved
-    url: https://www.rfc-editor.org/rfc/rfc3986.html#section-2.3
-    checked: "2026-08-25"
-  - id: microsoft-kestrel-security
-    url: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/servers/kestrel/security-considerations?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: microsoft-app-secrets
-    url: https://learn.microsoft.com/en-us/aspnet/core/security/app-secrets?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: microsoft-http-logging
-    url: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/http-logging/?view=aspnetcore-10.0
-    checked: "2026-08-25"
 ---
 
 # Chapter 36: Web API, JSON, and Input Boundaries {#overview}
@@ -91,8 +46,41 @@ The arrows matter more than the boxes. No arrow is an unchecked cast. Each eithe
 
 ASP.NET Core calls functions mapped with `MapGet`, `MapPost`, and related methods route handlers. A handler can return framework results, strings, or values that the framework serializes. This sample instead uses explicit `RequestDelegate` handlers so the byte cap, JSON error body, and cancellation behavior remain visible in one teaching-sized file.
 
-<<< @/../examples/capstone/src/Booking.Api/Endpoints.fs#endpoint-map{fsharp:line-numbers} [Endpoints.fs]
+```fsharp:line-numbers [Endpoints.fs]
+let private mapHandlers (application: WebApplication) place confirm cancel load =
+    ArgumentNullException.ThrowIfNull(application, nameof application)
 
+    let protectedHandler handler =
+        RequestDelegate(fun context -> safely handler context)
+
+    application.MapPost("/api/bookings/place", protectedHandler place) |> ignore
+
+    application.MapPost("/api/bookings/confirm", protectedHandler confirm) |> ignore
+
+    application.MapPost("/api/bookings/cancel", protectedHandler cancel) |> ignore
+
+    application.MapGet("/api/bookings/{requestId}", protectedHandler load) |> ignore
+
+let map (application: WebApplication) (dependencies: BookingApiDependencies) =
+    let execute = executeCommand dependencies
+
+    mapHandlers
+        application
+        (handlePlaceWith execute)
+        (handleConfirmWith execute)
+        (handleCancelWith execute)
+        (handleGet dependencies)
+
+let mapConsistent (application: WebApplication) (dependencies: ConsistentBookingApiDependencies) =
+    let execute = executeConsistent dependencies
+
+    mapHandlers
+        application
+        (handlePlaceWith execute)
+        (handleConfirmWith execute)
+        (handleCancelWith execute)
+        (handleConsistentGet dependencies)
+```
 Using a direct delegate is not a claim that automatic Minimal API binding is wrong. It is a local choice to make this chapter's boundary policy executable and contract-testable. Exercise 1 asks you to preserve the same contract with automatic binding.
 
 ## Publish four narrow routes {#route-contract}
@@ -116,8 +104,23 @@ This is not a claim that command routes are the only REST design. It is a small,
 
 Successful handlers project protected `Booking` values through `BookingMapping.ofDomain`; they never hand a domain record or union to the serializer. Failed handlers return one API-owned shape:
 
-<<< @/../examples/capstone/src/Booking.Api/Endpoints.fs#api-error-contract{fsharp:line-numbers} [Endpoints.fs]
+```fsharp:line-numbers [Endpoints.fs]
+[<CLIMutable>]
+type ApiFieldErrorDto =
+    { [<JsonPropertyName("field")>]
+      Field: string
+      [<JsonPropertyName("code")>]
+      Code: string }
 
+[<CLIMutable>]
+type ApiErrorDto =
+    { [<JsonPropertyName("code")>]
+      Code: string
+      [<JsonPropertyName("message")>]
+      Message: string
+      [<JsonPropertyName("errors")>]
+      Errors: ApiFieldErrorDto array }
+```
 `code` is the stable machine-readable decision. `message` is safe explanatory text, not a place for an exception or provider response. `errors` contains stable field/code pairs and is empty for non-field failures.
 
 The wire messages are English, while the book explains them in both languages. Clients should branch on codes, not translated prose. Localizing human-facing text later can therefore leave protocol behavior unchanged.
@@ -148,8 +151,52 @@ Multiple domain errors become one `validation_failed` response with ordered fiel
 
 Kestrel's default request-body limit is far larger than these tiny command documents. The host lowers it to 16 KiB. The endpoint also enforces the same limit while reading:
 
-<<< @/../examples/capstone/src/Booking.Api/Endpoints.fs#bounded-json-body{fsharp:line-numbers} [Endpoints.fs]
+```fsharp:line-numbers [Endpoints.fs]
+// The small command contract is buffered only up to the documented limit. This also
+// enforces the limit under TestServer, where Kestrel-specific limits do not run.
+let private readBody (context: HttpContext) =
+    task {
+        if not (context.Request.HasJsonContentType()) then
+            return Error UnsupportedMediaType
+        elif
+            context.Request.ContentLength.HasValue
+            && context.Request.ContentLength.Value > int64 MaxRequestBodyBytes
+        then
+            return Error TooLarge
+        else
+            use body = new MemoryStream(MaxRequestBodyBytes)
+            let chunk = Array.zeroCreate<byte> 4096
+            let mutable finished = false
+            let mutable tooLarge = false
 
+            while not finished && not tooLarge do
+                let remaining = MaxRequestBodyBytes - int body.Length
+                let requested = min chunk.Length (remaining + 1)
+
+                let! count = context.Request.Body.ReadAsync(chunk.AsMemory(0, requested), context.RequestAborted)
+
+                if count = 0 then
+                    finished <- true
+                elif body.Length + int64 count > int64 MaxRequestBodyBytes then
+                    tooLarge <- true
+                else
+                    body.Write(chunk, 0, count)
+
+            if tooLarge then
+                return Error TooLarge
+            else
+                return Ok(body.ToArray())
+    }
+
+let private deserialize<'dto when 'dto: not struct and 'dto: not null>
+    (bytes: byte array)
+    : Result<'dto | null, BodyError> =
+    try
+        let span = ReadOnlySpan<byte>(bytes)
+        Ok(JsonSerializer.Deserialize<'dto>(span, jsonOptions))
+    with :? JsonException ->
+        Error InvalidJson
+```
 Checking `Content-Length` gives an early rejection when the sender provides it, but that header alone is not a bound. Chunked requests and custom test streams may have no declared length. The loop therefore reads at most one byte beyond the limit, stops, and never allocates in proportion to attacker-controlled input.
 
 The body is buffered because the maximum is deliberately small and strict deserialization needs a complete command. A file-upload endpoint would need a different streaming design and its own limit; copying this 16 KiB policy to every endpoint would be cargo culting.
@@ -160,8 +207,65 @@ The same `BookingJson.configure` call fixes case sensitivity, unknown-member rej
 
 After mapping and validation, the endpoint has a raw command, a protected request ID, an optional protected payment request, and the success status. It can now coordinate effects:
 
-<<< @/../examples/capstone/src/Booking.Api/Endpoints.fs#endpoint-workflow{fsharp:line-numbers} [Endpoints.fs]
+```fsharp:line-numbers [Endpoints.fs]
+let private executeCommand dependencies prepared (context: HttpContext) =
+    task {
+        let cancellationToken = context.RequestAborted
+        cancellationToken.ThrowIfCancellationRequested()
+        let! state = dependencies.Ports.LoadBooking prepared.RequestId cancellationToken
 
+        match Decider.decide dependencies.Activity state prepared.Command with
+        | Error error -> return! writeDecisionError context error
+        | Ok bookingEvent ->
+            let! payment = authorize dependencies.Ports prepared.Payment cancellationToken
+
+            match payment with
+            | PaymentRefused ->
+                return!
+                    writeError
+                        context
+                        StatusCodes.Status422UnprocessableEntity
+                        "payment_declined"
+                        "Payment was declined."
+                        [||]
+            | PaymentUnavailable ->
+                return!
+                    writeError
+                        context
+                        StatusCodes.Status503ServiceUnavailable
+                        "dependency_unavailable"
+                        "An external dependency is unavailable."
+                        [||]
+            | PaymentAccepted ->
+                do! dependencies.Ports.AppendEvent prepared.RequestId bookingEvent cancellationToken
+
+                let! notified =
+                    tryExternal (fun () ->
+                        dependencies.Ports.Notify (notificationFor bookingEvent) cancellationToken)
+
+                match notified with
+                | Error() ->
+                    return!
+                        writeError
+                            context
+                            StatusCodes.Status503ServiceUnavailable
+                            "dependency_unavailable"
+                            "An external dependency is unavailable."
+                            [||]
+                | Ok() -> return! writeBooking context prepared (BookingEvent.booking bookingEvent)
+    }
+
+let private executeConsistent (dependencies: ConsistentBookingApiDependencies) prepared (context: HttpContext) =
+    task {
+        let cancellationToken = context.RequestAborted
+        cancellationToken.ThrowIfCancellationRequested()
+        let! result = dependencies.Execute prepared.Command cancellationToken
+
+        match result with
+        | Ok booking -> return! writeBooking context prepared booking
+        | Error error -> return! writeConsistencyError context error
+    }
+```
 The order is intentional:
 
 1. load the current booking state;
@@ -225,8 +329,43 @@ The test named “dependency failures are safe and reveal the post-commit notifi
 
 The outer handler separates client cancellation, Kestrel's oversized-body exception, the typed storage adapter exception, and an unexpected fault:
 
-<<< @/../examples/capstone/src/Booking.Api/Endpoints.fs#safe-error-boundary{fsharp:line-numbers} [Endpoints.fs]
-
+```fsharp:line-numbers [Endpoints.fs]
+let private safely handler (context: HttpContext) =
+    task {
+        try
+            return! handler context
+        with
+        | :? OperationCanceledException as error when context.RequestAborted.IsCancellationRequested ->
+            return raise error
+        | :? OperationCanceledException ->
+            return!
+                writeError
+                    context
+                    StatusCodes.Status503ServiceUnavailable
+                    "dependency_unavailable"
+                    "An external dependency is unavailable."
+                    [||]
+        | :? BadHttpRequestException as error when error.StatusCode = StatusCodes.Status413PayloadTooLarge ->
+            return! writeBodyError context TooLarge
+        | :? BookingStoreAdapterException ->
+            return!
+                writeError
+                    context
+                    StatusCodes.Status503ServiceUnavailable
+                    "storage_unavailable"
+                    "Booking storage is unavailable."
+                    [||]
+        | _ when context.Response.HasStarted -> context.Abort()
+        | _ ->
+            return!
+                writeError
+                    context
+                    StatusCodes.Status500InternalServerError
+                    "internal_error"
+                    "The request could not be completed."
+                    [||]
+    }
+```
 Adapters wrap known provider transport or availability failures in `DependencyUnavailableException` and retain the original exception as `InnerException` for internal diagnostics. The exact `Charge` or `Notify` call converts only that typed signal to `503 dependency_unavailable`; an arbitrary programming exception continues to the outer boundary and becomes a safe `500 internal_error`. `BookingStoreAdapterException` likewise retains its typed category for internal code but exposes only `storage_unavailable` over HTTP.
 
 If an error occurs after response headers have started, writing a second JSON document would corrupt the response. The handler aborts that connection instead. Known DTO serialization is intentionally simple, but the boundary still avoids pretending an already-started response can be replaced.
@@ -237,8 +376,45 @@ This chapter does not add detailed fault logging. Chapter 38 will add structured
 
 The host reads `BOOKING_STORE_PATH`, with optional `BOOKING_EVENT_ID` and `BOOKING_CAPACITY`, then builds protected configuration and domain values. A rejected setting produces only `invalid_booking_store`, `invalid_event_id`, or `invalid_capacity`; the raw value is not printed.
 
-<<< @/../examples/capstone/src/Booking.Api/Program.fs#api-host{fsharp:line-numbers} [Program.fs]
+```fsharp:line-numbers [Program.fs]
+[<EntryPoint>]
+let main arguments =
+    match StartupConfiguration.load () with
+    | Error error ->
+        eprintfn "Booking API startup configuration is invalid (%s)." (errorCode error)
+        2
+    | Ok configuration ->
+        let builder = WebApplication.CreateBuilder arguments
 
+        builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning) |> ignore
+        BookingDiagnostics.add builder.Services
+
+        builder.WebHost.ConfigureKestrel(
+            Action<KestrelServerOptions>(fun options ->
+                options.AddServerHeader <- false
+                options.Limits.MaxRequestBodySize <- int64 BookingEndpoints.MaxRequestBodyBytes)
+        )
+        |> ignore
+
+        let store = AtomicBookingStore configuration.Store
+        use payment = new PaymentStub(PaymentStubBehavior.Authorize "TX-LOCAL-STUB")
+        use notification = new NotificationStub(NotificationStubBehavior.Deliver)
+
+        let service =
+            IdempotentBookingService(configuration.Activity, store, payment.Invoke, notification.Invoke)
+
+        use application = builder.Build()
+
+        BookingDiagnostics.useMiddleware application
+
+        BookingEndpoints.mapConsistent
+            application
+            { Execute = fun command token -> service.Execute(command, token)
+              Load = fun requestId token -> service.Load(requestId, token) }
+
+        application.Run()
+        0
+```
 The sample's path, event ID, and capacity are ordinary configuration, not credentials. The rule is still useful: do not echo an untrusted configured path merely because this particular value is not secret. A later real payment key must stay outside source control and responses.
 
 Environment variables keep values out of committed code, but Microsoft explicitly warns that they are commonly stored as plain text and remain visible if the process or machine is compromised. Use development Secret Manager only for development; choose a controlled production secret store for deployment.
@@ -268,7 +444,7 @@ Neither test style replaces the other. Starting a random real port for every con
 
 ## Run the API locally {#local-run}
 
-The commands below use a temporary snapshot and bind only to loopback. Run them from the repository root.
+The commands below use a temporary snapshot and bind only to loopback. Run them from the directory containing the example.
 
 ### Start the host {#local-start}
 
@@ -279,7 +455,7 @@ BOOKING_STORE_PATH="${TMPDIR:-/tmp}/thinking-in-fsharp-booking.json" \
 BOOKING_EVENT_ID="EVT-LOCAL" \
 BOOKING_CAPACITY="4" \
 ASPNETCORE_URLS="http://127.0.0.1:5086" \
-dotnet run --project examples/capstone/src/Booking.Api/Booking.Api.fsproj -c Release
+dotnet run --project Booking.Api.fsproj -c Release
 ```
 
 In PowerShell:
@@ -289,7 +465,7 @@ $env:BOOKING_STORE_PATH = Join-Path ([IO.Path]::GetTempPath()) "thinking-in-fsha
 $env:BOOKING_EVENT_ID = "EVT-LOCAL"
 $env:BOOKING_CAPACITY = "4"
 $env:ASPNETCORE_URLS = "http://127.0.0.1:5086"
-dotnet run --project examples/capstone/src/Booking.Api/Booking.Api.fsproj -c Release
+dotnet run --project Booking.Api.fsproj -c Release
 ```
 
 ### Send successful requests {#local-success}

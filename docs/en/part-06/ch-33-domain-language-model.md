@@ -2,39 +2,6 @@
 title: "Chapter 33: Business Language, Commands, Events, and Model"
 description: "Consolidate the booking system's domain language, distinguish intent from fact, state, and boundary data, and use events without assuming event sourcing."
 translationKey: part-06/ch-33-domain-language-model
-kind: chapter
-part: 6
-chapter: 33
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - capstone-booking-domain
-exerciseIds:
-  - ch33-exercise-01
-  - ch33-exercise-02
-  - ch33-exercise-03
-termIds: []
-sources:
-  - id: microsoft-fsharp-records
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/records
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-discriminated-unions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-access-control
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/access-control
-    checked: "2026-08-24"
-  - id: microsoft-domain-events
-    url: https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/domain-events-design-implementation
-    checked: "2026-08-24"
-  - id: microsoft-cqrs-pattern
-    url: https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs
-    checked: "2026-08-24"
-  - id: microsoft-event-sourcing-pattern
-    url: https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing
-    checked: "2026-08-24"
 ---
 
 # Chapter 33: Business Language, Commands, Events, and Model {#overview}
@@ -92,8 +59,78 @@ Preserving every historical type would create two sources of truth. The capstone
 
 The core model names the activity, booking lifecycle, and failures in domain terms:
 
-<<< @/../examples/capstone/src/Booking.Domain/Domain.fs#booking-model{fsharp:line-numbers} [Domain.fs]
+```fsharp:line-numbers [Domain.fs]
+type Event =
+    private
+        { Id: EventId
+          Capacity: Capacity }
 
+module Event =
+    let create eventId capacity = { Id = eventId; Capacity = capacity }
+
+    let id event = event.Id
+    let capacity event = event.Capacity
+
+type BookingStatus =
+    | Pending
+    | Confirmed of ConfirmationCode
+    | Cancelled of CancellationReason
+
+type BookingCreationError = RequestedSeatsExceedCapacity of requested: int<seat> * capacity: int<seat>
+
+type BookingTransitionError =
+    | CannotConfirmFrom of current: BookingStatus
+    | CannotCancelFrom of current: BookingStatus
+
+type Booking =
+    private
+        { RequestId: RequestId
+          EventId: EventId
+          Seats: SeatCount
+          Status: BookingStatus }
+
+module Booking =
+    let create event requestId seats =
+        let requested = SeatCount.value seats
+        let capacity = event |> Event.capacity |> Capacity.value
+
+        if requested > capacity then
+            Error(RequestedSeatsExceedCapacity(requested, capacity))
+        else
+            Ok
+                { RequestId = requestId
+                  EventId = Event.id event
+                  Seats = seats
+                  Status = Pending }
+
+    let requestId booking = booking.RequestId
+    let eventId booking = booking.EventId
+    let seats booking = booking.Seats
+    let status booking = booking.Status
+
+    let restore requestId eventId seats status =
+        { RequestId = requestId
+          EventId = eventId
+          Seats = seats
+          Status = status }
+
+    let confirm confirmationCode booking =
+        match booking.Status with
+        | Pending ->
+            Ok
+                { booking with
+                    Status = Confirmed confirmationCode }
+        | current -> Error(CannotConfirmFrom current)
+
+    let cancel reason booking =
+        match booking.Status with
+        | Pending
+        | Confirmed _ ->
+            Ok
+                { booking with
+                    Status = Cancelled reason }
+        | Cancelled _ as current -> Error(CannotCancelFrom current)
+```
 Several F# choices work together here:
 
 - records group named values such as request, activity, seats, and status;
@@ -112,8 +149,33 @@ The model deliberately contains no JSON property names, database paths, HTTP sta
 
 The canonical command vocabulary is small:
 
-<<< @/../examples/capstone/src/Booking.Domain/Commands.fs#commands{fsharp:line-numbers} [Commands.fs]
+```fsharp:line-numbers [Commands.fs]
+type PlaceBooking = { RequestId: string; Seats: int }
 
+type ConfirmBooking =
+    { RequestId: string
+      ConfirmationCode: string }
+
+type CancelBooking = { RequestId: string; Reason: string }
+
+[<RequireQualifiedAccess>]
+type BookingCommand =
+    | Place of PlaceBooking
+    | Confirm of ConfirmBooking
+    | Cancel of CancelBooking
+
+module Commands =
+    let place requestId seats : PlaceBooking =
+        { RequestId = requestId; Seats = seats }
+
+    let confirm requestId confirmationCode : ConfirmBooking =
+        { RequestId = requestId
+          ConfirmationCode = confirmationCode }
+
+    let cancel requestId reason : CancelBooking =
+        { RequestId = requestId
+          Reason = reason }
+```
 `Place`, `Confirm`, and `Cancel` are imperative names because a command asks the system to attempt something. The caller cannot truthfully name the input `BookingPlaced`: capacity, duplicate request identity, current status, or malformed text may prevent that fact.
 
 These command records intentionally contain boundary-friendly primitives. Constructing `({ RequestId = " "; Seats = 0 } : PlaceBooking)` is possible, so construction does **not** mean acceptance. Validation converts independently valid fields into protected values such as `RequestId` and `SeatCount`; the decision then applies rules that depend on current state.
@@ -134,8 +196,21 @@ Keeping these questions separate lets independent validation errors accumulate w
 
 The corresponding event vocabulary uses the past tense:
 
-<<< @/../examples/capstone/src/Booking.Domain/Events.fs#events{fsharp:line-numbers} [Events.fs]
+```fsharp:line-numbers [Events.fs]
+type BookingEvent =
+    | BookingPlaced of Booking
+    | BookingConfirmed of Booking
+    | BookingCancelled of Booking
 
+module BookingEvent =
+    let booking event =
+        match event with
+        | BookingPlaced booking
+        | BookingConfirmed booking
+        | BookingCancelled booking -> booking
+
+    let requestId event = event |> booking |> Booking.requestId
+```
 `BookingPlaced`, `BookingConfirmed`, and `BookingCancelled` state what the domain accepted. In this model each event carries the resulting protected `Booking`, so evolution can project the new state without repeating transition rules. This is a simple in-process fact representation, not yet a promise about a durable wire schema.
 
 An event should not contain an operation that still needs approval. A handler may fail to perform a later side effect—sending a notification, for example—but that failure does not make the already accepted booking fact grammatically become a command again. Application policy decides how to retry or compensate for the side effect.
@@ -148,14 +223,22 @@ Domain events also do not imply .NET events or a message broker. A pure function
 
 The workflow needs only two top-level state shapes:
 
-<<< @/../examples/capstone/src/Booking.Domain/Workflow.fs#booking-state{fsharp:line-numbers} [Workflow.fs]
-
+```fsharp:line-numbers [Workflow.fs]
+type BookingState =
+    | NotBooked
+    | Booked of Booking
+```
 `NotBooked` means no booking exists for the request being considered. `Booked booking` carries the protected booking whose own status is pending, confirmed, or cancelled. This nested shape avoids invalid combinations such as “not booked and confirmed.”
 
 Evolution is intentionally mechanical:
 
-<<< @/../examples/capstone/src/Booking.Domain/Workflow.fs#evolve{fsharp:line-numbers} [Workflow.fs]
-
+```fsharp:line-numbers [Workflow.fs]
+let evolve (_: BookingState) (event: BookingEvent) =
+    match event with
+    | BookingPlaced booking
+    | BookingConfirmed booking
+    | BookingCancelled booking -> Booked booking
+```
 `evolve` answers “what state follows this accepted fact?” It does not answer “may this fact happen?” The decider and domain transition functions own that policy. If `evolve` rechecked capacity or status, the rule could drift into two implementations.
 
 The current event carries the complete resulting `Booking`, so `evolve` does not need its previous-state argument. Keeping the conventional `state -> event -> state` shape makes folding explicit and leaves room for a later event that represents a delta. Do not infer that an unused argument proves history is irrelevant to deciding the event.
@@ -196,8 +279,22 @@ A DTO is not “bad domain modeling.” It is an anti-corruption boundary whose 
 
 The capstone's intended F#-facing entry point begins with raw boundary values but returns an opaque model:
 
-<<< @/../examples/capstone/src/Booking.Domain/PublicApi.fs#start{fsharp:line-numbers} [PublicApi.fs]
+```fsharp:line-numbers [PublicApi.fs]
+let start rawEventId rawCapacity =
+    let eventIdResult =
+        EventId.create rawEventId
+        |> Result.mapError (fun _ -> [ BookingError.BlankEventId ])
 
+    let capacityResult =
+        Capacity.create rawCapacity
+        |> Result.mapError (fun (NonPositiveCapacity actual) -> [ BookingError.NonPositiveCapacity actual ])
+
+    match eventIdResult, capacityResult with
+    | Ok validEventId, Ok validCapacity -> BookingModel(Event.create validEventId validCapacity, NotBooked) |> Ok
+    | Error eventErrors, Error capacityErrors -> Error(eventErrors @ capacityErrors)
+    | Error errors, Ok _
+    | Ok _, Error errors -> Error errors
+```
 `PublicApi.BookingModel` and `BookingView` have hidden representations. Consumers use `start`, `place`, `confirm`, `cancel`, and observation functions; they need not mention `Event`, `Booking`, `BookingState`, `BookingEvent`, `RequestId`, or `SeatCount` in their own signatures. The public module projects internal errors into the smaller `BookingError` vocabulary.
 
 This does not make every other type in the assembly inaccessible. It establishes a stable path that consumers can choose without coupling themselves to the teaching workflow's representation. A signature file or separate internal assembly could restrict the surface further if the library contract later requires it.

@@ -2,43 +2,6 @@
 title: "附录 E：常见编译器诊断索引"
 description: "依据证据、根因问题和语义正确的最小修复，诊断常见 F# 10 编译器消息。"
 translationKey: appendices/e-compiler-errors
-kind: appendix
-appendix: E
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch11-value-restriction
-  - ch16-wrong-file-order
-  - ch17-hidden-representation
-exerciseIds: []
-termIds: []
-sources:
-  - id: microsoft-fsharp-compiler-messages
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/compiler-messages/
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-fs0001
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/compiler-messages/fs0001
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-fs0025
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/compiler-messages/fs0025
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-compiler-options
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/compiler-options
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-formatting
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/formatting
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-automatic-generalization
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/automatic-generalization
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-signature-files
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/signature-files
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-null-values
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/values/null-values
-    checked: "2026-08-25"
 ---
 
 # 附录 E：常见编译器诊断索引 {#overview}
@@ -117,10 +80,11 @@ F# 推断会收集“此分支返回 `int`”“该实参必须为 `string`”�
 
 `FS0027` 是 `<-` 指向不可变绑定的直接证据。先问预期操作是否其实是变换：`let updated = ...` 与记录复制更新往往表达得更准确。若循环、缓冲区、缓存或互操作 API 确实拥有变化状态，只让那条狭窄绑定可变。
 
-`FS0030` 更微妙。本仓库的真实夹具创建了一个元素类型仍为弱泛型的可变数组值：
+`FS0030` 更微妙。下面这个最小示例创建了一个元素类型仍为弱泛型的可变数组值：
 
-<<< @/../examples/expected-errors/ch11-value-restriction.fsx{fsharp:line-numbers} [ch11-value-restriction.fsx — 预期错误]
-
+```fsharp:line-numbers [ch11-value-restriction.fsx — 预期错误]
+let ambiguousBuckets = Array.create 2 []
+```
 应按语义在三种修复中选择：
 
 | 意图 | 修复 | 后果 |
@@ -156,18 +120,35 @@ F# 推断会收集“此分支返回 `int`”“该实参必须为 `string`”�
 5. 生成源码是否真正运行；
 6. F# `<Compile>` 顺序——提供者 `.fsi`/`.fs` 必须早于消费者。
 
-仓库中的错误顺序项目有意把 `Workflow.fs` 排在 `Domain.fs` 之前：
+下面这个错误顺序项目有意把 `Workflow.fs` 排在 `Domain.fs` 之前：
 
-<<< @/../examples/expected-errors/ch16-file-order/Ch16WrongOrder.fsproj{xml:line-numbers} [Ch16WrongOrder.fsproj — 预期错误]
+```xml:line-numbers [Ch16WrongOrder.fsproj — 预期错误]
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Include="../../chapters/ch16/Workflow.fs" Link="Workflow.fs" />
+    <Compile Include="../../chapters/ch16/Domain.fs" Link="Domain.fs" />
+  </ItemGroup>
+</Project>
+```
 首个缺失命名空间会引发更多未知类型和值。应修复第一条依赖，而不是逐条修级联。`open` 只会缩短已有名称；它不会添加程序集引用，也不会让后面的文件提前可用。详见[第 16 章](../part-03/ch-16-modules-namespaces-projects)。
 
 ## 隐藏表示：FS0800 {#hidden-representation}
 
 第 17 章的独立消费者试图构造被库的 `.fsi` 文件省略的联合案例：
 
-<<< @/../examples/expected-errors/ch17-hidden-representation/Consumer.fs{fsharp:line-numbers} [Consumer.fs — 预期错误]
+```fsharp:line-numbers [Consumer.fs — 预期错误]
+namespace ThinkingInFSharp.Ch17.InvalidConsumer
 
+open ThinkingInFSharp.Ch17.SeatAllocation
+
+module Consumer =
+    let invalidCapacity = Capacity 0
+```
 F# 10 给出简短的 `FS0800: Invalid use of a type name`。周围签名补足了缺失上下文：`Capacity` 作为抽象类型公开，但其表示不是公共构造函数。应调用 `Capacity.create` 并处理其验证结果。改变访问级别或删除签名是在破坏不变量，而不是修复消费者。
 
 ## Nullable 边界：FS3261 {#nullable-boundaries}
@@ -182,13 +163,7 @@ F# 10 给出简短的 `FS0800: Invalid use of a type name`。周围签名补足�
 
 ## 实际运行了什么 {#verification}
 
-2026-08-25，`dotnet --version` 选中 SDK 10.0.301，FSI 报告 F# 10。小型探针以 `--warnaserror+ --checknulls+` 运行；每一个都以非零状态退出，并产生表中对应编号。仓库清单持续检查可复现的 expected-error 夹具：
-
-```console
-pnpm check:examples
-```
-
-该关卡要求第 6 章非尾递归项目以 `FS3569` 失败、第 11 章脚本以 `FS0030` 失败、第 16 章项目以 `FS0039` 失败、第 17 章外部消费者以 `FS0800` 失败。若夹具意外编译、产生错误编号、超时或未登记，检查都会失败。其余一两行探针只是临时证据，不是额外生产示例。
+2026-08-25，这些诊断在 .NET SDK 10.0.301 与 F# 10 下得到复现。小型探针以 `--warnaserror+ --checknulls+` 运行；每一个都以非零状态退出，并产生表中对应编号。请每次单独复现一个最小示例：编译器升级可能改变措辞，错误编号与类型关系才是更持久的证据。
 
 ## 求助前应提供什么 {#before-help}
 

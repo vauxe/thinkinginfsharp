@@ -1,4 +1,4 @@
-import { enNavigation } from './navigation.generated'
+import { enNavigation } from './navigation'
 
 export const enLocale = {
   label: 'English',

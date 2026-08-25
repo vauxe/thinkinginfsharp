@@ -2,46 +2,6 @@
 title: "Chapter 27: Designing F# APIs for C#"
 description: "Derive a stable .NET public surface from C# call sites while keeping unions, options, pure functions, and domain invariants inside F#."
 translationKey: part-05/ch-27-fsharp-api-for-csharp
-kind: chapter
-part: 5
-chapter: 27
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch27-fsharp-api
-  - ch27-csharp-client
-exerciseIds:
-  - ch27-exercise-01
-  - ch27-exercise-02
-  - ch27-exercise-03
-termIds: []
-sources:
-  - id: microsoft-fsharp-component-guidelines
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-xml-docs
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/xml-documentation
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-null
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/values/null-values
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-nullable-value
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/nullable-value-types
-    checked: "2026-08-24"
-  - id: dotnet-breaking-changes
-    url: https://learn.microsoft.com/en-us/dotnet/standard/library-guidance/breaking-changes
-    checked: "2026-08-24"
-  - id: dotnet-package-compatibility
-    url: https://learn.microsoft.com/en-us/dotnet/standard/library-guidance/nuget-package-compatibility-rules
-    checked: "2026-08-24"
-  - id: dotnet-enum-zero
-    url: https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1008
-    checked: "2026-08-24"
-  - id: fsharp-climutable
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-climutableattribute.html
-    checked: "2026-08-24"
 ---
 
 # Chapter 27: Designing F# APIs for C# {#overview}
@@ -67,8 +27,22 @@ By the end of this chapter, you should be able to:
 
 Write a minimal C# contract client first. It reveals whether the API requires F# knowledge and turns named arguments, nullability, construction, and result shape into compilation evidence:
 
-<<< @/../examples/chapters/ch27/CSharpClient/Program.cs#accepted-call{csharp:line-numbers} [Program.cs]
+```csharp:line-numbers [Program.cs]
+var accepted = BookingApi.Evaluate(
+    capacity: 5,
+    request: new BookingRequest(requestId: "REQ-27", attendee: "Lin", seats: 2));
 
+Require(accepted.Outcome == BookingOutcome.Accepted, "accepted outcome");
+Require(default(BookingOutcome) == BookingOutcome.None, "valid enum zero value");
+Require(accepted.IsAccepted, "accepted flag");
+Require(accepted.ConfirmationCode == "CONF-REQ-27", "confirmation code");
+Require(accepted.RemainingSeats == 3, "remaining seats");
+Require(accepted.ErrorMessage is null, "accepted error must be null");
+Require(accepted.SuggestedSeats is null, "accepted suggestion must be null");
+
+Console.WriteLine(
+    $"Accepted: outcome={accepted.Outcome} code={accepted.ConfirmationCode} remaining={accepted.RemainingSeats}");
+```
 This call contains only an ordinary namespace, enum, sealed classes, constructor, static method, properties, `string?`, and `int?`. The C# caller need not know that a union and `option` exist internally. Named arguments also show that parameter names such as `capacity`, `request`, and `requestId` can become source-level dependencies rather than implementation comments.
 
 “C# can call it” is only the floor. Also ask: does completion in the IDE feel natural? Is nullable analysis accurate? Can expected errors be branched on? Can an old binary still run after the API is upgraded?
@@ -89,8 +63,27 @@ Rules are decided only in the domain core. Public APIs and DTOs decode input, ca
 
 The sample uses a closed union to represent exactly two domain outcomes; suggested seats exist only for a rejection:
 
-<<< @/../examples/chapters/ch27/FSharpApi/Library.fs#internal-model{fsharp:line-numbers} [Library.fs]
+```fsharp:line-numbers [Library.fs]
+type internal Decision =
+    | Accepted of confirmationCode: string * remainingSeats: int
+    | Rejected of message: string * suggestedSeats: int option
 
+module internal Decision =
+    let evaluate capacity (request: BookingRequest) =
+        if String.IsNullOrWhiteSpace request.RequestId then
+            Rejected("request id must not be blank", None)
+        elif String.IsNullOrWhiteSpace request.Attendee then
+            Rejected("attendee must not be blank", None)
+        elif request.Seats <= 0 then
+            Rejected("seat count must be positive", None)
+        elif request.Seats > capacity then
+            let suggestion = if capacity > 0 then Some capacity else None
+
+            Rejected($"requested {request.Seats} exceeds available {capacity}", suggestion)
+        else
+            let normalizedRequestId = request.RequestId.Trim().ToUpperInvariant()
+            Accepted($"CONF-{normalizedRequestId}", capacity - request.Seats)
+```
 Pattern matching remains exhaustive and invalid combinations do not enter the core. `internal` prevents C# or another assembly from depending on the compiled case representation, while leaving the library free to add an internal case or change its payload.
 
 ### Project once at the boundary {#boundary-projection}
@@ -109,24 +102,112 @@ These are common cross-language projections, not mechanical one-for-one replacem
 
 The public request uses an ordinary constructor and read-only properties:
 
-<<< @/../examples/chapters/ch27/FSharpApi/Library.fs#public-request{fsharp:line-numbers} [Library.fs]
+```fsharp:line-numbers [Library.fs]
+/// <summary>Identifies whether a booking request was accepted or rejected.</summary>
+type BookingOutcome =
+    /// <summary>No booking outcome has been assigned.</summary>
+    | None = 0
+    /// <summary>The booking was accepted and has a confirmation code.</summary>
+    | Accepted = 1
+    /// <summary>The booking was rejected and has an error message.</summary>
+    | Rejected = 2
 
+/// <summary>Input supplied by a .NET caller when evaluating a booking.</summary>
+/// <param name="requestId">A non-null request identifier. Blank identifiers are rejected by <c>Evaluate</c>.</param>
+/// <param name="attendee">A non-null attendee name. Blank names are rejected by <c>Evaluate</c>.</param>
+/// <param name="seats">The number of seats requested.</param>
+/// <exception cref="System.ArgumentNullException"><paramref name="requestId"/> or <paramref name="attendee"/> is <see langword="null"/>.</exception>
+[<Sealed>]
+type BookingRequest(requestId: string, attendee: string, seats: int) =
+    do
+        ArgumentNullException.ThrowIfNull(requestId, nameof requestId)
+        ArgumentNullException.ThrowIfNull(attendee, nameof attendee)
+
+    /// <summary>Gets the request identifier exactly as supplied.</summary>
+    member _.RequestId = requestId
+
+    /// <summary>Gets the attendee name exactly as supplied.</summary>
+    member _.Attendee = attendee
+
+    /// <summary>Gets the requested seat count.</summary>
+    member _.Seats = seats
+```
 The public response projects an absent reference to a nullable `string` and an absent value to `Nullable<int>`. Its constructor is assembly-internal, so callers cannot manufacture an “accepted but missing confirmation code” response:
 
-<<< @/../examples/chapters/ch27/FSharpApi/Library.fs#public-response{fsharp:line-numbers} [Library.fs]
+```fsharp:line-numbers [Library.fs]
+/// <summary>A C#-friendly projection of the internal F# booking decision.</summary>
+/// <remarks>
+/// Accepted responses have a confirmation code and remaining-seat count.
+/// Rejected responses have an error message and may have a suggested seat count.
+/// </remarks>
+[<Sealed>]
+type BookingResponse
+    internal
+    (
+        outcome: BookingOutcome,
+        confirmationCode: string | null,
+        remainingSeats: Nullable<int>,
+        errorMessage: string | null,
+        suggestedSeats: Nullable<int>
+    ) =
+    /// <summary>Gets the accepted or rejected outcome.</summary>
+    member _.Outcome = outcome
 
+    /// <summary>Gets whether this response represents an accepted booking.</summary>
+    member _.IsAccepted = outcome = BookingOutcome.Accepted
+
+    /// <summary>Gets the confirmation code, or <see langword="null"/> when rejected.</summary>
+    member _.ConfirmationCode = confirmationCode
+
+    /// <summary>Gets remaining capacity, or <see langword="null"/> when rejected.</summary>
+    member _.RemainingSeats = remainingSeats
+
+    /// <summary>Gets the rejection message, or <see langword="null"/> when accepted.</summary>
+    member _.ErrorMessage = errorMessage
+
+    /// <summary>Gets a capacity-based suggestion when available; otherwise <see langword="null"/>.</summary>
+    member _.SuggestedSeats = suggestedSeats
+```
 The adapter is the only place that understands both representations:
 
-<<< @/../examples/chapters/ch27/FSharpApi/Library.fs#boundary-adapter{fsharp:line-numbers} [Library.fs]
+```fsharp:line-numbers [Library.fs]
+module internal ResponseAdapter =
+    let fromDecision decision =
+        match decision with
+        | Accepted(confirmationCode, remainingSeats) ->
+            BookingResponse(BookingOutcome.Accepted, confirmationCode, Nullable remainingSeats, null, Nullable<int>())
+        | Rejected(message, suggestedSeats) ->
+            let suggestion =
+                match suggestedSeats with
+                | Some seats -> Nullable seats
+                | None -> Nullable<int>()
 
+            BookingResponse(BookingOutcome.Rejected, null, Nullable<int>(), message, suggestion)
+```
 Even when public signatures contain no `Microsoft.FSharp.*`, an assembly compiled from F# normally still has a runtime dependency on `FSharp.Core`. The goal is to remove F# representation knowledge from the caller, not to pretend the implementation was not written in F#; normal project or NuGet dependency resolution carries the runtime dependency transitively.
 
 ## Shape public members as a .NET API {#dotnet-shape}
 
 A surface for ordinary .NET languages favors namespaces, types, and members; implementation functions can stay in non-public modules. The sample uses an abstract, sealed type with a private constructor to hold a group of static operations:
 
-<<< @/../examples/chapters/ch27/FSharpApi/Library.fs#public-api{fsharp:line-numbers} [Library.fs]
+```fsharp:line-numbers [Library.fs]
+/// <summary>Provides the stable .NET entry point for booking decisions.</summary>
+[<AbstractClass; Sealed>]
+type BookingApi private () =
+    /// <summary>Evaluates one request against the supplied available capacity.</summary>
+    /// <param name="capacity">Available seats. Negative capacity is invalid configuration.</param>
+    /// <param name="request">A non-null request to evaluate.</param>
+    /// <returns>A response projected into ordinary .NET enum, class, string, and nullable-value members.</returns>
+    /// <exception cref="System.ArgumentNullException"><paramref name="request"/> is <see langword="null"/>.</exception>
+    /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="capacity"/> is negative.</exception>
+    static member Evaluate(capacity: int, request: BookingRequest) =
+        ArgumentNullException.ThrowIfNull(request, nameof request)
 
+        if capacity < 0 then
+            raise (ArgumentOutOfRangeException(nameof capacity, capacity, "Capacity cannot be negative."))
+
+        request |> Decision.evaluate capacity |> ResponseAdapter.fromDecision
+```
 This does not require turning every F# module into a class. Only the cross-language public edge needs projection into the caller's vocabulary; an F#-facing API can still expose modules, functions, and unions naturally.
 
 ### Names are compatibility contracts {#names}
@@ -163,8 +244,46 @@ An optionally absent reference output uses `string | null`; an optionally absent
 
 The C# contract client uses reflection to check these promises and ensure no F#-specific types leak through public signatures:
 
-<<< @/../examples/chapters/ch27/CSharpClient/Program.cs#public-surface-contract{csharp:line-numbers} [Program.cs]
+```csharp:line-numbers [Program.cs]
+var publicTypes = typeof(BookingApi).Assembly.GetExportedTypes();
 
+var publicTypeNames = publicTypes
+    .Select(type => type.Name)
+    .OrderBy(name => name, StringComparer.Ordinal)
+    .ToArray();
+
+var expectedPublicTypes = new[]
+{
+    nameof(BookingApi),
+    nameof(BookingOutcome),
+    nameof(BookingRequest),
+    nameof(BookingResponse)
+};
+
+Require(publicTypeNames.SequenceEqual(expectedPublicTypes), "minimal public type surface");
+Require(typeof(BookingResponse).GetConstructors().Length == 0, "response construction is controlled");
+Require(
+    !publicTypes.SelectMany(GetPublicSignatureTypes).Any(ContainsFSharpSpecificType),
+    "no F#-specific type leaks through public signatures");
+Console.WriteLine($"Public types: {string.Join(",", publicTypeNames)}");
+
+var nullability = new NullabilityInfoContext();
+var requestIdParameter = typeof(BookingRequest).GetConstructors().Single().GetParameters()[0];
+var confirmationProperty = typeof(BookingResponse).GetProperty(nameof(BookingResponse.ConfirmationCode))!;
+var requestIdState = nullability.Create(requestIdParameter).ReadState;
+var confirmationState = nullability.Create(confirmationProperty).ReadState;
+
+Require(requestIdState == NullabilityState.NotNull, "requestId nullable metadata");
+Require(confirmationState == NullabilityState.Nullable, "confirmation nullable metadata");
+Console.WriteLine(
+    $"Nullability: request-id={requestIdState} confirmation={confirmationState}");
+
+var documentationPath = Path.ChangeExtension(typeof(BookingApi).Assembly.Location, ".xml");
+Require(File.Exists(documentationPath), "XML documentation sidecar");
+var documentation = File.ReadAllText(documentationPath);
+Require(documentation.Contains("BookingApi.Evaluate", StringComparison.Ordinal), "Evaluate XML documentation");
+Console.WriteLine("XML docs: evaluate=true");
+```
 Reflection tests are metadata evidence, not a substitute for real calls. The sample also compiles and runs accepted, rejected, invalid-value, null-input, and range-error paths.
 
 ### Enums need a valid zero and an unknown-value policy {#enum-contract}
@@ -185,8 +304,20 @@ Every public type, constructor, property, and method should have concise XML doc
 
 The sample enables `GenerateDocumentationFile` and adds F# warning 3390 to the build to catch malformed XML and incorrect parameter names:
 
-<<< @/../examples/chapters/ch27/FSharpApi/FSharpApi.fsproj{xml:line-numbers} [FSharpApi.fsproj]
+```xml:line-numbers [FSharpApi.fsproj]
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>ThinkingInFSharp.Ch27.FSharpApi</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <WarnOn>$(WarnOn);3390</WarnOn>
+  </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Include="Library.fs" />
+  </ItemGroup>
+</Project>
+```
 The client also asserts that the XML sidecar exists and contains `BookingApi.Evaluate`. This cannot judge whether the prose is good, but it prevents the illusion of comments that never ship with the assembly. Once the API stabilizes, an `.fsi` file can centralize public signatures and documentation as a reviewable inventory.
 
 ## Do not let JSON or a database design the domain backwards {#wire-boundary}
@@ -216,11 +347,11 @@ Put the C# contract client in CI and retain a released assembly or package as an
 
 ## Run the shared contract sample {#run-example}
 
-Build and run the real C# caller from the repository root:
+Build and run the real C# caller from the directory containing the example:
 
 ```console
-dotnet build examples/chapters/ch27/CSharpClient/CSharpClient.csproj --configuration Release --no-restore
-dotnet run --project examples/chapters/ch27/CSharpClient/CSharpClient.csproj --configuration Release --no-build
+dotnet build CSharpClient.csproj --configuration Release --no-restore
+dotnet run --project CSharpClient.csproj --configuration Release --no-build
 ```
 
 The client asserts business outcomes, argument guards, four exported types, public signatures, nullable metadata, and XML documentation instead of merely printing a demonstration. After changing a public API, first recompile this consumer, then run existing-binary compatibility and behavioral tests.

@@ -2,46 +2,6 @@
 title: "第 30 章练习答案"
 description: "修复 F# 文件顺序导致的级联错误，为 FSI、测试和调试器分配不同问题，并审计一个被有意改动的锁定依赖图。"
 translationKey: solutions/ch-30-diagnostics-tooling-builds
-kind: solution
-part: 5
-chapter: 30
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch11-value-restriction
-  - ch16-wrong-file-order
-exerciseIds:
-  - ch30-exercise-01
-  - ch30-exercise-02
-  - ch30-exercise-03
-termIds: []
-sources:
-  - id: microsoft-fsharp-compiler-options
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/compiler-options
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-interactive
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/tools/fsharp-interactive/
-    checked: "2026-08-24"
-  - id: microsoft-managed-debuggers
-    url: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/managed-debuggers
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-build
-    url: https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-build
-    checked: "2026-08-24"
-  - id: microsoft-nuget-lock-files
-    url: https://learn.microsoft.com/en-us/nuget/consume-packages/package-references-in-project-files#locking-dependencies
-    checked: "2026-08-24"
-  - id: microsoft-local-tools
-    url: https://learn.microsoft.com/en-us/dotnet/core/tools/local-tools-how-to-use
-    checked: "2026-08-24"
-  - id: fantomas-getting-started
-    url: https://fsprojects.github.io/fantomas/docs/end-users/GettingStarted.html
-    checked: "2026-08-24"
-  - id: fantomas-format-check
-    url: https://fsprojects.github.io/fantomas/docs/end-users/FormattingCheck.html
-    checked: "2026-08-24"
 ---
 
 # 第 30 章练习答案 {#overview}
@@ -120,14 +80,14 @@ let ``three seats do not fit capacity two`` () =
 
 ### 让每种不一致在所属阶段失败 {#exercise-03-audit}
 
-从仓库根目录开始，并记录所选 SDK：
+从示例所在目录开始，并记录所选 SDK：
 
 ```console
 dotnet --info
 dotnet tool restore
 dotnet fantomas . --check
-dotnet clean ThinkingInFSharp.slnx --configuration Release
-dotnet restore ThinkingInFSharp.slnx --locked-mode
+dotnet clean Sample.slnx --configuration Release
+dotnet restore Sample.slnx --locked-mode
 ```
 
 本地工具清单让 `dotnet fantomas` 使用所声明的 7.0.5 命令；同事全局安装的版本不是仓库契约。若格式不同，应有意运行已固定版本的格式化器，并审阅它只涉及源码的差异。
@@ -135,9 +95,9 @@ dotnet restore ThinkingInFSharp.slnx --locked-mode
 锁定还原应当失败，因为项目依赖已变化，相应锁定图却未更新。这种失败正是所需证据。确认包变更确有意图，审阅其兼容性和来源，然后再有意重新生成：
 
 ```console
-dotnet restore ThinkingInFSharp.slnx --force-evaluate
+dotnet restore Sample.slnx --force-evaluate
 git diff -- "*.fsproj" "*.csproj" "packages.lock.json"
-dotnet restore ThinkingInFSharp.slnx --locked-mode
+dotnet restore Sample.slnx --locked-mode
 ```
 
 shell 的通配符行为各不相同；若该审阅命令不能递归展开，请使用版本控制客户端或明确的项目路径。必须共同审阅的是项目引用与每个受影响的 `packages.lock.json`，而不是某一种 shell 写法。
@@ -145,9 +105,9 @@ shell 的通配符行为各不相同；若该审阅命令不能递归展开，�
 锁定图一致后，在不隐式执行其他阶段的前提下验证 Release 编译和测试：
 
 ```console
-dotnet build ThinkingInFSharp.slnx --configuration Release --no-restore
-dotnet test ThinkingInFSharp.slnx --configuration Release --no-build
-pnpm check:examples
+dotnet build Sample.slnx --configuration Release --no-restore
+dotnet test Sample.slnx --configuration Release --no-build
+dotnet test Sample.slnx --configuration Release --no-build
 ```
 
 应在一次有意的依赖变更中共同更新 PackageReference 与受影响的锁文件。只有格式化器升级也有意时才更新 `.config/dotnet-tools.json`；最好让其基线差异单独审阅。仅在更改样式策略时改 `.editorconfig`，仅在更改 SDK 策略时改 `global.json`。

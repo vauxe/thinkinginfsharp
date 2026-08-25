@@ -2,30 +2,6 @@
 title: "第 21 章答案"
 description: "把资源安全读取与纯解析组合，用结构化策略替换全捕获字符串，并验证双 reader 在成功与失败时都会释放。"
 translationKey: solutions/ch-21-exceptions-resources-io
-kind: solution
-part: 4
-chapter: 21
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch21-exceptions-resources-io
-exerciseIds:
-  - ch21-exercise-01
-  - ch21-exercise-02
-  - ch21-exercise-03
-termIds: []
-sources:
-  - id: microsoft-try-with
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/exception-handling/the-try-with-expression
-    checked: "2026-08-24"
-  - id: microsoft-raise-reraise
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/exception-handling/the-raise-function
-    checked: "2026-08-24"
-  - id: microsoft-use
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/resource-management-the-use-keyword
-    checked: "2026-08-24"
 ---
 
 # 第 21 章答案 {#overview}

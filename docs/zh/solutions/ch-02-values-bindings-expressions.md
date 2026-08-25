@@ -2,28 +2,6 @@
 title: "第 2 章练习答案"
 description: "值、绑定、基本类型、显式转换与局部遮蔽的推理答案。"
 translationKey: solutions/ch-02-values-bindings-expressions
-kind: solution
-part: 1
-chapter: 2
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch02-values-bindings-expressions
-  - ch02-exercise-02-solution
-exerciseIds:
-  - ch02-exercise-01
-  - ch02-exercise-02
-  - ch02-exercise-03
-termIds: []
-sources:
-  - id: microsoft-values
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/values/
-    checked: "2026-08-24"
-  - id: microsoft-type-inference
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/type-inference
-    checked: "2026-08-24"
 ---
 
 # 第 2 章练习答案 {#overview}
@@ -54,8 +32,13 @@ sources:
 
 一种直接答案放在独立答案脚本中：
 
-<<< @/../examples/solutions/ch02-exercise-02.fsx#solution{fsharp:line-numbers} [ch02-exercise-02.fsx]
+```fsharp:line-numbers [ch02-exercise-02.fsx]
+let rawAttendeeCount = "24"
+let attendeeCount = int rawAttendeeCount
+let nextAttendeeCount = attendeeCount + 1
 
+printfn "Next attendee count: %d" nextAttendeeCount
+```
 `rawAttendeeCount` 是 `string`，而整数加法的另一侧是 `int`；F# 不会把任意文本隐式解释为整数。`int rawAttendeeCount` 显式产生 `int` 值，所以 `attendeeCount` 与 `nextAttendeeCount` 都是 `int`，最终输出为 `Next attendee count: 25`。
 
 这里仍有一个刻意保留的风险：文本不是有效整数时，`int` 转换会抛出异常。本题的边界契约假设输入有效；在真实输入边界，后续章节会用显式失败类型或受控异常转换表达这个分支。不要把本例误读为“所有解析都应该直接调用 `int`”。
@@ -64,8 +47,14 @@ sources:
 
 重新看同一段代码：
 
-<<< @/../examples/scripts/ch02-values-bindings-expressions.fsx#local-shadowing{fsharp:line-numbers} [ch02-values-bindings-expressions.fsx]
+```fsharp:line-numbers [ch02-values-bindings-expressions.fsx]
+let normalizedCapacity =
+    let capacity = 20
+    let capacity = capacity + 4
+    capacity
 
+printfn "Normalized capacity: %d; outer capacity: %d" normalizedCapacity capacity
+```
 求第一个局部右侧时，字面量直接产生 `20`。求第二个局部右侧 `capacity + 4` 时，`capacity` 仍指第一个局部绑定，因此得到 `24`；随后新绑定遮蔽它。最后的主体读取最新局部绑定，所以 `normalizedCapacity` 为 `24`。
 
 离开右侧局部范围后，脚本顶层的 `capacity` 再次是可见绑定，值仍为 `40`。这段区域新建三个绑定：两个局部 `capacity` 和顶层 `normalizedCapacity`。它没有修改任何既有值。

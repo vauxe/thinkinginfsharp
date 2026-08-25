@@ -2,37 +2,6 @@
 title: "Chapter 13: Composition, Argument Order, and Pipeline APIs"
 description: "Derive pipelines and function composition from nested calls, then design argument order around real calling forms without forcing every expression through a pipe."
 translationKey: part-03/ch-13-composition-pipeline-api
-kind: chapter
-part: 3
-chapter: 13
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch13-composition-pipeline-api
-exerciseIds:
-  - ch13-exercise-01
-  - ch13-exercise-02
-  - ch13-exercise-03
-termIds:
-  - function-composition
-  - parameter
-  - partial-application
-  - pipeline
-sources:
-  - id: microsoft-functions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/
-    checked: "2026-08-24"
-  - id: microsoft-parameters-arguments
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/parameters-and-arguments
-    checked: "2026-08-24"
-  - id: microsoft-formatting
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/formatting
-    checked: "2026-08-24"
-  - id: microsoft-component-design
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-24"
 ---
 
 # Chapter 13: Composition, Argument Order, and Pipeline APIs {#overview}
@@ -58,8 +27,11 @@ By the end of this chapter, you should be able to:
 
 The shared script begins with ordinary application:
 
-<<< @/../examples/scripts/ch13-composition-pipeline-api.fsx#repeated-nesting{fsharp:line-numbers} [ch13-composition-pipeline-api.fsx]
+```fsharp:line-numbers [ch13-composition-pipeline-api.fsx]
+let nestedLabel = toLabel (addChannel "web" (capSeats 4 (trimAttendee rawDraft)))
 
+printfn "Nested: %s" nestedLabel
+```
 Read from the innermost parentheses outward:
 
 1. trim the attendee;
@@ -83,8 +55,12 @@ functionValue value
 
 Rewriting the shared chain gives:
 
-<<< @/../examples/scripts/ch13-composition-pipeline-api.fsx#pipeline{fsharp:line-numbers} [ch13-composition-pipeline-api.fsx]
+```fsharp:line-numbers [ch13-composition-pipeline-api.fsx]
+let pipedLabel =
+    rawDraft |> trimAttendee |> capSeats 4 |> addChannel "web" |> toLabel
 
+printfn "Pipeline matches nested: %b" (pipedLabel = nestedLabel)
+```
 Now source order follows data flow. Each line transforms the value from the preceding line, and the final result is computed immediately.
 
 The type between stages must fit. If `trimAttendee : BookingDraft -> BookingDraft` and `toLabel : BookingDraft -> string`, then `trimAttendee` can precede `toLabel`. A function requiring some unrelated input cannot be inserted merely by adding `|>`.
@@ -109,8 +85,14 @@ let result = composed input
 
 The shared script composes all four stages:
 
-<<< @/../examples/scripts/ch13-composition-pipeline-api.fsx#composition{fsharp:line-numbers} [ch13-composition-pipeline-api.fsx]
+```fsharp:line-numbers [ch13-composition-pipeline-api.fsx]
+let prepareLabel = trimAttendee >> capSeats 4 >> addChannel "web" >> toLabel
 
+let prepareLabelBackward = toLabel << addChannel "web" << capSeats 4 << trimAttendee
+
+printfn "Forward composition: %s" (prepareLabel rawDraft)
+printfn "Backward composition: %s" (prepareLabelBackward rawDraft)
+```
 `prepareLabel` is a function value that can be stored, passed, tested, and applied to many drafts. In contrast, the earlier pipeline computes one label from `rawDraft` immediately.
 
 Backward composition reverses how the functions are written:
@@ -135,8 +117,18 @@ addChannel : string -> BookingDraft -> BookingDraft
 
 Configuration comes first; the primary flowing value comes last. Partial application turns `capSeats 4` and `addChannel "desk"` into `BookingDraft -> BookingDraft`, exactly the shape a pipeline or composition needs:
 
-<<< @/../examples/scripts/ch13-composition-pipeline-api.fsx#parameter-order{fsharp:line-numbers} [ch13-composition-pipeline-api.fsx]
+```fsharp:line-numbers [ch13-composition-pipeline-api.fsx]
+let deskLabel =
+    { Attendee = "  Mira "
+      RequestedSeats = 2
+      Channel = None }
+    |> trimAttendee
+    |> capSeats 4
+    |> addChannel "desk"
+    |> toLabel
 
+printfn "Configured pipeline: %s" deskLabel
+```
 A common F#-facing function order is:
 
 1. dependencies or policy values that remain fixed across calls;
@@ -163,8 +155,15 @@ If two parameters share a primitive type, accidental reversal may still compile.
 
 The final shared example leaves a small predicate direct:
 
-<<< @/../examples/scripts/ch13-composition-pipeline-api.fsx#direct-call{fsharp:line-numbers} [ch13-composition-pipeline-api.fsx]
+```fsharp:line-numbers [ch13-composition-pipeline-api.fsx]
+let fitsWithin capacity requested = requested <= capacity
 
+let requested = 3
+let capacity = 4
+let fits = fitsWithin capacity requested
+
+printfn "Direct predicate: requested=%d capacity=%d fits=%b" requested capacity fits
+```
 `fitsWithin capacity requested` displays the relation in one place. `requested |> fitsWithin capacity` is also valid, but it does not reveal a longer transformation path and may make a simple comparison feel procedural.
 
 Prefer a direct call when:
@@ -191,10 +190,10 @@ Do not invent a custom symbolic operator for an operation that has a good domain
 
 ## Run the shared example {#run-example}
 
-From the repository root:
+From the directory containing the example:
 
 ```console
-dotnet fsi --exec examples/scripts/ch13-composition-pipeline-api.fsx
+dotnet fsi --exec ch13-composition-pipeline-api.fsx
 ```
 
 The six deterministic lines show nested application, an equivalent pipeline, forward and backward composition, configured partial application, and a deliberately direct predicate.

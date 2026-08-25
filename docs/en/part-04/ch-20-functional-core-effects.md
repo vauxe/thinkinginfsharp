@@ -2,38 +2,6 @@
 title: "Chapter 20: Functional Core and Effect Boundaries"
 description: "Turn time, randomness, and environment access into explicit values or function dependencies, keeping domain decisions replayable and effect policy visible."
 translationKey: part-04/ch-20-functional-core-effects
-kind: chapter
-part: 4
-chapter: 20
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch20-functional-core-effects
-exerciseIds:
-  - ch20-exercise-01
-  - ch20-exercise-02
-  - ch20-exercise-03
-termIds:
-  - closure
-  - effect
-sources:
-  - id: microsoft-functions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/
-    checked: "2026-08-24"
-  - id: microsoft-component-design
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-24"
-  - id: dotnet-utc-now
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.datetimeoffset.utcnow?view=net-10.0
-    checked: "2026-08-24"
-  - id: dotnet-random-next
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.random.next?view=net-10.0
-    checked: "2026-08-24"
-  - id: dotnet-environment-variable
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.environment.getenvironmentvariable?view=net-10.0
-    checked: "2026-08-24"
 ---
 
 # Chapter 20: Functional Core and Effect Boundaries {#overview}
@@ -75,12 +43,35 @@ The goal is not “effects are forbidden.” A useful program must interact with
 
 The example models only facts needed by a campaign decision:
 
-<<< @/../examples/scripts/ch20-functional-core-effects.fsx#model{fsharp:line-numbers} [ch20-functional-core-effects.fsx]
+```fsharp:line-numbers [ch20-functional-core-effects.fsx]
+type Campaign =
+    { OpensAt: DateTimeOffset
+      ClosesAt: DateTimeOffset
+      CodePrefix: string
+      DefaultRegion: string }
 
+type Candidate =
+    { SubmittedAt: DateTimeOffset
+      Draw: int
+      Region: string }
+
+type Decision =
+    | NotOpen
+    | Closed
+    | Accepted of code: string
+```
 `Campaign` contains policy. `Candidate` contains observations already captured for one attempt. `Decision` names every pure outcome. The decision function is correspondingly direct:
 
-<<< @/../examples/scripts/ch20-functional-core-effects.fsx#pure-core{fsharp:line-numbers} [ch20-functional-core-effects.fsx]
-
+```fsharp:line-numbers [ch20-functional-core-effects.fsx]
+let decide campaign candidate =
+    if candidate.SubmittedAt < campaign.OpensAt then
+        NotOpen
+    elif candidate.SubmittedAt >= campaign.ClosesAt then
+        Closed
+    else
+        let suffix = candidate.Draw.ToString("D4")
+        Accepted $"{campaign.CodePrefix}-{candidate.Region}-{suffix}"
+```
 `decide` does not ask what time it is. It compares `Candidate.SubmittedAt` with the supplied window. It does not generate a suffix or discover a region; those values are already present. Given the same two records, it returns the same union case and performs no external work.
 
 Passing time as data also states snapshot semantics. Every comparison in this decision uses one captured instant. Calling `UtcNow` several times could cross a window boundary halfway through one logical decision.
@@ -91,8 +82,32 @@ Purity is a property of this implementation and its dependencies, not of the `le
 
 The orchestration contract is a record of three named function values:
 
-<<< @/../examples/scripts/ch20-functional-core-effects.fsx#effects{fsharp:line-numbers} [ch20-functional-core-effects.fsx]
+```fsharp:line-numbers [ch20-functional-core-effects.fsx]
+type RuntimeEffects =
+    { UtcNow: unit -> DateTimeOffset
+      NextInt: int -> int
+      ReadSetting: string -> string option }
 
+let private normalizedRegion (fallback: string) (value: string option) =
+    value
+    |> Option.map (fun text -> text.Trim())
+    |> Option.filter (String.IsNullOrWhiteSpace >> not)
+    |> Option.defaultValue fallback
+
+let captureCandidate campaign effects =
+    let submittedAt = effects.UtcNow()
+    let draw = effects.NextInt 10_000
+
+    if draw < 0 || draw >= 10_000 then
+        invalidArg (nameof effects) "NextInt returned a value outside its requested range."
+
+    let region =
+        effects.ReadSetting "BOOKING_REGION" |> normalizedRegion campaign.DefaultRegion
+
+    { SubmittedAt = submittedAt
+      Draw = draw
+      Region = region }
+```
 Its shape is:
 
 ```text
@@ -111,8 +126,12 @@ The record is useful here because one small internal orchestrator needs three in
 
 The system adapter is small:
 
-<<< @/../examples/scripts/ch20-functional-core-effects.fsx#system-adapter{fsharp:line-numbers} [ch20-functional-core-effects.fsx]
-
+```fsharp:line-numbers [ch20-functional-core-effects.fsx]
+let systemEffects (random: Random) =
+    { UtcNow = fun () -> DateTimeOffset.UtcNow
+      NextInt = fun upperExclusive -> random.Next upperExclusive
+      ReadSetting = fun name -> Environment.GetEnvironmentVariable name |> Option.ofObj }
+```
 Constructing this record does not read time or environment. Each closure performs its operation when `captureCandidate` invokes it:
 
 - `DateTimeOffset.UtcNow` reads the current UTC instant;
@@ -127,8 +146,18 @@ Only application composition should know `systemEffects`. The domain file should
 
 A closure is a function value together with values captured from its definition scope. The deterministic providers are tiny closures:
 
-<<< @/../examples/scripts/ch20-functional-core-effects.fsx#closures{fsharp:line-numbers} [ch20-functional-core-effects.fsx]
+```fsharp:line-numbers [ch20-functional-core-effects.fsx]
+let fixedClock instant = fun () -> instant
 
+let fixedDraw draw =
+    fun upperExclusive ->
+        if draw < 0 || draw >= upperExclusive then
+            invalidArg (nameof draw) "Fixed draw is outside the requested range."
+
+        draw
+
+let settingsFrom values = fun name -> Map.tryFind name values
+```
 `fixedClock instant` returns a `unit -> DateTimeOffset` function that remembers `instant`. `fixedDraw draw` remembers the chosen draw but still verifies the caller's requested range. `settingsFrom values` remembers an immutable map.
 
 These closures are pure because their captured values are immutable and their bodies perform no effects. A closure can instead capture a mutable counter, database client, or random generator; then invoking it is effectful. “Closure” describes how context is retained, not a purity guarantee.
@@ -183,8 +212,69 @@ Neither shape decides failure policy. A function or interface member can return 
 
 The script uses fixed dependencies plus a mutable `ResizeArray` only as test instrumentation:
 
-<<< @/../examples/scripts/ch20-functional-core-effects.fsx#deterministic-test{fsharp:line-numbers} [ch20-functional-core-effects.fsx]
+```fsharp:line-numbers [ch20-functional-core-effects.fsx]
+let instant = DateTimeOffset(2026, 9, 1, 12, 0, 0, TimeSpan.Zero)
 
+let campaign =
+    { OpensAt = instant.AddHours(-1.0)
+      ClosesAt = instant.AddHours(1.0)
+      CodePrefix = "BOOK"
+      DefaultRegion = "global" }
+
+let calls = ResizeArray<string>()
+
+let observedEffects =
+    { UtcNow =
+        fun () ->
+            calls.Add "clock"
+            instant
+      NextInt =
+        fun upperExclusive ->
+            calls.Add $"random:{upperExclusive}"
+            7
+      ReadSetting =
+        fun name ->
+            calls.Add $"environment:{name}"
+            Some " eu-west " }
+
+let candidate = captureCandidate campaign observedEffects
+let firstDecision = decide campaign candidate
+let replayedDecision = decide campaign candidate
+
+let expectedCalls = [ "clock"; "random:10000"; "environment:BOOKING_REGION" ]
+
+assert (candidate.SubmittedAt = instant)
+assert (candidate.Draw = 7)
+assert (candidate.Region = "eu-west")
+assert (firstDecision = Accepted "BOOK-eu-west-0007")
+assert (replayedDecision = firstDecision)
+assert (List.ofSeq calls = expectedCalls)
+
+let fallbackEffects =
+    { UtcNow = fixedClock instant
+      NextInt = fixedDraw 42
+      ReadSetting = settingsFrom Map.empty }
+
+let fallbackDecision =
+    fallbackEffects |> captureCandidate campaign |> decide campaign
+
+assert (fallbackDecision = Accepted "BOOK-global-0042")
+
+let earlyDecision =
+    decide
+        campaign
+        { candidate with
+            SubmittedAt = campaign.OpensAt.AddTicks(-1L) }
+
+let closedDecision =
+    decide
+        campaign
+        { candidate with
+            SubmittedAt = campaign.ClosesAt }
+
+assert (earlyDecision = NotOpen)
+assert (closedDecision = Closed)
+```
 The assertions prove:
 
 - the captured instant, draw, and trimmed region are exactly the supplied values;
@@ -197,13 +287,13 @@ No test sleeps, changes the process environment, or guesses what `Random` will r
 
 ## Run the shared example {#run-example}
 
-From the repository root:
+From the directory containing the example:
 
 ```console
-dotnet fsi --exec examples/scripts/ch20-functional-core-effects.fsx
+dotnet fsi --exec ch20-functional-core-effects.fsx
 ```
 
-Six deterministic output lines report the captured snapshot, accepted code, fallback region, window boundaries, exact effect order, and replay result. The manifest checks their order and text.
+Six deterministic output lines report the captured snapshot, accepted code, fallback region, window boundaries, exact effect order, and replay result. Compare their order and text.
 
 ## Effects still need failure contracts {#failure-contracts}
 

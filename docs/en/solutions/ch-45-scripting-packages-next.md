@@ -2,42 +2,6 @@
 title: "Chapter 45 Solutions"
 description: "Extend deterministic artifact automation, evaluate current command-line packages without overstating evidence, and turn the book into a twelve-week F# delivery loop."
 translationKey: solutions/ch-45-scripting-packages-next
-kind: solution
-part: 7
-chapter: 45
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch45-scripting-packages-next
-exerciseIds:
-  - ch45-exercise-01
-  - ch45-exercise-02
-  - ch45-exercise-03
-termIds: []
-sources:
-  - id: microsoft-fsi
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/tools/fsharp-interactive/
-    checked: "2026-08-25"
-  - id: microsoft-package-reference
-    url: https://learn.microsoft.com/en-us/nuget/consume-packages/package-references-in-project-files
-    checked: "2026-08-25"
-  - id: microsoft-package-evaluation
-    url: https://learn.microsoft.com/en-us/nuget/consume-packages/finding-and-choosing-packages
-    checked: "2026-08-25"
-  - id: microsoft-nuget-audit
-    url: https://learn.microsoft.com/en-us/nuget/concepts/auditing-packages
-    checked: "2026-08-25"
-  - id: system-command-line-2-0-11
-    url: https://www.nuget.org/packages/System.CommandLine/2.0.11
-    checked: "2026-08-25"
-  - id: argu-6-2-5
-    url: https://www.nuget.org/packages/Argu/6.2.5
-    checked: "2026-08-25"
-  - id: microsoft-byrefs
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/byrefs
-    checked: "2026-08-25"
 ---
 
 # Chapter 45 Solutions {#overview}
@@ -146,9 +110,9 @@ The official NuGet pages reviewed for this answer show:
 | Argu | 6.2.5 | F#-oriented declarative parser using discriminated unions; targets .NET Standard 2.0 | package last updated in December 2024; brings FSharp.Core and `System.Configuration.ConfigurationManager`; trimming/AOT behavior needs a real spike |
 | System.CommandLine | 2.0.11 | commands, options, arguments, validation, help, completions, and async actions; targets .NET 8 and .NET Standard 2.0 | object/builder API is C#-shaped; F# overload/null adaptation and exact help/error stability need a spike |
 
-Both package versions are research facts checked on that date, not packages compiled by this repository. The manifest script's automated evidence still covers only the BCL parser in the script.
+Both package versions are research facts checked on that date, not executable dependencies of the book site. The shown manifest script covers only its BCL parser until you run package-specific spikes.
 
-Do not compare download counts as if they were correctness. Inspect owners, MIT licenses, source repositories, dependency tabs, release history, advisories, and the exact `.nupkg`; then run restore audit under the repository's effective sources.
+Do not compare download counts as if they were correctness. Inspect owners, MIT licenses, source repositories, dependency tabs, release history, advisories, and the exact `.nupkg`; then run restore audit under the adopting project's effective sources.
 
 ### Focused spike {#parser-spike}
 

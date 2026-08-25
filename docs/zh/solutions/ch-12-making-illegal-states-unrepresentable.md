@@ -2,30 +2,6 @@
 title: "第 12 章练习答案"
 description: "保护有界值、选择外层记录边界，并修正把容量与可用量混在一起的跨文件 API。"
 translationKey: solutions/ch-12-making-illegal-states-unrepresentable
-kind: solution
-part: 2
-chapter: 12
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch12-making-illegal-states-unrepresentable
-exerciseIds:
-  - ch12-exercise-01
-  - ch12-exercise-02
-  - ch12-exercise-03
-termIds: []
-sources:
-  - id: microsoft-access-control
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/access-control
-    checked: "2026-08-24"
-  - id: microsoft-signature-files
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/signature-files
-    checked: "2026-08-24"
-  - id: microsoft-component-design
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-24"
 ---
 
 # 第 12 章练习答案 {#overview}

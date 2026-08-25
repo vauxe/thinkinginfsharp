@@ -2,31 +2,6 @@
 title: "Chapter 27 Solutions"
 description: "Project a leaking F# result into a controlled .NET response, evolve a query with overloads, and isolate serializer requirements in a dedicated DTO."
 translationKey: solutions/ch-27-fsharp-api-for-csharp
-kind: solution
-part: 5
-chapter: 27
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch27-fsharp-api
-  - ch27-csharp-client
-exerciseIds:
-  - ch27-exercise-01
-  - ch27-exercise-02
-  - ch27-exercise-03
-termIds: []
-sources:
-  - id: microsoft-fsharp-component-guidelines
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-24"
-  - id: dotnet-breaking-changes
-    url: https://learn.microsoft.com/en-us/dotnet/standard/library-guidance/breaking-changes
-    checked: "2026-08-24"
-  - id: fsharp-climutable
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-climutableattribute.html
-    checked: "2026-08-24"
 ---
 
 # Chapter 27 Solutions {#overview}
@@ -51,12 +26,40 @@ The public types can be `BookingRequest`, `BookingResponse`, `BookingOutcome`, a
 
 The core still returns a union; the boundary only projects it:
 
-<<< @/../examples/chapters/ch27/FSharpApi/Library.fs#boundary-adapter{fsharp:line-numbers} [Library.fs]
+```fsharp:line-numbers [Library.fs]
+module internal ResponseAdapter =
+    let fromDecision decision =
+        match decision with
+        | Accepted(confirmationCode, remainingSeats) ->
+            BookingResponse(BookingOutcome.Accepted, confirmationCode, Nullable remainingSeats, null, Nullable<int>())
+        | Rejected(message, suggestedSeats) ->
+            let suggestion =
+                match suggestedSeats with
+                | Some seats -> Nullable seats
+                | None -> Nullable<int>()
 
+            BookingResponse(BookingOutcome.Rejected, null, Nullable<int>(), message, suggestion)
+```
 The public entry point validates cross-boundary arguments, then calls that same core:
 
-<<< @/../examples/chapters/ch27/FSharpApi/Library.fs#public-api{fsharp:line-numbers} [Library.fs]
+```fsharp:line-numbers [Library.fs]
+/// <summary>Provides the stable .NET entry point for booking decisions.</summary>
+[<AbstractClass; Sealed>]
+type BookingApi private () =
+    /// <summary>Evaluates one request against the supplied available capacity.</summary>
+    /// <param name="capacity">Available seats. Negative capacity is invalid configuration.</param>
+    /// <param name="request">A non-null request to evaluate.</param>
+    /// <returns>A response projected into ordinary .NET enum, class, string, and nullable-value members.</returns>
+    /// <exception cref="System.ArgumentNullException"><paramref name="request"/> is <see langword="null"/>.</exception>
+    /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="capacity"/> is negative.</exception>
+    static member Evaluate(capacity: int, request: BookingRequest) =
+        ArgumentNullException.ThrowIfNull(request, nameof request)
 
+        if capacity < 0 then
+            raise (ArgumentOutOfRangeException(nameof capacity, capacity, "Capacity cannot be negative."))
+
+        request |> Decision.evaluate capacity |> ResponseAdapter.fromDecision
+```
 You may separately expose an idiomatic surface for F# callers, perhaps returning an abstract domain result. Do not make that convenience layer the source of the C# contract. Both surfaces should forward to the same internal function.
 
 ## Exercise 2: add optional filtering without breaking callers {#exercise-02}

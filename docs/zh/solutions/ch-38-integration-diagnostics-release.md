@@ -2,38 +2,6 @@
 title: "第 38 章练习答案"
 description: "审计夸大的保证，设计受限遥测收集，并把本地预约检查变成具体发布计划。"
 translationKey: solutions/ch-38-integration-diagnostics-release
-kind: solution
-part: 6
-chapter: 38
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - capstone-booking-domain
-  - capstone-booking-contracts
-  - capstone-booking-infrastructure
-  - capstone-booking-api
-  - capstone-booking-csharp-client
-  - foundation-contract-tests
-exerciseIds:
-  - ch38-exercise-01
-  - ch38-exercise-02
-  - ch38-exercise-03
-termIds: []
-sources:
-  - id: microsoft-aspnet-integration-tests
-    url: https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: microsoft-tracing-instrumentation
-    url: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/distributed-tracing-instrumentation-walkthroughs
-    checked: "2026-08-25"
-  - id: microsoft-metrics-instrumentation
-    url: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/metrics-instrumentation
-    checked: "2026-08-25"
-  - id: microsoft-dotnet-publishing
-    url: https://learn.microsoft.com/en-us/dotnet/core/deploying/
-    checked: "2026-08-25"
 ---
 
 # 第 38 章练习答案 {#overview}
@@ -58,11 +26,11 @@ sources:
 
 第二项现有主张应拆成两个：**完全相同的已完成操作会重放本地结果，而不重复已建模的替身调用**；以及**结果不明的支付会停下等待对账，而不会再次扣款**。两句话都没有声称真实提供商或通知消费者做了什么。
 
-第三项现有主张是：**仓库为已记录的教学拓扑提供可复现本地验收检查**。只有当生产契约说明环境、流量、安全、依赖、可用性、持久性和责任归属后，“生产就绪”才会成为可测试性质。
+第三项可辩护主张只有在应用自己的门禁真正通过后才成立：**应用为已记录拓扑提供可复现本地验收检查**。只有当生产契约说明环境、流量、安全、依赖、可用性、持久性和责任归属后，“生产就绪”才会成为可测试性质。
 
 ### 重写发布说明 {#exercise-01-rewrite}
 
-一份可辩护的说明可以写成：
+在所述验收路径成功运行后，一份可辩护的说明可以写成：
 
 > 预约收官项目现已通过锁定的本地验收门。已验证拓扑是一个 API 进程使用一个本地快照路径和受控支付/通知适配器。完全相同的已完成重试不会重复这些建模效果，变化的载荷会冲突，结果不明的支付会停下等待对账，C# HTTP 消费者可完成公开流程。多进程存储、真实提供商交付、安全控制、遥测导出、产物部署和生产恢复仍在本次发布范围之外。
 

@@ -2,54 +2,13 @@
 title: "附录 B：语法与运算符速查"
 description: "快速阅读常见 F# 类型、表达式、模式、声明、计算表达式与运算符，而不把速查表变成第二本语言规范。"
 translationKey: appendices/b-syntax-reference
-kind: appendix
-appendix: B
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch02-values-bindings-expressions
-  - ch03-functions-as-values
-  - ch04-branching-patterns
-  - ch08-discriminated-unions
-exerciseIds: []
-termIds: []
-sources:
-  - id: microsoft-fsharp-language-reference
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-types
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/fsharp-types
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-type-inference
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/type-inference
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-functions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-patterns
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/pattern-matching
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-discriminated-unions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-computation-expressions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/computation-expressions
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-symbols
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/symbol-and-operator-reference/
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-formatting
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/formatting
-    checked: "2026-08-25"
 ---
 
 # 附录 B：语法与运算符速查 {#overview}
 
 本附录用于查找正文已经解释过的语法。它不能替代类型检查器、F# 语言参考或面向具体问题的讲解。陌生代码显得密集时，先读推断或声明的类型；知道数据流后，标点会容易得多。
 
-下面所有完整 F# 代码块都来自已登记并由仓库门禁执行的样例。表格中的短形式只是语法形状，不是新加入且未经测试的程序。
+下面的完整 F# 代码块都是可复制到 FSI 或小型项目中的自包含示例。表格里的短形式只展示语法形状，并非完整程序。
 
 ## 从外向内读类型 {#read-types}
 
@@ -107,8 +66,17 @@ List.fold : ('State -> 'T -> 'State) -> 'State -> 'T list -> 'State
 
 `let` 把名称绑定到表达式的值。它不是语句结束符，也不承诺可变性。
 
-<<< @/../examples/scripts/ch02-values-bindings-expressions.fsx#basic-values{fsharp:line-numbers} [ch02-values-bindings-expressions.fsx]
+```fsharp:line-numbers [ch02-values-bindings-expressions.fsx]
+let eventName = "Functional Foundations"
+let capacity = 40
+let fillRatio = 0.45
+let ticketPrice = 19.50m
+let eventCode = 'F'
+let registrationOpen = true
+let noFurtherResult = ()
 
+printfn "%s (%c): capacity=%d, fill=%.2f, open=%b" eventName eventCode capacity fillRatio registrationOpen
+```
 | 形式 | 含义 |
 |---|---|
 | `let name = expression` | 不可变绑定 |
@@ -127,8 +95,13 @@ List.fold : ('State -> 'T -> 'State) -> 'State -> 'T list -> 'State
 
 ## 定义并应用函数 {#functions}
 
-<<< @/../examples/scripts/ch03-functions-as-values.fsx#curried-function{fsharp:line-numbers} [ch03-functions-as-values.fsx]
+```fsharp:line-numbers [ch03-functions-as-values.fsx]
+let lineTotal unitPrice seats = unitPrice * decimal seats
+let standardLineTotal = lineTotal 19.50m
+let totalForThree = standardLineTotal 3
 
+printfn "Curried total: %M" totalForThree
+```
 | 形式 | 含义 |
 |---|---|
 | `let f x y = body` | 命名柯里化函数 |
@@ -149,8 +122,16 @@ List.fold : ('State -> 'T -> 'State) -> 'State -> 'T list -> 'State
 
 `if/then/else` 是表达式。两个分支必须具有兼容类型。只有 `then` 分支为 `unit` 时才允许省略 `else`。
 
-<<< @/../examples/scripts/ch04-branching-patterns.fsx#guarded-match{fsharp:line-numbers} [ch04-branching-patterns.fsx]
+```fsharp:line-numbers [ch04-branching-patterns.fsx]
+let capacityBand remaining =
+    match remaining with
+    | value when value <= 0 -> "full"
+    | 1 -> "last seat"
+    | value when value <= 5 -> "limited"
+    | _ -> "available"
 
+printfn "Capacity bands: %s, %s, %s, %s" (capacityBand 0) (capacityBand 1) (capacityBand 4) (capacityBand 8)
+```
 匹配分支从上到下运行。优先写结构化分支，再放最终通配符，并让编译器穷尽性反馈暴露新增领域状态。
 
 | 模式 | 含义 |
@@ -185,10 +166,25 @@ List.fold : ('State -> 'T -> 'State) -> 'State -> 'T list -> 'State
 
 联合案例以大写标识符开头。可以命名案例字段，以改善生成签名与互操作。
 
-<<< @/../examples/scripts/ch08-discriminated-unions.fsx#union-definition{fsharp:line-numbers} [ch08-discriminated-unions.fsx]
+```fsharp:line-numbers [ch08-discriminated-unions.fsx]
+type BookingStatus =
+    | Pending
+    | Confirmed of confirmationCode: string
+    | Cancelled of reason: string
+```
+```fsharp:line-numbers [ch08-discriminated-unions.fsx]
+let describeStatus status =
+    match status with
+    | Pending -> "pending"
+    | Confirmed confirmationCode -> $"confirmed:{confirmationCode}"
+    | Cancelled reason -> $"cancelled:{reason}"
 
-<<< @/../examples/scripts/ch08-discriminated-unions.fsx#exhaustive-match{fsharp:line-numbers} [ch08-discriminated-unions.fsx]
+let statuses = [ Pending; Confirmed "C-42"; Cancelled "duplicate" ]
 
+let descriptions = statuses |> List.map describeStatus
+
+printfn "Statuses: %A" descriptions
+```
 用记录表示同时成立的事实，用联合表示替代项。除非矛盾组合确实有效，否则不要用互相独立的布尔标志复制联合。
 
 ## 识别集合语法 {#collections}

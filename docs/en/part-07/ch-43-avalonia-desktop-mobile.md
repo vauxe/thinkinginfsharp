@@ -2,99 +2,6 @@
 title: "Chapter 43: Avalonia, Desktop, and Mobile"
 description: "Design F# user interfaces from state, lifetime, platform, tooling, packaging, and evidence boundaries instead of treating cross-platform compilation as cross-platform validation."
 translationKey: part-07/ch-43-avalonia-desktop-mobile
-kind: chapter
-part: 7
-chapter: 43
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ecosystem-avalonia-desktop
-exerciseIds:
-  - ch43-exercise-01
-  - ch43-exercise-02
-  - ch43-exercise-03
-termIds: []
-sources:
-  - id: avalonia-get-started
-    url: https://docs.avaloniaui.net/docs/get-started/
-    checked: "2026-08-25"
-  - id: avalonia-templates
-    url: https://github.com/AvaloniaUI/Avalonia.Templates
-    checked: "2026-08-25"
-  - id: avalonia-desktop-nuget
-    url: https://www.nuget.org/packages/Avalonia.Desktop/12.1.1
-    checked: "2026-08-25"
-  - id: avalonia-supported-platforms
-    url: https://docs.avaloniaui.net/docs/supported-platforms
-    checked: "2026-08-25"
-  - id: avalonia-cross-platform-architecture
-    url: https://docs.avaloniaui.net/docs/fundamentals/cross-platform-architecture
-    checked: "2026-08-25"
-  - id: avalonia-cross-platform-solution
-    url: https://docs.avaloniaui.net/docs/app-development/cross-platform-solution-setup
-    checked: "2026-08-25"
-  - id: avalonia-application-lifetimes
-    url: https://docs.avaloniaui.net/docs/fundamentals/application-lifetimes
-    checked: "2026-08-25"
-  - id: avalonia-12-breaking-changes
-    url: https://docs.avaloniaui.net/docs/avalonia12-breaking-changes
-    checked: "2026-08-25"
-  - id: avalonia-xaml-compilation
-    url: https://docs.avaloniaui.net/docs/xaml/compilation
-    checked: "2026-08-25"
-  - id: avalonia-coded-ui
-    url: https://docs.avaloniaui.net/docs/fundamentals/coded-ui
-    checked: "2026-08-25"
-  - id: avalonia-threading
-    url: https://docs.avaloniaui.net/docs/app-development/threading
-    checked: "2026-08-25"
-  - id: avalonia-responsive-layouts
-    url: https://docs.avaloniaui.net/docs/layout/responsive-layouts
-    checked: "2026-08-25"
-  - id: avalonia-accessibility
-    url: https://docs.avaloniaui.net/docs/app-development/accessibility
-    checked: "2026-08-25"
-  - id: avalonia-headless-testing
-    url: https://docs.avaloniaui.net/docs/testing/setting-up-the-headless-platform
-    checked: "2026-08-25"
-  - id: avalonia-windows
-    url: https://docs.avaloniaui.net/docs/platform-specific-guides/windows
-    checked: "2026-08-25"
-  - id: avalonia-macos
-    url: https://docs.avaloniaui.net/docs/platform-specific-guides/macos
-    checked: "2026-08-25"
-  - id: avalonia-linux
-    url: https://docs.avaloniaui.net/docs/platform-specific-guides/linux
-    checked: "2026-08-25"
-  - id: avalonia-android
-    url: https://docs.avaloniaui.net/docs/platform-specific-guides/android/
-    checked: "2026-08-25"
-  - id: avalonia-ios
-    url: https://docs.avaloniaui.net/docs/platform-specific-guides/ios
-    checked: "2026-08-25"
-  - id: avalonia-deploy-macos
-    url: https://docs.avaloniaui.net/docs/deployment/macos
-    checked: "2026-08-25"
-  - id: avalonia-deploy-linux
-    url: https://docs.avaloniaui.net/docs/deployment/linux
-    checked: "2026-08-25"
-  - id: avalonia-deploy-ios
-    url: https://docs.avaloniaui.net/docs/deployment/ios
-    checked: "2026-08-25"
-  - id: dotnet-publishing
-    url: https://learn.microsoft.com/dotnet/core/deploying/
-    checked: "2026-08-25"
-  - id: dotnet-wpf-migration
-    url: https://learn.microsoft.com/dotnet/desktop/wpf/migration/
-    checked: "2026-08-25"
-  - id: dotnet-maui
-    url: https://learn.microsoft.com/dotnet/maui/?view=net-maui-10.0
-    checked: "2026-08-25"
-  - id: dotnet-maui-templates
-    url: https://github.com/dotnet/maui/tree/main/src/Templates/src/templates
-    checked: "2026-08-25"
 ---
 
 # Chapter 43: Avalonia, Desktop, and Mobile {#overview}
@@ -192,54 +99,187 @@ The desktop sample is deliberately one `net10.0` desktop executable. It has five
 
 ### A pinned ordinary .NET project {#pinned-project}
 
-<<< @/../examples/ecosystem/avalonia/AvaloniaSample.fsproj{xml:line-numbers} [AvaloniaSample.fsproj]
+```xml:line-numbers [AvaloniaSample.fsproj]
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>ThinkingInFSharp.AvaloniaSample</AssemblyName>
+    <RootNamespace>ThinkingInFSharp.AvaloniaSample</RootNamespace>
+  </PropertyGroup>
 
-`Avalonia`, `Avalonia.Desktop`, and `Avalonia.Themes.Fluent` are pinned to 12.1.1 and resolved through a lock file. The repository also locks FSharp.Core 10.1.301. `WinExe` selects a graphical executable; `net10.0` remains a generic desktop target rather than `net10.0-macos` or `net10.0-windows`.
+  <ItemGroup>
+    <Compile Include="MainWindow.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
+  </ItemGroup>
+</Project>
+```
+`Avalonia`, `Avalonia.Desktop`, and `Avalonia.Themes.Fluent` are pinned to 12.1.1 and resolved through a lock file. A copied project can also pin FSharp.Core 10.1.301. `WinExe` selects a graphical executable; `net10.0` remains a generic desktop target rather than `net10.0-macos` or `net10.0-windows`.
 
 The explicit F# compile order matters: `MainWindow.fs` defines types consumed by `Program.fs`. AXAML files are processed by Avalonia build targets and are not F# compile items.
 
 ### A pure transition owns the decision {#pure-transition}
 
-<<< @/../examples/ecosystem/avalonia/MainWindow.fs{fsharp:line-numbers} [MainWindow.fs]
+```fsharp:line-numbers [MainWindow.fs]
+namespace ThinkingInFSharp.AvaloniaSample
 
+open Avalonia.Controls
+open Avalonia.Markup.Xaml
+
+type Model = { Seats: int }
+
+type Message =
+    | AddSeat
+    | RemoveSeat
+    | Reset
+
+[<RequireQualifiedAccess>]
+module Counter =
+    let initial = { Seats = 0 }
+
+    let update message model =
+        match message with
+        | AddSeat -> { model with Seats = model.Seats + 1 }
+        | RemoveSeat ->
+            { model with
+                Seats = max 0 (model.Seats - 1) }
+        | Reset -> initial
+
+type MainWindow() as this =
+    inherit Window()
+
+    do
+        AvaloniaXamlLoader.Load(this)
+
+        let countText = this.GetControl<TextBlock>("CountText")
+        let statusText = this.GetControl<TextBlock>("StatusText")
+        let removeButton = this.GetControl<Button>("RemoveButton")
+        let mutable model = Counter.initial
+
+        let render state =
+            countText.Text <- string state.Seats
+
+            statusText.Text <-
+                if state.Seats = 0 then "No seats selected"
+                elif state.Seats = 1 then "1 seat selected"
+                else $"{state.Seats} seats selected"
+
+            removeButton.IsEnabled <- state.Seats > 0
+
+        let dispatch message =
+            model <- Counter.update message model
+            render model
+
+        this.GetControl<Button>("AddButton").Click.Add(fun _ -> dispatch AddSeat)
+        removeButton.Click.Add(fun _ -> dispatch RemoveSeat)
+        this.GetControl<Button>("ResetButton").Click.Add(fun _ -> dispatch Reset)
+        render model
+```
 `Model`, `Message`, and `Counter.update` do not know about buttons, dispatchers, windows, or Avalonia. `RemoveSeat` enforces the lower bound. The view holds the current model only because this sample is intentionally local and ephemeral; a real workflow would decide separately what must survive navigation, suspension, restart, or upgrade.
 
 The window loads AXAML, obtains named controls, turns clicks into messages, calls the pure update, and renders the result. This is a small manual model-view-update loop. It is not a claim that all UI effects should fit in one constructor.
 
 ### Markup owns shape, not business rules {#markup-shape}
 
-<<< @/../examples/ecosystem/avalonia/MainWindow.axaml{xml:line-numbers} [MainWindow.axaml]
+```xml:line-numbers [MainWindow.axaml]
+<Window
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    x:Class="ThinkingInFSharp.AvaloniaSample.MainWindow"
+    Title="Thinking in F# — Avalonia"
+    Width="520"
+    Height="400"
+    MinWidth="420"
+    MinHeight="340"
+    WindowStartupLocation="CenterScreen">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="32">
+    <StackPanel Grid.Row="0" Spacing="6">
+      <TextBlock FontSize="13" FontWeight="SemiBold" Text="THINKING IN F#" />
+      <TextBlock FontSize="28" FontWeight="Bold" Text="Pure update, thin view" />
+      <TextBlock Opacity="0.72" Text="Avalonia owns the window; F# owns the state transition." />
+    </StackPanel>
 
+    <Border Grid.Row="1" Margin="0,24" Padding="24" CornerRadius="16" BorderThickness="1">
+      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+        <TextBlock HorizontalAlignment="Center" Opacity="0.72" Text="Seats requested" />
+        <TextBlock
+            x:Name="CountText"
+            HorizontalAlignment="Center"
+            FontSize="64"
+            FontWeight="Bold"
+            Text="0" />
+        <TextBlock x:Name="StatusText" HorizontalAlignment="Center" Text="No seats selected" />
+      </StackPanel>
+    </Border>
+
+    <StackPanel Grid.Row="2" HorizontalAlignment="Center" Orientation="Horizontal" Spacing="12">
+      <Button x:Name="RemoveButton" MinWidth="100" HorizontalContentAlignment="Center" Content="Remove" />
+      <Button x:Name="ResetButton" MinWidth="100" HorizontalContentAlignment="Center" Content="Reset" />
+      <Button x:Name="AddButton" MinWidth="100" HorizontalContentAlignment="Center" Content="Add a seat" />
+    </StackPanel>
+  </Grid>
+</Window>
+```
 The markup owns layout, control identity, labels, and initial visual values. Text buttons already expose useful accessible names through their content. A production screen would add stable automation IDs, explicit labels where visible text is ambiguous, localized resources, keyboard behavior, contrast checks, and tests at large text and narrow widths.
 
 `GetControl<T>` intentionally fails if a required name is absent. The string passed to `GetControl` is not a typed binding path, so a successful XAML compilation does not prove every lookup. A headless or native construction test closes that gap.
 
 ### The host chooses a desktop lifetime {#desktop-lifetime}
 
-<<< @/../examples/ecosystem/avalonia/Program.fs{fsharp:line-numbers} [Program.fs]
+```fsharp:line-numbers [Program.fs]
+namespace ThinkingInFSharp.AvaloniaSample
 
+open System
+open Avalonia
+open Avalonia.Controls.ApplicationLifetimes
+open Avalonia.Markup.Xaml
+
+type App() =
+    inherit Application()
+
+    override this.Initialize() = AvaloniaXamlLoader.Load(this)
+
+    override this.OnFrameworkInitializationCompleted() =
+        match this.ApplicationLifetime with
+        | :? IClassicDesktopStyleApplicationLifetime as desktop -> desktop.MainWindow <- MainWindow()
+        | _ -> ()
+
+        base.OnFrameworkInitializationCompleted()
+
+module Program =
+    [<CompiledName("BuildAvaloniaApp")>]
+    let buildAvaloniaApp () =
+        AppBuilder.Configure<App>().UsePlatformDetect().LogToTrace(areas = Array.empty)
+
+    [<EntryPoint; STAThread>]
+    let main args =
+        buildAvaloniaApp().StartWithClassicDesktopLifetime(args)
+```
 `BuildAvaloniaApp` mirrors the official template seam used by tooling and startup. `StartWithClassicDesktopLifetime` creates an `IClassicDesktopStyleApplicationLifetime`; only after framework initialization does `App` assign `MainWindow`. The entry point has `STAThread`, which is relevant to Windows APIs such as COM and the clipboard.
 
 Desktop assumptions are explicit here. iOS and browser use `ISingleViewApplicationLifetime`; Android uses `IActivityApplicationLifetime` with a view factory because activities can be recreated. Reusing this `MainWindow` startup path on mobile would be a design error, not a missing compiler switch.
 
 ### The focused test does not start a UI {#focused-test}
 
-The repository's xUnit suite references the sample and checks three additions, reset, lower-bound removal, and the unchanged initial value. It runs without Avalonia initialization because the tested function has no toolkit dependency. That speed and determinism are the payoff of the boundary.
-
-The focused run and the complete repository example suite passed. The sample's Release build under .NET SDK 10.0.301 completed with zero warnings and zero errors, and the full locked example gate—including the other .NET projects and Fable browser smoke—passed.
+A focused xUnit test can reference the pure state module and check three additions, reset, lower-bound removal, and the unchanged initial value. It runs without Avalonia initialization because the tested function has no toolkit dependency. That speed and determinism are the payoff of the boundary.
 
 ### State the native launch result exactly {#native-launch-result}
 
-| Evidence | Desktop sample result | What it proves | What it does not prove |
+| Evidence | Status in this chapter | What it can prove when run | What it does not prove |
 | --- | --- | --- | --- |
-| Locked restore | Passed | The recorded NuGet graph resolves | Future versions or other runtime graphs |
-| Release build | Passed, 0 warnings/errors | F# and AXAML compile for `net10.0` | A usable native window or package |
-| Pure transition test | Passed | The checked state transitions | Control lookup, layout, input, rendering |
-| Full example gate | Passed | Repository integration remains reproducible | Desktop/mobile platform behavior |
-| macOS native start | Attempted; failed before a window with Avalonia.Native RenderTimer error `-6661` | The process reached the native macOS backend and exposed the automation session's missing graphical display context | A displayed window, user interaction, or a defect in the application logic |
-| Windows/Linux/mobile/package/store | Not run | Nothing | Nothing |
+| Project and lock configuration | Shown | The recorded NuGet graph resolves | Future versions or other runtime graphs |
+| Release build | Run after copying | F# and AXAML compile for `net10.0` | A usable native window or package |
+| Pure transition test | Shown | The checked state transitions | Control lookup, layout, input, rendering |
+| Native start | Run on every supported desktop OS | A real window starts in that environment | Other operating systems or packages |
+| Mobile/package/store | Not covered | Nothing | Mobile lifetime, signing, installation, or store behavior |
 
-The failed launch is useful evidence because it prevents an inflated claim. It should be rerun in an unlocked interactive desktop session. There is no justification for changing the pure model, suppressing the exception, or claiming macOS success merely because compilation passed.
+A successful build is not native-launch evidence. Run the application in an interactive desktop session on each supported operating system; record failures without weakening the pure model or suppressing host exceptions.
 
 ## Choose a state pattern deliberately {#state-patterns}
 
@@ -332,7 +372,7 @@ Implement them in the platform host and inject them during composition. Model �
 
 ## Desktop is already three platform programs {#desktop-platforms}
 
-Avalonia's one desktop project can target Windows, macOS, and Linux, but each backend and distribution system remains distinct. Support tiers and minimum OS versions change; the repository checked the official matrix on 2026-08-25 and should recheck it before release.
+Avalonia's one desktop project can target Windows, macOS, and Linux, but each backend and distribution system remains distinct. Support tiers and minimum OS versions change; this chapter checked the official matrix on 2026-08-25, and an application should recheck it before release.
 
 ### Windows {#windows}
 
@@ -485,7 +525,7 @@ Design a Core/Desktop/Android/iOS project graph for a booking client. The shared
 - Choose a UI boundary from users, devices, native capabilities, team skills, and release channels.
 - Avalonia supplies official F# templates, compiled AXAML, shared controls, and multiple platform hosts; it does not erase platform behavior.
 - The desktop sample pins Avalonia 12.1.1 and separates a pure `Counter.update` from an imperative desktop view.
-- Its locked restore, build, tests, and repository gate pass; its automated macOS native launch did not, so native success is not claimed.
+- The project, pure test, and startup code are shown; each adopting application must run restore, build, tests, and native launch itself.
 - Manual MVU, MVVM adapters, code-behind, and code-only UI are choices with different pressure points.
 - Avalonia 12 bindings are compiled by default and require an explicit data type; reflection binding is an intentional exception.
 - Adapt immutable records, unions, options, collections, and commands at the UI boundary rather than weakening the domain.

@@ -2,36 +2,6 @@
 title: "第 10 章：递归类型与结构递归"
 description: "用递归可辨识联合建模树，再从类型案例直接推导遍历、map 与 fold。"
 translationKey: part-02/ch-10-recursive-types
-kind: chapter
-part: 2
-chapter: 10
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch10-recursive-types
-exerciseIds:
-  - ch10-exercise-01
-  - ch10-exercise-02
-  - ch10-exercise-03
-termIds:
-  - discriminated-union
-  - fold
-  - recursive-type
-  - recursion
-  - structural-recursion
-  - tail-call
-sources:
-  - id: microsoft-discriminated-unions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions
-    checked: "2026-08-24"
-  - id: microsoft-recursive-functions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/recursive-functions-the-rec-keyword
-    checked: "2026-08-24"
-  - id: microsoft-functions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/
-    checked: "2026-08-24"
 ---
 
 # 第 10 章：递归类型与结构递归 {#overview}
@@ -59,8 +29,17 @@ sources:
 
 共享类型表示空树、一个叶子值，或包含两棵子树的分支：
 
-<<< @/../examples/scripts/ch10-recursive-types.fsx#recursive-type{fsharp:line-numbers} [ch10-recursive-types.fsx]
+```fsharp:line-numbers [ch10-recursive-types.fsx]
+type BookingTree<'T> =
+    | Empty
+    | Leaf of 'T
+    | Branch of left: BookingTree<'T> * right: BookingTree<'T>
 
+let emptyTree: BookingTree<int> = Empty
+let leafTree = Leaf 2
+
+let branchTree = Branch(Leaf 2, Branch(Leaf 3, Leaf 4))
+```
 `BookingTree<'T>` 出现在自己的 `Branch` 案例内部。这个自身引用让它成为递归类型。类型参数说明同一棵树的每个叶子携带同一种负载类型，而树形状与该类型无关。
 
 把这些案例读成构造规则：
@@ -80,8 +59,23 @@ sources:
 
 要使用每一种 `BookingTree`，就要覆盖每个案例。要处理 `Branch`，就递归处理它的两个子树字段：
 
-<<< @/../examples/scripts/ch10-recursive-types.fsx#structural-traversal{fsharp:line-numbers} [ch10-recursive-types.fsx]
+```fsharp:line-numbers [ch10-recursive-types.fsx]
+let rec countLeaves tree =
+    match tree with
+    | Empty -> 0
+    | Leaf _ -> 1
+    | Branch(left, right) -> countLeaves left + countLeaves right
 
+let rec totalSeats tree =
+    match tree with
+    | Empty -> 0
+    | Leaf seats -> seats
+    | Branch(left, right) -> totalSeats left + totalSeats right
+
+printfn "Counts: empty=%d leaf=%d branch=%d" (countLeaves emptyTree) (countLeaves leafTree) (countLeaves branchTree)
+
+printfn "Totals: empty=%d leaf=%d branch=%d" (totalSeats emptyTree) (totalSeats leafTree) (totalSeats branchTree)
+```
 `let rec` 让函数名可以在自己的主体中使用。两个函数具有相同的结构骨架：
 
 - `Empty` 是基础案例，不发起递归调用；
@@ -96,8 +90,23 @@ sources:
 
 树的 map 处理每个案例，却只改变叶子：
 
-<<< @/../examples/scripts/ch10-recursive-types.fsx#tree-map{fsharp:line-numbers} [ch10-recursive-types.fsx]
+```fsharp:line-numbers [ch10-recursive-types.fsx]
+let rec mapTree mapping tree =
+    match tree with
+    | Empty -> Empty
+    | Leaf value -> Leaf(mapping value)
+    | Branch(left, right) -> Branch(mapTree mapping left, mapTree mapping right)
 
+let rec renderTree formatValue tree =
+    match tree with
+    | Empty -> "Empty"
+    | Leaf value -> $"Leaf({formatValue value})"
+    | Branch(left, right) -> $"Branch({renderTree formatValue left},{renderTree formatValue right})"
+
+let labeledTree = branchTree |> mapTree (fun seats -> $"{seats} seats")
+
+printfn "Mapped: %s" (renderTree id labeledTree)
+```
 它的推断形状是：
 
 ```fsharp
@@ -121,8 +130,25 @@ mapTree (f >> g) tree = mapTree f tree |> mapTree g
 
 共享 fold 捕获了递归机制：
 
-<<< @/../examples/scripts/ch10-recursive-types.fsx#tree-fold{fsharp:line-numbers} [ch10-recursive-types.fsx]
+```fsharp:line-numbers [ch10-recursive-types.fsx]
+let rec foldTree onEmpty onLeaf onBranch tree =
+    match tree with
+    | Empty -> onEmpty
+    | Leaf value -> onLeaf value
+    | Branch(left, right) ->
+        let leftResult = foldTree onEmpty onLeaf onBranch left
+        let rightResult = foldTree onEmpty onLeaf onBranch right
+        onBranch leftResult rightResult
 
+let countWithFold = foldTree 0 (fun _ -> 1) (+)
+
+let totalWithFold = foldTree 0 id (+)
+
+printfn
+    "Fold agrees: count=%b total=%b"
+    (countWithFold branchTree = countLeaves branchTree)
+    (totalWithFold branchTree = totalSeats branchTree)
+```
 从类型出发读取它的参数：
 
 ```fsharp
@@ -158,8 +184,17 @@ let mapTreeWithFold mapping =
 
 示例用同一骨架定义高度：
 
-<<< @/../examples/scripts/ch10-recursive-types.fsx#tree-depth{fsharp:line-numbers} [ch10-recursive-types.fsx]
+```fsharp:line-numbers [ch10-recursive-types.fsx]
+let rec height tree =
+    match tree with
+    | Empty -> 0
+    | Leaf _ -> 1
+    | Branch(left, right) -> 1 + max (height left) (height right)
 
+printfn "Heights: empty=%d leaf=%d branch=%d" (height emptyTree) (height leafTree) (height branchTree)
+
+printfn "Shape preserved: before=%d after=%d" (countLeaves branchTree) (countLeaves labeledTree)
+```
 按照 `Empty = 0`、`Leaf = 1` 的约定，分支高度是较高子树的高度加一。示例分支有三个叶子，高度也为三。叶子数与高度衡量不同事实：平衡树可以用不高的高度容纳很多叶子；单侧树的高度却可能与节点数成正比。
 
 对于 `countLeaves`、`mapTree` 和 `foldTree`：
@@ -189,10 +224,10 @@ and Binding =
 
 ## 运行共享示例 {#run-example}
 
-在仓库根目录执行：
+在示例所在目录执行：
 
 ```console
-dotnet fsi --exec examples/scripts/ch10-recursive-types.fsx
+dotnet fsi --exec ch10-recursive-types.fsx
 ```
 
 六行确定性输出覆盖空树、叶子与分支树、直接遍历、改变类型的 map、由 fold 推导的查询、高度，以及叶子数保持不变。

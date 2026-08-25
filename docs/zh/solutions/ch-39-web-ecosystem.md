@@ -2,40 +2,6 @@
 title: "第 39 章练习答案"
 description: "为具体团队选择 Web 表面，设计保留契约的 Falco 试验，并可逆地迁移绑定框架的端点。"
 translationKey: solutions/ch-39-web-ecosystem
-kind: solution
-part: 7
-chapter: 39
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ecosystem-web-minimal-api
-  - foundation-contract-tests
-exerciseIds:
-  - ch39-exercise-01
-  - ch39-exercise-02
-  - ch39-exercise-03
-termIds: []
-sources:
-  - id: microsoft-aspnet-api-overview
-    url: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/apis?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: microsoft-aspnet-integration-tests
-    url: https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: giraffe-nuget
-    url: https://www.nuget.org/packages/Giraffe/8.3.0
-    checked: "2026-08-25"
-  - id: falco-nuget
-    url: https://www.nuget.org/packages/Falco/5.2.0
-    checked: "2026-08-25"
-  - id: oxpecker-nuget
-    url: https://www.nuget.org/packages/Oxpecker/2.0.1
-    checked: "2026-08-25"
-  - id: saturn-nuget
-    url: https://www.nuget.org/packages/Saturn/0.17.0
-    checked: "2026-08-25"
 ---
 
 # 第 39 章练习答案 {#overview}
@@ -143,7 +109,7 @@ POST /api/greetings
 
 如果试验在没有产品理由时改变契约、必要中间件需要自定义桥接、取消或诊断变得模糊、无法通过发布策略，或节省的重复代码不足以偿还第二套 API 生命周期，就删除它。如果胜出，只替换旧路由一次，记录约定，并让框架类型留在验证/应用模块之外。
 
-本设计刻意不声称试验已经通过：本仓库只验证直接 Minimal API 实现。
+本设计刻意不声称试验已经通过。本章展示直接 Minimal API 方法；无论选择哪种实现，都必须在采用它的应用中验证。
 
 ## 练习 3：设计可逆迁移 {#exercise-03}
 

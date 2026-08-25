@@ -2,42 +2,6 @@
 title: "Chapter 23: Cancellation, Timeouts, Faults, and Disposal"
 description: "Propagate cooperative cancellation, distinguish stopping work from abandoning a wait, preserve faults, and release resources on every asynchronous exit path."
 translationKey: part-04/ch-23-cancellation-timeouts
-kind: chapter
-part: 4
-chapter: 23
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch23-cancellation-timeouts
-exerciseIds:
-  - ch23-exercise-01
-  - ch23-exercise-02
-  - ch23-exercise-03
-termIds:
-  - computation-expression
-  - effect
-  - result
-sources:
-  - id: microsoft-fsharp-task-expressions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/task-expressions
-    checked: "2026-08-24"
-  - id: dotnet-cooperative-cancellation
-    url: https://learn.microsoft.com/en-us/dotnet/standard/threading/cancellation-in-managed-threads
-    checked: "2026-08-24"
-  - id: dotnet-task-cancellation
-    url: https://learn.microsoft.com/en-us/dotnet/standard/parallel-programming/task-cancellation
-    checked: "2026-08-24"
-  - id: dotnet-task-wait-async
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.threading.tasks.task-1.waitasync?view=net-10.0
-    checked: "2026-08-24"
-  - id: dotnet-iasyncdisposable
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.iasyncdisposable?view=net-10.0
-    checked: "2026-08-24"
-  - id: fsharp-fsi-async-disposable-issue
-    url: https://github.com/dotnet/fsharp/issues/14454
-    checked: "2026-08-24"
 ---
 
 # Chapter 23: Cancellation, Timeouts, Faults, and Disposal {#overview}
@@ -89,8 +53,36 @@ Using `CancellationToken.None` in the middle silently cuts the propagation chain
 
 The shared example registers a callback that completes a controlled task as canceled with the same token:
 
-<<< @/../examples/scripts/ch23-cancellation-timeouts.fsx#cancellation-operation{fsharp:line-numbers} [ch23-cancellation-timeouts.fsx]
+```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
+let cancellableTask (cancellationToken: CancellationToken) =
+    let completion = newGate<string> ()
 
+    task {
+        use _registration =
+            cancellationToken.Register(fun () -> completion.TrySetCanceled(cancellationToken) |> ignore)
+
+        return! completion.Task
+    }
+
+let operationCancellation = new CancellationTokenSource()
+let canceledOperation = cancellableTask operationCancellation.Token
+assert (not canceledOperation.IsCompleted)
+
+operationCancellation.Cancel()
+
+let operationCanceled, matchingToken =
+    try
+        canceledOperation.GetAwaiter().GetResult() |> ignore
+        false, false
+    with :? OperationCanceledException as cause ->
+        true, cause.CancellationToken = operationCancellation.Token
+
+assert operationCanceled
+assert matchingToken
+assert canceledOperation.IsCanceled
+printfn "Operation cancellation: canceled=%b token=%b" operationCanceled matchingToken
+operationCancellation.Dispose()
+```
 The task is pending before `Cancel`. After the request, awaiting it raises `OperationCanceledException`, the exception carries the expected token, and the task has `IsCanceled = true`. The registration is held by `use`, so it is removed when the task leaves its scope. The token source is disposed by its owner after the operation is observed.
 
 Cancellation tokens are one-way: once requested, a token remains canceled. Create a new source for a logically new operation; do not attempt to reset and reuse the old request.
@@ -106,8 +98,31 @@ Two policies are often described with the same phrase, “cancel the call”:
 
 `Task<'T>.WaitAsync(cancellationToken)` demonstrates the second policy. It returns another task that completes when either the original task completes or the wait token is canceled. Canceling that token does not modify the original task:
 
-<<< @/../examples/scripts/ch23-cancellation-timeouts.fsx#abandon-wait{fsharp:line-numbers} [ch23-cancellation-timeouts.fsx]
+```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
+let underlyingCompletion = newGate<string> ()
+let waitCancellation = new CancellationTokenSource()
+let abandonedWait = underlyingCompletion.Task.WaitAsync(waitCancellation.Token)
 
+waitCancellation.Cancel()
+
+let waitCanceled =
+    try
+        abandonedWait.GetAwaiter().GetResult() |> ignore
+        false
+    with :? OperationCanceledException ->
+        true
+
+assert waitCanceled
+assert abandonedWait.IsCanceled
+assert (not underlyingCompletion.Task.IsCompleted)
+printfn "Abandoned wait: waiter-canceled=%b operation-pending=%b" waitCanceled true
+
+underlyingCompletion.SetResult("late-result")
+let underlyingResult = underlyingCompletion.Task.GetAwaiter().GetResult()
+assert (underlyingResult = "late-result")
+printfn "Underlying after abandon: result=%s" underlyingResult
+waitCancellation.Dispose()
+```
 The test cancels the waiter, proves the underlying operation remains pending, then completes the underlying task and observes its result. Every state transition follows an explicit call, so the proof is independent of machine speed.
 
 Abandoning a wait is useful when work has another owner—for example, a shared cache refresh—or cannot safely be interrupted. It is dangerous when nobody remains responsible for observing failure, limiting resource use, or preventing a later duplicate effect. State that owner explicitly.
@@ -126,8 +141,39 @@ A timeout answers “how long will this caller wait?” It does not by itself an
 
 The shared test removes wall-clock time altogether. An injected task represents “the deadline fired”:
 
-<<< @/../examples/scripts/ch23-cancellation-timeouts.fsx#controlled-timeout{fsharp:line-numbers} [ch23-cancellation-timeouts.fsx]
+```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
+type WaitOutcome<'T> =
+    | Completed of 'T
+    | TimedOut
 
+let awaitUntilSignal (operation: Task<'T>) (timeoutSignal: Task) =
+    task {
+        let! winner = Task.WhenAny [| operation :> Task; timeoutSignal |]
+
+        if obj.ReferenceEquals(winner, operation) then
+            let! value = operation
+            return Completed value
+        else
+            return TimedOut
+    }
+
+let timedOperation = newGate<string> ()
+let timeoutSignal = newGate<unit> ()
+let timeoutObservation = awaitUntilSignal timedOperation.Task timeoutSignal.Task
+
+assert (not timeoutObservation.IsCompleted)
+timeoutSignal.SetResult()
+
+let timedOut =
+    match timeoutObservation.GetAwaiter().GetResult() with
+    | TimedOut -> true
+    | Completed _ -> false
+
+assert timedOut
+assert (not timedOperation.Task.IsCompleted)
+printfn "Timeout signal: timed-out=%b operation-pending=%b" timedOut true
+timedOperation.SetResult("finished-after-timeout")
+```
 `Task.WhenAny` identifies the first completed signal. Completing `timeoutSignal` deterministically yields `TimedOut`; the original operation remains pending. A production timer is one adapter that completes such a signal. The pure policy should not depend on a particular clock.
 
 A timeout does not prove the remote side did nothing. Before retrying a timed-out write, define idempotency or reconciliation. Chapter 37 returns to that distributed boundary.
@@ -138,8 +184,24 @@ A task has terminal states for successful completion, fault, and cancellation. D
 
 An unexpected exception thrown inside `task {}` faults the returned task. Awaiting with `let!` or, at a top-level test boundary, `GetAwaiter().GetResult()` surfaces the original exception:
 
-<<< @/../examples/scripts/ch23-cancellation-timeouts.fsx#fault-propagation{fsharp:line-numbers} [ch23-cancellation-timeouts.fsx]
+```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
+let faultingTask () : Task<string> =
+    task { return raise (InvalidOperationException "quote-failed") }
 
+let faultedTask = faultingTask ()
+
+let faultType, faultMessage =
+    try
+        faultedTask.GetAwaiter().GetResult() |> ignore
+        "none", "none"
+    with :? InvalidOperationException as cause ->
+        cause.GetType().Name, cause.Message
+
+assert faultedTask.IsFaulted
+assert (faultType = "InvalidOperationException")
+assert (faultMessage = "quote-failed")
+printfn "Fault: type=%s message=%s" faultType faultMessage
+```
 By contrast, `.Wait()` and `.Result` are blocking APIs and commonly wrap task failures in `AggregateException`. Application workflows should use `let!`; tests and process entry points can use the awaiter form when they deliberately must bridge to synchronous code.
 
 Catch only where policy exists. Translate a documented remote rejection into a typed error if callers can act on it. Preserve unknown infrastructure exceptions, their inner causes, and stack traces. Do not turn cancellation into `Error "failed"`, and do not classify any arbitrary `OperationCanceledException` as this operation's cancellation without considering its token and contract.
@@ -152,13 +214,55 @@ Some resources can dispose synchronously. Others implement `IAsyncDisposable`; t
 
 The probes make both protocols observable:
 
-<<< @/../examples/scripts/ch23-cancellation-timeouts.fsx#disposal-types{fsharp:line-numbers} [ch23-cancellation-timeouts.fsx]
+```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
+type SyncProbe(label: string, disposed: ResizeArray<string>) =
+    interface IDisposable with
+        member _.Dispose() = disposed.Add label
 
+type AsyncProbe
+    (
+        label: string,
+        started: TaskCompletionSource<unit>,
+        release: TaskCompletionSource<unit>,
+        disposed: ResizeArray<string>
+    ) =
+    interface IAsyncDisposable with
+        member _.DisposeAsync() =
+            let disposal =
+                task {
+                    disposed.Add $"{label}:start"
+                    started.TrySetResult() |> ignore
+                    do! release.Task
+                    disposed.Add $"{label}:done"
+                }
+
+            ValueTask(disposal)
+
+let usingAsync (resource: IAsyncDisposable) (body: unit -> Task<'T>) =
+    task {
+        let! outcome =
+            task {
+                try
+                    let! value = body ()
+                    return Ok value
+                with error ->
+                    return Error(ExceptionDispatchInfo.Capture error)
+            }
+
+        do! resource.DisposeAsync()
+
+        match outcome with
+        | Ok value -> return value
+        | Error failure ->
+            failure.Throw()
+            return Unchecked.defaultof<'T>
+    }
+```
 In a compiled `.fs` file, a task expression can bind an `IAsyncDisposable` with `use`; the task builder awaits `DisposeAsync`. `use!` first awaits acquisition and then owns the acquired resource. Task-expression `with` and `finally` handlers are synchronous, so use the resource binding instead of placing asynchronous cleanup inside `finally`.
 
 ### An honest FSI boundary {#fsi-async-disposal}
 
-The pinned F# 10 compiler supports task `use` with `IAsyncDisposable` in compiled projects, and this repository verified that path with a temporary compiled probe. F# Interactive still has an open compiler issue: the same binding in an `.fsx` file can incorrectly require `IDisposable`.
+F# 10 supports task `use` with `IAsyncDisposable` in compiled projects. F# Interactive still has an open compiler issue: the same binding in an `.fsx` file can incorrectly require `IDisposable`.
 
 Because the chapter's registered artifact is an FSI script, its asynchronous probe uses a small `usingAsync` adapter. The adapter captures the body outcome, awaits disposal exactly once, then returns the value or rethrows the original failure through `ExceptionDispatchInfo`. This is executable evidence for lifecycle behavior, not a recommendation to replace built-in `use` in normal compiled code.
 
@@ -166,14 +270,143 @@ Because the chapter's registered artifact is an FSI script, its asynchronous pro
 
 Synchronous cleanup is tested first:
 
-<<< @/../examples/scripts/ch23-cancellation-timeouts.fsx#sync-disposal{fsharp:line-numbers} [ch23-cancellation-timeouts.fsx]
+```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
+let syncDisposed = ResizeArray<string>()
 
+let runWithSyncResource path (cancellationToken: CancellationToken) =
+    task {
+        use _resource = new SyncProbe(pathLabel path, syncDisposed)
+
+        match path with
+        | Success -> return "ok"
+        | Failure -> return raise (InvalidDataException "sync-failure")
+        | Cancellation ->
+            cancellationToken.ThrowIfCancellationRequested()
+            return "unreachable"
+    }
+
+let syncSuccess =
+    runWithSyncResource Success CancellationToken.None
+    |> fun running -> running.GetAwaiter().GetResult() = "ok"
+
+let syncFault =
+    try
+        let running = runWithSyncResource Failure CancellationToken.None
+        running.GetAwaiter().GetResult() |> ignore
+
+        false
+    with :? InvalidDataException ->
+        true
+
+let syncCancellation = new CancellationTokenSource()
+syncCancellation.Cancel()
+let syncCanceledTask = runWithSyncResource Cancellation syncCancellation.Token
+
+let syncCanceled =
+    try
+        syncCanceledTask.GetAwaiter().GetResult() |> ignore
+        false
+    with :? OperationCanceledException ->
+        true
+
+assert syncSuccess
+assert syncFault
+assert syncCanceled
+assert syncCanceledTask.IsCanceled
+assert (Seq.toList syncDisposed = [ "success"; "failure"; "cancel" ])
+printfn "Sync dispose: success=%b fault=%b cancel=%b" syncSuccess syncFault syncCanceled
+syncCancellation.Dispose()
+```
 The exact disposal log is `success`, `failure`, `cancel`. A pre-canceled token is checked only after the resource is acquired, proving that cancellation still leaves through the owned scope.
 
 The asynchronous test starts three operations, one for each body outcome. Every `DisposeAsync` announces entry and waits on a separate release gate:
 
-<<< @/../examples/scripts/ch23-cancellation-timeouts.fsx#async-disposal{fsharp:line-numbers} [ch23-cancellation-timeouts.fsx]
+```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
+let asyncDisposed = ResizeArray<string>()
 
+let runWithAsyncResource label path (cancellationToken: CancellationToken) started release =
+    let resource =
+        new AsyncProbe(label, started, release, asyncDisposed) :> IAsyncDisposable
+
+    usingAsync resource (fun () ->
+        task {
+            match path with
+            | Success -> return "ok"
+            | Failure -> return raise (InvalidDataException "async-failure")
+            | Cancellation ->
+                cancellationToken.ThrowIfCancellationRequested()
+                return "unreachable"
+        })
+
+let successStarted, successRelease = newGate<unit> (), newGate<unit> ()
+let failureStarted, failureRelease = newGate<unit> (), newGate<unit> ()
+let cancelStarted, cancelRelease = newGate<unit> (), newGate<unit> ()
+let asyncCancellation = new CancellationTokenSource()
+asyncCancellation.Cancel()
+
+let asyncSuccessTask =
+    runWithAsyncResource "success" Success CancellationToken.None successStarted successRelease
+
+let asyncFaultTask =
+    runWithAsyncResource "failure" Failure CancellationToken.None failureStarted failureRelease
+
+let asyncCanceledTask =
+    runWithAsyncResource "cancel" Cancellation asyncCancellation.Token cancelStarted cancelRelease
+
+successStarted.Task.GetAwaiter().GetResult()
+failureStarted.Task.GetAwaiter().GetResult()
+cancelStarted.Task.GetAwaiter().GetResult()
+
+let allPendingBeforeRelease =
+    not asyncSuccessTask.IsCompleted
+    && not asyncFaultTask.IsCompleted
+    && not asyncCanceledTask.IsCompleted
+
+assert allPendingBeforeRelease
+
+successRelease.SetResult()
+let asyncSuccess = asyncSuccessTask.GetAwaiter().GetResult() = "ok"
+
+failureRelease.SetResult()
+
+let asyncFault =
+    try
+        asyncFaultTask.GetAwaiter().GetResult() |> ignore
+        false
+    with :? InvalidDataException ->
+        true
+
+cancelRelease.SetResult()
+
+let asyncCanceled =
+    try
+        asyncCanceledTask.GetAwaiter().GetResult() |> ignore
+        false
+    with :? OperationCanceledException ->
+        true
+
+assert asyncSuccess
+assert asyncFault
+assert asyncCanceled
+assert asyncCanceledTask.IsCanceled
+
+assert
+    (Seq.toList asyncDisposed = [ "success:start"
+                                  "failure:start"
+                                  "cancel:start"
+                                  "success:done"
+                                  "failure:done"
+                                  "cancel:done" ])
+
+printfn
+    "Async dispose: pending=%b success=%b fault=%b cancel=%b"
+    allPendingBeforeRelease
+    asyncSuccess
+    asyncFault
+    asyncCanceled
+
+asyncCancellation.Dispose()
+```
 All three outer tasks remain incomplete after disposal starts. Only after the corresponding gate is released does each task expose success, the original fault, or cancellation. This proves that disposal is awaited rather than merely invoked.
 
 If cleanup itself fails while a body failure is already in flight, decide how diagnostics retain both. Ordinary language cleanup may expose the cleanup exception and obscure the first one. At infrastructure boundaries, log or aggregate according to an explicit policy; never silently discard a disposal failure.
@@ -207,10 +440,10 @@ This checklist is more useful than a universal helper. A database transaction, s
 
 ## Run the shared example {#run-example}
 
-From the repository root:
+From the directory containing the example:
 
 ```console
-dotnet fsi --checknulls+ --exec examples/scripts/ch23-cancellation-timeouts.fsx
+dotnet fsi --checknulls+ --exec ch23-cancellation-timeouts.fsx
 ```
 
 Seven deterministic lines prove operation cancellation, abandoned waiting, controlled timeout, original fault propagation, and synchronous plus asynchronous cleanup on every body outcome.

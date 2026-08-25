@@ -2,64 +2,6 @@
 title: "第 44 章练习答案"
 description: "选择合乎比例的 F#/C# Unity 边界，通过诚实的 IL2CPP 证据计划提升托管插件样例，并在不隐藏 AOT 风险的前提下设计带版本任务数据。"
 translationKey: solutions/ch-44-unity
-kind: solution
-part: 7
-chapter: 44
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ecosystem-unity-fsharp-plugin
-  - ecosystem-unity-csharp-adapter
-exerciseIds:
-  - ch44-exercise-01
-  - ch44-exercise-02
-  - ch44-exercise-03
-termIds: []
-sources:
-  - id: unity-6000-3-22
-    url: https://unity.com/releases/editor/whats-new/6000.3.22f1
-    checked: "2026-08-25"
-  - id: unity-dotnet-profile
-    url: https://docs.unity3d.com/Manual/dotnet-profile-support.html
-    checked: "2026-08-25"
-  - id: unity-plugin-inspector
-    url: https://docs.unity3d.com/Manual/plug-in-inspector.html
-    checked: "2026-08-25"
-  - id: unity-serialization
-    url: https://docs.unity3d.com/Manual/script-serialization-rules.html
-    checked: "2026-08-25"
-  - id: unity-il2cpp
-    url: https://docs.unity3d.com/Manual/il2cpp-introduction.html
-    checked: "2026-08-25"
-  - id: unity-scripting-restrictions
-    url: https://docs.unity3d.com/Manual/scripting-restrictions.html
-    checked: "2026-08-25"
-  - id: unity-stripping-configure
-    url: https://docs.unity3d.com/Manual/managed-code-stripping-configure.html
-    checked: "2026-08-25"
-  - id: unity-link-xml
-    url: https://docs.unity3d.com/Manual/managed-code-stripping-xml-formatting.html
-    checked: "2026-08-25"
-  - id: unity-testing
-    url: https://docs.unity3d.com/6000.0/Documentation/Manual/testing-editortestsrunner.html
-    checked: "2026-08-25"
-  - id: unity-command-line-build
-    url: https://docs.unity3d.com/Manual/build-command-line.html
-    checked: "2026-08-25"
-  - id: unity-gc-tracking
-    url: https://docs.unity3d.com/Manual/performance-track-garbage-collection.html
-    checked: "2026-08-25"
-  - id: unity-il2cpp-stack-traces
-    url: https://docs.unity3d.com/Manual/il2cpp-managed-stack-traces.html
-    checked: "2026-08-25"
-  - id: unity-burst-language
-    url: https://docs.unity3d.com/Packages/com.unity.burst@1.8/manual/csharp-language-support.html
-    checked: "2026-08-25"
-  - id: fsharp-component-guidelines
-    url: https://learn.microsoft.com/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-25"
 ---
 
 # 第 44 章练习答案 {#overview}
@@ -151,7 +93,7 @@ unity/FSharpVerticalSlice/
 
 ### 产物与程序集契约 {#artifact-contract}
 
-使用仓库锁定 .NET SDK 与 `dotnet restore --locked-mode` 构建，再执行 Release `--no-restore`。精确复制：
+使用项目选定的 .NET SDK 与 `dotnet restore --locked-mode` 构建，再执行 Release `--no-restore`。精确复制：
 
 - `FSharpGameplay.dll`；
 - 从包 10.1.301 解析并位于旁边的 `FSharp.Core.dll`；

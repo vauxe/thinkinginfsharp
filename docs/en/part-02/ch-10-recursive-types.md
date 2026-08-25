@@ -2,36 +2,6 @@
 title: "Chapter 10: Recursive Types and Structural Recursion"
 description: "Model trees with recursive discriminated unions, then derive traversals, map, and fold directly from the type's cases."
 translationKey: part-02/ch-10-recursive-types
-kind: chapter
-part: 2
-chapter: 10
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch10-recursive-types
-exerciseIds:
-  - ch10-exercise-01
-  - ch10-exercise-02
-  - ch10-exercise-03
-termIds:
-  - discriminated-union
-  - fold
-  - recursive-type
-  - recursion
-  - structural-recursion
-  - tail-call
-sources:
-  - id: microsoft-discriminated-unions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions
-    checked: "2026-08-24"
-  - id: microsoft-recursive-functions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/recursive-functions-the-rec-keyword
-    checked: "2026-08-24"
-  - id: microsoft-functions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/
-    checked: "2026-08-24"
 ---
 
 # Chapter 10: Recursive Types and Structural Recursion {#overview}
@@ -59,8 +29,17 @@ This chapter uses ordinary finite in-memory values. It does not add mutation, la
 
 The shared type represents an empty tree, one leaf value, or a branch with two subtrees:
 
-<<< @/../examples/scripts/ch10-recursive-types.fsx#recursive-type{fsharp:line-numbers} [ch10-recursive-types.fsx]
+```fsharp:line-numbers [ch10-recursive-types.fsx]
+type BookingTree<'T> =
+    | Empty
+    | Leaf of 'T
+    | Branch of left: BookingTree<'T> * right: BookingTree<'T>
 
+let emptyTree: BookingTree<int> = Empty
+let leafTree = Leaf 2
+
+let branchTree = Branch(Leaf 2, Branch(Leaf 3, Leaf 4))
+```
 `BookingTree<'T>` appears inside its own `Branch` case. That self-reference makes the type recursive. The type parameter says every leaf in one tree carries the same payload type, while the tree shape is independent of that type.
 
 Read the cases as construction rules:
@@ -80,8 +59,23 @@ The chosen cases are domain policy. If an empty tree is meaningless, omit `Empty
 
 To consume every `BookingTree`, cover every case. To process a `Branch`, recursively process its two subtree fields:
 
-<<< @/../examples/scripts/ch10-recursive-types.fsx#structural-traversal{fsharp:line-numbers} [ch10-recursive-types.fsx]
+```fsharp:line-numbers [ch10-recursive-types.fsx]
+let rec countLeaves tree =
+    match tree with
+    | Empty -> 0
+    | Leaf _ -> 1
+    | Branch(left, right) -> countLeaves left + countLeaves right
 
+let rec totalSeats tree =
+    match tree with
+    | Empty -> 0
+    | Leaf seats -> seats
+    | Branch(left, right) -> totalSeats left + totalSeats right
+
+printfn "Counts: empty=%d leaf=%d branch=%d" (countLeaves emptyTree) (countLeaves leafTree) (countLeaves branchTree)
+
+printfn "Totals: empty=%d leaf=%d branch=%d" (totalSeats emptyTree) (totalSeats leafTree) (totalSeats branchTree)
+```
 `let rec` makes the function name available inside its own body. Both functions have the same structural skeleton:
 
 - `Empty` is a base case and makes no recursive call;
@@ -96,8 +90,23 @@ The result rule still depends on the question. `countLeaves` gives every leaf `1
 
 A tree map handles every case but changes only leaves:
 
-<<< @/../examples/scripts/ch10-recursive-types.fsx#tree-map{fsharp:line-numbers} [ch10-recursive-types.fsx]
+```fsharp:line-numbers [ch10-recursive-types.fsx]
+let rec mapTree mapping tree =
+    match tree with
+    | Empty -> Empty
+    | Leaf value -> Leaf(mapping value)
+    | Branch(left, right) -> Branch(mapTree mapping left, mapTree mapping right)
 
+let rec renderTree formatValue tree =
+    match tree with
+    | Empty -> "Empty"
+    | Leaf value -> $"Leaf({formatValue value})"
+    | Branch(left, right) -> $"Branch({renderTree formatValue left},{renderTree formatValue right})"
+
+let labeledTree = branchTree |> mapTree (fun seats -> $"{seats} seats")
+
+printfn "Mapped: %s" (renderTree id labeledTree)
+```
 Its inferred shape is:
 
 ```fsharp
@@ -121,8 +130,25 @@ The second law assumes ordinary pure functions and equality-capable values when 
 
 The shared fold captures the recursive mechanics:
 
-<<< @/../examples/scripts/ch10-recursive-types.fsx#tree-fold{fsharp:line-numbers} [ch10-recursive-types.fsx]
+```fsharp:line-numbers [ch10-recursive-types.fsx]
+let rec foldTree onEmpty onLeaf onBranch tree =
+    match tree with
+    | Empty -> onEmpty
+    | Leaf value -> onLeaf value
+    | Branch(left, right) ->
+        let leftResult = foldTree onEmpty onLeaf onBranch left
+        let rightResult = foldTree onEmpty onLeaf onBranch right
+        onBranch leftResult rightResult
 
+let countWithFold = foldTree 0 (fun _ -> 1) (+)
+
+let totalWithFold = foldTree 0 id (+)
+
+printfn
+    "Fold agrees: count=%b total=%b"
+    (countWithFold branchTree = countLeaves branchTree)
+    (totalWithFold branchTree = totalSeats branchTree)
+```
 Read its arguments from the type:
 
 ```fsharp
@@ -158,8 +184,17 @@ The three arguments are exactly the three constructor-preserving rules. The expl
 
 The example defines height with the same skeleton:
 
-<<< @/../examples/scripts/ch10-recursive-types.fsx#tree-depth{fsharp:line-numbers} [ch10-recursive-types.fsx]
+```fsharp:line-numbers [ch10-recursive-types.fsx]
+let rec height tree =
+    match tree with
+    | Empty -> 0
+    | Leaf _ -> 1
+    | Branch(left, right) -> 1 + max (height left) (height right)
 
+printfn "Heights: empty=%d leaf=%d branch=%d" (height emptyTree) (height leafTree) (height branchTree)
+
+printfn "Shape preserved: before=%d after=%d" (countLeaves branchTree) (countLeaves labeledTree)
+```
 With the convention `Empty = 0` and `Leaf = 1`, a branch is one plus the greater subtree height. The example branch has three leaves and height three. Leaf count and height measure different facts: a balanced tree can hold many leaves with modest height, while a one-sided tree can have height proportional to its node count.
 
 For `countLeaves`, `mapTree`, and `foldTree`:
@@ -189,10 +224,10 @@ Use mutual recursion only when the domain genuinely has two distinct concepts. A
 
 ## Run the shared example {#run-example}
 
-From the repository root:
+From the directory containing the example:
 
 ```console
-dotnet fsi --exec examples/scripts/ch10-recursive-types.fsx
+dotnet fsi --exec ch10-recursive-types.fsx
 ```
 
 The six deterministic lines cover empty, leaf, and branch trees; direct traversals; a type-changing map; fold-derived queries; height; and preservation of leaf count.

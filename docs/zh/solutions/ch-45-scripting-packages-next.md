@@ -2,42 +2,6 @@
 title: "第 45 章练习答案"
 description: "扩展确定性产物自动化，在不夸大证据的前提下评估当前命令行包，并把本书转化为十二周 F# 交付循环。"
 translationKey: solutions/ch-45-scripting-packages-next
-kind: solution
-part: 7
-chapter: 45
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch45-scripting-packages-next
-exerciseIds:
-  - ch45-exercise-01
-  - ch45-exercise-02
-  - ch45-exercise-03
-termIds: []
-sources:
-  - id: microsoft-fsi
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/tools/fsharp-interactive/
-    checked: "2026-08-25"
-  - id: microsoft-package-reference
-    url: https://learn.microsoft.com/en-us/nuget/consume-packages/package-references-in-project-files
-    checked: "2026-08-25"
-  - id: microsoft-package-evaluation
-    url: https://learn.microsoft.com/en-us/nuget/consume-packages/finding-and-choosing-packages
-    checked: "2026-08-25"
-  - id: microsoft-nuget-audit
-    url: https://learn.microsoft.com/en-us/nuget/concepts/auditing-packages
-    checked: "2026-08-25"
-  - id: system-command-line-2-0-11
-    url: https://www.nuget.org/packages/System.CommandLine/2.0.11
-    checked: "2026-08-25"
-  - id: argu-6-2-5
-    url: https://www.nuget.org/packages/Argu/6.2.5
-    checked: "2026-08-25"
-  - id: microsoft-byrefs
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/byrefs
-    checked: "2026-08-25"
 ---
 
 # 第 45 章练习答案 {#overview}
@@ -146,9 +110,9 @@ sources:
 | Argu | 6.2.5 | 面向 F#、使用可辨识联合的声明式解析器；目标为 .NET Standard 2.0 | 包最后更新于 2024 年 12 月；引入 FSharp.Core 与 `System.Configuration.ConfigurationManager`；裁剪/AOT 行为需要真实试验 |
 | System.CommandLine | 2.0.11 | 命令、选项、参数、验证、帮助、补全与异步 action；目标为 .NET 8 和 .NET Standard 2.0 | object/builder API 偏 C#；F# 重载/null 适配以及精确帮助/错误稳定性需要试验 |
 
-两个包版本都是在该日期核对的研究事实，不是本仓库已编译的包。清单脚本的自动证据仍只覆盖脚本中的 BCL 解析器。
+两个包版本都是在该日期核对的研究事实，不是书站的可执行依赖。在你运行针对包的试验前，所展示的清单脚本只覆盖其中的 BCL 解析器。
 
-不要像比较正确性那样比较下载量。应检查所有者、MIT 许可证、源码仓库、依赖标签、发布历史、公告与精确 `.nupkg`，再在仓库有效包源下运行还原审计。
+不要像比较正确性那样比较下载量。应检查所有者、MIT 许可证、源码仓库、依赖标签、发布历史、公告与精确 `.nupkg`，再按采用项目的有效包源运行还原审计。
 
 ### 聚焦试验 {#parser-spike}
 

@@ -2,41 +2,6 @@
 title: "Chapter 4: Branching and Basic Patterns"
 description: "Read if and match as value-producing expressions, then build safe branches with literal, variable, wildcard, tuple, and list patterns."
 translationKey: part-01/ch-04-branching-patterns
-kind: chapter
-part: 1
-chapter: 4
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch04-branching-patterns
-exerciseIds:
-  - ch04-exercise-01
-  - ch04-exercise-02
-  - ch04-exercise-03
-termIds:
-  - exhaustiveness
-  - expression
-  - guard
-  - list
-  - pattern
-  - pattern-matching
-  - tuple
-  - wildcard-pattern
-sources:
-  - id: microsoft-conditionals
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/conditional-expressions-if-then-else
-    checked: "2026-08-24"
-  - id: microsoft-match
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/match-expressions
-    checked: "2026-08-24"
-  - id: microsoft-patterns
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/pattern-matching
-    checked: "2026-08-24"
-  - id: microsoft-lists
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/lists
-    checked: "2026-08-24"
 ---
 
 # Chapter 4: Branching and Basic Patterns {#overview}
@@ -63,8 +28,12 @@ This chapter uses tuples and lists only to build pattern intuition. Records and 
 
 The shared script first maps remaining capacity to text:
 
-<<< @/../examples/scripts/ch04-branching-patterns.fsx#if-expression{fsharp:line-numbers} [ch04-branching-patterns.fsx]
+```fsharp:line-numbers [ch04-branching-patterns.fsx]
+let availability remaining =
+    if remaining > 0 then "available" else "full"
 
+printfn "Availability: %s" (availability 3)
+```
 Evaluation first computes `remaining > 0`. When it is `true`, only the `then` branch runs; otherwise, only the `else` branch runs. The unselected branch is not evaluated. The value of the whole `if` is the selected branch's value, so `availability` returns `string`.
 
 ### The condition must actually be `bool` {#boolean-only}
@@ -123,8 +92,16 @@ A lowercase variable pattern such as `value` matches any value and creates a new
 
 A numeric range is not a simple literal shape. Bind the value with a variable pattern, then check it in a `when` guard:
 
-<<< @/../examples/scripts/ch04-branching-patterns.fsx#guarded-match{fsharp:line-numbers} [ch04-branching-patterns.fsx]
+```fsharp:line-numbers [ch04-branching-patterns.fsx]
+let capacityBand remaining =
+    match remaining with
+    | value when value <= 0 -> "full"
+    | 1 -> "last seat"
+    | value when value <= 5 -> "limited"
+    | _ -> "available"
 
+printfn "Capacity bands: %s, %s, %s, %s" (capacityBand 0) (capacityBand 1) (capacityBand 4) (capacityBand 8)
+```
 For input `4`, the first variable pattern initially matches, but `4 <= 0` is false, so matching continues. Literal `1` does not match. The third variable pattern matches and its guard is true, producing `"limited"`.
 
 A guard runs only after its associated pattern matches. A false guard does not fail the whole `match`; it continues to the next rule. Keep a guard easy to understand and preferably effect-free. Depending on guard side effects makes rule order harder to reason about.
@@ -135,8 +112,13 @@ Guards also explain why `| value when value = target -> ...` compares with a run
 
 Chapter 3 used a tuple as one composite argument. A pattern can also decompose it in a function parameter or `match`:
 
-<<< @/../examples/scripts/ch04-branching-patterns.fsx#tuple-pattern{fsharp:line-numbers} [ch04-branching-patterns.fsx]
+```fsharp:line-numbers [ch04-branching-patterns.fsx]
+let bookingSummary (guest, seats) =
+    let noun = if seats = 1 then "seat" else "seats"
+    $"{guest} requested {seats} {noun}"
 
+printfn "Booking: %s" (bookingSummary ("Lin", 3))
+```
 `(guest, seats)` requires a pair and establishes two local names in the function body. Tuple patterns work positionally, and both arity and component types must agree with the input.
 
 A pattern handles shape and binding; a value test such as `seats = 1` remains a Boolean expression. This example uses `if` for singular versus plural because the question is one direct Boolean choice. There is no need to turn every Boolean into `match` merely to display syntax.
@@ -149,8 +131,15 @@ An F# list is an ordered, immutable, singly linked collection of elements of one
 
 The shared example covers empty, one-element, and at-least-two-element shapes:
 
-<<< @/../examples/scripts/ch04-branching-patterns.fsx#list-pattern{fsharp:line-numbers} [ch04-branching-patterns.fsx]
+```fsharp:line-numbers [ch04-branching-patterns.fsx]
+let describeQueue queue =
+    match queue with
+    | [] -> "empty"
+    | [ only ] -> $"one: {only}"
+    | first :: second :: _ -> $"next: {first}, then {second}"
 
+printfn "Queues: %s | %s | %s" (describeQueue []) (describeQueue [ "Lin" ]) (describeQueue [ "Lin"; "Ada"; "Sam" ])
+```
 `[ only ]` matches only a list of length one. `first :: second :: _` associates to the right as `first :: (second :: _)`: take the first item, then the second, while wildcard `_` accepts the remaining list without binding it. It therefore matches any list with at least two elements.
 
 Do not use `[ first; second ]` to mean “the first two”; it matches exactly two elements. The next chapter covers construction and transformation, and Chapter 6 uses `head :: tail` for structural recursion.
@@ -185,10 +174,10 @@ Both forms produce values. The real criterion is which one makes the input space
 
 ## Run the shared example {#run-example}
 
-From the repository root, run:
+From the directory containing the example, run:
 
 ```console
-dotnet fsi --exec examples/scripts/ch04-branching-patterns.fsx
+dotnet fsi --exec ch04-branching-patterns.fsx
 ```
 
 You should see:
@@ -200,7 +189,7 @@ Booking: Lin requested 3 seats
 Queues: empty | one: Lin | next: Lin, then Ada
 ```
 
-The manifest checks each line in order. Each branch function returns data and output is kept outside the function, so decision and display can be verified separately.
+Compare each output line in order. Each branch function returns data and output is kept outside the function, so decision and display can be verified separately.
 
 ## Debugging: simulate each rule {#debugging}
 

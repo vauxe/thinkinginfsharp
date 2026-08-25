@@ -2,37 +2,6 @@
 title: "Chapter 28: Example Tests, Test Doubles, and Boundary Tests"
 description: "Choose pure value tests, hand-written deterministic doubles, and real serialization contract tests by failure risk instead of testing implementation details."
 translationKey: part-05/ch-28-testing-boundaries
-kind: chapter
-part: 5
-chapter: 28
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - foundation-example-tests
-  - foundation-contract-tests
-exerciseIds:
-  - ch28-exercise-01
-  - ch28-exercise-02
-  - ch28-exercise-03
-termIds: []
-sources:
-  - id: microsoft-dotnet-testing
-    url: https://learn.microsoft.com/en-us/dotnet/core/testing/
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-xunit
-    url: https://learn.microsoft.com/en-us/dotnet/core/testing/unit-testing-fsharp-with-xunit
-    checked: "2026-08-24"
-  - id: microsoft-unit-test-practices
-    url: https://learn.microsoft.com/en-us/dotnet/core/testing/unit-testing-best-practices
-    checked: "2026-08-24"
-  - id: system-text-json-unmapped
-    url: https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/missing-members
-    checked: "2026-08-24"
-  - id: system-text-json-casing
-    url: https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/character-casing
-    checked: "2026-08-24"
 ---
 
 # Chapter 28: Example Tests, Test Doubles, and Boundary Tests {#overview}
@@ -73,8 +42,25 @@ A test's name does not determine evidence strength. A test named â€œintegrationâ
 
 The shared sample first represents the command, product snapshot, draft, and error as ordinary F# values. The only inputs to `decide` are a product snapshot and validated command; its only output is a `Result`:
 
-<<< @/../examples/chapters/ch28/OrderWorkflow.fs#pure-decision{fsharp:line-numbers} [OrderWorkflow.fs]
+```fsharp:line-numbers [OrderWorkflow.fs]
+module OrderDecision =
+    let decide (product: ProductSnapshot option) (command: PlaceOrderCommand) : Result<OrderDraft, OrderDecisionError> =
+        let requestedSku = PlaceOrderCommand.sku command
+        let requestedQuantity = PlaceOrderCommand.quantity command
 
+        match product with
+        | None -> Error(ProductNotFound requestedSku)
+        | Some snapshot when not (StringComparer.Ordinal.Equals(snapshot.Sku, requestedSku)) ->
+            Error(ProductNotFound requestedSku)
+        | Some snapshot when requestedQuantity > snapshot.Available ->
+            Error(InsufficientStock(requestedQuantity, snapshot.Available))
+        | Some snapshot ->
+            Ok
+                { OrderId = PlaceOrderCommand.orderId command
+                  Sku = requestedSku
+                  Quantity = requestedQuantity
+                  Total = decimal requestedQuantity * snapshot.UnitPrice }
+```
 There is no hidden clock, database, or randomness, so a test needs no object graph. Arrange the inputs, call once, then compare the complete result:
 
 ```fsharp
@@ -112,8 +98,36 @@ Structural equality does not mean a larger assertion is always better. If a huge
 
 Outside the pure core, the sample workflow reads a product, reads time, and saves an order. Dependencies are a record of functions, and a short `match` makes effect ordering explicit:
 
-<<< @/../examples/chapters/ch28/OrderWorkflow.fs#ports-workflow{fsharp:line-numbers} [OrderWorkflow.fs]
+```fsharp:line-numbers [OrderWorkflow.fs]
+type PlacedOrder =
+    { OrderId: string
+      Sku: string
+      Quantity: int
+      Total: decimal
+      PlacedAt: DateTimeOffset }
 
+type OrderPorts =
+    { FindProduct: string -> ProductSnapshot option
+      GetUtcNow: unit -> DateTimeOffset
+      SaveOrder: PlacedOrder -> unit }
+
+module OrderWorkflow =
+    let place (ports: OrderPorts) (command: PlaceOrderCommand) : Result<PlacedOrder, OrderDecisionError> =
+        let product = command |> PlaceOrderCommand.sku |> ports.FindProduct
+
+        match OrderDecision.decide product command with
+        | Error error -> Error error
+        | Ok draft ->
+            let placed =
+                { OrderId = draft.OrderId
+                  Sku = draft.Sku
+                  Quantity = draft.Quantity
+                  Total = draft.Total
+                  PlacedAt = ports.GetUtcNow() }
+
+            ports.SaveOrder placed
+            Ok placed
+```
 Only the success branch reads the clock and saves; a decision failure returns directly. The success test composes ports from closures: fixed product and time returns, `ResizeArray` values recording lookup and save, and a counter recording clock reads:
 
 ```fsharp
@@ -176,8 +190,41 @@ Parallel tests especially require avoiding shared mutable global state. Each tes
 
 Chapter 27 separated DTOs from domain commands. This chapter uses real `System.Text.Json` behavior and actual options to prove that boundary: camel-case output, case-sensitive input, rejection of unknown fields, and conversion from DTO to a smart-constructed command.
 
-<<< @/../examples/chapters/ch28/OrderWorkflow.fs#json-boundary{fsharp:line-numbers} [OrderWorkflow.fs]
+```fsharp:line-numbers [OrderWorkflow.fs]
+[<CLIMutable>]
+type PlaceOrderDto =
+    { OrderId: string | null
+      Sku: string | null
+      Quantity: int }
 
+type DtoError =
+    | MissingBody
+    | InvalidCommand of CommandError
+
+module PlaceOrderDto =
+    let toCommand (dto: PlaceOrderDto | null) =
+        match dto with
+        | null -> Error MissingBody
+        | value ->
+            PlaceOrderCommand.create value.OrderId value.Sku value.Quantity
+            |> Result.mapError InvalidCommand
+
+module PlaceOrderJson =
+    let private options =
+        let settings = JsonSerializerOptions()
+        settings.PropertyNamingPolicy <- JsonNamingPolicy.CamelCase
+        settings.PropertyNameCaseInsensitive <- false
+        settings.UnmappedMemberHandling <- JsonUnmappedMemberHandling.Disallow
+        settings
+
+    let serialize (dto: PlaceOrderDto) =
+        ArgumentNullException.ThrowIfNull(dto, nameof dto)
+        JsonSerializer.Serialize(dto, options)
+
+    let deserialize (json: string) : PlaceOrderDto | null =
+        ArgumentNullException.ThrowIfNull(json, nameof json)
+        JsonSerializer.Deserialize<PlaceOrderDto>(json, options)
+```
 The `CLIMutable` DTO can temporarily contain null and zero. `PlaceOrderDto.toCommand` keeps a null body distinct from a domain command error. The domain workflow never receives the DTO.
 
 ### Check JSON meaning, not irrelevant bytes {#json-shape}
@@ -250,13 +297,17 @@ Code coverage can reveal locations never executed, but it cannot prove assertion
 
 ## Run focused and complete tests {#running-tests}
 
-From the repository root, run only this chapter's focused tests:
+In a solution containing these tests, use a filter for quick feedback:
 
 ```console
-dotnet test ThinkingInFSharp.slnx --configuration Release --filter FullyQualifiedName~Ch28
+dotnet test Sample.slnx --configuration Release --filter FullyQualifiedName~Ch28
 ```
 
-The filter selects this chapter's checks from ExampleTests and ContractTests. Before committing, also run `pnpm check:examples`; it performs locked restore, builds the solution, runs all tests, and executes every registered example. The focused command shortens feedback while the full gate finds cross-chapter wiring regressions; neither replaces the other.
+The filter selects names containing `Ch28`. Before committing an application change, run the same solution without the filter so cross-project wiring is checked too:
+
+```console
+dotnet test Sample.slnx --configuration Release
+```
 
 ## A practical selection checklist {#selection-checklist}
 

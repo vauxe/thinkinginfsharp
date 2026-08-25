@@ -2,44 +2,6 @@
 title: "第 19 章：.NET API 与空值边界"
 description: "在 F# 中调用普通 .NET 构造函数、成员、重载与接口，再在单一边界把可空引用和值转换成诚实的领域类型。"
 translationKey: part-04/ch-19-dotnet-null-boundaries
-kind: chapter
-part: 4
-chapter: 19
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch19-null-boundaries
-exerciseIds:
-  - ch19-exercise-01
-  - ch19-exercise-02
-  - ch19-exercise-03
-termIds:
-  - nullable-reference-type
-  - option
-sources:
-  - id: microsoft-constructors
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/members/constructors
-    checked: "2026-08-24"
-  - id: microsoft-methods
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/members/methods
-    checked: "2026-08-24"
-  - id: microsoft-interfaces
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/interfaces
-    checked: "2026-08-24"
-  - id: microsoft-null-values
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/values/null-values
-    checked: "2026-08-24"
-  - id: microsoft-nullable-value-types
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/nullable-value-types
-    checked: "2026-08-24"
-  - id: fsharp-core-option
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-optionmodule.html
-    checked: "2026-08-24"
-  - id: dotnet-type-gettype
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.type.gettype?view=net-10.0
-    checked: "2026-08-24"
 ---
 
 # 第 19 章：.NET API 与空值边界 {#overview}
@@ -67,8 +29,15 @@ F# 并不位于 .NET 旁边；它本身就是一门 .NET 语言。调用 `Uri`�
 
 共享示例从不含 I/O 的代码开始：
 
-<<< @/../examples/chapters/ch19/NullBoundaries.fs#dotnet-calls{fsharp:line-numbers} [NullBoundaries.fs]
+```fsharp:line-numbers [NullBoundaries.fs]
+let createAbsoluteUri (raw: string) : Uri = Uri(raw, UriKind.Absolute)
 
+let uriHost (uri: Uri) : string = uri.Host
+
+let joinLabels (labels: string array) : string = String.Join(" / ", labels)
+
+let countItems (items: IReadOnlyCollection<'T>) : int = items.Count
+```
 每个定义都是普通函数，其结果都是值。大写的类型名与成员名遵循 .NET 约定；管道、局部绑定、模式匹配和领域类型仍然可以围绕它们使用。
 
 ### 构造与成员访问 {#construction-members}
@@ -140,10 +109,18 @@ F# 可空引用检查需要选择启用。本章项目写明：
 
 边界错误与转换来自可执行共享代码：
 
-<<< @/../examples/chapters/ch19/NullBoundaries.fs#boundary-errors{fsharp:line-numbers} [NullBoundaries.fs]
-
-<<< @/../examples/chapters/ch19/NullBoundaries.fs#nullable-input{fsharp:line-numbers} [NullBoundaries.fs]
-
+```fsharp:line-numbers [NullBoundaries.fs]
+type BoundaryTextError =
+    | MissingText
+    | BlankText
+```
+```fsharp:line-numbers [NullBoundaries.fs]
+let requireText (raw: string | null) : Result<string, BoundaryTextError> =
+    match raw with
+    | Null -> Error MissingText
+    | NonNull value when String.IsNullOrWhiteSpace value -> Error BlankText
+    | NonNull value -> Ok(value.Trim())
+```
 `Null` 处理空引用。在每个 `NonNull value` 分支中，分析会把 `value` 收窄成非空 `string`，所以按所声明契约调用 `Trim()` 是安全的。空白是另一项无效事实，因而得到不同错误。
 
 字面量 `null` 模式也能工作。当收窄后的非空值需要命名时，`Null`/`NonNull` 很方便。`NonNullQuick` 则会在 null 上抛出 `NullReferenceException`；只有当抛出就是预期契约时才使用它，不要把它当作绕开边界设计的捷径。
@@ -152,8 +129,10 @@ F# 可空引用检查需要选择启用。本章项目写明：
 
 `Type.GetType(name, throwOnError = false)` 是真实的 .NET API；找不到类型时，其返回值可能为 null。适配器只转换一次这种约定：
 
-<<< @/../examples/chapters/ch19/NullBoundaries.fs#nullable-return{fsharp:line-numbers} [NullBoundaries.fs]
-
+```fsharp:line-numbers [NullBoundaries.fs]
+let tryResolveType (typeName: string) : Type option =
+    Type.GetType(typeName, throwOnError = false) |> Option.ofObj
+```
 `Option.ofObj` 把 null 映射成 `None`，把非空引用映射成 `Some value`。下游 F# 代码现在看到的是 `Type option`，而不是必须在各处重复检查的可空引用。
 
 实参 `throwOnError = false` 表示“查找不到类型时返回 null”；.NET 契约还记录了其他仍可能抛出的条件。`option` 描述缺失，而不是任意失败。不要为了得到整洁的类型而捕获全部异常并抹掉原因。
@@ -179,8 +158,11 @@ present.Value     // 4
 
 FSharp.Core 提供了具名转换：
 
-<<< @/../examples/chapters/ch19/NullBoundaries.fs#nullable-value-conversions{fsharp:line-numbers} [NullBoundaries.fs]
+```fsharp:line-numbers [NullBoundaries.fs]
+let nullableIntToOption (value: Nullable<int>) : int option = Option.ofNullable value
 
+let optionToNullableInt (value: int option) : Nullable<int> = Option.toNullable value
+```
 `Option.ofNullable` 把没有值的可空值映射成 `None`；`Option.toNullable` 把 `None` 映射回空的 `Nullable<T>`。存在值时，两者都会保留载荷。这些函数要求适当的值类型。
 
 当外部成员明确要求或返回 `Nullable<T>` 时，应在该处保留它。进入核心后，若缺失属于 F# 模型，则优先使用 `option`。若核心内部反复转换，说明边界还没有放清楚。
@@ -191,8 +173,11 @@ FSharp.Core 提供了具名转换：
 
 可空引用使用 `Option.ofObj` 与 `Option.toObj`，而不是 `Nullable<T>` 转换：
 
-<<< @/../examples/chapters/ch19/NullBoundaries.fs#nullable-reference-conversions{fsharp:line-numbers} [NullBoundaries.fs]
+```fsharp:line-numbers [NullBoundaries.fs]
+let nullableTextToOption (value: string | null) : string option = Option.ofObj value
 
+let optionToNullableText (value: string option) : string | null = Option.toObj value
+```
 适配器代码应该让方向清晰可见：
 
 - 传入可空引用：用 `Option.ofObj` 从 `T | null` 得到 `T option`；
@@ -205,8 +190,9 @@ FSharp.Core 提供了具名转换：
 
 option 只说明其用例是 `None` 还是 `Some`；它不会独立验证载荷。如果载荷类型显式允许 null，下面的值合法：
 
-<<< @/../examples/chapters/ch19/NullBoundaries.fs#some-null{fsharp:line-numbers} [NullBoundaries.fs]
-
+```fsharp:line-numbers [NullBoundaries.fs]
+let someNullText: (string | null) option = Some null
+```
 该值是 `Some`，其载荷却为 null。旧版或未检查的 .NET 代码同样可能违反假设。因此，准确规则是：
 
 > 用 `None` 表示领域缺失，让普通 option 载荷类型保持非空，并在边界规范化外部 null。
@@ -251,10 +237,10 @@ option 只说明其用例是 `None` 还是 `Some`；它不会独立验证载荷�
 
 ## 运行契约测试 {#run-tests}
 
-在仓库根目录运行：
+在示例所在目录运行：
 
 ```console
-dotnet test tests/ContractTests/ContractTests.fsproj \
+dotnet test ContractTests.fsproj \
   --configuration Release \
   --filter FullyQualifiedName~Ch19NullTests
 ```

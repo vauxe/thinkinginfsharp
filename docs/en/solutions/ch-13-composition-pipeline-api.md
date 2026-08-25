@@ -2,27 +2,6 @@
 title: "Chapter 13 Solutions"
 description: "Translate calls among pipelines and composition, order representative F# APIs, and simplify a decorative pipeline."
 translationKey: solutions/ch-13-composition-pipeline-api
-kind: solution
-part: 3
-chapter: 13
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch13-composition-pipeline-api
-exerciseIds:
-  - ch13-exercise-01
-  - ch13-exercise-02
-  - ch13-exercise-03
-termIds: []
-sources:
-  - id: microsoft-functions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/
-    checked: "2026-08-24"
-  - id: microsoft-parameters-arguments
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/parameters-and-arguments
-    checked: "2026-08-24"
 ---
 
 # Chapter 13 Solutions {#overview}

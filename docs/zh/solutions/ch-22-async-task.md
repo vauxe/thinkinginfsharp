@@ -2,30 +2,6 @@
 title: "第 22 章练习答案"
 description: "用闩锁证明 async 与 task 的启动语义，组合 Task API 与 Async 验证器，并明确单次执行所有权。"
 translationKey: solutions/ch-22-async-task
-kind: solution
-part: 4
-chapter: 22
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch22-async-task
-exerciseIds:
-  - ch22-exercise-01
-  - ch22-exercise-02
-  - ch22-exercise-03
-termIds: []
-sources:
-  - id: microsoft-fsharp-async-task
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/tutorials/async
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-task-expressions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/task-expressions
-    checked: "2026-08-24"
-  - id: fsharp-core-async
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-control-fsharpasync.html
-    checked: "2026-08-24"
 ---
 
 # 第 22 章练习答案 {#overview}

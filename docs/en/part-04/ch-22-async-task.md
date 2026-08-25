@@ -2,38 +2,6 @@
 title: "Chapter 22: Async<'T> and Task<'T>"
 description: "Model work that completes later, observe the different start semantics of F# async and task expressions, and cross .NET boundaries without blocking."
 translationKey: part-04/ch-22-async-task
-kind: chapter
-part: 4
-chapter: 22
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch22-async-task
-exerciseIds:
-  - ch22-exercise-01
-  - ch22-exercise-02
-  - ch22-exercise-03
-termIds:
-  - computation-expression
-  - effect
-sources:
-  - id: microsoft-fsharp-async-task
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/tutorials/async
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-async-expressions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/async-expressions
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-task-expressions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/task-expressions
-    checked: "2026-08-24"
-  - id: fsharp-core-async
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-control-fsharpasync.html
-    checked: "2026-08-24"
-  - id: dotnet-task-completion-source
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.threading.tasks.taskcompletionsource-1?view=net-10.0
-    checked: "2026-08-24"
 ---
 
 # Chapter 22: `Async<'T>` and `Task<'T>` {#overview}
@@ -80,8 +48,32 @@ Neither representation promises a new thread. Asynchrony means the caller need n
 
 The shared example creates two explicit signals. `asyncEntered` records entry into the body; `asyncRelease` keeps the body from finishing. There is no clock and no assumed scheduler speed.
 
-<<< @/../examples/scripts/ch22-async-task.fsx#async-start{fsharp:line-numbers} [ch22-async-task.fsx]
+```fsharp:line-numbers [ch22-async-task.fsx]
+let asyncEntered = newGate<bool> ()
+let asyncRelease = newGate<unit> ()
 
+let deferredAsync =
+    async {
+        asyncEntered.SetResult true
+        do! Async.AwaitTask asyncRelease.Task
+        return "async-done"
+    }
+
+assert (not asyncEntered.Task.IsCompleted)
+printfn "Async before start: entered=false"
+
+let runningAsync = Async.StartAsTask deferredAsync
+asyncEntered.Task.GetAwaiter().GetResult() |> ignore
+
+assert asyncEntered.Task.IsCompleted
+assert (not runningAsync.IsCompleted)
+printfn "Async after StartAsTask: entered=true completed=false"
+
+asyncRelease.SetResult()
+let asyncResult = runningAsync.GetAwaiter().GetResult()
+assert (asyncResult = "async-done")
+printfn "Async result: %s" asyncResult
+```
 Constructing `deferredAsync` does not set `asyncEntered`. The first assertion therefore observes a fact, not a race. `Async.StartAsTask deferredAsync` is the explicit start boundary and returns a task that represents this execution. Waiting for the entry signal proves the body has begun. The release signal is still closed, so the returned task must remain incomplete.
 
 An `Async<'T>` value may be started again. Each start performs a new execution, including its effects. That repeatability is useful for composition, but it is not automatic memoization. If charging a card must happen once, do not expose a freely restartable value without an ownership or idempotency policy.
@@ -100,8 +92,28 @@ Prefer an observable handle or structured parent workflow. Fire-and-forget `Asyn
 
 The second half uses the same experimental shape:
 
-<<< @/../examples/scripts/ch22-async-task.fsx#task-start{fsharp:line-numbers} [ch22-async-task.fsx]
+```fsharp:line-numbers [ch22-async-task.fsx]
+let taskEntered = newGate<bool> ()
+let taskRelease = newGate<unit> ()
 
+let immediateTask () =
+    task {
+        taskEntered.SetResult true
+        do! taskRelease.Task
+        return "task-done"
+    }
+
+let runningTask = immediateTask ()
+
+assert taskEntered.Task.IsCompleted
+assert (not runningTask.IsCompleted)
+printfn "Task after call: entered=true completed=false"
+
+taskRelease.SetResult()
+let taskResult = runningTask.GetAwaiter().GetResult()
+assert (taskResult = "task-done")
+printfn "Task result: %s" taskResult
+```
 Calling `immediateTask ()` evaluates the `task {}` expression. Its body sets `taskEntered` synchronously, reaches the incomplete `taskRelease.Task`, and returns an incomplete `Task<string>`. Thus both assertions are valid immediately after the call:
 
 - the body has entered;
@@ -150,8 +162,18 @@ Waiting with `let!` yields control according to the workflow and awaited operati
 
 The platform exposes many `Task<'T>` APIs, while existing F# libraries and codebases may expose `Async<'T>`. Conversion is explicit:
 
-<<< @/../examples/scripts/ch22-async-task.fsx#interop{fsharp:line-numbers} [ch22-async-task.fsx]
+```fsharp:line-numbers [ch22-async-task.fsx]
+let taskFromAsync = async { return 21 } |> Async.StartAsTask
 
+let asyncFromTask = task { return 42 } |> Async.AwaitTask
+
+let fromAsync = taskFromAsync.GetAwaiter().GetResult()
+let fromTask = Async.RunSynchronously asyncFromTask
+
+assert (fromAsync = 21)
+assert (fromTask = 42)
+printfn "Interop: async-to-task=%d task-to-async=%d" fromAsync fromTask
+```
 `Async.StartAsTask` both starts the async computation and returns a task. `Async.AwaitTask` returns an async computation that will wait for the supplied task when that async computation is started; it does not rewind or delay a task that is already running.
 
 An F# task expression can also bind an `Async<'T>` directly with `let!`. Use the form that keeps the surrounding workflow coherent. Exception and cancellation details at this bridge are observable contract details, not mere type conversions; Chapter 23 tests them explicitly.
@@ -196,13 +218,13 @@ Use a fresh gate set for each execution. Complete every gate in cleanup when a f
 
 ## Run the shared example {#run-example}
 
-From the repository root:
+From the directory containing the example:
 
 ```console
-dotnet fsi --exec examples/scripts/ch22-async-task.fsx
+dotnet fsi --exec ch22-async-task.fsx
 ```
 
-Six deterministic lines prove construction versus start, suspension before completion, eventual results, and both interoperability directions. The manifest checks their exact order.
+Six deterministic lines prove construction versus start, suspension before completion, eventual results, and both interoperability directions. Compare their exact order.
 
 ## Exercises {#exercises}
 

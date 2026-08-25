@@ -2,45 +2,6 @@
 title: "Chapter 41 Solutions"
 description: "Choose proportional browser architectures, reject stale asynchronous results, and split a shared pricing library across honest runtime boundaries."
 translationKey: solutions/ch-41-fable-elmish
-kind: solution
-part: 7
-chapter: 41
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ecosystem-fable-browser
-exerciseIds:
-  - ch41-exercise-01
-  - ch41-exercise-02
-  - ch41-exercise-03
-termIds: []
-sources:
-  - id: fable-build-run
-    url: https://fable.io/docs/javascript/build-and-run.html
-    checked: "2026-08-25"
-  - id: fable-javascript-compatibility
-    url: https://fable.io/docs/javascript/compatibility.html
-    checked: "2026-08-25"
-  - id: fable-javascript-features
-    url: https://fable.io/docs/javascript/features.html
-    checked: "2026-08-25"
-  - id: elmish-overview
-    url: https://elmish.github.io/elmish/
-    checked: "2026-08-25"
-  - id: elmish-subscriptions
-    url: https://elmish.github.io/elmish/docs/subscription.html
-    checked: "2026-08-25"
-  - id: fable-elmish-nuget
-    url: https://www.nuget.org/packages/Fable.Elmish/5.0.2
-    checked: "2026-08-25"
-  - id: fable-elmish-react-nuget
-    url: https://www.nuget.org/packages/Fable.Elmish.React/5.6.0
-    checked: "2026-08-25"
-  - id: feliz-nuget
-    url: https://www.nuget.org/packages/Feliz/3.3.3
-    checked: "2026-08-25"
 ---
 
 # Chapter 41 Solutions {#overview}
@@ -53,7 +14,7 @@ These answers choose a first architecture, preserve evidence that can overturn i
 
 ### Case A: one preference toggle on server-rendered documentation {#exercise-01-case-a}
 
-Start with a tiny isolated enhancement. If the preference can be represented by native HTML and CSS alone, use that. If it needs stored state and event handling and this repository already owns the Fable pipeline, plain Fable plus Browser.Dom is the first F# candidate.
+Start with a tiny isolated enhancement. If the preference can be represented by native HTML and CSS alone, use that. If it needs stored state and event handling and the application already owns a Fable pipeline, plain Fable plus Browser.Dom is the first F# candidate.
 
 Use one model and one typed boundary:
 
@@ -240,7 +201,7 @@ Compile-time success also cannot prove reflection, time-zone, serializer, or fil
 
 The release pipeline performs:
 
-1. locked SDK, tool, NuGet, and pnpm restore;
+1. locked SDK, tool, NuGet, and JavaScript dependency restore;
 2. .NET unit/property tests and server serializer contracts;
 3. Fable compilation plus JavaScript execution of shared golden vectors;
 4. Vite production build and bundle/license/advisory review;

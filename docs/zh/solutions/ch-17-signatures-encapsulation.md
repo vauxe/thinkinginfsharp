@@ -2,31 +2,6 @@
 title: "第 17 章答案"
 description: "规定抽象电子邮件类型，收窄不一致的分配表面，并让函数元数与辅助函数可访问性在签名文件对中保持一致。"
 translationKey: solutions/ch-17-signatures-encapsulation
-kind: solution
-part: 3
-chapter: 17
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch17-signature-library
-  - ch17-hidden-representation
-exerciseIds:
-  - ch17-exercise-01
-  - ch17-exercise-02
-  - ch17-exercise-03
-termIds: []
-sources:
-  - id: microsoft-signature-files
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/signature-files
-    checked: "2026-08-24"
-  - id: microsoft-access-control
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/access-control
-    checked: "2026-08-24"
-  - id: microsoft-component-design
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-24"
 ---
 
 # 第 17 章答案 {#overview}

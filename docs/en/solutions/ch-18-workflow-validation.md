@@ -2,30 +2,6 @@
 title: "Chapter 18 Solutions"
 description: "Separate pure, dependent, and effectful checks; implement ordered accumulation; and replace an unspecified computation expression with explicit semantics."
 translationKey: solutions/ch-18-workflow-validation
-kind: solution
-part: 3
-chapter: 18
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch18-workflow-validation
-exerciseIds:
-  - ch18-exercise-01
-  - ch18-exercise-02
-  - ch18-exercise-03
-termIds: []
-sources:
-  - id: microsoft-results
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/results
-    checked: "2026-08-24"
-  - id: fsharp-core-result
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-resultmodule.html
-    checked: "2026-08-24"
-  - id: microsoft-computation-expressions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/computation-expressions
-    checked: "2026-08-24"
 ---
 
 # Chapter 18 Solutions {#overview}

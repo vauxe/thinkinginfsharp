@@ -2,66 +2,6 @@
 title: "第 41 章：Fable、Elmish 与浏览器应用"
 description: "从运行时边界、状态复杂度、渲染需求、互操作和可部署证据选择浏览器架构。"
 translationKey: part-07/ch-41-fable-elmish
-kind: chapter
-part: 7
-chapter: 41
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ecosystem-fable-browser
-exerciseIds:
-  - ch41-exercise-01
-  - ch41-exercise-02
-  - ch41-exercise-03
-termIds: []
-sources:
-  - id: fable-first-project
-    url: https://fable.io/docs/getting-started/your-first-fable-project.html
-    checked: "2026-08-25"
-  - id: fable-build-run
-    url: https://fable.io/docs/javascript/build-and-run.html
-    checked: "2026-08-25"
-  - id: fable-dotnet-users
-    url: https://fable.io/docs/introduction/dotnet-users-read-this.html
-    checked: "2026-08-25"
-  - id: fable-javascript-compatibility
-    url: https://fable.io/docs/javascript/compatibility.html
-    checked: "2026-08-25"
-  - id: fable-javascript-features
-    url: https://fable.io/docs/javascript/features.html
-    checked: "2026-08-25"
-  - id: fable-library-guidance
-    url: https://fable.io/docs/your-fable-project/use-a-fable-library.html
-    checked: "2026-08-25"
-  - id: fable-tool-nuget
-    url: https://www.nuget.org/packages/Fable/5.13.0
-    checked: "2026-08-25"
-  - id: fable-core-nuget
-    url: https://www.nuget.org/packages/Fable.Core/5.2.0
-    checked: "2026-08-25"
-  - id: fable-browser-dom-nuget
-    url: https://www.nuget.org/packages/Fable.Browser.Dom/2.20.0
-    checked: "2026-08-25"
-  - id: elmish-overview
-    url: https://elmish.github.io/elmish/
-    checked: "2026-08-25"
-  - id: elmish-subscriptions
-    url: https://elmish.github.io/elmish/docs/subscription.html
-    checked: "2026-08-25"
-  - id: fable-elmish-nuget
-    url: https://www.nuget.org/packages/Fable.Elmish/5.0.2
-    checked: "2026-08-25"
-  - id: fable-elmish-react-nuget
-    url: https://www.nuget.org/packages/Fable.Elmish.React/5.6.0
-    checked: "2026-08-25"
-  - id: feliz-nuget
-    url: https://www.nuget.org/packages/Feliz/3.3.3
-    checked: "2026-08-25"
-  - id: fable-react-nuget
-    url: https://www.nuget.org/packages/Fable.React/9.4.0
-    checked: "2026-08-25"
 ---
 
 # 第 41 章：Fable、Elmish 与浏览器应用 {#overview}
@@ -114,28 +54,86 @@ F# 编译器仍会对项目做类型检查。随后 Fable 转译受支持的程�
 
 一个 `netstandard2.0` 资源本身既不能回答第二问，也不能回答第三问。反过来，一个 JavaScript 库即使没有 .NET 实现，也可以通过类型化 Fable 绑定很好地工作。
 
-## 浏览器样例：一个经过验证的浏览器边界 {#verified-slice}
+## 浏览器样例：一个最小浏览器边界 {#verified-slice}
 
-浏览器样例有意避开 React 和 Elmish 包。它隔离了最小端到端主张：锁定的 F# 源码可以变成生产 JavaScript 包，绑定可访问的 DOM 事件，更新可见状态，并通过真实 Chrome 冒烟测试。
+浏览器样例有意避开 React 和 Elmish 包。它隔离出最小实用路径：F# 源码变成生产 JavaScript 包，绑定可访问的 DOM 事件并更新可见状态。真实应用仍须在其支持的浏览器中测试该产物。
 
 ### 锁定的项目表面 {#locked-project}
 
-<<< @/../examples/ecosystem/fable/FableSample.fsproj{xml:line-numbers} [FableSample.fsproj]
+```xml:line-numbers [FableSample.fsproj]
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
 
-仓库分别锁定：
+  <ItemGroup>
+    <Compile Include="App.fs" />
+  </ItemGroup>
 
-- .NET SDK 10.0.301 与 F# 语言版本 10；
-- 5.13.0 的本地 Fable 工具；
-- `packages.lock.json` 中的 Fable.Core 5.2.0 与 Fable.Browser.Dom 2.20.0；
-- 工作区锁中的 pnpm 11.7.0 与 Vite 6.4.3；
-- 作为自动化客户端的 `playwright-core` 1.62.1，同时明确使用已安装的系统 Chrome，而不声称固定了浏览器二进制。
+  <ItemGroup>
+    <PackageReference Include="Fable.Browser.Dom" Version="2.20.0" />
+    <PackageReference Include="Fable.Core" Version="5.2.0" />
+  </ItemGroup>
+</Project>
+```
+要在应用中复现这个样例，应记录以下各自演进的输入：
+
+- .NET SDK 与 F# 语言版本；
+- 本地 Fable 工具版本；
+- `packages.lock.json` 中的 Fable.Core 与 Fable.Browser.Dom；
+- JavaScript 锁文件中的包管理器与 Vite 版本；
+- 自动与手工验收测试所用的浏览器版本。
 
 编译器、Fable.Core 和浏览器绑定有各自的发布节奏。按看起来相同的主版本或次版本去配对不是兼容策略；要还原它们声明的依赖图、编译并在目标上运行。
 
 ### 先读 F#，再读生成的 JavaScript {#sample-code}
 
-<<< @/../examples/ecosystem/fable/App.fs{fsharp:line-numbers} [App.fs]
+```fsharp:line-numbers [App.fs]
+module FableSample.App
 
+open Browser.Dom
+
+type Model = { Count: int }
+
+type Message =
+    | Increment
+    | Reset
+
+let initialModel = { Count = 0 }
+
+let update message model =
+    match message with
+    | Increment -> { model with Count = model.Count + 1 }
+    | Reset -> initialModel
+
+let private elementById id =
+    match document.getElementById id with
+    | null -> failwith $"Required element #{id} was not found."
+    | element -> element
+
+let private countOutput = elementById "count"
+let private incrementButton = elementById "increment"
+let private resetButton = elementById "reset"
+let mutable private model = initialModel
+
+let private render () =
+    countOutput.textContent <- $"Count: {model.Count}"
+
+    if model.Count = 0 then
+        resetButton.setAttribute ("disabled", "")
+    else
+        resetButton.removeAttribute "disabled"
+
+let private dispatch message =
+    model <- update message model
+    render ()
+
+incrementButton.addEventListener ("click", fun _ -> dispatch Increment)
+resetButton.addEventListener ("click", fun _ -> dispatch Reset)
+
+render ()
+document.documentElement.setAttribute ("data-fable-ready", "true")
+```
 `Model`、`Message`、`initialModel` 和 `update` 都是普通 F#。`update` 函数是确定性的：相同消息与模型产生相同的下一模型。它不知道元素、点击或渲染。
 
 `elementById`、事件注册、可变的当前模型和 `render` 构成有副作用的浏览器外壳。这里的修改是有意的局部运行时状态，不是在邀请你让领域转换变得隐式。缺少必需标记时会在启动期间失败，而不是留下只接好一部分的页面。
@@ -381,13 +379,13 @@ type BookingPage =
 
 ```sh
 dotnet tool restore
-dotnet restore examples/ecosystem/fable/FableSample.fsproj --locked-mode
+dotnet restore FableSample.fsproj --locked-mode
 dotnet fable --outDir generated --noRestore --noCache
 vite build
-node tests/site-fable-smoke.mjs
+vite preview
 ```
 
-实际包脚本从工作区包运行，因此相对路径保持稳定。根 `pnpm check:examples` 在 .NET 示例矩阵之后调用该序列。
+启动预览服务器后，应在真实浏览器中检查生产产物；风险足够高时再把这项检查自动化。开发服务器路径不能替代生产产物证据。
 
 ### 部署产物，而不是开发拓扑 {#static-deployment}
 
@@ -395,7 +393,7 @@ node tests/site-fable-smoke.mjs
 
 有意选择 MPA、SPA 回退或服务端路由。定义发布期间旧 HTML 如何配合新资源，若有 service worker 则定义它如何更新，以及如何同时回滚资源与 API 兼容性。
 
-浏览器样例的产物不需要应用服务器。本地 Node 服务器只存在于测试工具中；它不是生产依赖，也不代表托管选择。
+浏览器样例的产物不需要应用服务器。本地预览服务器只是开发工具，不是生产依赖，也不代表托管选择。
 
 ### 测量包体与运行成本 {#browser-performance}
 
@@ -407,18 +405,18 @@ node tests/site-fable-smoke.mjs
 
 下面是带日期的观察，不是预先批准的技术栈：
 
-| 选择 | 2026-08-25 检查的稳定表面 | 本仓库已验证 | 采用问题 |
+| 选择 | 2026-08-25 检查的稳定表面 | 本章状态 | 采用问题 |
 |---|---|---|---|
-| Fable 工具 | 5.13.0；工具面向 .NET 10 | 是 | 生成的 JavaScript 是否保留此应用需要的语义？ |
-| Fable.Core | 5.2.0；`netstandard2.0` 资源 | 是 | 每个所用辅助函数是否受 JavaScript 目标支持？ |
-| Fable.Browser.Dom | 2.20.0；浏览器绑定图 | 是 | 所需 Web API 与目标浏览器是否得到覆盖？ |
-| Vite | 6.4.3，仓库级覆盖 | 是 | 基础路径、资源、生产模式和托管行为是否验证？ |
-| Fable.Elmish | 5.0.2 | 否 | 协调状态/副作用复杂度是否足以证明循环合理？ |
-| Fable.Elmish.React | 5.6.0 稳定版；存在 6.0 beta | 否 | F# 绑定是否兼容所选 React/npm 矩阵？ |
-| Feliz | 3.3.3 | 否 | 它的类型化 React 表面是否适合组件与升级需求？ |
-| Fable.React | 9.4.0 稳定版；包建议新项目使用 Feliz | 否 | 这是维护既有技术栈，而不是新的默认选择吗？ |
+| Fable 工具 | 5.13.0；工具面向 .NET 10 | 已示例 | 生成的 JavaScript 是否保留此应用需要的语义？ |
+| Fable.Core | 5.2.0；`netstandard2.0` 资源 | 已示例 | 每个所用辅助函数是否受 JavaScript 目标支持？ |
+| Fable.Browser.Dom | 2.20.0；浏览器绑定图 | 已示例 | 所需 Web API 与目标浏览器是否得到覆盖？ |
+| Vite | 6.4.3 | 已示例 | 基础路径、资源、生产模式和托管行为是否验证？ |
+| Fable.Elmish | 5.0.2 | 仅研究 | 协调状态/副作用复杂度是否足以证明循环合理？ |
+| Fable.Elmish.React | 5.6.0 稳定版；存在 6.0 beta | 仅研究 | F# 绑定是否兼容所选 React/npm 矩阵？ |
+| Feliz | 3.3.3 | 仅研究 | 它的类型化 React 表面是否适合组件与升级需求？ |
+| Fable.React | 9.4.0 稳定版；包建议新项目使用 Feliz | 仅研究 | 这是维护既有技术栈，而不是新的默认选择吗？ |
 
-“是”只覆盖浏览器样例的精确锁定编译、打包和交互。它不能推广到这些包中的每个 API。“否”表示审阅了官方文档或元数据；本仓库没有还原、编译、执行、基准、可访问性测试或安全测试该候选。
+“已示例”表示本章包含最小配置或用法，不表示书站仓库内保留着可执行浏览器工程。“仅研究”表示采用前必须在真实应用中继续评估。
 
 ## 开展可逆的浏览器技术栈试验 {#adoption-spike}
 

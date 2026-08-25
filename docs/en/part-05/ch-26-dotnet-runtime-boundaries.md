@@ -2,49 +2,6 @@
 title: "Chapter 26: Deeper .NET Boundaries"
 description: "Cross runtime type, delegate, event, collection, identity, equality, and hashing boundaries without losing F# domain semantics."
 translationKey: part-05/ch-26-dotnet-runtime-boundaries
-kind: chapter
-part: 5
-chapter: 26
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch26-dotnet-runtime-boundaries
-exerciseIds:
-  - ch26-exercise-01
-  - ch26-exercise-02
-  - ch26-exercise-03
-termIds:
-  - deferred-evaluation
-  - enumeration
-  - reference-identity
-  - structural-equality
-sources:
-  - id: microsoft-fsharp-casting
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/casting-and-conversions
-    checked: "2026-08-24"
-  - id: dotnet-object-get-type
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.object.gettype?view=net-10.0
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-delegates
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/delegates
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-events
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/members/events
-    checked: "2026-08-24"
-  - id: dotnet-collections
-    url: https://learn.microsoft.com/en-us/dotnet/standard/collections/
-    checked: "2026-08-24"
-  - id: dotnet-dictionary-comparer
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2.comparer?view=net-10.0
-    checked: "2026-08-24"
-  - id: fsharp-hash-identity
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-hashidentity.html
-    checked: "2026-08-24"
-  - id: dotnet-reference-equals
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.object.referenceequals?view=net-10.0
-    checked: "2026-08-24"
 ---
 
 # Chapter 26: Deeper .NET Boundaries {#overview}
@@ -74,8 +31,20 @@ The compiler assigns every expression a static type. That type determines which 
 
 The script compares both forms:
 
-<<< @/../examples/scripts/ch26-dotnet-runtime-boundaries.fsx#runtime-types{fsharp:line-numbers} [ch26-dotnet-runtime-boundaries.fsx]
+```fsharp:line-numbers [ch26-dotnet-runtime-boundaries.fsx]
+let request = { RequestId = "R-26"; Seats = 3 }
 
+let declaredType = typeof<BookingRequest>
+let boxedRequest: objnull = box request
+
+let actualType =
+    match boxedRequest with
+    | null -> failwith "boxing a non-null record unexpectedly produced null"
+    | value -> value.GetType()
+
+ensureEqual "runtime type" declaredType actualType
+printfn "Runtime type: declared=%s actual=%s" declaredType.Name actualType.Name
+```
 `typeof<BookingRequest>` obtains metadata for a type known statically. `value.GetType()` obtains the exact type of a non-null runtime instance, even when the reference's static type is a base class or `obj`. Because `obj`-shaped .NET input may be null under nullable checking, the example first matches `null` and calls `GetType` only in the non-null branch.
 
 Reflection is appropriate for framework discovery, serialization infrastructure, plugin loading, diagnostics, and truly dynamic protocols. It should not replace a discriminated union when the set of domain alternatives is known. A union preserves cases at compile time; `System.Type` inspection moves missing-case errors to runtime.
@@ -100,8 +69,31 @@ Three operations have different guarantees:
 
 The shared decoder uses type-test patterns:
 
-<<< @/../examples/scripts/ch26-dotnet-runtime-boundaries.fsx#type-tests{fsharp:line-numbers} [ch26-dotnet-runtime-boundaries.fsx]
+```fsharp:line-numbers [ch26-dotnet-runtime-boundaries.fsx]
+let describeObject (value: objnull) =
+    match value with
+    | null -> "null"
+    | :? string as text -> $"text:{text.ToUpperInvariant()}"
+    | :? BookingRequest as booking -> $"request:{booking.RequestId}/{booking.Seats}"
+    | :? int as number -> $"int:{number}"
+    | _ -> "other"
 
+let descriptions = [ box "lin"; box request; box 42 ] |> List.map describeObject
+
+ensureEqual "pattern casts" [ "text:LIN"; "request:R-26/3"; "int:42" ] descriptions
+
+printfn "Pattern casts: %A" descriptions
+
+let failedDowncast =
+    try
+        let _: string | null = (box 42 :?> (string | null))
+        "no-error"
+    with :? InvalidCastException as error ->
+        error.GetType().Name
+
+ensureEqual "failed downcast" "InvalidCastException" failedDowncast
+printfn "Failed downcast: %s" failedDowncast
+```
 It handles null first, even though the fixed inputs happen to be non-null. Each successful `:?` branch narrows the value and binds the typed payload. The deliberately wrong `:?> string` proves that a downcast is not a conversion service: boxed integer `42` does not become text; it raises `InvalidCastException`.
 
 Numeric conversion functions such as `int64`, `decimal`, or checked operators convert representations and may have overflow/rounding policy. Upcasting/downcasting instead navigate compatible object types. Parsing text is another operation again and belongs in `Result`/`TryParse`-style validation.
@@ -114,8 +106,16 @@ An F# function value and a .NET delegate both represent callable behavior, but t
 
 The script constructs `Func<int,int,int>` and `Converter<int,string>` explicitly:
 
-<<< @/../examples/scripts/ch26-dotnet-runtime-boundaries.fsx#delegates{fsharp:line-numbers} [ch26-dotnet-runtime-boundaries.fsx]
+```fsharp:line-numbers [ch26-dotnet-runtime-boundaries.fsx]
+let add = Func<int, int, int>(fun left right -> left + right)
 
+let labels =
+    Array.ConvertAll([| 1; 2; 3 |], Converter<int, string>(fun number -> string (number * 2)))
+
+ensureEqual "delegate invocation" 7 (add.Invoke(3, 4))
+ensureEqual "delegate conversion" [| "2"; "4"; "6" |] labels
+printfn "Delegates: add=%d labels=%A" (add.Invoke(3, 4)) labels
+```
 The delegate's `Invoke` method performs the call. F# can often adapt a compatible lambda at a known delegate parameter, but an explicit constructor is useful when overload resolution is ambiguous, the delegate must be stored/removed later, or the public type matters.
 
 Do not expose `FSharpFunc<_,_>` accidentally to languages that expect `Func<_,_>`/`Action<_>` or a named delegate; Chapter 27 designs that public surface. Conversely, do not replace every internal function with a delegate merely because the application runs on .NET. Adapt at one edge.
@@ -124,8 +124,42 @@ Do not expose `FSharpFunc<_,_>` accidentally to languages that expect `Func<_,_>
 
 An event separates a publisher that may trigger notifications from observers that subscribe. The chapter publisher stores a private `Event<EventHandler<SeatsChangedEventArgs>, SeatsChangedEventArgs>` and exposes only `Publish` through a `[<CLIEvent>]` member:
 
-<<< @/../examples/scripts/ch26-dotnet-runtime-boundaries.fsx#events{fsharp:line-numbers} [ch26-dotnet-runtime-boundaries.fsx]
+```fsharp:line-numbers [ch26-dotnet-runtime-boundaries.fsx]
+type SeatsChangedEventArgs(previous: int, current: int) =
+    inherit EventArgs()
 
+    member _.Previous = previous
+    member _.Current = current
+
+type CapacityPublisher(initial: int) =
+    let changed = Event<EventHandler<SeatsChangedEventArgs>, SeatsChangedEventArgs>()
+    let mutable current = initial
+
+    [<CLIEvent>]
+    member _.SeatsChanged = changed.Publish
+
+    member this.SetSeats(next: int) =
+        let previous = current
+        current <- next
+        changed.Trigger(this, SeatsChangedEventArgs(previous, next))
+
+let publisher = CapacityPublisher(4)
+let observations = ResizeArray<string>()
+
+let handler =
+    EventHandler<SeatsChangedEventArgs>(fun sender args ->
+        assert (obj.ReferenceEquals(sender, publisher))
+        observations.Add($"{args.Previous}->{args.Current}"))
+
+publisher.SeatsChanged.AddHandler handler
+publisher.SetSeats 2
+publisher.SeatsChanged.RemoveHandler handler
+publisher.SetSeats 1
+
+let observedChanges = observations |> Seq.toList
+ensureEqual "removed handler" [ "4->2" ] observedChanges
+printfn "Event: observed=%A after-remove=%d" observedChanges observations.Count
+```
 `AddHandler` and `RemoveHandler` use the same stored delegate instance. The first update is observed; after removal, the second is not. This is a lifetime assertion, not just an event-value assertion.
 
 For an F#-shaped event, `.Subscribe` returns `IDisposable`; bind that subscription with `use` or transfer ownership explicitly. Convenience `.Add` installs a handler but does not return a removal token, so do not use it when lifetime must end before the event source dies.
@@ -149,8 +183,27 @@ Chapter 14 chose collections by lookup, update, order, and evaluation needs. The
 
 The script makes a live view and a snapshot observable:
 
-<<< @/../examples/scripts/ch26-dotnet-runtime-boundaries.fsx#dotnet-collections{fsharp:line-numbers} [ch26-dotnet-runtime-boundaries.fsx]
+```fsharp:line-numbers [ch26-dotnet-runtime-boundaries.fsx]
+let mutableNumbers = ResizeArray<int>([ 1; 2 ])
+let liveView: IEnumerable<int> = mutableNumbers
+let snapshot = liveView |> Seq.toList
+mutableNumbers.Add 3
+let liveValues = liveView |> Seq.toList
 
+ensureEqual "live enumerable" [ 1; 2; 3 ] liveValues
+ensureEqual "list snapshot" [ 1; 2 ] snapshot
+printfn ".NET list: live=%A snapshot=%A" liveValues snapshot
+
+let bookingByEmail = Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+bookingByEmail["lin@example.com"] <- "first"
+bookingByEmail["LIN@EXAMPLE.COM"] <- "second"
+let found, emailValue = bookingByEmail.TryGetValue "Lin@Example.com"
+
+ensureEqual "case-insensitive key count" 1 bookingByEmail.Count
+ensureEqual "case-insensitive lookup" (true, "second") (found, emailValue)
+
+printfn "String comparer: count=%d found=%b value=%s" bookingByEmail.Count found emailValue
+```
 `liveView` is the same mutable `List<T>` seen through `IEnumerable<T>`; enumerating after `Add` sees the new element. `Seq.toList` materializes an independent F# list at that moment. A read-only interface would restrict available operations but could still expose later mutations made through another alias.
 
 Do not modify ordinary `List<T>`/`Dictionary<TKey,TValue>` while enumerating them, and do not assume they support concurrent writers. Convert once at ownership boundaries: snapshot external mutable input when the core needs stability, or return an explicit read-only/live contract when updates must remain visible.
@@ -178,8 +231,39 @@ Reference identity cannot be overridden. For value types, calling `ReferenceEqua
 
 The script creates two `Customer` instances carrying the same ID. The class does not override equality, so the default dictionary treats the two references as separate keys. A second dictionary receives an explicit comparer built with `HashIdentity.FromFunctions`:
 
-<<< @/../examples/scripts/ch26-dotnet-runtime-boundaries.fsx#identity-hash-keys{fsharp:line-numbers} [ch26-dotnet-runtime-boundaries.fsx]
+```fsharp:line-numbers [ch26-dotnet-runtime-boundaries.fsx]
+type Customer(customerId: string) =
+    member _.CustomerId = customerId
 
+let customerIdComparer: IEqualityComparer<Customer> =
+    HashIdentity.FromFunctions
+        (fun customer -> StringComparer.Ordinal.GetHashCode(customer.CustomerId))
+        (fun left right -> StringComparer.Ordinal.Equals(left.CustomerId, right.CustomerId))
+
+let firstCustomer = Customer("C-26")
+let secondCustomer = Customer("C-26")
+let sameReference = obj.ReferenceEquals(firstCustomer, secondCustomer)
+
+let defaultKeys = Dictionary<Customer, string>()
+defaultKeys[firstCustomer] <- "first"
+defaultKeys[secondCustomer] <- "second"
+
+let domainKeys = Dictionary<Customer, string>(customerIdComparer)
+domainKeys[firstCustomer] <- "first"
+domainKeys[secondCustomer] <- "second"
+
+ensureEqual "separate references" false sameReference
+ensureEqual "default class keys" 2 defaultKeys.Count
+ensureEqual "domain class keys" 1 domainKeys.Count
+ensureEqual "domain lookup" "second" domainKeys[firstCustomer]
+
+printfn
+    "Class keys: same-reference=%b default=%d domain=%d value=%s"
+    sameReference
+    defaultKeys.Count
+    domainKeys.Count
+    domainKeys[firstCustomer]
+```
 Both comparer functions project the same immutable `CustomerId`. The second insertion therefore replaces the first and the dictionary has one domain key. Choosing the comparer at construction makes the collection's meaning reviewable without changing equality for every `Customer` use.
 
 Every equality comparer must obey these laws:
@@ -208,13 +292,13 @@ This is not anti-.NET isolation. It is semantic compression: the adapter transla
 
 ## Run the shared example {#run-example}
 
-From the repository root:
+From the directory containing the example:
 
 ```console
-dotnet fsi --checknulls+ --warnaserror+ --exec examples/scripts/ch26-dotnet-runtime-boundaries.fsx
+dotnet fsi --checknulls+ --warnaserror+ --exec ch26-dotnet-runtime-boundaries.fsx
 ```
 
-Eight deterministic lines cover exact runtime type, safe and failing casts, delegates, event removal, live versus copied collections, case-insensitive lookup, and default reference versus domain key identity. The script also runs without nullable checking because the unified example gate verifies the repository's normal FSI invocation.
+Eight deterministic lines cover exact runtime type, safe and failing casts, delegates, event removal, live versus copied collections, case-insensitive lookup, and default reference versus domain key identity. Run it once with the flags shown above, then remove `--checknulls+` if you want to compare the compiler's behavior without nullable checking.
 
 ## Exercises {#exercises}
 

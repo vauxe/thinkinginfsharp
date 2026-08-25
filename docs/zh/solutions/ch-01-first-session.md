@@ -2,28 +2,6 @@
 title: "第 1 章练习答案"
 description: "第一次 F# 会话的推理过程、迁移示例与运行入口选择。"
 translationKey: solutions/ch-01-first-session
-kind: solution
-part: 1
-chapter: 1
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch01-first-session
-  - ch01-exercise-02-solution
-exerciseIds:
-  - ch01-exercise-01
-  - ch01-exercise-02
-  - ch01-exercise-03
-termIds: []
-sources:
-  - id: microsoft-fsi
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/tools/fsharp-interactive/
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-unit
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/unit-type
-    checked: "2026-08-24"
 ---
 
 # 第 1 章练习答案 {#overview}
@@ -53,8 +31,13 @@ sources:
 
 独立答案脚本中的一种直接写法如下：
 
-<<< @/../examples/solutions/ch01-exercise-02.fsx#solution{fsharp:line-numbers} [ch01-exercise-02.fsx]
+```fsharp:line-numbers [ch01-exercise-02.fsx]
+let guest = "Lin"
+let requestedSeats = 3
+let confirmation = $"{guest} booked {requestedSeats} seats."
 
+printfn "%s" confirmation
+```
 三个 `let` 依次描述数据依赖，而不是声明三个以后必须改写的存储槽。`confirmation` 只依赖前两个已命名的值。最后的 `printfn` 把文本写到标准输出，并返回 `()`。
 
 这里没有必要添加类型标注：字符串字面量、整数 `3`、字符串插值和 `printfn` 已经给编译器足够约束。也没有必要为了“更函数式”而创建自定义运算符或抽象；清楚的中间值正是本题的目标。

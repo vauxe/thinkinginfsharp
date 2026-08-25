@@ -2,99 +2,6 @@
 title: "第 43 章：Avalonia、桌面端与移动端"
 description: "从状态、生命周期、平台、工具链、打包和证据边界设计 F# 用户界面，而不是把跨平台编译当作跨平台验证。"
 translationKey: part-07/ch-43-avalonia-desktop-mobile
-kind: chapter
-part: 7
-chapter: 43
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ecosystem-avalonia-desktop
-exerciseIds:
-  - ch43-exercise-01
-  - ch43-exercise-02
-  - ch43-exercise-03
-termIds: []
-sources:
-  - id: avalonia-get-started
-    url: https://docs.avaloniaui.net/docs/get-started/
-    checked: "2026-08-25"
-  - id: avalonia-templates
-    url: https://github.com/AvaloniaUI/Avalonia.Templates
-    checked: "2026-08-25"
-  - id: avalonia-desktop-nuget
-    url: https://www.nuget.org/packages/Avalonia.Desktop/12.1.1
-    checked: "2026-08-25"
-  - id: avalonia-supported-platforms
-    url: https://docs.avaloniaui.net/docs/supported-platforms
-    checked: "2026-08-25"
-  - id: avalonia-cross-platform-architecture
-    url: https://docs.avaloniaui.net/docs/fundamentals/cross-platform-architecture
-    checked: "2026-08-25"
-  - id: avalonia-cross-platform-solution
-    url: https://docs.avaloniaui.net/docs/app-development/cross-platform-solution-setup
-    checked: "2026-08-25"
-  - id: avalonia-application-lifetimes
-    url: https://docs.avaloniaui.net/docs/fundamentals/application-lifetimes
-    checked: "2026-08-25"
-  - id: avalonia-12-breaking-changes
-    url: https://docs.avaloniaui.net/docs/avalonia12-breaking-changes
-    checked: "2026-08-25"
-  - id: avalonia-xaml-compilation
-    url: https://docs.avaloniaui.net/docs/xaml/compilation
-    checked: "2026-08-25"
-  - id: avalonia-coded-ui
-    url: https://docs.avaloniaui.net/docs/fundamentals/coded-ui
-    checked: "2026-08-25"
-  - id: avalonia-threading
-    url: https://docs.avaloniaui.net/docs/app-development/threading
-    checked: "2026-08-25"
-  - id: avalonia-responsive-layouts
-    url: https://docs.avaloniaui.net/docs/layout/responsive-layouts
-    checked: "2026-08-25"
-  - id: avalonia-accessibility
-    url: https://docs.avaloniaui.net/docs/app-development/accessibility
-    checked: "2026-08-25"
-  - id: avalonia-headless-testing
-    url: https://docs.avaloniaui.net/docs/testing/setting-up-the-headless-platform
-    checked: "2026-08-25"
-  - id: avalonia-windows
-    url: https://docs.avaloniaui.net/docs/platform-specific-guides/windows
-    checked: "2026-08-25"
-  - id: avalonia-macos
-    url: https://docs.avaloniaui.net/docs/platform-specific-guides/macos
-    checked: "2026-08-25"
-  - id: avalonia-linux
-    url: https://docs.avaloniaui.net/docs/platform-specific-guides/linux
-    checked: "2026-08-25"
-  - id: avalonia-android
-    url: https://docs.avaloniaui.net/docs/platform-specific-guides/android/
-    checked: "2026-08-25"
-  - id: avalonia-ios
-    url: https://docs.avaloniaui.net/docs/platform-specific-guides/ios
-    checked: "2026-08-25"
-  - id: avalonia-deploy-macos
-    url: https://docs.avaloniaui.net/docs/deployment/macos
-    checked: "2026-08-25"
-  - id: avalonia-deploy-linux
-    url: https://docs.avaloniaui.net/docs/deployment/linux
-    checked: "2026-08-25"
-  - id: avalonia-deploy-ios
-    url: https://docs.avaloniaui.net/docs/deployment/ios
-    checked: "2026-08-25"
-  - id: dotnet-publishing
-    url: https://learn.microsoft.com/dotnet/core/deploying/
-    checked: "2026-08-25"
-  - id: dotnet-wpf-migration
-    url: https://learn.microsoft.com/dotnet/desktop/wpf/migration/
-    checked: "2026-08-25"
-  - id: dotnet-maui
-    url: https://learn.microsoft.com/dotnet/maui/?view=net-maui-10.0
-    checked: "2026-08-25"
-  - id: dotnet-maui-templates
-    url: https://github.com/dotnet/maui/tree/main/src/Templates/src/templates
-    checked: "2026-08-25"
 ---
 
 # 第 43 章：Avalonia、桌面端与移动端 {#overview}
@@ -192,54 +99,187 @@ AXAML 由 XamlX 编译，创建的运行时对象图与代码构造的对象图�
 
 ### 固定版本的普通 .NET 项目 {#pinned-project}
 
-<<< @/../examples/ecosystem/avalonia/AvaloniaSample.fsproj{xml:line-numbers} [AvaloniaSample.fsproj]
+```xml:line-numbers [AvaloniaSample.fsproj]
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>ThinkingInFSharp.AvaloniaSample</AssemblyName>
+    <RootNamespace>ThinkingInFSharp.AvaloniaSample</RootNamespace>
+  </PropertyGroup>
 
-`Avalonia`、`Avalonia.Desktop` 和 `Avalonia.Themes.Fluent` 固定到 12.1.1，并通过锁文件解析。仓库也锁定 FSharp.Core 10.1.301。`WinExe` 选择图形可执行程序；`net10.0` 仍是通用桌面目标，而不是 `net10.0-macos` 或 `net10.0-windows`。
+  <ItemGroup>
+    <Compile Include="MainWindow.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
+  </ItemGroup>
+</Project>
+```
+`Avalonia`、`Avalonia.Desktop` 和 `Avalonia.Themes.Fluent` 固定到 12.1.1，并通过锁文件解析。复制项目后，也可以固定 FSharp.Core 10.1.301。`WinExe` 选择图形可执行程序；`net10.0` 仍是通用桌面目标，而不是 `net10.0-macos` 或 `net10.0-windows`。
 
 显式 F# 编译顺序很重要：`MainWindow.fs` 定义 `Program.fs` 使用的类型。AXAML 文件由 Avalonia 构建目标处理，不是 F# 编译项。
 
 ### 让纯转换负责决策 {#pure-transition}
 
-<<< @/../examples/ecosystem/avalonia/MainWindow.fs{fsharp:line-numbers} [MainWindow.fs]
+```fsharp:line-numbers [MainWindow.fs]
+namespace ThinkingInFSharp.AvaloniaSample
 
+open Avalonia.Controls
+open Avalonia.Markup.Xaml
+
+type Model = { Seats: int }
+
+type Message =
+    | AddSeat
+    | RemoveSeat
+    | Reset
+
+[<RequireQualifiedAccess>]
+module Counter =
+    let initial = { Seats = 0 }
+
+    let update message model =
+        match message with
+        | AddSeat -> { model with Seats = model.Seats + 1 }
+        | RemoveSeat ->
+            { model with
+                Seats = max 0 (model.Seats - 1) }
+        | Reset -> initial
+
+type MainWindow() as this =
+    inherit Window()
+
+    do
+        AvaloniaXamlLoader.Load(this)
+
+        let countText = this.GetControl<TextBlock>("CountText")
+        let statusText = this.GetControl<TextBlock>("StatusText")
+        let removeButton = this.GetControl<Button>("RemoveButton")
+        let mutable model = Counter.initial
+
+        let render state =
+            countText.Text <- string state.Seats
+
+            statusText.Text <-
+                if state.Seats = 0 then "No seats selected"
+                elif state.Seats = 1 then "1 seat selected"
+                else $"{state.Seats} seats selected"
+
+            removeButton.IsEnabled <- state.Seats > 0
+
+        let dispatch message =
+            model <- Counter.update message model
+            render model
+
+        this.GetControl<Button>("AddButton").Click.Add(fun _ -> dispatch AddSeat)
+        removeButton.Click.Add(fun _ -> dispatch RemoveSeat)
+        this.GetControl<Button>("ResetButton").Click.Add(fun _ -> dispatch Reset)
+        render model
+```
 `Model`、`Message` 和 `Counter.update` 不知道按钮、调度器、窗口或 Avalonia。`RemoveSeat` 维护下界。视图持有当前模型，只因为这个样例刻意局部且短暂；真实工作流应另外决定哪些内容必须跨导航、挂起、重启或升级保存。
 
 窗口加载 AXAML、取得命名控件、把点击转成消息、调用纯更新，再渲染结果。这是一个小型手写 model-view-update 循环，并不主张所有 UI 副作用都应该塞进一个构造函数。
 
 ### 标记描述形状，不承载业务规则 {#markup-shape}
 
-<<< @/../examples/ecosystem/avalonia/MainWindow.axaml{xml:line-numbers} [MainWindow.axaml]
+```xml:line-numbers [MainWindow.axaml]
+<Window
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    x:Class="ThinkingInFSharp.AvaloniaSample.MainWindow"
+    Title="Thinking in F# — Avalonia"
+    Width="520"
+    Height="400"
+    MinWidth="420"
+    MinHeight="340"
+    WindowStartupLocation="CenterScreen">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="32">
+    <StackPanel Grid.Row="0" Spacing="6">
+      <TextBlock FontSize="13" FontWeight="SemiBold" Text="THINKING IN F#" />
+      <TextBlock FontSize="28" FontWeight="Bold" Text="Pure update, thin view" />
+      <TextBlock Opacity="0.72" Text="Avalonia owns the window; F# owns the state transition." />
+    </StackPanel>
 
+    <Border Grid.Row="1" Margin="0,24" Padding="24" CornerRadius="16" BorderThickness="1">
+      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+        <TextBlock HorizontalAlignment="Center" Opacity="0.72" Text="Seats requested" />
+        <TextBlock
+            x:Name="CountText"
+            HorizontalAlignment="Center"
+            FontSize="64"
+            FontWeight="Bold"
+            Text="0" />
+        <TextBlock x:Name="StatusText" HorizontalAlignment="Center" Text="No seats selected" />
+      </StackPanel>
+    </Border>
+
+    <StackPanel Grid.Row="2" HorizontalAlignment="Center" Orientation="Horizontal" Spacing="12">
+      <Button x:Name="RemoveButton" MinWidth="100" HorizontalContentAlignment="Center" Content="Remove" />
+      <Button x:Name="ResetButton" MinWidth="100" HorizontalContentAlignment="Center" Content="Reset" />
+      <Button x:Name="AddButton" MinWidth="100" HorizontalContentAlignment="Center" Content="Add a seat" />
+    </StackPanel>
+  </Grid>
+</Window>
+```
 标记负责布局、控件身份、标签和初始视觉值。文本按钮已经能通过内容暴露有用的无障碍名称。生产屏幕还应加入稳定的自动化 ID、可见文本语义不清时的显式标签、本地化资源、键盘行为、对比度检查，以及大字号和窄宽度测试。
 
 `GetControl<T>` 会在必需名称不存在时主动失败。传给 `GetControl` 的字符串不是类型化绑定路径，因此 XAML 编译成功不能证明每个查找正确；无头或原生构造测试才能补上这一缺口。
 
 ### 宿主选择桌面生命周期 {#desktop-lifetime}
 
-<<< @/../examples/ecosystem/avalonia/Program.fs{fsharp:line-numbers} [Program.fs]
+```fsharp:line-numbers [Program.fs]
+namespace ThinkingInFSharp.AvaloniaSample
 
+open System
+open Avalonia
+open Avalonia.Controls.ApplicationLifetimes
+open Avalonia.Markup.Xaml
+
+type App() =
+    inherit Application()
+
+    override this.Initialize() = AvaloniaXamlLoader.Load(this)
+
+    override this.OnFrameworkInitializationCompleted() =
+        match this.ApplicationLifetime with
+        | :? IClassicDesktopStyleApplicationLifetime as desktop -> desktop.MainWindow <- MainWindow()
+        | _ -> ()
+
+        base.OnFrameworkInitializationCompleted()
+
+module Program =
+    [<CompiledName("BuildAvaloniaApp")>]
+    let buildAvaloniaApp () =
+        AppBuilder.Configure<App>().UsePlatformDetect().LogToTrace(areas = Array.empty)
+
+    [<EntryPoint; STAThread>]
+    let main args =
+        buildAvaloniaApp().StartWithClassicDesktopLifetime(args)
+```
 `BuildAvaloniaApp` 对应官方模板为工具和启动保留的接缝。`StartWithClassicDesktopLifetime` 创建 `IClassicDesktopStyleApplicationLifetime`；只有框架初始化完成后，`App` 才设置 `MainWindow`。入口点带有 `STAThread`，这与 COM、剪贴板等 Windows API 有关。
 
 这里明确使用桌面假设。iOS 和浏览器使用 `ISingleViewApplicationLifetime`；Android 使用带视图工厂的 `IActivityApplicationLifetime`，因为 Activity 可能被重建。试图在移动端复用这条 `MainWindow` 启动路径，是设计错误，不是缺一个编译开关。
 
 ### 聚焦测试不启动 UI {#focused-test}
 
-仓库的 xUnit 测试套件引用该样例，检查三次添加、重置、下界移除，以及初始值没有被改变。它无需初始化 Avalonia 即可运行，因为被测函数不依赖工具包。这种速度和确定性正是该边界的回报。
-
-聚焦运行与仓库的完整示例测试套件均通过。样例在 .NET SDK 10.0.301 下的 Release 构建为零警告、零错误；包含其他 .NET 项目和 Fable 浏览器冒烟的完整锁定示例门禁也通过。
+聚焦 xUnit 测试可以引用纯状态模块，检查三次添加、重置、下界移除，以及初始值没有被改变。它无需初始化 Avalonia，因为被测函数不依赖工具包。这种速度和确定性正是该边界的回报。
 
 ### 准确陈述原生启动结果 {#native-launch-result}
 
-| 证据 | 桌面样例结果 | 它证明什么 | 它不能证明什么 |
+| 证据 | 本章状态 | 真正运行后可以证明什么 | 它不能证明什么 |
 | --- | --- | --- | --- |
-| 锁定还原 | 通过 | 记录的 NuGet 依赖图可以解析 | 未来版本或其他运行时依赖图 |
-| Release 构建 | 通过，0 警告/错误 | F# 与 AXAML 可为 `net10.0` 编译 | 可用的原生窗口或安装包 |
-| 纯转换测试 | 通过 | 被检查的状态转换 | 控件查找、布局、输入、渲染 |
-| 完整示例门禁 | 通过 | 仓库集成仍可复现 | 桌面/移动平台行为 |
-| macOS 原生启动 | 已尝试；在窗口出现前因 Avalonia.Native RenderTimer 错误 `-6661` 失败 | 进程到达原生 macOS 后端，并暴露自动化会话缺失图形显示上下文 | 已显示窗口、用户交互或应用逻辑缺陷 |
-| Windows/Linux/移动端/安装包/商店 | 未运行 | 什么都没有 | 什么都没有 |
+| 项目与锁配置 | 已展示 | 记录的 NuGet 依赖图可以解析 | 未来版本或其他运行时依赖图 |
+| Release 构建 | 复制后运行 | F# 与 AXAML 可为 `net10.0` 编译 | 可用的原生窗口或安装包 |
+| 纯转换测试 | 已展示 | 被检查的状态转换 | 控件查找、布局、输入、渲染 |
+| 原生启动 | 在每个支持的桌面系统运行 | 真实窗口能在该环境启动 | 其他操作系统或安装包 |
+| 移动端/安装包/商店 | 未覆盖 | 什么都没有 | 移动生命周期、签名、安装或商店行为 |
 
-这次启动失败是有价值的证据，因为它阻止了夸大结论。应在已解锁的交互式桌面会话中重跑。没有理由修改纯模型、吞掉异常，或仅因编译通过就宣称 macOS 成功。
+构建成功不是原生启动证据。应在每个支持的操作系统上用交互式桌面会话运行应用；记录失败，但不要削弱纯模型或吞掉宿主异常。
 
 ## 有意识地选择状态模式 {#state-patterns}
 
@@ -332,7 +372,7 @@ type OpenExternalUri = Uri -> Task<Result<unit, string>>
 
 ## 桌面端本来就是三个平台程序 {#desktop-platforms}
 
-Avalonia 的一个桌面项目可以面向 Windows、macOS 和 Linux，但每个后端与分发系统仍然不同。支持层级和最低操作系统版本会变化；仓库在 2026-08-25 检查了官方矩阵，并应在每次发布前复查。
+Avalonia 的一个桌面项目可以面向 Windows、macOS 和 Linux，但每个后端与分发系统仍然不同。支持层级和最低操作系统版本会变化；本章在 2026-08-25 检查了官方矩阵，应用仍应在每次发布前复查。
 
 ### Windows {#windows}
 
@@ -485,7 +525,7 @@ Avalonia 内置控件通过自动化对等体向平台无障碍 API 暴露语义
 - 从用户、设备、原生能力、团队技能和发布渠道选择 UI 边界。
 - Avalonia 提供官方 F# 模板、编译 AXAML、共享控件和多个平台宿主，但不会消除平台行为。
 - 桌面样例固定 Avalonia 12.1.1，并把纯 `Counter.update` 与命令式桌面视图分离。
-- 它的锁定还原、构建、测试和仓库门禁通过；自动化 macOS 原生启动没有通过，因此不声称原生成功。
+- 本章展示项目、纯测试与启动代码；采用它的应用必须自行运行还原、构建、测试与原生启动。
 - 手写 MVU、MVVM 适配器、code-behind 和纯代码 UI 是具有不同压力点的选择。
 - Avalonia 12 默认使用编译绑定并要求显式数据类型；反射绑定是有意的例外。
 - 在 UI 边界适配不可变记录、联合、option、集合和命令，而不是削弱领域模型。

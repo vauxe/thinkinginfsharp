@@ -2,39 +2,6 @@
 title: "第 33 章：业务语言、命令、事件与模型"
 description: "收束预约系统的领域语言，区分意图、事实、状态与边界数据，并在不预设事件溯源的前提下使用事件。"
 translationKey: part-06/ch-33-domain-language-model
-kind: chapter
-part: 6
-chapter: 33
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - capstone-booking-domain
-exerciseIds:
-  - ch33-exercise-01
-  - ch33-exercise-02
-  - ch33-exercise-03
-termIds: []
-sources:
-  - id: microsoft-fsharp-records
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/records
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-discriminated-unions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-access-control
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/access-control
-    checked: "2026-08-24"
-  - id: microsoft-domain-events
-    url: https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/domain-events-design-implementation
-    checked: "2026-08-24"
-  - id: microsoft-cqrs-pattern
-    url: https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs
-    checked: "2026-08-24"
-  - id: microsoft-event-sourcing-pattern
-    url: https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing
-    checked: "2026-08-24"
 ---
 
 # 第 33 章：业务语言、命令、事件与模型 {#overview}
@@ -92,8 +59,78 @@ sources:
 
 核心模型用领域词语命名活动、预约生命周期与失败：
 
-<<< @/../examples/capstone/src/Booking.Domain/Domain.fs#booking-model{fsharp:line-numbers} [Domain.fs]
+```fsharp:line-numbers [Domain.fs]
+type Event =
+    private
+        { Id: EventId
+          Capacity: Capacity }
 
+module Event =
+    let create eventId capacity = { Id = eventId; Capacity = capacity }
+
+    let id event = event.Id
+    let capacity event = event.Capacity
+
+type BookingStatus =
+    | Pending
+    | Confirmed of ConfirmationCode
+    | Cancelled of CancellationReason
+
+type BookingCreationError = RequestedSeatsExceedCapacity of requested: int<seat> * capacity: int<seat>
+
+type BookingTransitionError =
+    | CannotConfirmFrom of current: BookingStatus
+    | CannotCancelFrom of current: BookingStatus
+
+type Booking =
+    private
+        { RequestId: RequestId
+          EventId: EventId
+          Seats: SeatCount
+          Status: BookingStatus }
+
+module Booking =
+    let create event requestId seats =
+        let requested = SeatCount.value seats
+        let capacity = event |> Event.capacity |> Capacity.value
+
+        if requested > capacity then
+            Error(RequestedSeatsExceedCapacity(requested, capacity))
+        else
+            Ok
+                { RequestId = requestId
+                  EventId = Event.id event
+                  Seats = seats
+                  Status = Pending }
+
+    let requestId booking = booking.RequestId
+    let eventId booking = booking.EventId
+    let seats booking = booking.Seats
+    let status booking = booking.Status
+
+    let restore requestId eventId seats status =
+        { RequestId = requestId
+          EventId = eventId
+          Seats = seats
+          Status = status }
+
+    let confirm confirmationCode booking =
+        match booking.Status with
+        | Pending ->
+            Ok
+                { booking with
+                    Status = Confirmed confirmationCode }
+        | current -> Error(CannotConfirmFrom current)
+
+    let cancel reason booking =
+        match booking.Status with
+        | Pending
+        | Confirmed _ ->
+            Ok
+                { booking with
+                    Status = Cancelled reason }
+        | Cancelled _ as current -> Error(CannotCancelFrom current)
+```
 这里有几项 F# 选择彼此配合：
 
 - 记录把请求、活动、座位数和状态等具名值组合起来；
@@ -112,8 +149,33 @@ sources:
 
 权威命令词汇很小：
 
-<<< @/../examples/capstone/src/Booking.Domain/Commands.fs#commands{fsharp:line-numbers} [Commands.fs]
+```fsharp:line-numbers [Commands.fs]
+type PlaceBooking = { RequestId: string; Seats: int }
 
+type ConfirmBooking =
+    { RequestId: string
+      ConfirmationCode: string }
+
+type CancelBooking = { RequestId: string; Reason: string }
+
+[<RequireQualifiedAccess>]
+type BookingCommand =
+    | Place of PlaceBooking
+    | Confirm of ConfirmBooking
+    | Cancel of CancelBooking
+
+module Commands =
+    let place requestId seats : PlaceBooking =
+        { RequestId = requestId; Seats = seats }
+
+    let confirm requestId confirmationCode : ConfirmBooking =
+        { RequestId = requestId
+          ConfirmationCode = confirmationCode }
+
+    let cancel requestId reason : CancelBooking =
+        { RequestId = requestId
+          Reason = reason }
+```
 `Place`、`Confirm` 与 `Cancel` 使用祈使式名称，因为命令请求系统尝试某件事。调用方不能如实把输入命名为 `BookingPlaced`：容量、重复请求标识、当前状态或格式错误的文本都可能阻止该事实发生。
 
 这些命令记录有意包含对边界友好的基本类型。因此可以构造 `({ RequestId = " "; Seats = 0 } : PlaceBooking)`，值的构造**不**表示已接受。验证会把各自有效的字段转换成 `RequestId`、`SeatCount` 等受保护值；决策随后应用依赖当前状态的规则。
@@ -134,8 +196,21 @@ sources:
 
 与之对应的事件词汇使用过去式：
 
-<<< @/../examples/capstone/src/Booking.Domain/Events.fs#events{fsharp:line-numbers} [Events.fs]
+```fsharp:line-numbers [Events.fs]
+type BookingEvent =
+    | BookingPlaced of Booking
+    | BookingConfirmed of Booking
+    | BookingCancelled of Booking
 
+module BookingEvent =
+    let booking event =
+        match event with
+        | BookingPlaced booking
+        | BookingConfirmed booking
+        | BookingCancelled booking -> booking
+
+    let requestId event = event |> booking |> Booking.requestId
+```
 `BookingPlaced`、`BookingConfirmed` 与 `BookingCancelled` 陈述领域已经接受了什么。在当前模型中，每个事件携带转换后受保护的 `Booking`，因此演化无需重复转换规则就能投影新状态。这只是简单的进程内事实表示，尚未承诺任何持久化传输协议。
 
 事件不应包含仍需批准的操作。后续副作用——例如发送通知——可能在处理时失败，但这项失败不会在语法上把已经接受的预约事实重新变成命令。应用策略负责决定如何重试该副作用或进行补偿。
@@ -148,14 +223,22 @@ sources:
 
 工作流只需要两种顶层状态形状：
 
-<<< @/../examples/capstone/src/Booking.Domain/Workflow.fs#booking-state{fsharp:line-numbers} [Workflow.fs]
-
+```fsharp:line-numbers [Workflow.fs]
+type BookingState =
+    | NotBooked
+    | Booked of Booking
+```
 `NotBooked` 表示当前考察的请求没有预约。`Booked booking` 携带受保护的预约，其自身状态可能是待确认、已确认或已取消。这种嵌套形状避免了“既未预约又已确认”之类非法组合。
 
 演化有意保持机械化：
 
-<<< @/../examples/capstone/src/Booking.Domain/Workflow.fs#evolve{fsharp:line-numbers} [Workflow.fs]
-
+```fsharp:line-numbers [Workflow.fs]
+let evolve (_: BookingState) (event: BookingEvent) =
+    match event with
+    | BookingPlaced booking
+    | BookingConfirmed booking
+    | BookingCancelled booking -> Booked booking
+```
 `evolve` 回答“接受这项事实后是什么状态？”，而不回答“这项事实可以发生吗？”。后者由决策器和领域转换函数负责。如果 `evolve` 再次检查容量或状态，同一规则就可能漂移成两套实现。
 
 当前事件携带完整的结果 `Booking`，所以 `evolve` 不需要读取先前状态实参。保留惯常的 `state -> event -> state` 形状能显式表达折叠，也为以后表达差量的事件留出空间。不要因为某个实参未使用，就推断历史与事件决策无关。
@@ -196,8 +279,22 @@ DTO 并不是“糟糕的领域建模”。它是一个防腐边界，职责是�
 
 贯穿项目预期的面向 F# 入口从原始边界值开始，但返回不透明模型：
 
-<<< @/../examples/capstone/src/Booking.Domain/PublicApi.fs#start{fsharp:line-numbers} [PublicApi.fs]
+```fsharp:line-numbers [PublicApi.fs]
+let start rawEventId rawCapacity =
+    let eventIdResult =
+        EventId.create rawEventId
+        |> Result.mapError (fun _ -> [ BookingError.BlankEventId ])
 
+    let capacityResult =
+        Capacity.create rawCapacity
+        |> Result.mapError (fun (NonPositiveCapacity actual) -> [ BookingError.NonPositiveCapacity actual ])
+
+    match eventIdResult, capacityResult with
+    | Ok validEventId, Ok validCapacity -> BookingModel(Event.create validEventId validCapacity, NotBooked) |> Ok
+    | Error eventErrors, Error capacityErrors -> Error(eventErrors @ capacityErrors)
+    | Error errors, Ok _
+    | Ok _, Error errors -> Error errors
+```
 `PublicApi.BookingModel` 与 `BookingView` 隐藏了表示。消费者使用 `start`、`place`、`confirm`、`cancel` 和观察函数；其自身签名无需提到 `Event`、`Booking`、`BookingState`、`BookingEvent`、`RequestId` 或 `SeatCount`。公共模块把内部错误投影为更小的 `BookingError` 词汇。
 
 这并不会让程序集中的所有其他类型都无法访问。它建立了一条稳定路径，让消费者无需耦合教学工作流的表示。如果将来的库契约要求更严格，还可用签名文件或独立的内部程序集进一步限制表面。

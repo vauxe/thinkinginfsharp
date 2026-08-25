@@ -2,39 +2,6 @@
 title: "Chapter 14 Solutions"
 description: "Select collections by workload, calculate deferred demand precisely, and separate ordered keys from equality-based hash keys."
 translationKey: solutions/ch-14-collections-evaluation
-kind: solution
-part: 3
-chapter: 14
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch14-collections-evaluation
-exerciseIds:
-  - ch14-exercise-01
-  - ch14-exercise-02
-  - ch14-exercise-03
-termIds: []
-sources:
-  - id: microsoft-collection-types
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/fsharp-collection-types
-    checked: "2026-08-24"
-  - id: microsoft-sequences
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/sequences
-    checked: "2026-08-24"
-  - id: fsharp-core-map
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-mapmodule.html
-    checked: "2026-08-24"
-  - id: fsharp-core-set
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-setmodule.html
-    checked: "2026-08-24"
-  - id: dotnet-dictionary
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2?view=net-10.0
-    checked: "2026-08-24"
-  - id: dotnet-hashset
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.hashset-1?view=net-10.0
-    checked: "2026-08-24"
 ---
 
 # Chapter 14 Solutions {#overview}

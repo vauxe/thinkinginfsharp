@@ -2,30 +2,6 @@
 title: "Chapter 15 Solutions"
 description: "Build total domain views, preserve parsing errors, and move database work outside active-pattern matching."
 translationKey: solutions/ch-15-active-patterns
-kind: solution
-part: 3
-chapter: 15
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch15-active-patterns
-exerciseIds:
-  - ch15-exercise-01
-  - ch15-exercise-02
-  - ch15-exercise-03
-termIds: []
-sources:
-  - id: microsoft-active-patterns
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/active-patterns
-    checked: "2026-08-24"
-  - id: microsoft-pattern-matching
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/pattern-matching
-    checked: "2026-08-24"
-  - id: microsoft-component-design
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-24"
 ---
 
 # Chapter 15 Solutions {#overview}

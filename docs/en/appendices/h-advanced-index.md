@@ -2,34 +2,6 @@
 title: "Appendix H: Advanced Feature Recognition Index"
 description: "Recognize quotations, statically resolved type parameters, flexible types, and byref-like code, then decide whether deeper study belongs to the problem at hand."
 translationKey: appendices/h-advanced-index
-kind: appendix
-appendix: H
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds: []
-exerciseIds: []
-termIds: []
-sources:
-  - id: microsoft-quotations
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/code-quotations
-    checked: "2026-08-25"
-  - id: microsoft-srtp
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/statically-resolved-type-parameters
-    checked: "2026-08-25"
-  - id: microsoft-flexible-types
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/flexible-types
-    checked: "2026-08-25"
-  - id: microsoft-byrefs
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/byrefs
-    checked: "2026-08-25"
-  - id: microsoft-memory-span
-    url: https://learn.microsoft.com/en-us/dotnet/standard/memory-and-spans/memory-t-usage-guidelines
-    checked: "2026-08-25"
-  - id: fsharp-core-quotations
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-quotations.html
-    checked: "2026-08-25"
 ---
 
 # Appendix H: Advanced Feature Recognition Index {#overview}

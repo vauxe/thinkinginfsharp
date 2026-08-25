@@ -2,63 +2,6 @@
 title: "第 43 章练习答案"
 description: "选择合乎比例的 UI 边界，把已验证 Avalonia 切片变成桌面发布计划，并设计诚实的移动项目图与证据图。"
 translationKey: solutions/ch-43-avalonia-desktop-mobile
-kind: solution
-part: 7
-chapter: 43
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ecosystem-avalonia-desktop
-exerciseIds:
-  - ch43-exercise-01
-  - ch43-exercise-02
-  - ch43-exercise-03
-termIds: []
-sources:
-  - id: avalonia-templates
-    url: https://github.com/AvaloniaUI/Avalonia.Templates
-    checked: "2026-08-25"
-  - id: avalonia-supported-platforms
-    url: https://docs.avaloniaui.net/docs/supported-platforms
-    checked: "2026-08-25"
-  - id: avalonia-cross-platform-architecture
-    url: https://docs.avaloniaui.net/docs/fundamentals/cross-platform-architecture
-    checked: "2026-08-25"
-  - id: avalonia-cross-platform-solution
-    url: https://docs.avaloniaui.net/docs/app-development/cross-platform-solution-setup
-    checked: "2026-08-25"
-  - id: avalonia-application-lifetimes
-    url: https://docs.avaloniaui.net/docs/fundamentals/application-lifetimes
-    checked: "2026-08-25"
-  - id: avalonia-threading
-    url: https://docs.avaloniaui.net/docs/app-development/threading
-    checked: "2026-08-25"
-  - id: avalonia-accessibility
-    url: https://docs.avaloniaui.net/docs/app-development/accessibility
-    checked: "2026-08-25"
-  - id: avalonia-headless-testing
-    url: https://docs.avaloniaui.net/docs/testing/setting-up-the-headless-platform
-    checked: "2026-08-25"
-  - id: avalonia-deploy-macos
-    url: https://docs.avaloniaui.net/docs/deployment/macos
-    checked: "2026-08-25"
-  - id: avalonia-deploy-linux
-    url: https://docs.avaloniaui.net/docs/deployment/linux
-    checked: "2026-08-25"
-  - id: avalonia-deploy-ios
-    url: https://docs.avaloniaui.net/docs/deployment/ios
-    checked: "2026-08-25"
-  - id: dotnet-publishing
-    url: https://learn.microsoft.com/dotnet/core/deploying/
-    checked: "2026-08-25"
-  - id: dotnet-wpf-migration
-    url: https://learn.microsoft.com/dotnet/desktop/wpf/migration/
-    checked: "2026-08-25"
-  - id: dotnet-maui
-    url: https://learn.microsoft.com/dotnet/maui/?view=net-maui-10.0
-    checked: "2026-08-25"
 ---
 
 # 第 43 章练习答案 {#overview}
@@ -132,7 +75,7 @@ sources:
 
 ## 练习 2：把桌面样例变成桌面发布 {#exercise-02}
 
-先建立证据账本。桌面样例当前证明：锁定 Avalonia 12.1.1 依赖图、`net10.0` Release 编译、AXAML 编译和通过的纯状态测试；仓库的完整示例测试套件还证明该样例保持集成。它没有证明窗口已显示：自动化 macOS 尝试在创建窗口前因 RenderTimer 错误 `-6661` 停止。Windows、Linux、发布输出、安装包、签名、安装、更新和无障碍都未执行。
+先建立证据账本。本章展示锁定 Avalonia 12.1.1 的项目、`net10.0` 源码、AXAML 与纯状态测试。复制后，必须亲自运行还原、Release 编译、测试与原生启动，才能声称它们通过。Windows、macOS、Linux、发布输出、安装包、签名、安装、更新和无障碍都需要各自证据。
 
 ### 在不丢掉小核心的前提下重构 {#desktop-structure}
 
@@ -213,7 +156,7 @@ Booking.Client.Tests         纯工作流、持久化、端口契约
 Booking.Client.UiTests       共享无头视图行为
 ```
 
-仓库应固定 .NET SDK、Avalonia 包、NuGet 锁、工作负载清单/版本集合、Android SDK/JDK 要求和 Xcode 兼容性。平台 CI 镜像是工具链的一部分，不是不可见基础设施。
+应用应固定 .NET SDK、Avalonia 包、NuGet 锁、工作负载清单/版本集合、Android SDK/JDK 要求和 Xcode 兼容性。平台 CI 镜像是工具链的一部分，不是不可见基础设施。
 
 ### 建模草稿与提交状态 {#mobile-state}
 

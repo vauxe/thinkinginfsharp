@@ -2,39 +2,6 @@
 title: "第 32 章练习答案"
 description: "推导狭窄的发货端口与所有权，设计有界的可观察信号，并依据具体生命周期需求选择应用宿主。"
 translationKey: solutions/ch-32-functions-to-applications
-kind: solution
-part: 5
-chapter: 32
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch32-functions-to-applications
-exerciseIds:
-  - ch32-exercise-01
-  - ch32-exercise-02
-  - ch32-exercise-03
-termIds: []
-sources:
-  - id: microsoft-dotnet-generic-host
-    url: https://learn.microsoft.com/en-us/dotnet/core/extensions/generic-host
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-logging
-    url: https://learn.microsoft.com/en-us/dotnet/core/extensions/logging
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-metrics
-    url: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/metrics-instrumentation
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-metric-collection
-    url: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/metrics-collection
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-tracing
-    url: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/distributed-tracing-instrumentation-walkthroughs
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-di-guidelines
-    url: https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection/guidelines
-    checked: "2026-08-24"
 ---
 
 # 第 32 章练习答案 {#overview}

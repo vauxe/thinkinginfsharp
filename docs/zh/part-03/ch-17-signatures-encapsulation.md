@@ -2,36 +2,6 @@
 title: "第 17 章：签名、访问控制与面向 F# 的 API"
 description: "把 `.fsi` 文件用作经过检查的公共契约，隐藏实现表示，并为 F# 消费者设计小而惯用的表面。"
 translationKey: part-03/ch-17-signatures-encapsulation
-kind: chapter
-part: 3
-chapter: 17
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch17-signature-library
-  - ch17-hidden-representation
-exerciseIds:
-  - ch17-exercise-01
-  - ch17-exercise-02
-  - ch17-exercise-03
-termIds:
-  - abstract-representation
-  - public-api-surface
-sources:
-  - id: microsoft-signature-files
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/signature-files
-    checked: "2026-08-24"
-  - id: microsoft-access-control
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/access-control
-    checked: "2026-08-24"
-  - id: microsoft-modules
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/modules
-    checked: "2026-08-24"
-  - id: microsoft-component-design
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-24"
 ---
 
 # 第 17 章：签名、访问控制与面向 F# 的 API {#overview}
@@ -73,8 +43,19 @@ Library.fsi  ── 约束 ──▶  Library.fs
 
 项目显式记录了这一对文件：
 
-<<< @/../examples/chapters/ch17/Ch17.fsproj{xml:line-numbers} [Ch17.fsproj]
+```xml:line-numbers [Ch17.fsproj]
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Include="Library.fsi" />
+    <Compile Include="Library.fs" />
+  </ItemGroup>
+</Project>
+```
 签名和实现使用相同的基本文件名，而且签名紧邻实现之前：先是 `Library.fsi`，然后是 `Library.fs`。颠倒二者会让编译器在契约之前处理实现；在这对文件之间插入依赖代码，会让该代码处于错误的边界。
 
 一个实现文件至多以这种形式拥有与之匹配的签名。签名不是供多个无关 `.fs` 文件不断追加的头文件，后续文件也不能重新打开实现以触及签名省略的声明。
@@ -85,8 +66,37 @@ Library.fsi  ── 约束 ──▶  Library.fs
 
 下面是测试所用的完整公共契约：
 
-<<< @/../examples/chapters/ch17/Library.fsi{fsharp:line-numbers} [Library.fsi]
+```fsharp:line-numbers [Library.fsi]
+namespace ThinkingInFSharp.Ch17
 
+module SeatAllocation =
+    type CapacityError = NonPositiveCapacity of actual: int
+
+    type Capacity
+
+    module Capacity =
+        val create: raw: int -> Result<Capacity, CapacityError>
+        val value: capacity: Capacity -> int
+
+    type SeatCountError = NonPositiveSeatCount of actual: int
+
+    type SeatCount
+
+    module SeatCount =
+        val create: raw: int -> Result<SeatCount, SeatCountError>
+        val value: seats: SeatCount -> int
+
+    type AllocationError = InsufficientCapacity of requested: int * available: int
+
+    type Allocation
+
+    module Allocation =
+        val capacity: allocation: Allocation -> Capacity
+        val requested: allocation: Allocation -> SeatCount
+        val remaining: allocation: Allocation -> int
+
+    val allocate: capacity: Capacity -> requested: SeatCount -> Result<Allocation, AllocationError>
+```
 应分层阅读：
 
 1. `namespace ThinkingInFSharp.Ch17` 给出稳定的外层路径。
@@ -128,8 +138,60 @@ remaining = capacity − requested
 
 实现提供隐藏的案例、记录字段和函数体：
 
-<<< @/../examples/chapters/ch17/Library.fs{fsharp:line-numbers} [Library.fs]
+```fsharp:line-numbers [Library.fs]
+namespace ThinkingInFSharp.Ch17
 
+module SeatAllocation =
+    type CapacityError = NonPositiveCapacity of actual: int
+
+    type Capacity = Capacity of int
+
+    module Capacity =
+        let create raw =
+            if raw > 0 then
+                Ok(Capacity raw)
+            else
+                Error(NonPositiveCapacity raw)
+
+        let value (Capacity capacity) = capacity
+
+    type SeatCountError = NonPositiveSeatCount of actual: int
+
+    type SeatCount = SeatCount of int
+
+    module SeatCount =
+        let create raw =
+            if raw > 0 then
+                Ok(SeatCount raw)
+            else
+                Error(NonPositiveSeatCount raw)
+
+        let value (SeatCount seats) = seats
+
+    type AllocationError = InsufficientCapacity of requested: int * available: int
+
+    type Allocation =
+        { Capacity: Capacity
+          Requested: SeatCount
+          Remaining: int }
+
+    module Allocation =
+        let capacity allocation = allocation.Capacity
+        let requested allocation = allocation.Requested
+        let remaining allocation = allocation.Remaining
+
+    let allocate capacity requested =
+        let available = Capacity.value capacity
+        let requestedSeats = SeatCount.value requested
+
+        if requestedSeats <= available then
+            Ok
+                { Capacity = capacity
+                  Requested = requested
+                  Remaining = available - requestedSeats }
+        else
+            Error(InsufficientCapacity(requestedSeats, available))
+```
 在 `Library.fs` 内部，`Capacity` 和 `SeatCount` 的联合案例可用，也可以把 `Allocation` 构造成记录。在实现文件之外，即使 `.fs` 声明本身没有使用私有表示修饰符，与之匹配的 `.fsi` 也会把这些形状从可见 API 中移除。
 
 这种分离允许未来的实现改用另一种数值类型、缓存派生值或替换分配记录，只要已发布的类型和行为仍然兼容即可。签名不会证明行为等价；测试仍需保护不变量和语义。
@@ -209,8 +271,14 @@ let tryAllocate capacity requested =
 
 这组正向测试证明表面足够使用。另一个独立的预期错误消费者证明它具有约束力：
 
-<<< @/../examples/expected-errors/ch17-hidden-representation/Consumer.fs{fsharp:line-numbers} [Consumer.fs — 预期错误]
+```fsharp:line-numbers [Consumer.fs — 预期错误]
+namespace ThinkingInFSharp.Ch17.InvalidConsumer
 
+open ThinkingInFSharp.Ch17.SeatAllocation
+
+module Consumer =
+    let invalidCapacity = Capacity 0
+```
 `Capacity 0` 试图使用实现中的联合案例。公共签名只包含抽象类型名称，所以 F# 10 以 `FS0800` 拒绝该表达式。测试没有通过反射检查私有布局，因为消费者契约要忽略的恰恰就是布局。
 
 编译期不透明性与行为测试回答不同问题：
@@ -254,17 +322,17 @@ let tryAllocate capacity requested =
 
 ## 构建并验证示例 {#build-test}
 
-在仓库根目录运行：
+在示例所在目录运行：
 
 ```console
-dotnet build examples/chapters/ch17/Ch17.fsproj -c Release --locked-mode
-dotnet test tests/ExampleTests/ExampleTests.fsproj -c Release --no-restore --filter FullyQualifiedName~Ch17SignatureTests
+dotnet build Ch17.fsproj -c Release --locked-mode
+dotnet test ExampleTests.fsproj -c Release --no-restore --filter FullyQualifiedName~Ch17SignatureTests
 ```
 
 聚焦测试集会通过。下面这条命令被有意设计为失败，并由独立检查验证：
 
 ```console
-dotnet build examples/expected-errors/ch17-hidden-representation/Ch17HiddenRepresentation.fsproj -c Release
+dotnet build Ch17HiddenRepresentation.fsproj -c Release
 ```
 
 它必须产生 `FS0800`，以保护“表示被隐藏”这一主张。如果这个无效消费者构建成功，那是回归，不是示例通过。

@@ -4,16 +4,8 @@ node_modules/
 docs/.vitepress/cache/
 docs/.vitepress/dist/
 dist/
-examples/ecosystem/fable/generated/
-
-# .NET
-**/bin/
-**/obj/
-TestResults/
-BenchmarkDotNet.Artifacts/
 
 # Local configuration and secrets
-**/aspire.config.json
 .env
 .env.*
 !.env.example

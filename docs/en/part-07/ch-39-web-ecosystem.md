@@ -2,43 +2,6 @@
 title: "Chapter 39: ASP.NET Core and the F# Web Ecosystem"
 description: "Choose among platform-native Minimal APIs, controllers, and functional F# web libraries by boundary shape, team needs, and verified maintenance—not fashion."
 translationKey: part-07/ch-39-web-ecosystem
-kind: chapter
-part: 7
-chapter: 39
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ecosystem-web-minimal-api
-  - foundation-contract-tests
-exerciseIds:
-  - ch39-exercise-01
-  - ch39-exercise-02
-  - ch39-exercise-03
-termIds: []
-sources:
-  - id: microsoft-aspnet-api-overview
-    url: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/apis?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: microsoft-minimal-api-reference
-    url: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: microsoft-aspnet-integration-tests
-    url: https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: giraffe-nuget
-    url: https://www.nuget.org/packages/Giraffe/8.3.0
-    checked: "2026-08-25"
-  - id: falco-nuget
-    url: https://www.nuget.org/packages/Falco/5.2.0
-    checked: "2026-08-25"
-  - id: oxpecker-nuget
-    url: https://www.nuget.org/packages/Oxpecker/2.0.1
-    checked: "2026-08-25"
-  - id: saturn-nuget
-    url: https://www.nuget.org/packages/Saturn/0.17.0
-    checked: "2026-08-25"
 ---
 
 # Chapter 39: ASP.NET Core and the F# Web Ecosystem {#overview}
@@ -83,16 +46,82 @@ The web sample is intentionally much smaller than the booking capstone. It answe
 
 The project uses `Microsoft.NET.Sdk.Web`, targets `net10.0`, and has no third-party package reference. Its lock file records `FSharp.Core` 10.1.301. The public JSON types are ordinary CLR-friendly records rather than domain discriminated unions:
 
-<<< @/../examples/ecosystem/web/Program.fs#web-sample-contract{fsharp:line-numbers} [Program.fs]
+```fsharp:line-numbers [Program.fs]
+[<CLIMutable>]
+type GreetingRequestDto =
+    { [<JsonPropertyName("name")>]
+      Name: string | null }
 
+[<CLIMutable>]
+type GreetingResponseDto =
+    { [<JsonPropertyName("message")>]
+      Message: string }
+
+[<CLIMutable>]
+type WebSampleErrorDto =
+    { [<JsonPropertyName("code")>]
+      Code: string
+      [<JsonPropertyName("message")>]
+      Message: string }
+```
 `GreetingRequestDto.Name` admits `null` because JSON is an untrusted boundary. Validation converts that representation into a nonblank local `name` before success. This repeats a central lesson of Part VI: permissive boundary representation does not require a permissive domain.
 
 ### Make framework adaptation explicit {#explicit-adaptation}
 
 The handler has the shape `HttpContext -> Task`, then is wrapped in ASP.NET Core's `RequestDelegate`. It checks the media type, uses strict case-sensitive JSON that rejects unknown members, validates the name, and produces only stable error codes and messages.
 
-<<< @/../examples/ecosystem/web/Program.fs#web-sample-handler{fsharp:line-numbers} [Program.fs]
+```fsharp:line-numbers [Program.fs]
+let private greet (context: HttpContext) : Task =
+    task {
+        if not (context.Request.HasJsonContentType()) then
+            return!
+                writeError
+                    context
+                    StatusCodes.Status415UnsupportedMediaType
+                    "unsupported_media_type"
+                    "Content-Type must be a JSON media type."
+        else
+            try
+                let! request =
+                    JsonSerializer.DeserializeAsync<GreetingRequestDto>(
+                        context.Request.Body,
+                        jsonOptions,
+                        context.RequestAborted
+                    )
 
+                match request with
+                | null ->
+                    return! writeError context StatusCodes.Status400BadRequest "name_required" "Name is required."
+                | value ->
+                    match value.Name with
+                    | null ->
+                        return!
+                            writeError context StatusCodes.Status400BadRequest "name_required" "Name is required."
+                    | name when String.IsNullOrWhiteSpace name ->
+                        return!
+                            writeError context StatusCodes.Status400BadRequest "name_required" "Name is required."
+                    | name ->
+                        return! writeJson context StatusCodes.Status200OK { Message = $"Hello, {name.Trim()}!" }
+            with
+            | :? JsonException ->
+                return!
+                    writeError
+                        context
+                        StatusCodes.Status400BadRequest
+                        "invalid_json"
+                        "The request body is not valid for this endpoint."
+            | :? OperationCanceledException as error when context.RequestAborted.IsCancellationRequested ->
+                return raise error
+            | _ when context.Response.HasStarted -> context.Abort()
+            | _ ->
+                return!
+                    writeError
+                        context
+                        StatusCodes.Status500InternalServerError
+                        "internal_error"
+                        "The request could not be completed."
+    }
+```
 Several details matter more than the number of lines:
 
 - `RequestAborted` reaches deserialization and is rethrown when the client cancels;
@@ -105,8 +134,12 @@ F# 10 null checking also forced the handler to match `value.Name` before calling
 
 The final mapping and host contain no hidden framework:
 
-<<< @/../examples/ecosystem/web/Program.fs#web-sample-map{fsharp:line-numbers} [Program.fs]
+```fsharp:line-numbers [Program.fs]
+let map (application: WebApplication) =
+    ArgumentNullException.ThrowIfNull(application, nameof application)
 
+    application.MapPost("/api/greetings", RequestDelegate greet) |> ignore
+```
 The mapping style is lower-level than automatic Minimal API parameter binding. That is deliberate for a stable teaching contract, not a general recommendation to deserialize every request by hand. The [.NET 10 Minimal API reference](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis?view=aspnetcore-10.0) documents built-in binding, validation, responses, filters, authorization, and other platform features. Choose automatic binding when its contract matches yours; take control when compatibility or error-shape requirements justify it.
 
 ### State exactly what the test proves {#sample-evidence}
@@ -117,7 +150,7 @@ Focused `TestServer` cases run the real route and handler:
 - malformed JSON, absent name, blank name, incorrect property case, and an unknown member fail safely;
 - a non-JSON media type returns `415` rather than entering the handler contract.
 
-The full solution builds in Release with warnings as errors, and the sample is registered in the example manifest. It does not test a real socket, proxy, TLS, authentication, rate limiting, body-size policy, or deployment. Those are not mysteriously supplied by using Minimal APIs.
+The example is intentionally small. It does not test a real socket, proxy, TLS, authentication, rate limiting, body-size policy, or deployment. Those are not mysteriously supplied by using Minimal APIs.
 
 ## Choose the level of abstraction first {#abstraction-level}
 
@@ -226,16 +259,16 @@ Therefore do not label Saturn “dead,” and do not select it from an old tutor
 
 The following is a dated observation, not an evergreen ranking:
 
-| Choice | Stable surface checked on 2026-08-25 | Verified in this repository | Key adoption question |
+| Choice | Stable surface checked on 2026-08-25 | Status in this chapter | Key adoption question |
 |---|---|---:|---|
-| ASP.NET Core Minimal API | .NET SDK/runtime 10.0.301 | yes, Release + HTTP contract cases | can the team contain C#-shaped API friction? |
-| controller API | ASP.NET Core 10 platform docs | no | do required controller extension points justify the ceremony? |
-| Giraffe | NuGet 8.3.0 | no | does continuation-style handler composition fit the team? |
-| Falco | NuGet 5.2.0 stable | no | do its focused endpoints and related packages cover required integrations? |
-| Oxpecker | NuGet 2.0.1, `net10.0` asset | no | is its newer endpoint/full-stack surface acceptable to operate and upgrade? |
-| Saturn | NuGet 0.17.0, `net6.0` asset | no | do its conventions outweigh the required .NET 10 compatibility proof? |
+| ASP.NET Core Minimal API | .NET SDK/runtime 10.0.301 | illustrated | can the team contain C#-shaped API friction? |
+| controller API | ASP.NET Core 10 platform docs | research only | do required controller extension points justify the ceremony? |
+| Giraffe | NuGet 8.3.0 | research only | does continuation-style handler composition fit the team? |
+| Falco | NuGet 5.2.0 stable | research only | do its focused endpoints and related packages cover required integrations? |
+| Oxpecker | NuGet 2.0.1, `net10.0` asset | research only | is its newer endpoint/full-stack surface acceptable to operate and upgrade? |
+| Saturn | NuGet 0.17.0, `net6.0` asset | research only | do its conventions outweigh the required .NET 10 compatibility proof? |
 
-“Not verified here” means exactly that: the official package information was reviewed, but this repository did not restore, compile, execute, or security-test that framework. It is not a negative quality judgment.
+“Illustrated” means this chapter shows the approach, not that the book site ships an executable service. “Research only” is not a negative quality judgment; evaluate the option in the adopting application.
 
 ## Separate the decisions that often get bundled {#separate-decisions}
 

@@ -2,40 +2,6 @@
 title: "第 15 章：活动模式与领域匹配边界"
 description: "把完整、部分与参数化活动模式用作明确领域视图，同时让 I/O、昂贵工作和详细失败保持可见。"
 translationKey: part-03/ch-15-active-patterns
-kind: chapter
-part: 3
-chapter: 15
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch15-active-patterns
-exerciseIds:
-  - ch15-exercise-01
-  - ch15-exercise-02
-  - ch15-exercise-03
-termIds:
-  - active-pattern
-  - complete-active-pattern
-  - parameterized-active-pattern
-  - partial-active-pattern
-  - pattern
-  - pattern-matching
-  - result
-sources:
-  - id: microsoft-active-patterns
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/active-patterns
-    checked: "2026-08-24"
-  - id: microsoft-pattern-matching
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/pattern-matching
-    checked: "2026-08-24"
-  - id: microsoft-component-design
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-24"
-  - id: fsharp-core-value-option
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-valueoption.html
-    checked: "2026-08-24"
 ---
 
 # 第 15 章：活动模式与领域匹配边界 {#overview}
@@ -100,8 +66,22 @@ let (|Recognized|_|) input =
 
 共享脚本把三个声明状态归入一个双案例工作流视图：
 
-<<< @/../examples/scripts/ch15-active-patterns.fsx#complete-active-pattern{fsharp:line-numbers} [ch15-active-patterns.fsx]
+```fsharp:line-numbers [ch15-active-patterns.fsx]
+let (|Open|Closed|) status =
+    match status with
+    | Pending -> Open "pending"
+    | Confirmed code -> Open $"confirmed:{code}"
+    | Cancelled reason -> Closed reason
 
+let describeStatus status =
+    match status with
+    | Open detail -> $"open:{detail}"
+    | Closed reason -> $"closed:{reason}"
+
+printfn "Complete: pending=%s" (describeStatus Pending)
+printfn "Complete: confirmed=%s" (describeStatus (Confirmed "C-42"))
+printfn "Complete: cancelled=%s" (describeStatus (Cancelled "duplicate"))
+```
 `Open` 与 `Closed` 覆盖每个 `BookingStatus`。识别器必须为每个输入返回其中一个活动案例，同时包含两者的匹配具有穷尽性。每个案例都可以携带为消费者视图选择的载荷。
 
 这不会向 `BookingStatus` 添加新状态。即使该工作流把 `Pending` 与 `Confirmed` 都视作打开，二者仍是不同领域状态。另一种分区之所以有用，正是因为它没有改写源模型。
@@ -138,8 +118,23 @@ let (|Positive|_|) value =
 
 共享脚本把正整数文本识别为座位量：
 
-<<< @/../examples/scripts/ch15-active-patterns.fsx#partial-active-pattern{fsharp:line-numbers} [ch15-active-patterns.fsx]
+```fsharp:line-numbers [ch15-active-patterns.fsx]
+let (|SeatCount|_|) raw =
+    match parseSeatCount raw with
+    | Ok value -> Some value
+    | Error _ -> None
 
+let describeRawSeatCount raw =
+    match raw with
+    | SeatCount value -> $"matched:{value}"
+    | _ -> "not-matched"
+
+printfn
+    "Partial: three=%s zero=%s text=%s"
+    (describeRawSeatCount "3")
+    (describeRawSeatCount "0")
+    (describeRawSeatCount "oops")
+```
 `"0"` 与 `"oops"` 都变成“不匹配”。只有当调用方只需要是/否形状判断时，这才合适。
 
 ### 不匹配比已建模错误的信息更少 {#non-match-versus-error}
@@ -172,8 +167,38 @@ match seats with
 
 带仪表的共享示例会记录识别器调用：
 
-<<< @/../examples/scripts/ch15-active-patterns.fsx#parameterized-active-pattern{fsharp:line-numbers} [ch15-active-patterns.fsx]
+```fsharp:line-numbers [ch15-active-patterns.fsx]
+let mutable thresholdChecks = 0
 
+let (|AtLeast|_|) minimum value =
+    thresholdChecks <- thresholdChecks + 1
+
+    if value >= minimum then Some value else None
+
+let classifyParty seats =
+    match seats with
+    | AtLeast 5 actual -> $"large:{actual}"
+    | AtLeast 2 actual -> $"group:{actual}"
+    | actual -> $"single:{actual}"
+
+let classifyWithCount seats =
+    thresholdChecks <- 0
+    let label = classifyParty seats
+    label, thresholdChecks
+
+let largeLabel, largeChecks = classifyWithCount 6
+let groupLabel, groupChecks = classifyWithCount 3
+let singleLabel, singleChecks = classifyWithCount 1
+
+printfn
+    "Parameterized: six=%s/%d three=%s/%d one=%s/%d"
+    largeLabel
+    largeChecks
+    groupLabel
+    groupChecks
+    singleLabel
+    singleChecks
+```
 六个座位经过一次检查就满足第一条子句。三个座位先不满足 `AtLeast 5`，再满足 `AtLeast 2`，所以识别器运行两次。一个座位也会检查两次参数化出现位置，随后才进入后备分支。
 
 计数器是证据，而不是推荐的识别器设计。每个模式出现位置都是可执行工作；重构子句可能改变运行次数。正确性绝不能依赖隐藏的可变调用计数。
@@ -250,10 +275,10 @@ F# 还为可空边界提供 `Null`/`NonNull` 活动模式。第 19 章会在完�
 
 ## 运行共享示例 {#run-example}
 
-在仓库根目录执行：
+在示例所在目录执行：
 
 ```console
-dotnet fsi --exec examples/scripts/ch15-active-patterns.fsx
+dotnet fsi --exec ch15-active-patterns.fsx
 ```
 
 六行确定性输出覆盖完整分区的全部情况、成功与失败的部分识别、保留的错误细节，以及参数化识别器调用次数。

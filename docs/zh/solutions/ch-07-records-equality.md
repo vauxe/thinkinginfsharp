@@ -2,27 +2,6 @@
 title: "第 7 章练习答案"
 description: "元组迁移、不可变更新、结构相等、引用身份、哈希契约与业务排序的推理答案。"
 translationKey: solutions/ch-07-records-equality
-kind: solution
-part: 2
-chapter: 7
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch07-records-equality
-exerciseIds:
-  - ch07-exercise-01
-  - ch07-exercise-02
-  - ch07-exercise-03
-termIds: []
-sources:
-  - id: microsoft-records
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/records
-    checked: "2026-08-24"
-  - id: fsharp-core-language-primitives
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-languageprimitives.html
-    checked: "2026-08-24"
 ---
 
 # 第 7 章练习答案 {#overview}
@@ -58,8 +37,21 @@ let attendee = draft.Attendee
 
 共享定义可以直接用于预测：
 
-<<< @/../examples/scripts/ch07-records-equality.fsx#equality-identity-hash{fsharp:line-numbers} [ch07-records-equality.fsx]
+```fsharp:line-numbers [ch07-records-equality.fsx]
+let equalCopy =
+    { EventId = "A-1"
+      Attendee = "Lin"
+      Seats = 2 }
 
+let alias = original
+let structurallyEqual = original = equalCopy
+let physicallyEqual = LanguagePrimitives.PhysicalEquality original equalCopy
+let aliasIsSameReference = LanguagePrimitives.PhysicalEquality original alias
+let equalHashesAgree = hash original = hash equalCopy
+
+printfn "Equality: structural=%b physical=%b alias=%b" structurallyEqual physicallyEqual aliasIsSameReference
+printfn "Hashes agree for equal records: %b" equalHashesAgree
+```
 设 `updated = { original with Seats = 3 }`、`equalCopy` 与原字段完全相同、`alias = original`：
 
 | 比较 | 结果 | 原因 |

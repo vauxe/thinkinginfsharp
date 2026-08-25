@@ -2,33 +2,6 @@
 title: "Chapter 29 Solutions"
 description: "Derive an independent streaming property, design a valid identifier generator and shrinker, and turn an order-sensitive counterexample into a durable regression example."
 translationKey: solutions/ch-29-property-testing
-kind: solution
-part: 5
-chapter: 29
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - foundation-example-tests
-exerciseIds:
-  - ch29-exercise-01
-  - ch29-exercise-02
-  - ch29-exercise-03
-termIds: []
-sources:
-  - id: fscheck-properties
-    url: https://fscheck.github.io/FsCheck/Properties.html
-    checked: "2026-08-24"
-  - id: fscheck-test-data
-    url: https://fscheck.github.io/FsCheck/TestData.html
-    checked: "2026-08-24"
-  - id: fscheck-running-tests
-    url: https://fscheck.github.io/FsCheck/RunningTests.html
-    checked: "2026-08-24"
-  - id: nuget-fscheck-xunit
-    url: https://www.nuget.org/packages/FsCheck.Xunit/
-    checked: "2026-08-24"
 ---
 
 # Chapter 29 Solutions {#overview}

@@ -2,27 +2,6 @@
 title: "第 3 章练习答案"
 description: "函数类型、匿名函数、高阶函数、柯里化、元组参数与部分应用的推理答案。"
 translationKey: solutions/ch-03-functions-as-values
-kind: solution
-part: 1
-chapter: 3
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch03-functions-as-values
-exerciseIds:
-  - ch03-exercise-01
-  - ch03-exercise-02
-  - ch03-exercise-03
-termIds: []
-sources:
-  - id: microsoft-functions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/
-    checked: "2026-08-24"
-  - id: microsoft-parameters
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/parameters-and-arguments
-    checked: "2026-08-24"
 ---
 
 # 第 3 章练习答案 {#overview}
@@ -48,12 +27,20 @@ sources:
 
 命名函数和匿名函数如下：
 
-<<< @/../examples/scripts/ch03-functions-as-values.fsx#named-and-anonymous{fsharp:line-numbers} [ch03-functions-as-values.fsx]
+```fsharp:line-numbers [ch03-functions-as-values.fsx]
+let increment seats = seats + 1
+let incrementAnonymous = fun seats -> seats + 1
 
+printfn "Named and anonymous: %d, %d" (increment 3) (incrementAnonymous 3)
+```
 共享脚本中的命名调用是：
 
-<<< @/../examples/scripts/ch03-functions-as-values.fsx#higher-order{fsharp:line-numbers} [ch03-functions-as-values.fsx]
+```fsharp:line-numbers [ch03-functions-as-values.fsx]
+let applyTwice transform value = transform (transform value)
+let incrementedTwice = applyTwice increment 3
 
+printfn "Applied twice: %d" incrementedTwice
+```
 等价的匿名调用可按同一形状读作 `applyTwice (fun seats -> seats + 1) 3`，结果同样为 `5`。匿名函数与 `increment` 都是 `int -> int`，`applyTwice` 在这次调用中把 `'a` 实例化为 `int`。
 
 一个 `int -> string` 函数不能直接使用，因为第一次变换产生 `string`，第二次调用却仍要求输入 `int`。`applyTwice` 的约束是 `'a -> 'a`，不是 `'a -> 'b`。若业务真的要连续不同变换，需要另一个明确描述两阶段类型的函数，而不是削弱这里的一致性。
@@ -62,10 +49,19 @@ sources:
 
 两个可运行定义分别是：
 
-<<< @/../examples/scripts/ch03-functions-as-values.fsx#curried-function{fsharp:line-numbers} [ch03-functions-as-values.fsx]
+```fsharp:line-numbers [ch03-functions-as-values.fsx]
+let lineTotal unitPrice seats = unitPrice * decimal seats
+let standardLineTotal = lineTotal 19.50m
+let totalForThree = standardLineTotal 3
 
-<<< @/../examples/scripts/ch03-functions-as-values.fsx#tupled-function{fsharp:line-numbers} [ch03-functions-as-values.fsx]
+printfn "Curried total: %M" totalForThree
+```
+```fsharp:line-numbers [ch03-functions-as-values.fsx]
+let lineTotalTupled (unitPrice, seats) = unitPrice * decimal seats
+let tupledTotal = lineTotalTupled (19.50m, 3)
 
+printfn "Tupled total: %M" tupledTotal
+```
 柯里化版本类型为 `decimal -> int -> decimal`，调用 `lineTotal 19.50m 3`；元组版本类型为 `decimal * int -> decimal`，调用 `lineTotalTupled (19.50m, 3)`。只有前者能直接用 `lineTotal 19.50m` 固定单价，得到 `int -> decimal`。
 
 `addServiceFee` 保留 `2.00m`，剩余输入是小计，所以类型为 `decimal -> decimal`。语义上这个函数形成闭包。如果单价与座位数在领域中本来就是一个整体值，元组版本会把“只接受完整一对”直接写进输入形状；是否需要部分应用不是唯一设计标准。

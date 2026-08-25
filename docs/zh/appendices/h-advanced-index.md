@@ -2,34 +2,6 @@
 title: "附录 H：高级特性识别索引"
 description: "识别 quotations、静态解析类型参数、灵活类型与 byref-like 代码，再判断当前问题是否值得深入学习。"
 translationKey: appendices/h-advanced-index
-kind: appendix
-appendix: H
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds: []
-exerciseIds: []
-termIds: []
-sources:
-  - id: microsoft-quotations
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/code-quotations
-    checked: "2026-08-25"
-  - id: microsoft-srtp
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/statically-resolved-type-parameters
-    checked: "2026-08-25"
-  - id: microsoft-flexible-types
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/flexible-types
-    checked: "2026-08-25"
-  - id: microsoft-byrefs
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/byrefs
-    checked: "2026-08-25"
-  - id: microsoft-memory-span
-    url: https://learn.microsoft.com/en-us/dotnet/standard/memory-and-spans/memory-t-usage-guidelines
-    checked: "2026-08-25"
-  - id: fsharp-core-quotations
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-quotations.html
-    checked: "2026-08-25"
 ---
 
 # 附录 H：高级特性识别索引 {#overview}

@@ -2,30 +2,6 @@
 title: "Chapter 24 Solutions"
 description: "Choose coordination from invariants, extend a reservation agent without assuming message order, and make cache invalidation and duplicate-work policy executable."
 translationKey: solutions/ch-24-concurrency-agents-state
-kind: solution
-part: 4
-chapter: 24
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch24-concurrency-agents-state
-exerciseIds:
-  - ch24-exercise-01
-  - ch24-exercise-02
-  - ch24-exercise-03
-termIds: []
-sources:
-  - id: dotnet-interlocked
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.threading.interlocked?view=net-10.0
-    checked: "2026-08-24"
-  - id: fsharp-mailbox-processor
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-control-fsharpmailboxprocessor-1.html
-    checked: "2026-08-24"
-  - id: dotnet-concurrent-get-or-add
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.collections.concurrent.concurrentdictionary-2.getoradd?view=net-10.0
-    checked: "2026-08-24"
 ---
 
 # Chapter 24 Solutions {#overview}

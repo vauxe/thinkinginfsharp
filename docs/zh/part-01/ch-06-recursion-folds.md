@@ -2,46 +2,6 @@
 title: "第 6 章：递归、尾调用与折叠"
 description: "从列表结构推导递归，区分普通与尾递归，并用累加器和 List.fold 重写线性聚合。"
 translationKey: part-01/ch-06-recursion-folds
-kind: chapter
-part: 1
-chapter: 6
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch06-recursion-folds
-  - ch06-non-tail-recursion
-  - capstone-part-01-booking-basics
-exerciseIds:
-  - ch06-exercise-01
-  - ch06-exercise-02
-  - ch06-exercise-03
-termIds:
-  - accumulator
-  - fold
-  - list
-  - pattern-matching
-  - recursion
-  - structural-recursion
-  - tail-call
-  - tail-recursion
-sources:
-  - id: microsoft-recursive-functions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/recursive-functions-the-rec-keyword
-    checked: "2026-08-25"
-  - id: microsoft-fsi-options
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/fsharp-interactive-options
-    checked: "2026-08-25"
-  - id: microsoft-functions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/
-    checked: "2026-08-24"
-  - id: microsoft-lists
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/lists
-    checked: "2026-08-24"
-  - id: fsharp-core-list
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-listmodule.html
-    checked: "2026-08-24"
 ---
 
 # 第 6 章：递归、尾调用与折叠 {#overview}
@@ -68,8 +28,12 @@ sources:
 
 普通非递归 `let` 的名称只在右侧求值完成后进入后续作用域。`let rec` 则让函数名称在自己的主体中可见，因此可以调用自身：
 
-<<< @/../examples/scripts/ch06-recursion-folds.fsx#direct-recursion{fsharp:line-numbers} [ch06-recursion-folds.fsx]
-
+```fsharp:line-numbers [ch06-recursion-folds.fsx]
+let rec sumRecursive values =
+    match values with
+    | [] -> 0
+    | head :: tail -> head + sumRecursive tail
+```
 `rec` 只改变绑定可见性，不会替你添加基础情况，也不会证明每次调用都接近终止。若递归分支把原列表原样传回，代码可以无限递归；若漏掉 `[]`，匹配也会不穷尽。
 
 互相调用的函数可用 `let rec ... and ...` 一起定义，但只有真实的相互依赖才需要它。把无关函数放进递归组会扩大推断和理解范围，本章不使用这种形式。
@@ -109,8 +73,15 @@ sources:
 
 把此前的和作为额外参数传到下一步：
 
-<<< @/../examples/scripts/ch06-recursion-folds.fsx#tail-recursion{fsharp:line-numbers} [ch06-recursion-folds.fsx]
+```fsharp:line-numbers [ch06-recursion-folds.fsx]
+[<TailCall>]
+let rec sumLoop accumulator values =
+    match values with
+    | [] -> accumulator
+    | head :: tail -> sumLoop (accumulator + head) tail
 
+let sumTailRecursive values = sumLoop 0 values
+```
 `sumLoop` 每轮先计算新的 `accumulator + head`，再以该值和 `tail` 调用自身。递归调用之后没有加法或构造；分支结果就是调用结果，所以它位于尾位置。
 
 理解累加器应写出不变量：在每一步，`accumulator + sum values` 等于原输入总和。开始时累加器为 `0`；移动一个 `head` 到累加器后等式仍成立；`values` 为空时，累加器就是完整答案。
@@ -119,18 +90,34 @@ sources:
 
 ### `[<TailCall>]` 检查意图 {#tailcall-attribute}
 
-F# 8 起可在模块函数或方法上使用 `[<TailCall>]`。编译器若发现该函数中的递归调用不在尾位置，会给出警告。为了让这个诊断成为可执行证据，仓库会把下面这个刻意无效的 `.fs` 项目按“警告即错误”单独编译，并要求出现 `FS3569`：
+F# 8 起可在模块函数或方法上使用 `[<TailCall>]`。编译器若发现该函数中的递归调用不在尾位置，会给出警告。把下面这个刻意无效的 `.fs` 示例放进启用“警告即错误”的最小项目，即可观察 `FS3569`：
 
-<<< @/../examples/expected-errors/ch06-non-tail-recursion/NonTailRecursion.fs#non-tail-recursion{fsharp:line-numbers} [NonTailRecursion.fs]
-
+```fsharp:line-numbers [NonTailRecursion.fs]
+[<TailCall>]
+let rec fibonacci n =
+    match n with
+    | 0
+    | 1 -> n
+    | value -> fibonacci (value - 1) + fibonacci (value - 2)
+```
 普通脚本门禁也会用 `--warnaserror+` 运行 FSI，但脚本成功运行本身不被当成 `TailCall` 诊断的证明。上面的编译型反例提供负向证据；代码位置与下面的有界运行则为共享循环提供正向证据。
 
 这个属性不会把非尾递归魔法般改写成尾递归，也不证明函数一定终止。它只检查相关调用位置。尾位置是编译器消除递归栈增长的重要前提，但跨函数、运行时、调试设置、计算表达式与其他执行模型可能有不同限制；不要从一个同步自递归示例推导“所有递归都是栈安全的”。
 
 共享脚本用尾递归计算 100,000 项列表长度，作为这个具体实现的运行证据：
 
-<<< @/../examples/scripts/ch06-recursion-folds.fsx#tail-count{fsharp:line-numbers} [ch06-recursion-folds.fsx]
+```fsharp:line-numbers [ch06-recursion-folds.fsx]
+[<TailCall>]
+let rec countLoop accumulator values =
+    match values with
+    | [] -> accumulator
+    | _ :: tail -> countLoop (accumulator + 1) tail
 
+let countTailRecursive values = countLoop 0 values
+let largeCount = countTailRecursive [ 1..100_000 ]
+
+printfn "Tail-recursive count: %d" largeCount
+```
 不要通过故意让非尾递归耗尽进程栈来做对比测试；.NET 的栈溢出通常不是应用可以可靠捕获并继续运行的普通错误。用代码位置、编译器诊断和有界测试判断。
 
 ## 尾递归不会修复所有算法 {#tail-recursion-limits}
@@ -145,8 +132,10 @@ F# 8 起可在模块函数或方法上使用 `[<TailCall>]`。编译器若发现
 
 尾递归求和包含一个通用骨架：从初始状态开始，按顺序把每个元素并入状态，最后返回状态。`List.fold` 把骨架留在库中，只要求提供更新函数与初始状态：
 
-<<< @/../examples/scripts/ch06-recursion-folds.fsx#fold-sum{fsharp:line-numbers} [ch06-recursion-folds.fsx]
-
+```fsharp:line-numbers [ch06-recursion-folds.fsx]
+let sumWithFold values =
+    values |> List.fold (fun accumulator value -> accumulator + value) 0
+```
 其核心类型为：
 
 ```text
@@ -173,8 +162,12 @@ folder a (folder b (folder c initial))
 
 它的 folder 先接元素、再接状态，与 `List.fold` 的状态优先顺序不同。共享脚本用减法让差异可见：
 
-<<< @/../examples/scripts/ch06-recursion-folds.fsx#fold-order{fsharp:line-numbers} [ch06-recursion-folds.fsx]
+```fsharp:line-numbers [ch06-recursion-folds.fsx]
+let leftAssociated = List.fold (fun state value -> state - value) 0 [ 1; 2; 3 ]
+let rightAssociated = List.foldBack (fun value state -> value - state) [ 1; 2; 3 ] 0
 
+printfn "Fold order: left=%d right=%d" leftAssociated rightAssociated
+```
 左折叠计算 `((0 - 1) - 2) - 3 = -6`；右折叠计算 `1 - (2 - (3 - 0)) = 2`。加法在本例整数范围内不受方向影响，不能据此误以为所有折叠顺序等价。
 
 不要仅根据语义展开猜测库函数的栈或分配实现。API 保证组合顺序与结果语义；具体性能应参考当前 FSharp.Core 实现并测量。需要方向敏感行为时，先写清数学结合方式。
@@ -205,10 +198,10 @@ folder a (folder b (folder c initial))
 
 ## 运行共享示例 {#run-example}
 
-从仓库根目录执行：
+在示例所在目录执行：
 
 ```console
-dotnet fsi --warnaserror+ --exec examples/scripts/ch06-recursion-folds.fsx
+dotnet fsi --warnaserror+ --exec ch06-recursion-folds.fsx
 ```
 
 应得到：
@@ -221,7 +214,7 @@ Tail-recursive count: 100000
 Fold order: left=-6 right=2
 ```
 
-空、一项、普通列表与大列表分别验证基础情况、统一语义和这个尾递归实现的有界运行行为。manifest 按顺序检查五行。
+空、一项、普通列表与大列表分别验证基础情况、统一语义和这个尾递归实现的有界运行行为。请按顺序比较五行输出。
 
 ## 调试：先检查递减，再检查尾位置 {#debugging}
 
@@ -277,10 +270,10 @@ Fold order: left=-6 right=2
 
 ## 第一部分检查点 {#part-checkpoint}
 
-从仓库根目录运行集成后的预约脚本：
+在示例所在目录运行集成后的预约脚本：
 
 ```console
-dotnet fsi --warnaserror+ --exec examples/capstone/part-01/BookingBasics.fsx
+dotnet fsi --warnaserror+ --exec booking-basics.fsx
 ```
 
 输出必须区分有效与无效输入行，只接受容量允许的请求，拒绝超容量请求，并得到正确的已预约与剩余容量。这闭合了第一部分的语言路径，但不声称已经具备持久化或并发保证。

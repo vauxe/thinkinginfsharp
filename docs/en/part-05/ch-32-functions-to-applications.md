@@ -2,43 +2,6 @@
 title: "Chapter 32: From Functions to Applications"
 description: "Derive a small executable F# application from a pure workflow by making configuration, ports, composition, cancellation, ownership, and minimum observability explicit."
 translationKey: part-05/ch-32-functions-to-applications
-kind: chapter
-part: 5
-chapter: 32
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch32-functions-to-applications
-  - foundation-example-tests
-exerciseIds:
-  - ch32-exercise-01
-  - ch32-exercise-02
-  - ch32-exercise-03
-termIds: []
-sources:
-  - id: microsoft-dotnet-generic-host
-    url: https://learn.microsoft.com/en-us/dotnet/core/extensions/generic-host
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-configuration
-    url: https://learn.microsoft.com/en-us/dotnet/core/extensions/configuration
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-logging
-    url: https://learn.microsoft.com/en-us/dotnet/core/extensions/logging
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-metrics
-    url: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/metrics-instrumentation
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-metric-collection
-    url: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/metrics-collection
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-tracing
-    url: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/distributed-tracing-instrumentation-walkthroughs
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-di-guidelines
-    url: https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection/guidelines
-    checked: "2026-08-24"
 ---
 
 # Chapter 32: From Functions to Applications {#overview}
@@ -97,8 +60,19 @@ This is a sequence, not a claim that every step belongs in one function. It expo
 
 Start with the pure workflow's inputs and output. `decidePlaceBooking` needs an `Event`, current `BookingState`, and `PlaceBookingCommand`; it returns `Result<BookingEvent, PlaceBookingError>`. A running application must therefore obtain the current state and persist an accepted event. Those are the two effect capabilities in the sample:
 
-<<< @/../examples/chapters/ch32/Ports.fs#ports{fsharp:line-numbers} [Ports.fs]
+```fsharp:line-numbers [Ports.fs]
+type BookingPorts =
+    { LoadBooking: RequestId -> CancellationToken -> Task<BookingState>
+      AppendEvent: RequestId -> BookingEvent -> CancellationToken -> Task<unit>
+      OwnedResource: IDisposable }
 
+type BookingLog =
+    { EventName: string
+      Outcome: string
+      RequestId: string
+      Seats: int
+      Detail: string }
+```
 The record contains functions, not implementation classes. Each signature says something useful:
 
 - `RequestId` is already a validated domain value at the storage boundary;
@@ -115,8 +89,46 @@ The domain still owns the rule. A port named `CanBook` would push policy into st
 
 Environment variables, JSON, command-line arguments, and secret stores all begin as external data. Their presence does not make them valid domain configuration. Parse and validate once near startup, then pass a typed value inward:
 
-<<< @/../examples/chapters/ch32/Ports.fs#configuration{fsharp:line-numbers} [Ports.fs]
+```fsharp:line-numbers [Ports.fs]
+type ConfigError =
+    | MissingSetting of name: string
+    | InvalidSetting of name: string * value: string
 
+type AppConfig = private { Event: Event }
+
+module AppConfig =
+    [<Literal>]
+    let EventIdSetting = "BOOKING_EVENT_ID"
+
+    [<Literal>]
+    let CapacitySetting = "BOOKING_CAPACITY"
+
+    let private readEventId (lookup: string -> string option) =
+        match lookup EventIdSetting with
+        | None -> Error [ MissingSetting EventIdSetting ]
+        | Some raw ->
+            EventId.create raw
+            |> Result.mapError (fun _ -> [ InvalidSetting(EventIdSetting, raw) ])
+
+    let private readCapacity (lookup: string -> string option) =
+        match lookup CapacitySetting with
+        | None -> Error [ MissingSetting CapacitySetting ]
+        | Some raw ->
+            match Int32.TryParse raw with
+            | true, value ->
+                Capacity.create value
+                |> Result.mapError (fun _ -> [ InvalidSetting(CapacitySetting, raw) ])
+            | false, _ -> Error [ InvalidSetting(CapacitySetting, raw) ]
+
+    let load lookup =
+        match readEventId lookup, readCapacity lookup with
+        | Ok eventId, Ok capacity -> Ok { Event = Event.create eventId capacity }
+        | Error eventErrors, Error capacityErrors -> Error(eventErrors @ capacityErrors)
+        | Error errors, Ok _
+        | Ok _, Error errors -> Error errors
+
+    let event config = config.Event
+```
 `AppConfig.load` accepts a lookup function instead of reading `Environment` directly. Production passes an environment lookup; the fixed demo and tests pass deterministic functions. This tiny seam avoids global mutation and does not require a configuration framework.
 
 The loader accumulates independent errors for `BOOKING_EVENT_ID` and `BOOKING_CAPACITY`. If both are wrong, an operator can repair both before the next start. Parsing an integer is only the representation step; `Capacity.create` enforces the domain rule that capacity must be positive. The private `AppConfig` record prevents later code from constructing an unvalidated configuration record directly.
@@ -136,8 +148,11 @@ The broader .NET configuration system unifies providers such as JSON, environmen
 
 A composition root is the outermost place that selects concrete dependencies and establishes ownership. In the sample, the reusable construction function remains deliberately unsurprising:
 
-<<< @/../examples/chapters/ch32/Composition.fs#composition-root{fsharp:line-numbers} [Composition.fs]
-
+```fsharp:line-numbers [Composition.fs]
+module Composition =
+    let start config ports writeLog =
+        new BookingApplication(AppConfig.event config, ports, writeLog)
+```
 `Program` performs the remaining process-specific work: choose the lookup, install demo listeners, construct the in-memory store, create the application, run one command, and translate the result to output and an exit code. Domain modules contain none of those choices.
 
 Manual construction is dependency injection in the literal sense: dependencies arrive as arguments. A DI container automates registration, resolution, scopes, and disposal; it is not the source of inversion of control. Keeping a composition root remains valuable even when a container later performs the construction.
@@ -148,8 +163,48 @@ Avoid resolving dependencies from a global service locator inside domain or appl
 
 The application method owns sequencing while reusing the existing domain workflow:
 
-<<< @/../examples/chapters/ch32/Composition.fs#place{fsharp:line-numbers} [Composition.fs]
+```fsharp:line-numbers [Composition.fs]
+member _.Place(command: PlaceBookingCommand, cancellationToken: CancellationToken) =
+    task {
+        ensureActive ()
 
+        let activity =
+            activities.StartActivity(DiagnosticNames.PlaceActivityName, ActivityKind.Internal)
+
+        try
+            try
+                cancellationToken.ThrowIfCancellationRequested()
+
+                match validatePlaceBooking command with
+                | Error errors ->
+                    let failure = InvalidCommand errors
+                    observe activity command "rejected" (sprintf "%A" failure)
+                    return Error failure
+                | Ok validCommand ->
+                    let requestId = ValidPlaceBooking.requestId validCommand
+                    let! state = ports.LoadBooking requestId cancellationToken
+
+                    match decidePlaceBooking event state command with
+                    | Error failure ->
+                        observe activity command "rejected" (sprintf "%A" failure)
+                        return Error failure
+                    | Ok bookingEvent ->
+                        do! ports.AppendEvent requestId bookingEvent cancellationToken
+                        observe activity command "accepted" "event-appended"
+                        return Ok bookingEvent
+            with
+            | :? OperationCanceledException as error ->
+                observe activity command "canceled" "operation-canceled"
+                return raise error
+            | error ->
+                observe activity command "faulted" (error.GetType().Name)
+                return raise error
+        finally
+            match activity with
+            | null -> ()
+            | current -> current.Dispose()
+    }
+```
 Read the method in order:
 
 1. Reject use after disposal and start an optional activity.
@@ -211,8 +266,20 @@ The sample classifies an accepted or rejected domain decision as a completed ope
 
 The diagnostic names are stable constants, and the application creates one counter:
 
-<<< @/../examples/chapters/ch32/Composition.fs#diagnostics-names{fsharp:line-numbers} [Composition.fs]
+```fsharp:line-numbers [Composition.fs]
+module DiagnosticNames =
+    [<Literal>]
+    let MeterName = "ThinkingInFSharp.Ch32.Booking"
 
+    [<Literal>]
+    let ActivitySourceName = "ThinkingInFSharp.Ch32.Booking"
+
+    [<Literal>]
+    let RequestCounterName = "booking.requests"
+
+    [<Literal>]
+    let PlaceActivityName = "booking.place"
+```
 `Counter<int64>.Add` publishes an increment. It does not by itself create historical storage, a rate chart, retention, or an alert. A collection tool aggregates measurements and may export them to a backend. The demo's `MeterListener` merely observes one in-process measurement so the example and test can prove the instrumentation fired.
 
 The `outcome` tag has four bounded values in this application: `accepted`, `rejected`, `canceled`, and `faulted`. A request ID is deliberately absent. Metric systems usually allocate a time series for each tag combination; unbounded IDs can create excessive memory, storage, and cost.
@@ -232,7 +299,7 @@ Creating an `ActivitySource` is instrumentation, not distributed-trace collectio
 Run the deterministic demonstration after the Release build:
 
 ```console
-dotnet examples/chapters/ch32/bin/Release/net10.0/Ch32.App.dll --demo
+dotnet bin/Release/net10.0/Ch32.App.dll --demo
 ```
 
 It emits exactly:
@@ -336,10 +403,10 @@ Choose between explicit construction and the Generic Host for: (a) a command tha
 
 ## Part V checkpoint {#part-checkpoint}
 
-Run the focused composition tests from the repository root:
+Run the focused composition tests from the directory containing the example:
 
 ```console
-dotnet test tests/ExampleTests/ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~Ch32CompositionTests
+dotnet test ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~Ch32CompositionTests
 ```
 
 Passing tests show that configuration errors accumulate, cancellation is observed before a port call, owned resources are disposed, and the sample emits its structured log, metric, and completed activity. They still prove only in-process wiring, not production export or durable delivery.

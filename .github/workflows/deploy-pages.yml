@@ -27,23 +27,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 11.7.0
-          run_install: false
-
       - name: Install Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: pnpm
+          cache: npm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
       - name: Verify static book
-        run: pnpm test
+        run: npm run check
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5

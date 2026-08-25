@@ -2,27 +2,6 @@
 title: "Chapter 6 Solutions"
 description: "Reasoning about structural recursion, accumulator invariants, tail calls, and left and right folds."
 translationKey: solutions/ch-06-recursion-folds
-kind: solution
-part: 1
-chapter: 6
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch06-recursion-folds
-exerciseIds:
-  - ch06-exercise-01
-  - ch06-exercise-02
-  - ch06-exercise-03
-termIds: []
-sources:
-  - id: microsoft-recursive-functions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/recursive-functions-the-rec-keyword
-    checked: "2026-08-24"
-  - id: microsoft-lists
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/lists
-    checked: "2026-08-24"
 ---
 
 # Chapter 6 Solutions {#overview}
@@ -35,8 +14,12 @@ A recursion answer must explain decrease, invariants, and work after return. Wri
 
 The shared definition is:
 
-<<< @/../examples/scripts/ch06-recursion-folds.fsx#direct-recursion{fsharp:line-numbers} [ch06-recursion-folds.fsx]
-
+```fsharp:line-numbers [ch06-recursion-folds.fsx]
+let rec sumRecursive values =
+    match values with
+    | [] -> 0
+    | head :: tail -> head + sumRecursive tail
+```
 The full expansion is `3 + sumRecursive [0; 4]`, then `3 + (0 + sumRecursive [4])`, then `3 + (0 + (4 + sumRecursive []))`. The base rule supplies `0`, producing `7`.
 
 The three nonempty calls have `(head, tail)` values `(3, [0; 4])`, `(0, [4])`, and `(4, [])`. Tail length falls by one each time, so finite input eventually reaches the empty list and terminates.
@@ -47,8 +30,15 @@ Every level must wait for the recursive result and then perform `head + result`.
 
 The tail-recursive definition is:
 
-<<< @/../examples/scripts/ch06-recursion-folds.fsx#tail-recursion{fsharp:line-numbers} [ch06-recursion-folds.fsx]
+```fsharp:line-numbers [ch06-recursion-folds.fsx]
+[<TailCall>]
+let rec sumLoop accumulator values =
+    match values with
+    | [] -> accumulator
+    | head :: tail -> sumLoop (accumulator + head) tail
 
+let sumTailRecursive values = sumLoop 0 values
+```
 The states are `(0, [3; 0; 4])`, `(3, [0; 4])`, `(3, [4])`, and `(7, [])`. At every step, accumulator plus remaining-list sum is `7`. At the end, the remaining sum is zero and the accumulator is the answer.
 
 If the function recurses first and adds `head` afterward, work remains after return. `[<TailCall>]` should report a non-tail recursive call, and the book's warnings-as-errors setting should reject the build. Even a passing attribute check proves neither finite input, decreasing arguments, arithmetic range safety, nor domain correctness. Reasoning, type choice, and tests verify those separately.
@@ -57,8 +47,12 @@ If the function recurses first and adds `head` afterward, work remains after ret
 
 The order example is:
 
-<<< @/../examples/scripts/ch06-recursion-folds.fsx#fold-order{fsharp:line-numbers} [ch06-recursion-folds.fsx]
+```fsharp:line-numbers [ch06-recursion-folds.fsx]
+let leftAssociated = List.fold (fun state value -> state - value) 0 [ 1; 2; 3 ]
+let rightAssociated = List.foldBack (fun value state -> value - state) [ 1; 2; 3 ] 0
 
+printfn "Fold order: left=%d right=%d" leftAssociated rightAssociated
+```
 The left-fold parentheses are `((0 - 1) - 2) - 3`, producing `-6`. The right-fold parentheses are `1 - (2 - (3 - 0))`, producing `2`. Direction and folder parameter order both differ.
 
 To count with `List.fold`, initial state is `0`. The folder receives `count` and an ignored element and returns `count + 1`, with abstract type `int -> 'a -> int`. The complete operation folds an `'a list` into `int`.

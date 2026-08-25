@@ -2,44 +2,6 @@
 title: "Chapter 7: Records, Updates, Equality, and Comparison"
 description: "Move from positional tuples to named records, use anonymous records and immutable updates, and distinguish structural equality, comparison, reference identity, and hash codes."
 translationKey: part-02/ch-07-records-equality
-kind: chapter
-part: 2
-chapter: 7
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch07-records-equality
-exerciseIds:
-  - ch07-exercise-01
-  - ch07-exercise-02
-  - ch07-exercise-03
-termIds:
-  - anonymous-record
-  - hash-code
-  - immutability
-  - record
-  - reference-identity
-  - structural-comparison
-  - structural-equality
-  - tuple
-sources:
-  - id: microsoft-records
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/records
-    checked: "2026-08-24"
-  - id: microsoft-copy-update
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/copy-and-update-record-expressions
-    checked: "2026-08-24"
-  - id: microsoft-anonymous-records
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/anonymous-records
-    checked: "2026-08-24"
-  - id: fsharp-core-language-primitives
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-languageprimitives.html
-    checked: "2026-08-24"
-  - id: microsoft-gethashcode
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.object.gethashcode?view=net-10.0
-    checked: "2026-08-24"
 ---
 
 # Chapter 7: Records, Updates, Equality, and Comparison {#overview}
@@ -81,8 +43,17 @@ When call sites accumulate `fst` and `snd`, or readers must remember what a four
 
 The shared script defines a booking draft:
 
-<<< @/../examples/scripts/ch07-records-equality.fsx#record-definition{fsharp:line-numbers} [ch07-records-equality.fsx]
+```fsharp:line-numbers [ch07-records-equality.fsx]
+type BookingDraft =
+    { EventId: string
+      Attendee: string
+      Seats: int }
 
+let original =
+    { EventId = "A-1"
+      Attendee = "Lin"
+      Seats = 2 }
+```
 `BookingDraft` is a named type. Field labels participate in construction and access, so field order is no longer the caller's only clue to meaning. An ordinary record is a .NET reference type by default, while its fields are not assignable by default. “Reference type” and “mutable object” are not synonyms.
 
 Two separately declared record types remain distinct nominal types even when every field name and type matches. Naming brings domain meaning into the compilation boundary: `BookingDraft` does not automatically become another record merely because its shape looks similar.
@@ -118,8 +89,11 @@ Construction and patterns use the same field vocabulary: one builds a value, and
 
 The shared example changes seat count from `2` to `3`:
 
-<<< @/../examples/scripts/ch07-records-equality.fsx#copy-update{fsharp:line-numbers} [ch07-records-equality.fsx]
+```fsharp:line-numbers [ch07-records-equality.fsx]
+let updated = { original with Seats = 3 }
 
+printfn "Record update: original=%d updated=%d" original.Seats updated.Seats
+```
 `{ original with Seats = 3 }` produces a new `BookingDraft`. `original.Seats` remains `2`, while `updated.Seats` is `3`. It states that new state derives from old state with only these fields changed, without repeating the others.
 
 Copy-and-update is not a recursive deep copy. Unchanged field values are retained. If a field contains another reference object, old and new records may continue to refer to that same object. Immutable domain models commonly keep nested values immutable too, removing the need to defend shared state with deep copying.
@@ -130,8 +104,13 @@ Starting with F# 7, a field path can update nested records, but shorter syntax d
 
 An anonymous record uses `{| ... |}` and needs no prior type declaration. The shared script projects from a named record and adds a computed field:
 
-<<< @/../examples/scripts/ch07-records-equality.fsx#anonymous-record{fsharp:line-numbers} [ch07-records-equality.fsx]
+```fsharp:line-numbers [ch07-records-equality.fsx]
+let summary =
+    {| updated with
+        IsGroup = updated.Seats > 1 |}
 
+printfn "Anonymous summary: %s -> %d seats, group=%b" summary.Attendee summary.Seats summary.IsGroup
+```
 The shape of `summary` is determined by every field label, every field type, and whether it is a reference or `struct` anonymous record. Another anonymous record has the same anonymous record type only when its shape matches exactly. There is no structural subtype meaning “contains at least these fields.”
 
 Anonymous records support field access, structural equality and comparison, and copy-and-update, including adding fields during an update. They currently do not support record pattern matching, so dot access normally reads their fields.
@@ -142,8 +121,21 @@ They suit local projections, query results, and short-range adaptation. If a sha
 
 Two separately constructed `BookingDraft` values make F# `=` return `true` when corresponding fields are structurally equal:
 
-<<< @/../examples/scripts/ch07-records-equality.fsx#equality-identity-hash{fsharp:line-numbers} [ch07-records-equality.fsx]
+```fsharp:line-numbers [ch07-records-equality.fsx]
+let equalCopy =
+    { EventId = "A-1"
+      Attendee = "Lin"
+      Seats = 2 }
 
+let alias = original
+let structurallyEqual = original = equalCopy
+let physicallyEqual = LanguagePrimitives.PhysicalEquality original equalCopy
+let aliasIsSameReference = LanguagePrimitives.PhysicalEquality original alias
+let equalHashesAgree = hash original = hash equalCopy
+
+printfn "Equality: structural=%b physical=%b alias=%b" structurallyEqual physicallyEqual aliasIsSameReference
+printfn "Hashes agree for equal records: %b" equalHashesAgree
+```
 Generated record equality recursively uses each field type's equality semantics. The capability composes: if a component type does not satisfy F# equality, the containing record cannot unconditionally provide normal structural equality either. Chapter 11 will express this rule as a generic constraint.
 
 Structural equality answers whether contents are equal under the type's rules. It does not answer whether two variables represent the same memory object or whether two business entities have the same identity. Two equal booking drafts can have matching content while real bookings still require distinct request identifiers.
@@ -172,8 +164,25 @@ A hash code is not an object address, database key, request ID, or password dige
 
 When every field supports comparison, a record automatically supports structural comparison and can be passed directly to `List.sort`:
 
-<<< @/../examples/scripts/ch07-records-equality.fsx#structural-comparison{fsharp:line-numbers} [ch07-records-equality.fsx]
+```fsharp:line-numbers [ch07-records-equality.fsx]
+let drafts =
+    [ { EventId = "B-2"
+        Attendee = "Lin"
+        Seats = 2 }
+      { EventId = "A-1"
+        Attendee = "Lin"
+        Seats = 1 }
+      { EventId = "A-1"
+        Attendee = "Ada"
+        Seats = 2 } ]
 
+let sortedLabels =
+    drafts
+    |> List.sort
+    |> List.map (fun draft -> $"{draft.EventId}:{draft.Attendee}:{draft.Seats}")
+
+printfn "Structural sort: %A" sortedLabels
+```
 This example compares in record declaration order: first `EventId`, then `Attendee` when event IDs tie, and finally `Seats`. Therefore `A-1:Ada:2` appears before `A-1:Lin:1`.
 
 Default order fits values that need determinism and whose structural order matches intent. Business order often differs—for example, seat count descending and then attendee name. Use `List.sortBy` or `List.sortWith` so that rule appears in code. Adding or reordering a record field should not silently alter an important business rule.
@@ -193,10 +202,10 @@ Do not optimize only for line count. Record and field names are model vocabulary
 
 ## Run the shared example {#run-example}
 
-From the repository root, run:
+From the directory containing the example, run:
 
 ```console
-dotnet fsi --exec examples/scripts/ch07-records-equality.fsx
+dotnet fsi --exec ch07-records-equality.fsx
 ```
 
 You should see:
@@ -209,7 +218,7 @@ Hashes agree for equal records: true
 Structural sort: ["A-1:Ada:2"; "A-1:Lin:1"; "B-2:Lin:2"]
 ```
 
-The five lines fix immutable update, anonymous projection, a content-versus-identity counterexample, the required equality-to-hash contract, and structural sorting. The manifest checks them in order. The script does not print a concrete hash integer because that number is not a stable contract.
+The five lines fix immutable update, anonymous projection, a content-versus-identity counterexample, the required equality-to-hash contract, and structural sorting. Compare them in order. The script does not print a concrete hash integer because that number is not a stable contract.
 
 ## Debugging: state what you are comparing {#debugging}
 

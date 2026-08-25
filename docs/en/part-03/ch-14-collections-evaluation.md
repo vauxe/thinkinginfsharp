@@ -2,58 +2,6 @@
 title: "Chapter 14: Choosing Collections and Evaluation Models"
 description: "Choose list, array, sequence, map, set, or a .NET hash collection by shape, evaluation timing, lookup semantics, and conversion cost."
 translationKey: part-03/ch-14-collections-evaluation
-kind: chapter
-part: 3
-chapter: 14
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch14-collections-evaluation
-exerciseIds:
-  - ch14-exercise-01
-  - ch14-exercise-02
-  - ch14-exercise-03
-termIds:
-  - array
-  - comparison-constraint
-  - deferred-evaluation
-  - eager-evaluation
-  - enumeration
-  - hash-code
-  - list
-  - map
-  - sequence
-  - set
-sources:
-  - id: microsoft-collection-types
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/fsharp-collection-types
-    checked: "2026-08-24"
-  - id: microsoft-lists
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/lists
-    checked: "2026-08-24"
-  - id: microsoft-arrays
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/arrays
-    checked: "2026-08-24"
-  - id: microsoft-sequences
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/sequences
-    checked: "2026-08-24"
-  - id: fsharp-core-collections
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections.html
-    checked: "2026-08-24"
-  - id: fsharp-core-map
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-mapmodule.html
-    checked: "2026-08-24"
-  - id: fsharp-core-set
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-setmodule.html
-    checked: "2026-08-24"
-  - id: dotnet-dictionary
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2?view=net-10.0
-    checked: "2026-08-24"
-  - id: dotnet-hashset
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.hashset-1?view=net-10.0
-    checked: "2026-08-24"
 ---
 
 # Chapter 14: Choosing Collections and Evaluation Models {#overview}
@@ -110,8 +58,17 @@ Use an array for indexed algorithms, dense fixed snapshots, numeric work, or API
 
 The shared script places list and array behavior side by side:
 
-<<< @/../examples/scripts/ch14-collections-evaluation.fsx#eager-collections{fsharp:line-numbers} [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+let source = [ 1; 2; 3 ]
+let doubledList = source |> List.map ((*) 2)
+let doubledArray = source |> List.toArray |> Array.map ((*) 2)
+doubledArray[0] <- 20
 
+ensureEqual "list stays immutable" [ 2; 4; 6 ] doubledList
+ensureEqual "array element changes" [| 20; 4; 6 |] doubledArray
+ensureEqual "source stays unchanged" [ 1; 2; 3 ] source
+printfn "Eager: list=%A array=%A source=%A" doubledList doubledArray source
+```
 Neither representation is universally “faster.” The dominant access pattern, allocation profile, element type, and measured workload decide.
 
 ### Sequence: an enumeration contract, not stored data {#sequence}
@@ -162,8 +119,29 @@ The body should still be treated as executable code, not as inert data. Effects 
 
 The shared example makes evaluation visible with a counter:
 
-<<< @/../examples/scripts/ch14-collections-evaluation.fsx#repeated-enumeration{fsharp:line-numbers} [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+let mutable pulls = 0
 
+let delayedSquares =
+    seq {
+        for value in 1..3 do
+            pulls <- pulls + 1
+            yield value * value
+    }
+
+ensureEqual "deferred before enumeration" 0 pulls
+printfn "Deferred before enumeration: pulls=%d" pulls
+
+let firstPass = delayedSquares |> Seq.toList
+ensureEqual "first values" [ 1; 4; 9 ] firstPass
+ensureEqual "first pass count" 3 pulls
+printfn "First enumeration: values=%A pulls=%d" firstPass pulls
+
+let secondPass = delayedSquares |> Seq.toList
+ensureEqual "second values" firstPass secondPass
+ensureEqual "second pass repeats production" 6 pulls
+printfn "Second enumeration: values=%A pulls=%d" secondPass pulls
+```
 The counter remains zero after constructing `delayedSquares`. The first `Seq.toList` pulls three elements; the second starts a new enumeration of this sequence expression and runs the body three more times.
 
 That observation does not mean every `IEnumerable<'T>` is safely restartable. A concrete source controls its enumerators: it may query changing state, wrap a resource, be single-use by convention, or throw on another traversal. The `seq<'T>` type alone promises none of those behaviors.
@@ -178,8 +156,24 @@ Do not infer evaluation from the `Seq.` prefix alone. Read the operation contrac
 
 `Seq.cache` computes elements as demanded and remembers them for later enumeration:
 
-<<< @/../examples/scripts/ch14-collections-evaluation.fsx#cached-sequence{fsharp:line-numbers} [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+let mutable cachedPulls = 0
 
+let cachedSquares =
+    seq {
+        for value in 1..3 do
+            cachedPulls <- cachedPulls + 1
+            yield value * value
+    }
+    |> Seq.cache
+
+let cachedFirst = cachedSquares |> Seq.toList
+let cachedSecond = cachedSquares |> Seq.toList
+
+ensureEqual "cached values" cachedFirst cachedSecond
+ensureEqual "cached production count" 3 cachedPulls
+printfn "Cached enumerations: first=%A second=%A pulls=%d" cachedFirst cachedSecond cachedPulls
+```
 Caching is appropriate when one deferred calculation must be replayed and retaining its produced elements is acceptable. It is not a universal optimization: the cache consumes memory, preserves earlier observations instead of fetching fresh ones, and can grow without bound for a long or infinite source.
 
 When the program means “capture all values now,” make that boundary explicit with `Seq.toList` or `Seq.toArray`. A materialized snapshot has a clear completion point and predictable replay, at the cost of one full traversal and storage for all elements.
@@ -197,16 +191,31 @@ A conversion may allocate, enumerate, copy references, change update rules, disc
 
 These copies are shallow. If an element is a reference to a mutable object, both collections can still point to that same object. The shared array-to-list conversion proves independence of collection slots, not deep cloning:
 
-<<< @/../examples/scripts/ch14-collections-evaluation.fsx#conversion-snapshot{fsharp:line-numbers} [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+let mutableArray = [| 1; 2; 3 |]
+let listSnapshot = mutableArray |> Array.toList
+mutableArray[0] <- 99
 
+ensureEqual "list is an independent snapshot" [ 1; 2; 3 ] listSnapshot
+printfn "Conversion snapshot: array=%A list=%A" mutableArray listSnapshot
+```
 Avoid chains that repeatedly bounce among `list`, array, and `seq` just to call a familiar module function. Either keep the representation suited to the workflow or convert once at a clear boundary.
 
 ## Ordered keys and hash keys answer different questions {#lookup-semantics}
 
 The ordered collections in the script expose comparison order directly:
 
-<<< @/../examples/scripts/ch14-collections-evaluation.fsx#ordered-collections{fsharp:line-numbers} [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+let uniqueSeats = [ 3; 1; 3; 2 ] |> Set.ofList
 
+let bookingByCode =
+    [ "B2", "first"; "A1", "only"; "B2", "replacement" ] |> Map.ofList
+
+ensureEqual "set removes duplicates and orders" [ 1; 2; 3 ] (Set.toList uniqueSeats)
+ensureEqual "later map binding replaces earlier" "replacement" bookingByCode["B2"]
+
+printfn "Ordered collections: set=%A map=%A" (Set.toList uniqueSeats) (Map.toList bookingByCode)
+```
 `Map` and `Set` need a total ordering to navigate their trees. That is why their type parameters carry `comparison`, not merely `equality`. The order must also be stable while a value acts as a key or element.
 
 ### Hash collections need equality and a compatible hash code {#hash-collections}
@@ -215,8 +224,27 @@ The ordered collections in the script expose comparison order directly:
 
 The script defines an equality-only key with `[<NoComparison>]`:
 
-<<< @/../examples/scripts/ch14-collections-evaluation.fsx#equality-only-key{fsharp:line-numbers} [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+[<CustomEquality; NoComparison>]
+type EmailAddress =
+    { Value: string }
 
+    override this.Equals(other: obj) =
+        match other with
+        | :? EmailAddress as candidate -> StringComparer.OrdinalIgnoreCase.Equals(this.Value, candidate.Value)
+        | _ -> false
+
+    override this.GetHashCode() =
+        StringComparer.OrdinalIgnoreCase.GetHashCode(this.Value)
+
+let recipients = Dictionary<EmailAddress, string>()
+recipients[{ Value = "lin@example.com" }] <- "first"
+recipients[{ Value = "LIN@example.com" }] <- "second"
+
+ensureEqual "hash equality replaces value" 1 recipients.Count
+ensureEqual "case-insensitive lookup" "second" recipients[{ Value = "Lin@Example.com" }]
+printfn "Hash dictionary: count=%d lookup=%s" recipients.Count recipients[{ Value = "Lin@Example.com" }]
+```
 The dictionary accepts the key because its equality and hash semantics suffice. Attempting `Map<EmailAddress,string>` produces FS0001: the type explicitly does not support the `comparison` constraint. This is a real capability difference, not merely a performance choice.
 
 For context-specific rules such as case-insensitive strings, supplying an `IEqualityComparer` to `Dictionary` or `HashSet` is often better than changing the domain type's global equality. The script embeds the rule only to make the equality-only constraint visible.
@@ -249,10 +277,10 @@ The table is a starting point, not a ban on conversion. A good program can recei
 
 ## Run the shared example {#run-example}
 
-From the repository root:
+From the directory containing the example:
 
 ```console
-dotnet fsi --exec examples/scripts/ch14-collections-evaluation.fsx
+dotnet fsi --exec ch14-collections-evaluation.fsx
 ```
 
 Eight deterministic lines and executable assertions cover eager list/array behavior, deferred and repeated sequence enumeration, caching, ordered `Map`/`Set` behavior, an equality-only dictionary key, and a conversion snapshot.

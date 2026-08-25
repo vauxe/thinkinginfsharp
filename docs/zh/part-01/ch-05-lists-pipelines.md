@@ -2,47 +2,6 @@
 title: "第 5 章：列表、管道与数据流"
 description: "用 map、filter、choose 和管道表达列表变换，并与 for、while 和局部可变绑定比较。"
 translationKey: part-01/ch-05-lists-pipelines
-kind: chapter
-part: 1
-chapter: 5
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch05-lists-pipelines
-exerciseIds:
-  - ch05-exercise-01
-  - ch05-exercise-02
-  - ch05-exercise-03
-termIds:
-  - eager-evaluation
-  - effect
-  - higher-order-function
-  - immutability
-  - list
-  - mutable-binding
-  - option
-  - pipeline
-sources:
-  - id: microsoft-lists
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/lists
-    checked: "2026-08-24"
-  - id: fsharp-core-list
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-listmodule.html
-    checked: "2026-08-24"
-  - id: microsoft-functions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/
-    checked: "2026-08-24"
-  - id: microsoft-values
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/values/
-    checked: "2026-08-24"
-  - id: microsoft-for-in
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/loops-for-in-expression
-    checked: "2026-08-24"
-  - id: microsoft-while
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/loops-while-do-expression
-    checked: "2026-08-24"
 ---
 
 # 第 5 章：列表、管道与数据流 {#overview}
@@ -129,8 +88,12 @@ functionValue value
 
 共享管道如下：
 
-<<< @/../examples/scripts/ch05-lists-pipelines.fsx#filter-map-pipeline{fsharp:line-numbers} [ch05-lists-pipelines.fsx]
+```fsharp:line-numbers [ch05-lists-pipelines.fsx]
+let pipelineLabels =
+    requests |> List.filter isValidRequest |> List.map formatRequest
 
+printfn "Pipeline labels: %A" pipelineLabels
+```
 从上到下记录类型和值：
 
 | 阶段 | 类型 | 值摘要 |
@@ -157,8 +120,17 @@ functionValue value
 
 共享脚本把有效性与格式化组合成一个选择函数：
 
-<<< @/../examples/scripts/ch05-lists-pipelines.fsx#choose-pipeline{fsharp:line-numbers} [ch05-lists-pipelines.fsx]
+```fsharp:line-numbers [ch05-lists-pipelines.fsx]
+let tryFormatRequest request =
+    if isValidRequest request then
+        Some(formatRequest request)
+    else
+        None
 
+let chosenLabels = requests |> List.choose tryFormatRequest
+
+printfn "Chosen labels: %A" chosenLabels
+```
 `tryFormatRequest` 的类型是 `(string * int) -> string option`。有效请求产生 `Some label`，无效请求产生 `None`；`List.choose` 提取 `Some` 内的文本并保持顺序，最终同样得到 `string list`。
 
 命名前缀 `try` 在 F#/.NET 代码中常提示操作可能不产生正常值，但具体失败表示仍要看类型。这里类型只区分有或无，没有错误原因；需要解释原因的验证不应塞进 `None`，以后应选择 `Result` 或累积验证。
@@ -169,8 +141,14 @@ functionValue value
 
 共享示例用 `for` 证明标签顺序：
 
-<<< @/../examples/scripts/ch05-lists-pipelines.fsx#list-iteration{fsharp:line-numbers} [ch05-lists-pipelines.fsx]
+```fsharp:line-numbers [ch05-lists-pipelines.fsx]
+printf "Iteration order:"
 
+for label in pipelineLabels do
+    printf " %s" label
+
+printfn ""
+```
 `for` 遍历可枚举输入，并可在循环变量位置使用模式。它适合日志、写入已有缓冲区或调用命令式 API。若真正需要一个新列表，循环必须另外管理累积状态，而 `map`/`filter` 已经把这个意图编码在返回类型中。
 
 不要把效果放进 `map` 只因为它会访问每项：那会同时创建一个可能被忽略的结果列表，并把“产生数据”与“执行效果”混在一起。使用 `iter` 或 `for` 让 `unit` 意图显式。
@@ -183,16 +161,40 @@ functionValue value
 
 ### `for` 版本：枚举由语言管理 {#for-version}
 
-<<< @/../examples/scripts/ch05-lists-pipelines.fsx#for-loop{fsharp:line-numbers} [ch05-lists-pipelines.fsx]
+```fsharp:line-numbers [ch05-lists-pipelines.fsx]
+let labelsWithFor source =
+    let mutable reversedLabels = []
 
+    for request in source do
+        match tryFormatRequest request with
+        | Some label -> reversedLabels <- label :: reversedLabels
+        | None -> ()
+
+    List.rev reversedLabels
+```
 循环按输入顺序调用 `tryFormatRequest`。有效标签用 `::` 常数时间加到 `reversedLabels` 前端，所以暂时顺序相反；循环结束后 `List.rev` 一次恢复原顺序。
 
 `for` 主体的两条 `match` 分支都是 `unit`：更新 `<-` 的结果是 `()`，`None` 分支显式返回 `()`。函数最后一个表达式 `List.rev reversedLabels` 才产生 `string list`。
 
 ### `while` 版本：条件与进度都由代码管理 {#while-version}
 
-<<< @/../examples/scripts/ch05-lists-pipelines.fsx#while-loop{fsharp:line-numbers} [ch05-lists-pipelines.fsx]
+```fsharp:line-numbers [ch05-lists-pipelines.fsx]
+let labelsWithWhile source =
+    let mutable remaining = source
+    let mutable reversedLabels = []
 
+    while not (List.isEmpty remaining) do
+        match remaining with
+        | request :: tail ->
+            remaining <- tail
+
+            match tryFormatRequest request with
+            | Some label -> reversedLabels <- label :: reversedLabels
+            | None -> ()
+        | [] -> ()
+
+    List.rev reversedLabels
+```
 `while` 在条件为 `true` 时反复执行 `unit` 主体。这里代码必须手工维护 `remaining`，并在每次非空匹配后更新为 `tail`；漏掉这一步会产生无限循环。空列表规则仍然存在，因为编译器不会根据外部循环条件删除类型上的可能形状。
 
 这个版本能工作，也只在局部修改两个绑定，但比 `for` 或 `choose` 暴露更多机械状态。`while` 更适合下一步是否继续真正取决于变化状态、且没有现成集合遍历抽象的问题，例如与某些底层 API 对接。
@@ -212,10 +214,10 @@ functionValue value
 
 ## 运行共享示例 {#run-example}
 
-从仓库根目录执行：
+在示例所在目录执行：
 
 ```console
-dotnet fsi --exec examples/scripts/ch05-lists-pipelines.fsx
+dotnet fsi --exec ch05-lists-pipelines.fsx
 ```
 
 应得到：
@@ -227,7 +229,7 @@ For/while agree: true
 Iteration order: Lin:3 Sam:2
 ```
 
-manifest 按顺序检查四行，包括三个实现的相等性和效果遍历顺序。源 `requests` 从未改变；每个结果都是新列表值。
+请按顺序比较四行，包括三个实现的相等性和效果遍历顺序。源 `requests` 从未改变；每个结果都是新列表值。
 
 ## 调试：在每个管道边界停一下 {#debugging}
 

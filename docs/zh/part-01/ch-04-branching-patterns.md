@@ -2,41 +2,6 @@
 title: "第 4 章：分支与基本模式"
 description: "把 if 与 match 读成产生值的表达式，并用字面量、变量、通配符、元组和列表模式建立安全分支。"
 translationKey: part-01/ch-04-branching-patterns
-kind: chapter
-part: 1
-chapter: 4
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch04-branching-patterns
-exerciseIds:
-  - ch04-exercise-01
-  - ch04-exercise-02
-  - ch04-exercise-03
-termIds:
-  - exhaustiveness
-  - expression
-  - guard
-  - list
-  - pattern
-  - pattern-matching
-  - tuple
-  - wildcard-pattern
-sources:
-  - id: microsoft-conditionals
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/conditional-expressions-if-then-else
-    checked: "2026-08-24"
-  - id: microsoft-match
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/match-expressions
-    checked: "2026-08-24"
-  - id: microsoft-patterns
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/pattern-matching
-    checked: "2026-08-24"
-  - id: microsoft-lists
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/lists
-    checked: "2026-08-24"
 ---
 
 # 第 4 章：分支与基本模式 {#overview}
@@ -63,8 +28,12 @@ sources:
 
 共享脚本先把剩余容量映射成文本：
 
-<<< @/../examples/scripts/ch04-branching-patterns.fsx#if-expression{fsharp:line-numbers} [ch04-branching-patterns.fsx]
+```fsharp:line-numbers [ch04-branching-patterns.fsx]
+let availability remaining =
+    if remaining > 0 then "available" else "full"
 
+printfn "Availability: %s" (availability 3)
+```
 求值顺序是：先计算 `remaining > 0`；结果为 `true` 时只求 `then` 分支，否则只求 `else` 分支。未选择的分支不会求值。整个 `if` 的值是被选择分支的值，所以 `availability` 返回 `string`。
 
 ### 条件必须真的是 `bool` {#boolean-only}
@@ -123,8 +92,16 @@ match input with
 
 数值范围不是一个简单字面量形状，可以先用变量模式取得值，再用 `when` 守卫检查：
 
-<<< @/../examples/scripts/ch04-branching-patterns.fsx#guarded-match{fsharp:line-numbers} [ch04-branching-patterns.fsx]
+```fsharp:line-numbers [ch04-branching-patterns.fsx]
+let capacityBand remaining =
+    match remaining with
+    | value when value <= 0 -> "full"
+    | 1 -> "last seat"
+    | value when value <= 5 -> "limited"
+    | _ -> "available"
 
+printfn "Capacity bands: %s, %s, %s, %s" (capacityBand 0) (capacityBand 1) (capacityBand 4) (capacityBand 8)
+```
 对输入 `4`，第一条变量模式初步匹配，但 `4 <= 0` 为假，所以继续；字面量 `1` 不匹配；第三条变量模式匹配且守卫为真，结果是 `"limited"`。
 
 守卫只在关联模式先匹配后求值。守卫为假不会让整个 `match` 失败，而是继续尝试下一规则。把守卫写成容易理解、最好没有效果的布尔表达式；依赖守卫执行副作用会让规则顺序更难推理。
@@ -135,8 +112,13 @@ match input with
 
 第 3 章把元组作为一个组合实参。本章进一步看到，模式可以在函数参数或 `match` 中拆开它：
 
-<<< @/../examples/scripts/ch04-branching-patterns.fsx#tuple-pattern{fsharp:line-numbers} [ch04-branching-patterns.fsx]
+```fsharp:line-numbers [ch04-branching-patterns.fsx]
+let bookingSummary (guest, seats) =
+    let noun = if seats = 1 then "seat" else "seats"
+    $"{guest} requested {seats} {noun}"
 
+printfn "Booking: %s" (bookingSummary ("Lin", 3))
+```
 `(guest, seats)` 同时要求输入是二元组，并在函数主体中建立两个局部名称。元组模式按位置工作，项数和各位置类型都必须与输入相符。
 
 模式只负责形状与绑定，`seats = 1` 这样的值判断仍是布尔表达式。这里用 `if` 选择单复数，因为问题只有一个直接的真假条件；不必为了展示语法把每个布尔判断都改成 `match`。
@@ -149,8 +131,15 @@ F# 列表是同类型元素构成的有序、不可变、单向链式集合。�
 
 共享示例覆盖空、一项和至少两项：
 
-<<< @/../examples/scripts/ch04-branching-patterns.fsx#list-pattern{fsharp:line-numbers} [ch04-branching-patterns.fsx]
+```fsharp:line-numbers [ch04-branching-patterns.fsx]
+let describeQueue queue =
+    match queue with
+    | [] -> "empty"
+    | [ only ] -> $"one: {only}"
+    | first :: second :: _ -> $"next: {first}, then {second}"
 
+printfn "Queues: %s | %s | %s" (describeQueue []) (describeQueue [ "Lin" ]) (describeQueue [ "Lin"; "Ada"; "Sam" ])
+```
 `[ only ]` 只匹配长度为一的列表。`first :: second :: _` 按右结合读取为 `first :: (second :: _)`：先取第一项，再取第二项，最后的 `_` 接受余下列表而不绑定名称，因此匹配任意至少两项的列表。
 
 不要用 `[ first; second ]` 表示“前两项”；它只匹配恰好两项。下一章会讲列表的构造与变换，第 6 章再用 `head :: tail` 建立结构递归。
@@ -185,10 +174,10 @@ F# 列表是同类型元素构成的有序、不可变、单向链式集合。�
 
 ## 运行共享示例 {#run-example}
 
-从仓库根目录执行：
+在示例所在目录执行：
 
 ```console
-dotnet fsi --exec examples/scripts/ch04-branching-patterns.fsx
+dotnet fsi --exec ch04-branching-patterns.fsx
 ```
 
 应得到：
@@ -200,7 +189,7 @@ Booking: Lin requested 3 seats
 Queues: empty | one: Lin | next: Lin, then Ada
 ```
 
-manifest 会按顺序检查每行输出。每个分支函数返回数据，输出集中在函数外部，因此可以分别验证决策与显示。
+请按顺序比较每行输出。每个分支函数返回数据，输出集中在函数外部，因此可以分别验证决策与显示。
 
 ## 调试：按规则逐项模拟 {#debugging}
 

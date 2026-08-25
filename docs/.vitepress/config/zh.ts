@@ -1,4 +1,4 @@
-import { zhNavigation } from './navigation.generated'
+import { zhNavigation } from './navigation'
 
 export const zhLocale = {
   label: '简体中文',

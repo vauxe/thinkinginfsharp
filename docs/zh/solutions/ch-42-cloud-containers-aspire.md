@@ -2,49 +2,6 @@
 title: "第 42 章练习答案"
 description: "选择合乎比例的计算模型，把本地云样例转化为发布提案，并用诚实的未知结果设计幂等事件消费者。"
 translationKey: solutions/ch-42-cloud-containers-aspire
-kind: solution
-part: 7
-chapter: 42
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ecosystem-cloud-service
-  - ecosystem-cloud-apphost
-exerciseIds:
-  - ch42-exercise-01
-  - ch42-exercise-02
-  - ch42-exercise-03
-termIds: []
-sources:
-  - id: aspire-architecture
-    url: https://aspire.dev/architecture/overview/
-    checked: "2026-08-25"
-  - id: aspire-health-checks
-    url: https://aspire.dev/fundamentals/health-checks/
-    checked: "2026-08-25"
-  - id: aspire-service-defaults
-    url: https://aspire.dev/get-started/csharp-service-defaults/
-    checked: "2026-08-25"
-  - id: aspire-deployment
-    url: https://aspire.dev/deployment/
-    checked: "2026-08-25"
-  - id: aspire-cicd
-    url: https://aspire.dev/deployment/ci-cd/
-    checked: "2026-08-25"
-  - id: dotnet-container-overview
-    url: https://learn.microsoft.com/dotnet/core/containers/overview
-    checked: "2026-08-25"
-  - id: kubernetes-probes
-    url: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes
-    checked: "2026-08-25"
-  - id: azure-functions-retries
-    url: https://learn.microsoft.com/azure/azure-functions/functions-bindings-error-pages
-    checked: "2026-08-25"
-  - id: aws-lambda-best-practices
-    url: https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html
-    checked: "2026-08-25"
 ---
 
 # 第 42 章练习答案 {#overview}
@@ -116,7 +73,7 @@ Serverless 仍可能赢得一个孤立事件边缘，托管服务也仍可能承
 
 ### 从精确基线出发 {#exercise-02-baseline}
 
-仓库目前证明：
+提出发布方案前，复制后的样例必须先证明：
 
 - F# 服务与 C# AppHost 在已检查的 macOS arm64 环境从锁文件还原并构建；
 - 直接服务与 Aspire 编排服务都能回答三个已测试端点；
@@ -125,7 +82,7 @@ Serverless 仍可能赢得一个孤立事件边缘，托管服务也仍可能承
 - 基础标签是 10.0.11、镜像用户是 1654、端口是 8080，且入口点已知；
 - 最终容器命令之后，普通包锁保持不变。
 
-它不证明容器运行、目标平台、云身份、注册表、生产探针、遥测导出、负载、安全策略、发布或回滚。发布提案从这条边界开始，而不是重新包装本地证据。
+这些本地检查仍不能证明目标平台运行、云身份、注册表、生产探针、遥测导出、负载、安全策略、发布或回滚。发布提案应从这条边界开始，而不是重新包装本地证据。
 
 ### 定义一个不可变制品 {#exercise-02-artifact}
 

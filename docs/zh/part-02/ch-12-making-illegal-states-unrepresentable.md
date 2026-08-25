@@ -2,45 +2,6 @@
 title: "第 12 章：让非法状态无法表示"
 description: "用私有表示、伴生模块、智能构造函数和明确的文件级 API 边界保护领域不变量。"
 translationKey: part-02/ch-12-making-illegal-states-unrepresentable
-kind: chapter
-part: 2
-chapter: 12
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch12-making-illegal-states-unrepresentable
-  - capstone-booking-domain
-  - foundation-example-tests
-exerciseIds:
-  - ch12-exercise-01
-  - ch12-exercise-02
-  - ch12-exercise-03
-termIds:
-  - access-control
-  - invariant
-  - private-representation
-  - result
-  - signature-file
-  - smart-constructor
-  - unit-of-measure
-sources:
-  - id: microsoft-access-control
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/access-control
-    checked: "2026-08-24"
-  - id: microsoft-signature-files
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/signature-files
-    checked: "2026-08-24"
-  - id: microsoft-discriminated-unions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions
-    checked: "2026-08-24"
-  - id: microsoft-modules
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/modules
-    checked: "2026-08-24"
-  - id: microsoft-component-design
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-24"
 ---
 
 # 第 12 章：让非法状态无法表示 {#overview}
@@ -92,8 +53,20 @@ let validateCapacity capacity =
 
 共享脚本在显式模块中定义领域：
 
-<<< @/../examples/scripts/ch12-making-illegal-states-unrepresentable.fsx#private-capacity{fsharp:line-numbers} [ch12-making-illegal-states-unrepresentable.fsx]
+```fsharp:line-numbers [ch12-making-illegal-states-unrepresentable.fsx]
+type CapacityError = NonPositiveCapacity of actual: int
 
+type Capacity = private Capacity of int<seat>
+
+module Capacity =
+    let create raw =
+        if raw > 0 then
+            raw |> LanguagePrimitives.Int32WithMeasure<seat> |> Capacity |> Ok
+        else
+            Error(NonPositiveCapacity raw)
+
+    let value (Capacity capacity) = capacity
+```
 注意修饰符的位置：
 
 ```fsharp
@@ -134,8 +107,33 @@ Capacity.value : Capacity -> int<seat>
 
 另两个受保护组成部分展示了两项策略：
 
-<<< @/../examples/scripts/ch12-making-illegal-states-unrepresentable.fsx#protected-components{fsharp:line-numbers} [ch12-making-illegal-states-unrepresentable.fsx]
+```fsharp:line-numbers [ch12-making-illegal-states-unrepresentable.fsx]
+type EventIdError = | BlankEventId
 
+type EventId = private EventId of string
+
+module EventId =
+    let create raw =
+        if String.IsNullOrWhiteSpace raw then
+            Error BlankEventId
+        else
+            raw.Trim() |> EventId |> Ok
+
+    let value (EventId eventId) = eventId
+
+type SeatCountError = NonPositiveSeatCount of actual: int
+
+type SeatCount = private SeatCount of int<seat>
+
+module SeatCount =
+    let create raw =
+        if raw > 0 then
+            raw |> LanguagePrimitives.Int32WithMeasure<seat> |> SeatCount |> Ok
+        else
+            Error(NonPositiveSeatCount raw)
+
+    let value (SeatCount seats) = seats
+```
 `EventId.create` 拒绝空白输入，并去掉两端空白。`SeatCount.create` 拒绝非正数量，并恢复编译期度量。构造成功后：
 
 - `EventId` 非空白，并按选定的 trim 规则规范化；
@@ -151,8 +149,31 @@ Capacity.value : Capacity -> int<seat>
 
 请求模型组合两项组成证明，并且还隐藏自己的记录表示：
 
-<<< @/../examples/scripts/ch12-making-illegal-states-unrepresentable.fsx#private-request{fsharp:line-numbers} [ch12-making-illegal-states-unrepresentable.fsx]
+```fsharp:line-numbers [ch12-making-illegal-states-unrepresentable.fsx]
+type BookingRequestError =
+    | InvalidEventId of EventIdError
+    | InvalidSeatCount of SeatCountError
 
+type BookingRequest =
+    private
+        { EventId: EventId
+          Seats: SeatCount }
+
+module BookingRequest =
+    let create rawEventId rawSeats =
+        rawEventId
+        |> EventId.create
+        |> Result.mapError InvalidEventId
+        |> Result.bind (fun eventId ->
+            rawSeats
+            |> SeatCount.create
+            |> Result.mapError InvalidSeatCount
+            |> Result.map (fun seats -> { EventId = eventId; Seats = seats }))
+
+    let eventId request = request.EventId |> EventId.value
+
+    let seats request = request.Seats |> SeatCount.value
+```
 `BookingRequest.create` 先构造 `EventId`，再构造 `SeatCount`，把每项组成错误映射进请求上下文。只有两者都成功后，它才会构造私有记录。通过这个 API 得到的值不可能包含空白标识或非正座位数。
 
 正如第 9 章所述，这条 result 管道保留第一个错误。如果界面必须累积相互独立的错误，应在以后采用累积验证器；改变表示本身不会决定错误组合策略。
@@ -236,16 +257,44 @@ module Capacity =
 
 ## 运行共享示例 {#run-example}
 
-在仓库根目录执行：
+在示例所在目录执行：
 
 ```console
-dotnet fsi --exec examples/scripts/ch12-making-illegal-states-unrepresentable.fsx
+dotnet fsi --exec ch12-making-illegal-states-unrepresentable.fsx
 ```
 
 五行确定性输出覆盖接受容量、拒绝容量、标识规范化、有效请求构造及两条请求拒绝路径：
 
-<<< @/../examples/scripts/ch12-making-illegal-states-unrepresentable.fsx#smart-constructor-results{fsharp:line-numbers} [ch12-making-illegal-states-unrepresentable.fsx]
+```fsharp:line-numbers [ch12-making-illegal-states-unrepresentable.fsx]
+let describeCapacityError error =
+    match error with
+    | NonPositiveCapacity actual -> $"capacity must be positive: {actual}"
 
+match Capacity.create 40 with
+| Ok capacity -> printfn "Capacity: accepted=%d" (Capacity.value capacity)
+| Error error -> printfn "Capacity: %s" (describeCapacityError error)
+
+match Capacity.create 0 with
+| Ok _ -> printfn "Capacity rejection: unexpected success"
+| Error error -> printfn "Capacity rejection: %s" (describeCapacityError error)
+
+let describeRequestError error =
+    match error with
+    | InvalidEventId BlankEventId -> "event id is blank"
+    | InvalidSeatCount(NonPositiveSeatCount actual) -> $"seat count must be positive: {actual}"
+
+match BookingRequest.create "  EVT-42  " 3 with
+| Ok request -> printfn "Request: event=%s seats=%d" (BookingRequest.eventId request) (BookingRequest.seats request)
+| Error error -> printfn "Request: %s" (describeRequestError error)
+
+match BookingRequest.create "   " 3 with
+| Ok _ -> printfn "Request rejection: unexpected event success"
+| Error error -> printfn "Request rejection: %s" (describeRequestError error)
+
+match BookingRequest.create "EVT-42" 0 with
+| Ok _ -> printfn "Request rejection: unexpected seat success"
+| Error error -> printfn "Request rejection: %s" (describeRequestError error)
+```
 ## 练习 {#exercises}
 
 ### 练习 1：保护百分比 {#exercise-01}
@@ -284,7 +333,7 @@ type BookingRequest = private { EventId: EventId; Seats: SeatCount }
 编译预约领域并运行它的聚焦公开 API 测试：
 
 ```console
-dotnet test tests/ExampleTests/ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~BookingDomainTests
+dotnet test ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~BookingDomainTests
 ```
 
 测试通过表明：受支持的构造函数会拒绝无效标识、容量、座位数与状态转换，有效值仍可通过公开 API 使用。它们不证明外部适配器也保持这些不变量；后续边界章节会单独验证。

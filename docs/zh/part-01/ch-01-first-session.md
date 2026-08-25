@@ -2,42 +2,6 @@
 title: "第 1 章：第一次 F# 会话"
 description: "在 F# Interactive、脚本与项目之间选择，并从表达式、值和 unit 建立第一个准确的心智模型。"
 translationKey: part-01/ch-01-first-session
-kind: chapter
-part: 1
-chapter: 1
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch01-first-session
-exerciseIds:
-  - ch01-exercise-01
-  - ch01-exercise-02
-  - ch01-exercise-03
-termIds:
-  - expression
-  - fsharp-interactive
-  - fsharp-script
-  - literal
-  - unit
-  - value
-sources:
-  - id: microsoft-fsi
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/tools/fsharp-interactive/
-    checked: "2026-08-24"
-  - id: microsoft-fsi-options
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/fsharp-interactive-options
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-cli
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/get-started/get-started-command-line
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-unit
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/unit-type
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-literals
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/literals
-    checked: "2026-08-24"
 ---
 
 # 第 1 章：第一次 F# 会话 {#overview}
@@ -60,13 +24,13 @@ sources:
 
 ## 开始前 {#before-you-start}
 
-本书的示例以 F# 10 和 .NET SDK `10.0.301` 验证。仓库根目录的 `global.json` 会选择这一 SDK 特征带。先在终端确认环境：
+示例以 F# 10 和 .NET 10 复核。先在终端确认已安装的 SDK：
 
 ```console
 dotnet --version
 ```
 
-若你使用本书仓库，下面的命令都从仓库根目录执行。命令前的提示符不属于命令本身。第一章只需要 .NET SDK；编辑器、IDE 和额外 NuGet 包都不是前置条件。
+第一章只需要 .NET SDK；编辑器、IDE 和额外 NuGet 包都不是前置条件。命令前的提示符不属于命令本身。
 
 ## 选择最短反馈回路 {#feedback-loop}
 
@@ -97,7 +61,7 @@ FSI 是读取—求值—打印循环（REPL）。在交互提示符中输入 `2
 F# 脚本使用 `.fsx` 扩展名。下面的稳定命令执行脚本并在完成后退出 FSI：
 
 ```console
-dotnet fsi --exec examples/scripts/ch01-first-session.fsx
+dotnet fsi --exec ch01-first-session.fsx
 ```
 
 脚本保存了实验的顺序、名称和输出，因此可以进入版本控制，也可以被质量门重复运行。脚本中通常不写 `;;`；文件边界和语法结构已经告诉编译器一次要处理什么。
@@ -117,10 +81,20 @@ dotnet run --project HelloFSharp
 
 ## 把第一个程序读成表达式 {#expressions}
 
-先读共享示例的主体，不必急着记住每个符号。
+先读示例的主体，不必急着记住每个符号。
 
-<<< @/../examples/scripts/ch01-first-session.fsx#first-session{fsharp:line-numbers} [ch01-first-session.fsx]
+```fsharp:line-numbers [ch01-first-session.fsx]
+let eventName = "Functional Foundations"
+let capacity = 40
+let booked = 18
+let remaining = capacity - booked
+let hasSeats = remaining > 0
+let summary = $"{eventName}: {remaining} seats remaining"
 
+let printResult = printfn "%s" summary
+printfn "Seats available: %b" hasSeats
+printfn "Printing returned: %A" printResult
+```
 ### 字面量产生值 {#literals-and-values}
 
 `"Functional Foundations"`、`40`、`18` 和 `0` 是**字面量**：它们直接在源码中表示值。`let eventName = ...` 为右侧计算出的值建立名称；它不是先创建一个空盒子再往里赋值。
@@ -150,12 +124,12 @@ dotnet run --project HelloFSharp
 
 这个区别以后会很重要。类型签名以 `unit` 结尾，通常提醒你“有意义的结果在效果中”，例如写文件、发送响应或记录日志。它并不证明效果一定发生，也不等于错误处理成功。
 
-## 运行共享示例 {#run-example}
+## 运行示例 {#run-example}
 
-从仓库根目录执行：
+把前面的代码块复制到 `ch01-first-session.fsx`，然后运行：
 
 ```console
-dotnet fsi --exec examples/scripts/ch01-first-session.fsx
+dotnet fsi --exec ch01-first-session.fsx
 ```
 
 应得到：
@@ -166,14 +140,14 @@ Seats available: true
 Printing returned: ()
 ```
 
-FSI 在交互模式下会主动显示提交的值和类型；以 `--exec` 运行脚本时，上面这些行都来自脚本显式调用 `printfn`。仓库的示例 manifest 还断言其中的关键输出，因此正文与可运行行为共用同一份证据。
+FSI 在交互模式下会主动显示提交的值和类型；以 `--exec` 运行脚本时，上面这些行都来自脚本显式调用 `printfn`，因此重复运行文件会得到相同的有序输出。
 
 ## 调试：先识别运行边界 {#debugging}
 
 初次会话最常见的问题通常不在业务逻辑，而在运行边界。
 
 - **FSI 一直等待输入：** 交互提交可能还没有以 `;;` 结束，或括号、引号尚未闭合。
-- **脚本路径不存在：** 先确认当前目录。书中的相对路径都以仓库根目录为起点。
+- **脚本路径不存在：** 确认终端当前位于保存脚本的目录。
 - **脚本没有显示某个值：** 脚本不会像交互提示符那样逐项展示绑定；需要显式 `printfn`，或回到 FSI 检查小表达式。
 - **整数与字符串不能直接混算：** F# 不会为方便而随意猜测转换。先看诊断中期望类型与实际类型，再决定数据本来应该是什么。
 - **输出正确但设计仍不清楚：** 输出只证明这一次运行；类型、失败路径和可测试边界要在后续章节逐步建立。
@@ -192,7 +166,7 @@ FSI 在交互模式下会主动显示提交的值和类型；以 `--exec` 运行
 2. 输出按什么顺序出现？为什么摘要会在打印 `printResult` 之前出现？
 3. 在实际修改前预测：把 `booked` 改为 `40` 后，哪些值会变化，输出怎样变化？
 
-然后复制脚本到临时位置验证第 3 问的预测，不要修改仓库中的共享答案。
+然后修改自己的本地副本，验证第 3 问的预测。
 
 ### 练习 2：迁移一个小程序 {#exercise-02}
 

@@ -2,85 +2,6 @@
 title: "第 42 章：云、容器、Serverless 与 .NET Aspire"
 description: "从进程、状态、伸缩、运维、安全与证据需求选择部署模型，同时保持 F# 应用边界显式可见。"
 translationKey: part-07/ch-42-cloud-containers-aspire
-kind: chapter
-part: 7
-chapter: 42
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ecosystem-cloud-service
-  - ecosystem-cloud-apphost
-exerciseIds:
-  - ch42-exercise-01
-  - ch42-exercise-02
-  - ch42-exercise-03
-termIds: []
-sources:
-  - id: aspire-sdk
-    url: https://aspire.dev/get-started/aspire-sdk/
-    checked: "2026-08-25"
-  - id: aspire-architecture
-    url: https://aspire.dev/architecture/overview/
-    checked: "2026-08-25"
-  - id: aspire-existing-app
-    url: https://aspire.dev/get-started/add-aspire-existing-app/
-    checked: "2026-08-25"
-  - id: aspire-integrations
-    url: https://aspire.dev/integrations/overview/
-    checked: "2026-08-25"
-  - id: aspire-health-checks
-    url: https://aspire.dev/fundamentals/health-checks/
-    checked: "2026-08-25"
-  - id: aspire-service-defaults
-    url: https://aspire.dev/get-started/csharp-service-defaults/
-    checked: "2026-08-25"
-  - id: aspire-deployment
-    url: https://aspire.dev/deployment/
-    checked: "2026-08-25"
-  - id: aspire-deploy-model
-    url: https://aspire.dev/deployment/deploy-with-aspire/
-    checked: "2026-08-25"
-  - id: aspire-environments
-    url: https://aspire.dev/deployment/environments/
-    checked: "2026-08-25"
-  - id: aspire-cicd
-    url: https://aspire.dev/deployment/ci-cd/
-    checked: "2026-08-25"
-  - id: aspire-apphost-nuget
-    url: https://www.nuget.org/packages/Aspire.AppHost.Sdk/13.5.2
-    checked: "2026-08-25"
-  - id: dotnet-container-overview
-    url: https://learn.microsoft.com/dotnet/core/containers/overview
-    checked: "2026-08-25"
-  - id: dotnet-container-ubuntu
-    url: https://learn.microsoft.com/dotnet/core/compatibility/containers/10.0/default-images-use-ubuntu
-    checked: "2026-08-25"
-  - id: dotnet-10-overview
-    url: https://learn.microsoft.com/dotnet/core/whats-new/dotnet-10/overview
-    checked: "2026-08-25"
-  - id: aspnet-health-checks
-    url: https://learn.microsoft.com/aspnet/core/host-and-deploy/health-checks?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: dotnet-generic-host
-    url: https://learn.microsoft.com/aspnet/core/fundamentals/host/generic-host?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: kubernetes-probes
-    url: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes
-    checked: "2026-08-25"
-  - id: azure-functions-isolated
-    url: https://learn.microsoft.com/azure/azure-functions/dotnet-isolated-process-guide
-    checked: "2026-08-25"
-  - id: azure-functions-retries
-    url: https://learn.microsoft.com/azure/azure-functions/functions-bindings-error-pages
-    checked: "2026-08-25"
-  - id: aws-lambda-best-practices
-    url: https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html
-    checked: "2026-08-25"
-  - id: aws-lambda-dotnet-container
-    url: https://docs.aws.amazon.com/lambda/latest/dg/csharp-image.html
-    checked: "2026-08-25"
 ---
 
 # 第 42 章：云、容器、Serverless 与 .NET Aspire {#overview}
@@ -156,26 +77,120 @@ F# 源码 + 锁定依赖
 
 ### F# 服务与固定的镜像基础层 {#fsharp-service}
 
-<<< @/../examples/ecosystem/cloud/CloudService.fsproj{xml:line-numbers} [CloudService.fsproj]
+```xml:line-numbers [CloudService.fsproj]
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ContainerRepository>thinking-in-fsharp-cloud-service</ContainerRepository>
+    <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0.11</ContainerBaseImage>
+  </PropertyGroup>
 
-Web SDK 以 `net10.0` 为目标。仓库策略锁定 FSharp.Core 10.1.301。镜像基础层显式固定为 `mcr.microsoft.com/dotnet/aspnet:10.0.11`；浮动的 `10.0` 标签会让运行时在提交未变时悄然移动。与较早版本使用 Debian 基础层不同，.NET 10 未限定的微软镜像标签使用 Ubuntu，因此 OS 假设需要测试。
+  <ItemGroup>
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+</Project>
+```
+Web SDK 以 `net10.0` 为目标；复制样例后，可以在项目文件中固定 FSharp.Core 10.1.301。镜像基础层显式固定为 `mcr.microsoft.com/dotnet/aspnet:10.0.11`；浮动的 `10.0` 标签会让运行时在提交未变时悄然移动。与较早版本使用 Debian 基础层不同，.NET 10 未限定的微软镜像标签使用 Ubuntu，因此 OS 假设需要测试。
 
-<<< @/../examples/ecosystem/cloud/Program.fs{fsharp:line-numbers} [Program.fs]
+```fsharp:line-numbers [Program.fs]
+namespace ThinkingInFSharp.Ecosystem.Cloud
 
+open System
+open System.Text.Json.Serialization
+open System.Threading.Tasks
+open Microsoft.AspNetCore.Builder
+open Microsoft.AspNetCore.Http
+
+[<CLIMutable>]
+type HealthResponse =
+    { [<JsonPropertyName("status")>]
+      Status: string }
+
+[<CLIMutable>]
+type RuntimeResponse =
+    { [<JsonPropertyName("service")>]
+      Service: string
+      [<JsonPropertyName("deploymentMode")>]
+      DeploymentMode: string }
+
+[<RequireQualifiedAccess>]
+module CloudService =
+    let private writeJson (context: HttpContext) (value: 'value) : Task =
+        context.Response.WriteAsJsonAsync<'value>(value, context.RequestAborted)
+
+    let private live context =
+        writeJson context { Status = "healthy" }
+
+    let private ready context =
+        // This sample has no required external dependency. A real readiness probe
+        // must test only dependencies that should stop this instance receiving traffic.
+        writeJson context { Status = "ready" }
+
+    let private runtime context =
+        let deploymentMode =
+            match Environment.GetEnvironmentVariable "DEPLOYMENT_MODE" with
+            | null -> "standalone"
+            | value when String.IsNullOrWhiteSpace value -> "standalone"
+            | value -> value
+
+        writeJson
+            context
+            { Service = "cloud-service"
+              DeploymentMode = deploymentMode }
+
+    let map (application: WebApplication) =
+        ArgumentNullException.ThrowIfNull(application, nameof application)
+
+        application.MapGet("/health/live", RequestDelegate live) |> ignore
+        application.MapGet("/health/ready", RequestDelegate ready) |> ignore
+        application.MapGet("/api/runtime", RequestDelegate runtime) |> ignore
+
+module Program =
+    [<EntryPoint>]
+    let main arguments =
+        let builder = WebApplication.CreateBuilder arguments
+        use application = builder.Build()
+        CloudService.map application
+        application.Run()
+        0
+```
 `CloudService.map` 拥有三个狭窄 HTTP 端点。`/health/live` 表示进程能够响应，`/health/ready` 表示这个无依赖样例能接收流量，`/api/runtime` 只暴露一个受控教学值，默认是 `standalone`；它不会转储环境变量。
 
 尽管两个探针的当前实现都立即返回，它们仍使用不同路径。这样，日后出现真实就绪条件时，契约不必改变。数据库故障也许应该让实例退出流量，但若同一瞬态故障也让存活检查失败，就可能重启所有副本并放大事故。
 
 ### 用 C# 基础设施外壳包围 F# 项目 {#csharp-apphost}
 
-<<< @/../examples/ecosystem/cloud/AppHost/AppHost.csproj{xml:line-numbers} [AppHost.csproj]
+```xml:line-numbers [AppHost.csproj]
+<Project Sdk="Aspire.AppHost.Sdk/13.5.2">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AspireUseCliBundle>true</AspireUseCliBundle>
+    <AspireCliInvocationMode>DnxPinned</AspireCliInvocationMode>
+  </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="../CloudService.fsproj" />
+  </ItemGroup>
+</Project>
+```
 AppHost SDK 固定为 13.5.2，并以 .NET 10 为目标。它的项目引用指向 F# 服务。Aspire 根据该引用生成 `Projects.CloudService` 元数据类型；服务并不会变成 C#，也不会引用 AppHost。
 
 项目启用 Aspire CLI bundle，并选择 `DnxPinned`。SDK 因而解析匹配的 `Aspire.Cli@13.5.2`，而不会把宿主平台专用的 Dashboard 与编排包写入 AppHost 锁文件。它不要求全局安装 CLI，但首次使用需要可用包源或已有缓存。这是可选生态样例，不是书站依赖。
 
-<<< @/../examples/ecosystem/cloud/AppHost/Program.cs{csharp:line-numbers} [AppHost Program.cs]
+```csharp:line-numbers [AppHost Program.cs]
+using Aspire.Hosting;
 
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder
+    .AddProject<Projects.CloudService>("cloud-service")
+    .WithHttpEndpoint(name: "http")
+    .WithEnvironment("DEPLOYMENT_MODE", "aspire-local")
+    .WithHttpHealthCheck("/health/ready");
+
+builder.Build().Run();
+```
 AppHost 为资源命名、显式声明 `http` 端点、注入 `DEPLOYMENT_MODE=aspire-local`，并附加 HTTP 健康检查。显式端点很重要：没有启动配置提供端点元数据时，第一次真实运行在编排之前就失败了，因为健康检查找不到可选的 `http` 或 `https` 端点。
 
 这是良好的语言互操作边界。F# 拥有应用及其类型化行为，C# 拥有一个很小的基础设施 DSL；其当前模板、生成元数据与示例以 C# 为主。没有领域类型跨过此边界，因此替换编排工具无需重写服务。
@@ -409,16 +424,16 @@ Aspire 可以定义应用专用的构建、发布、推送与部署步骤。CI/C
 
 ## 为每项兼容性主张注明日期 {#version-evidence}
 
-| 表面 | 已检查版本或陈述 | 仓库证据 |
+| 表面 | 已检查版本或陈述 | 采用它的应用必须验证什么 |
 | --- | --- | --- |
-| .NET SDK | 10.0.301 | 锁定还原、Release 构建、发布、完整示例矩阵 |
-| FSharp.Core | 10.1.301 | 云服务锁文件与构建 |
-| Aspire.AppHost.Sdk | 13.5.2，发布于 2026-08-21 | AppHost 锁文件、构建、本地运行、仪表板健康 |
-| ASP.NET Core 基础镜像 | 10.0.11 | 已生成镜像归档并检查元数据；未运行容器 |
-| Aspire CLI bundle/部署目标 | 通过 `DnxPinned` 使用 CLI 13.5.2 | bundle 已用于本地 AppHost 构建/启动；未配置或执行部署目标 |
-| Azure Functions 隔离工作进程 | 文档列出 .NET 10 与 F# 绑定注意项 | 未打包、模拟或部署 |
-| AWS Lambda .NET 10 镜像/运行时路径 | 已审阅当前官方文档 | 未为 Lambda 打包、调用或部署 |
-| Kubernetes 探针/部署 | 已审阅当前官方语义 | 没有清单、集群或探针执行 |
+| .NET SDK | 10.0.301 | 锁定还原、Release 构建、测试与发布 |
+| FSharp.Core | 10.1.301 | 解析后的依赖图与运行时兼容性 |
+| Aspire.AppHost.Sdk | 13.5.2，发布于 2026-08-21 | 只有本地多服务编排确实值得时才采用，再测试启动与健康状态 |
+| ASP.NET Core 基础镜像 | 10.0.11 | 镜像元数据、操作系统、架构、漏洞与容器启动 |
+| Aspire CLI bundle/部署目标 | CLI 13.5.2 | 若采用，验证 bundle 输出与选定部署目标 |
+| Azure Functions 隔离工作进程 | 文档列出 .NET 10 与 F# 绑定注意项 | 打包、模拟并部署真实触发路径 |
+| AWS Lambda .NET 10 镜像/运行时路径 | 已审阅当前官方文档 | 打包、调用并部署真实处理器 |
+| Kubernetes 探针/部署 | 已审阅当前官方语义 | 清单、集群行为与真实探针执行 |
 
 版本回答“考虑了什么”，而不是“你的应用支持什么”。让提供方计划、区域、架构、触发器、集成包、CLI、基础层摘要与测试日期和证据放在一起。
 
@@ -471,7 +486,7 @@ Aspire 可以定义应用专用的构建、发布、推送与部署步骤。CI/C
 
 ### 练习 2：把本地云样例变成发布提案 {#exercise-02}
 
-设计把本地云样例中的 F# 服务部署到托管容器环境所需的最小工作。覆盖架构、不可变镜像身份、注册表、SBOM/签名/漏洞策略、配置与秘密身份、Service Defaults 或替代遥测、生产探针、非 root/只读执行、资源限制、关闭、预发布冒烟、负载、渐进发布、回滚、数据兼容、成本与清理。区分仓库已经证明的内容和必须在目标环境取得的证据。
+设计把本地云样例中的 F# 服务部署到托管容器环境所需的最小工作。覆盖架构、不可变镜像身份、注册表、SBOM/签名/漏洞策略、配置与秘密身份、Service Defaults 或替代遥测、生产探针、非 root/只读执行、资源限制、关闭、预发布冒烟、负载、渐进发布、回滚、数据兼容、成本与清理。区分本章展示的内容和必须在目标环境取得的证据。
 
 ### 练习 3：设计幂等的 Serverless 预约消费者 {#exercise-03}
 

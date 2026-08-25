@@ -2,45 +2,6 @@
 title: "第 37 章：一致性、幂等、重试与部分失败"
 description: "保护聚合级预约容量，显式建模命令重试，持久化效果进度，并准确陈述本地 F# 一致性边界的限制。"
 translationKey: part-06/ch-37-consistency-idempotency
-kind: chapter
-part: 6
-chapter: 37
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - capstone-booking-domain
-  - capstone-booking-contracts
-  - capstone-booking-infrastructure
-  - foundation-contract-tests
-exerciseIds:
-  - ch37-exercise-01
-  - ch37-exercise-02
-  - ch37-exercise-03
-termIds: []
-sources:
-  - id: microsoft-semaphore-slim
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.threading.semaphoreslim?view=net-10.0
-    checked: "2026-08-25"
-  - id: microsoft-file-move
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.io.file.move?view=net-10.0
-    checked: "2026-08-25"
-  - id: microsoft-file-flush
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.io.filestream.flush?view=net-10.0
-    checked: "2026-08-25"
-  - id: microsoft-retry-pattern
-    url: https://learn.microsoft.com/en-us/azure/architecture/patterns/retry
-    checked: "2026-08-25"
-  - id: microsoft-transactional-outbox
-    url: https://learn.microsoft.com/en-us/azure/architecture/databases/guide/transactional-out-box-cosmos
-    checked: "2026-08-25"
-  - id: microsoft-minimize-coordination
-    url: https://learn.microsoft.com/en-us/azure/architecture/guide/design-principles/minimize-coordination
-    checked: "2026-08-25"
-  - id: ietf-http-semantics
-    url: https://www.rfc-editor.org/rfc/rfc9110.html#section-9.2.2
-    checked: "2026-08-25"
 ---
 
 # 第 37 章：一致性、幂等、重试与部分失败 {#overview}
@@ -142,8 +103,24 @@ reserved = 处于 Reserved 或 PaymentStarted 的放置操作座位
 
 针对同一规范化路径构造的每个 `AtomicBookingStore` 都会取得共享的状态门控与工作流门控。只有大小写不同的路径也会保守地共享门控。工作流门控覆盖完整应用命令；状态门控保护每次快照读取或替换。
 
-<<< @/../examples/capstone/src/Booking.Infrastructure/AtomicBookingStore.fs#process-local-gates{fsharp:line-numbers} [AtomicBookingStore.fs]
+```fsharp:line-numbers [AtomicBookingStore.fs]
+// These gates coordinate every store instance for the same path in this process. They do not
+// claim to serialize writers in different processes or machines.
+module private AtomicPathGates =
+    // Treat case-only variants conservatively as one path. On a case-sensitive file system this
+    // may serialize unrelated files, but it cannot weaken consistency for either file.
+    let private stateGates =
+        ConcurrentDictionary<string, SemaphoreSlim>(StringComparer.OrdinalIgnoreCase)
 
+    let private workflowGates =
+        ConcurrentDictionary<string, SemaphoreSlim>(StringComparer.OrdinalIgnoreCase)
+
+    let state (path: string) =
+        stateGates.GetOrAdd(path, fun _ -> new SemaphoreSlim(1, 1))
+
+    let workflow (path: string) =
+        workflowGates.GetOrAdd(path, fun _ -> new SemaphoreSlim(1, 1))
+```
 `WaitAsync cancellationToken` 让已取消调用方可在等待时退出。`finally` 保证每次成功进入都配对 `Release`。Microsoft 把 `SemaphoreSlim` 说明为用于单个应用内部同步的本地信号量，并明确说明它不支持命名系统信号量。这正是已实现范围，而非隐藏的分布式锁。参见 [.NET 10 `SemaphoreSlim` 文档](https://learn.microsoft.com/en-us/dotnet/api/system.threading.semaphoreslim?view=net-10.0)。
 
 在支付或通知运行期间持有工作流门控是保守选择。它既阻止本进程的两个服务实例并发启动同一效果，也让示例易于理解；代价是一个缓慢依赖会阻塞该活动的无关预约。`SemaphoreSlim` 不承诺 FIFO 公平性。
@@ -152,8 +129,60 @@ reserved = 处于 Reserved 或 PaymentStarted 的放置操作座位
 
 聚合决策与第一个持久阶段在状态门控下发生：
 
-<<< @/../examples/capstone/src/Booking.Infrastructure/AtomicBookingStore.fs#atomic-capacity-decision{fsharp:line-numbers} [AtomicBookingStore.fs]
+```fsharp:line-numbers [AtomicBookingStore.fs]
+match identity.Kind with
+| AtomicOperationKind.Place ->
+    let requested = candidate |> Booking.seats |> SeatCount.value |> int64
 
+    let remaining =
+        (state.Capacity |> Capacity.value |> int64)
+        - AtomicStoreImplementation.occupiedSeats state
+        - AtomicStoreImplementation.reservedSeats state
+        |> max 0L
+
+    if requested > remaining then
+        return
+            Ok(AtomicBeginResult.AggregateCapacityExceeded(int requested, int remaining))
+    else
+        let operation: StoredOperation =
+            { Identity = identity
+              Phase = Reserved
+              Candidate = candidate }
+
+        let changed =
+            { state with
+                Operations = Map.add identity.Key operation state.Operations }
+
+        let! saved =
+            AtomicStoreImplementation.writeState
+                directoryPath
+                snapshotPath
+                changed
+                cancellationToken
+
+        return saved |> Result.map (fun () -> AtomicBeginResult.StartPayment token)
+| AtomicOperationKind.Confirm
+| AtomicOperationKind.Cancel ->
+    let operation: StoredOperation =
+        { Identity = identity
+          Phase = NotificationPending
+          Candidate = candidate }
+
+    let changed =
+        { state with
+            Bookings =
+                Map.add (RequestId.value identity.RequestId) candidate state.Bookings
+            Operations = Map.add identity.Key operation state.Operations }
+
+    let! saved =
+        AtomicStoreImplementation.writeState
+            directoryPath
+            snapshotPath
+            changed
+            cancellationToken
+
+    return saved |> Result.map (fun () -> AtomicBeginResult.SendNotification token)
+```
 领域决策器仍负责合法生命周期迁移。存储只补入单项预约状态无法知道的聚合事实。被接受的放置操作先记录预留；确认与取消则一起更新预约并记录待发送通知。
 
 ## 不要把安全替换误认为数据库事务 {#file-replacement}
@@ -222,8 +251,84 @@ Confirm / Cancel:
 
 服务据此安排存储与效果顺序：
 
-<<< @/../examples/capstone/src/Booking.Infrastructure/Idempotency.fs#effect-progress{fsharp:line-numbers} [Idempotency.fs]
+```fsharp:line-numbers [Idempotency.fs]
+let sendNotification
+    (token: AtomicOperationToken)
+    (cancellationToken: CancellationToken)
+    : Task<Result<Booking, BookingConsistencyError>> =
+    task {
+        let! delivered = tryExternal cancellationToken (fun () -> notify (notificationFor token) cancellationToken)
 
+        match delivered with
+        | Error error -> return Error error
+        | Ok() ->
+            let! completed = store.CompleteNotification(activity, token, cancellationToken)
+
+            return completed |> storage |> Result.map (fun () -> token.Candidate)
+    }
+
+let chargeAndCommit
+    (token: AtomicOperationToken)
+    (payment: PaymentRequest)
+    (cancellationToken: CancellationToken)
+    : Task<Result<Booking, BookingConsistencyError>> =
+    task {
+        let! marked = store.MarkPaymentStarted(activity, token, cancellationToken)
+
+        match storage marked with
+        | Error error -> return Error error
+        | Ok() ->
+            let! paymentResult = tryExternal cancellationToken (fun () -> charge payment cancellationToken)
+
+            match paymentResult with
+            | Error error -> return Error error
+            | Ok(PaymentOutcome.Declined _) ->
+                let! recorded = store.RecordPaymentDeclined(activity, token, cancellationToken)
+
+                return
+                    match storage recorded with
+                    | Error error -> Error error
+                    | Ok() -> Error BookingConsistencyError.PaymentDeclined
+            | Ok(PaymentOutcome.Authorized _) ->
+                let! committed = store.CommitAuthorizedBooking(activity, token, cancellationToken)
+
+                match storage committed with
+                | Error error -> return Error error
+                | Ok() -> return! sendNotification token cancellationToken
+    }
+
+let executePrepared
+    (prepared: PreparedCommand)
+    (cancellationToken: CancellationToken)
+    : Task<Result<Booking, BookingConsistencyError>> =
+    task {
+        let! begun = store.Begin(activity, prepared.Identity, prepared.Command, cancellationToken)
+
+        match storage begun with
+        | Error error -> return Error error
+        | Ok(AtomicBeginResult.Replay booking) -> return Ok booking
+        | Ok(AtomicBeginResult.DecisionRejected error) ->
+            return Error(BookingConsistencyError.DecisionRejected error)
+        | Ok(AtomicBeginResult.AggregateCapacityExceeded(requested, remaining)) ->
+            return Error(BookingConsistencyError.AggregateCapacityExceeded(requested, remaining))
+        | Ok AtomicBeginResult.IdempotencyConflict -> return Error BookingConsistencyError.IdempotencyConflict
+        | Ok AtomicBeginResult.PreviousOperationIncomplete ->
+            return Error BookingConsistencyError.PreviousOperationIncomplete
+        | Ok AtomicBeginResult.PaymentDeclined -> return Error BookingConsistencyError.PaymentDeclined
+        | Ok AtomicBeginResult.PaymentOutcomeUnknown -> return Error BookingConsistencyError.PaymentOutcomeUnknown
+        | Ok(AtomicBeginResult.SendNotification token) -> return! sendNotification token cancellationToken
+        | Ok(AtomicBeginResult.StartPayment token) ->
+            match prepared.Payment with
+            | Some payment -> return! chargeAndCommit token payment cancellationToken
+            | None ->
+                return
+                    Error(
+                        BookingConsistencyError.StorageUnavailable(
+                            BookingStoreError.CorruptSnapshot SnapshotCorruption.InconsistentData
+                        )
+                    )
+    }
+```
 调用支付前，服务把 `Reserved` 改为 `PaymentStarted`。若在该写入之后、提供商调用之前崩溃，会产生保守的假阳性：即使没有扣款，恢复时也会报告“未知”。另一种顺序——先调用、后记录——会制造一个窗口：已经完成的扣款看似不存在，于是被盲目重复。对于金钱，停下来对账是本例更安全的策略。
 
 授权返回后，预约与 `NotificationPending` 阶段通过一次聚合替换共同保存。因此通知失败不会抹去预约。重试同一命令会跳过支付，只尝试待发送通知。

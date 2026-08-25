@@ -2,53 +2,6 @@
 title: "Appendix C: Collection Choice and Complexity"
 description: "Choose F# and .NET collections by evaluation, update, lookup, ordering, key contracts, and qualified complexity rather than by familiar names."
 translationKey: appendices/c-collections
-kind: appendix
-appendix: C
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch14-collections-evaluation
-exerciseIds: []
-termIds: []
-sources:
-  - id: microsoft-fsharp-collection-types
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/fsharp-collection-types
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-lists
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/lists
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-sequences
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/sequences
-    checked: "2026-08-25"
-  - id: fsharp-core-collections
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections.html
-    checked: "2026-08-25"
-  - id: fsharp-core-list
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-listmodule.html
-    checked: "2026-08-25"
-  - id: fsharp-core-seq
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-seqmodule.html
-    checked: "2026-08-25"
-  - id: fsharp-core-map
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-mapmodule.html
-    checked: "2026-08-25"
-  - id: fsharp-core-set
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-setmodule.html
-    checked: "2026-08-25"
-  - id: microsoft-dotnet-collections
-    url: https://learn.microsoft.com/en-us/dotnet/standard/collections/
-    checked: "2026-08-25"
-  - id: microsoft-dotnet-list
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.list-1?view=net-10.0
-    checked: "2026-08-25"
-  - id: microsoft-dotnet-dictionary
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2?view=net-10.0
-    checked: "2026-08-25"
-  - id: microsoft-dotnet-hashset
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.hashset-1?view=net-10.0
-    checked: "2026-08-25"
 ---
 
 # Appendix C: Collection Choice and Complexity {#overview}
@@ -135,8 +88,29 @@ Dense contiguous storage often improves locality and interop. It also makes alia
 
 Many `Seq` transformations return a deferred enumerable. Creating the pipeline can be O(1), while each later enumeration performs the work. Terminal operations such as `Seq.fold`, `Seq.toList`, or a complete `Seq.length` consume elements.
 
-<<< @/../examples/scripts/ch14-collections-evaluation.fsx#repeated-enumeration{fsharp:line-numbers} [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+let mutable pulls = 0
 
+let delayedSquares =
+    seq {
+        for value in 1..3 do
+            pulls <- pulls + 1
+            yield value * value
+    }
+
+ensureEqual "deferred before enumeration" 0 pulls
+printfn "Deferred before enumeration: pulls=%d" pulls
+
+let firstPass = delayedSquares |> Seq.toList
+ensureEqual "first values" [ 1; 4; 9 ] firstPass
+ensureEqual "first pass count" 3 pulls
+printfn "First enumeration: values=%A pulls=%d" firstPass pulls
+
+let secondPass = delayedSquares |> Seq.toList
+ensureEqual "second values" firstPass secondPass
+ensureEqual "second pass repeats production" 6 pulls
+printfn "Second enumeration: values=%A pulls=%d" secondPass pulls
+```
 For a finite sequence producing `n` elements:
 
 - a complete scan is O(n) plus producer and callback cost;
@@ -153,8 +127,17 @@ Do not call `Seq.length` and then enumerate merely to test emptiness. Use a one-
 
 FSharp.Core documents `Map` and `Set` as immutable binary-tree collections ordered by F# generic comparison. Their types carry a `comparison` constraint.
 
-<<< @/../examples/scripts/ch14-collections-evaluation.fsx#ordered-collections{fsharp:line-numbers} [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+let uniqueSeats = [ 3; 1; 3; 2 ] |> Set.ofList
 
+let bookingByCode =
+    [ "B2", "first"; "A1", "only"; "B2", "replacement" ] |> Map.ofList
+
+ensureEqual "set removes duplicates and orders" [ 1; 2; 3 ] (Set.toList uniqueSeats)
+ensureEqual "later map binding replaces earlier" "replacement" bookingByCode["B2"]
+
+printfn "Ordered collections: set=%A map=%A" (Set.toList uniqueSeats) (Map.toList bookingByCode)
+```
 | Operation | `Map` / `Set` documented bound | Condition |
 |---|---|---|
 | find/tryFind/contains | O(log n) | tree comparison path |
@@ -172,8 +155,27 @@ The `comparison` constraint is stronger than equality. Functions, types marked `
 
 .NET documents dictionary key retrieval as very fast, close to O(1), with speed dependent on hash quality. The .NET collection complexity table distinguishes amortized/expected O(1) from O(n) worst cases for hash insertion and lookup.
 
-<<< @/../examples/scripts/ch14-collections-evaluation.fsx#equality-only-key{fsharp:line-numbers} [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+[<CustomEquality; NoComparison>]
+type EmailAddress =
+    { Value: string }
 
+    override this.Equals(other: obj) =
+        match other with
+        | :? EmailAddress as candidate -> StringComparer.OrdinalIgnoreCase.Equals(this.Value, candidate.Value)
+        | _ -> false
+
+    override this.GetHashCode() =
+        StringComparer.OrdinalIgnoreCase.GetHashCode(this.Value)
+
+let recipients = Dictionary<EmailAddress, string>()
+recipients[{ Value = "lin@example.com" }] <- "first"
+recipients[{ Value = "LIN@example.com" }] <- "second"
+
+ensureEqual "hash equality replaces value" 1 recipients.Count
+ensureEqual "case-insensitive lookup" "second" recipients[{ Value = "Lin@Example.com" }]
+printfn "Hash dictionary: count=%d lookup=%s" recipients.Count recipients[{ Value = "Lin@Example.com" }]
+```
 | Operation | Expected/amortized | Worst case or caveat |
 |---|---|---|
 | dictionary lookup/add | O(1) | O(n) with collisions or resize path |

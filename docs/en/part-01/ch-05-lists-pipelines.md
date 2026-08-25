@@ -2,47 +2,6 @@
 title: "Chapter 5: Lists, Pipelines, and Data Flow"
 description: "Express list transformations with map, filter, choose, and pipelines, then compare them with for, while, and local mutable bindings."
 translationKey: part-01/ch-05-lists-pipelines
-kind: chapter
-part: 1
-chapter: 5
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch05-lists-pipelines
-exerciseIds:
-  - ch05-exercise-01
-  - ch05-exercise-02
-  - ch05-exercise-03
-termIds:
-  - eager-evaluation
-  - effect
-  - higher-order-function
-  - immutability
-  - list
-  - mutable-binding
-  - option
-  - pipeline
-sources:
-  - id: microsoft-lists
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/lists
-    checked: "2026-08-24"
-  - id: fsharp-core-list
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-listmodule.html
-    checked: "2026-08-24"
-  - id: microsoft-functions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/
-    checked: "2026-08-24"
-  - id: microsoft-values
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/values/
-    checked: "2026-08-24"
-  - id: microsoft-for-in
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/loops-for-in-expression
-    checked: "2026-08-24"
-  - id: microsoft-while
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/loops-while-do-expression
-    checked: "2026-08-24"
 ---
 
 # Chapter 5: Lists, Pipelines, and Data Flow {#overview}
@@ -129,8 +88,12 @@ Therefore, `requests |> List.filter isValidRequest` is `List.filter isValidReque
 
 The shared pipeline is:
 
-<<< @/../examples/scripts/ch05-lists-pipelines.fsx#filter-map-pipeline{fsharp:line-numbers} [ch05-lists-pipelines.fsx]
+```fsharp:line-numbers [ch05-lists-pipelines.fsx]
+let pipelineLabels =
+    requests |> List.filter isValidRequest |> List.map formatRequest
 
+printfn "Pipeline labels: %A" pipelineLabels
+```
 Record types and values from top to bottom:
 
 | Stage | Type | Value summary |
@@ -157,8 +120,17 @@ Extract complex stages into named functions and keep each output type easy to st
 
 The shared script combines validity and formatting into one chooser:
 
-<<< @/../examples/scripts/ch05-lists-pipelines.fsx#choose-pipeline{fsharp:line-numbers} [ch05-lists-pipelines.fsx]
+```fsharp:line-numbers [ch05-lists-pipelines.fsx]
+let tryFormatRequest request =
+    if isValidRequest request then
+        Some(formatRequest request)
+    else
+        None
 
+let chosenLabels = requests |> List.choose tryFormatRequest
+
+printfn "Chosen labels: %A" chosenLabels
+```
 `tryFormatRequest` has type `(string * int) -> string option`. A valid request produces `Some label`, an invalid one produces `None`, and `List.choose` extracts the text inside each `Some` in order, again yielding `string list`.
 
 A `try` prefix often signals in F#/.NET code that an operation may not produce a normal value, but the exact failure representation still comes from the type. This type distinguishes only presence from absence and carries no reason. Validation that must explain failure should not hide that reason in `None`; later it should use `Result` or accumulating validation.
@@ -169,8 +141,14 @@ Transformation functions answer “what is the new data?” When the goal is to 
 
 The shared example uses `for` to demonstrate label order:
 
-<<< @/../examples/scripts/ch05-lists-pipelines.fsx#list-iteration{fsharp:line-numbers} [ch05-lists-pipelines.fsx]
+```fsharp:line-numbers [ch05-lists-pipelines.fsx]
+printf "Iteration order:"
 
+for label in pipelineLabels do
+    printf " %s" label
+
+printfn ""
+```
 A `for` loop enumerates its input and may use a pattern in the loop-variable position. It suits logging, writing to an existing buffer, or calling an imperative API. If the goal is a new list, a loop must manage accumulation separately, while `map` and `filter` already encode that intent in their return type.
 
 Do not put effects in `map` merely because it visits every item. That also creates a result list that may be ignored and mixes “produce data” with “perform an effect.” `iter` or `for` makes the `unit` intent explicit.
@@ -183,16 +161,40 @@ Mutable state adds time order: understanding `name` at one line requires knowing
 
 ### The `for` version: the language manages enumeration {#for-version}
 
-<<< @/../examples/scripts/ch05-lists-pipelines.fsx#for-loop{fsharp:line-numbers} [ch05-lists-pipelines.fsx]
+```fsharp:line-numbers [ch05-lists-pipelines.fsx]
+let labelsWithFor source =
+    let mutable reversedLabels = []
 
+    for request in source do
+        match tryFormatRequest request with
+        | Some label -> reversedLabels <- label :: reversedLabels
+        | None -> ()
+
+    List.rev reversedLabels
+```
 The loop calls `tryFormatRequest` in input order. A valid label is added to the front of `reversedLabels` with constant-time `::`, temporarily reversing order. One `List.rev` after the loop restores the original order.
 
 Both `match` branches in the `for` body return `unit`: update `<-` produces `()`, and the `None` branch explicitly returns `()`. The function's final expression, `List.rev reversedLabels`, produces the `string list` result.
 
 ### The `while` version: code manages condition and progress {#while-version}
 
-<<< @/../examples/scripts/ch05-lists-pipelines.fsx#while-loop{fsharp:line-numbers} [ch05-lists-pipelines.fsx]
+```fsharp:line-numbers [ch05-lists-pipelines.fsx]
+let labelsWithWhile source =
+    let mutable remaining = source
+    let mutable reversedLabels = []
 
+    while not (List.isEmpty remaining) do
+        match remaining with
+        | request :: tail ->
+            remaining <- tail
+
+            match tryFormatRequest request with
+            | Some label -> reversedLabels <- label :: reversedLabels
+            | None -> ()
+        | [] -> ()
+
+    List.rev reversedLabels
+```
 A `while` repeats its `unit` body while the condition is `true`. This code must maintain `remaining` manually and update it to `tail` on each nonempty match. Forgetting that update causes an infinite loop. The empty-list rule remains because the compiler does not erase a possible type shape based on the outer loop condition.
 
 The version works and mutates only two local bindings, but it exposes more mechanical state than `for` or `choose`. A `while` is more appropriate when whether to continue genuinely depends on changing state and no existing collection traversal expresses the problem, such as some low-level API interactions.
@@ -212,10 +214,10 @@ A functional version may allocate too many intermediate lists. An imperative ver
 
 ## Run the shared example {#run-example}
 
-From the repository root, run:
+From the directory containing the example, run:
 
 ```console
-dotnet fsi --exec examples/scripts/ch05-lists-pipelines.fsx
+dotnet fsi --exec ch05-lists-pipelines.fsx
 ```
 
 You should see:
@@ -227,7 +229,7 @@ For/while agree: true
 Iteration order: Lin:3 Sam:2
 ```
 
-The manifest checks all four lines in order, including equality across three implementations and effect iteration order. Source `requests` never changes; every result is a new list value.
+Compare all four lines in order, including equality across three implementations and effect iteration order. Source `requests` never changes; every result is a new list value.
 
 ## Debugging: pause at every pipeline boundary {#debugging}
 

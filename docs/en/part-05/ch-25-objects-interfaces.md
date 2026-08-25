@@ -2,43 +2,6 @@
 title: "Chapter 25: Defining Objects in F#"
 description: "Choose functions, records, unions, classes, interfaces, object expressions, extensions, and structs from semantics rather than ceremony."
 translationKey: part-05/ch-25-objects-interfaces
-kind: chapter
-part: 5
-chapter: 25
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch25-objects-interfaces
-exerciseIds:
-  - ch25-exercise-01
-  - ch25-exercise-02
-  - ch25-exercise-03
-termIds:
-  - invariant
-  - record
-  - reference-identity
-  - smart-constructor
-sources:
-  - id: microsoft-fsharp-classes
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/classes
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-constructors
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/members/constructors
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-interfaces
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/interfaces
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-object-expressions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/object-expressions
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-type-extensions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/type-extensions
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-structs
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/structs
-    checked: "2026-08-24"
 ---
 
 # Chapter 25: Defining Objects in F# {#overview}
@@ -88,8 +51,87 @@ Two quick tests expose ceremonial wrappers:
 
 The verified chapter example models quote calculation. `Quote` remains a private record representation, errors remain a discriminated union, and only the calculator behavior is represented by a class:
 
-<<< @/../examples/chapters/ch25/Types.fs{fsharp:line-numbers} [Types.fs]
+```fsharp:line-numbers [Types.fs]
+namespace ThinkingInFSharp.Ch25
 
+type QuoteRequest = { Seats: int; UnitPrice: decimal }
+
+type QuoteError =
+    | NonPositiveSeats of actual: int
+    | NegativeUnitPrice of actual: decimal
+    | InvalidDiscountRate of actual: decimal
+
+type Quote =
+    private
+        { Seats: int
+          Subtotal: decimal
+          Discount: decimal
+          Tax: decimal
+          Total: decimal }
+
+module Quote =
+    let seats quote = quote.Seats
+    let subtotal quote = quote.Subtotal
+    let discount quote = quote.Discount
+    let tax quote = quote.Tax
+    let total quote = quote.Total
+
+type IDiscountPolicy =
+    abstract Rate: QuoteRequest -> decimal
+
+type IQuoteService =
+    abstract Quote: QuoteRequest -> Result<Quote, QuoteError>
+
+type PriceCalculator(taxRate: decimal, discountPolicy: IDiscountPolicy) =
+    do
+        if taxRate < 0M then
+            invalidArg (nameof taxRate) "Tax rate cannot be negative."
+
+    new(discountPolicy: IDiscountPolicy) = PriceCalculator(0M, discountPolicy)
+
+    member _.TaxRate = taxRate
+
+    member _.Calculate(request: QuoteRequest) =
+        if request.Seats <= 0 then
+            Error(NonPositiveSeats request.Seats)
+        elif request.UnitPrice < 0M then
+            Error(NegativeUnitPrice request.UnitPrice)
+        else
+            let discountRate = discountPolicy.Rate request
+
+            if discountRate < 0M || discountRate > 1M then
+                Error(InvalidDiscountRate discountRate)
+            else
+                let subtotal = decimal request.Seats * request.UnitPrice
+                let discount = subtotal * discountRate
+                let taxable = subtotal - discount
+                let tax = taxable * taxRate
+
+                Ok
+                    { Seats = request.Seats
+                      Subtotal = subtotal
+                      Discount = discount
+                      Tax = tax
+                      Total = taxable + tax }
+
+    interface IQuoteService with
+        member this.Quote request = this.Calculate request
+
+[<AutoOpen>]
+module QuoteExtensions =
+    type Quote with
+        member this.IsDiscounted = Quote.discount this > 0M
+        member this.TotalAmount = Quote.total this
+
+[<Struct>]
+type QuoteRevision = private QuoteRevision of int
+
+module QuoteRevision =
+    let create raw =
+        if raw > 0 then Ok(QuoteRevision raw) else Error raw
+
+    let value (QuoteRevision revision) = revision
+```
 In `PriceCalculator(taxRate, discountPolicy)`, the parameter list declares the primary constructor. The leading `do` binding is part of that constructor and runs for every instance. The `new(discountPolicy)` member is an additional constructor; it must delegate to the primary constructor, here supplying a zero tax rate.
 
 Constructor parameters are in scope throughout the class. A leading `let` can keep a field or helper private, while `member` exposes a method or property in .NET metadata. Use `_` when the member does not need its current instance; give the self identifier a name only when it does.
@@ -192,11 +234,11 @@ Chapter 27 will revisit the last question from a C# consumer's view. Chapter 31 
 
 ## Run the verified example {#run-example}
 
-From the repository root:
+From the directory containing the example:
 
 ```console
-dotnet run --project examples/chapters/ch25/Ch25.fsproj --configuration Release
-dotnet test ThinkingInFSharp.slnx --configuration Release --filter FullyQualifiedName~Ch25Object
+dotnet run --project Ch25.fsproj --configuration Release
+dotnet test Sample.slnx --configuration Release --filter FullyQualifiedName~Ch25Object
 ```
 
 The program prints class, interface, extension, and struct observations. Focused tests cover both constructors, member validation, the explicit interface view, an object-expression substitute, derived extension members, value copying, distinct boxes, and the invalid zero-initialized revision.

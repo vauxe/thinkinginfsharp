@@ -2,37 +2,6 @@
 title: "第 28 章：示例测试、替身与边界测试"
 description: "根据失败风险选择纯值测试、手写确定性替身和真实序列化契约测试，而不是测试实现细节。"
 translationKey: part-05/ch-28-testing-boundaries
-kind: chapter
-part: 5
-chapter: 28
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - foundation-example-tests
-  - foundation-contract-tests
-exerciseIds:
-  - ch28-exercise-01
-  - ch28-exercise-02
-  - ch28-exercise-03
-termIds: []
-sources:
-  - id: microsoft-dotnet-testing
-    url: https://learn.microsoft.com/en-us/dotnet/core/testing/
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-xunit
-    url: https://learn.microsoft.com/en-us/dotnet/core/testing/unit-testing-fsharp-with-xunit
-    checked: "2026-08-24"
-  - id: microsoft-unit-test-practices
-    url: https://learn.microsoft.com/en-us/dotnet/core/testing/unit-testing-best-practices
-    checked: "2026-08-24"
-  - id: system-text-json-unmapped
-    url: https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/missing-members
-    checked: "2026-08-24"
-  - id: system-text-json-casing
-    url: https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/character-casing
-    checked: "2026-08-24"
 ---
 
 # 第 28 章：示例测试、替身与边界测试 {#overview}
@@ -73,8 +42,25 @@ sources:
 
 共享样例先把命令、产品快照、草稿和错误表示为普通 F# 值。`decide` 的唯一输入是产品快照与已验证命令，唯一结果是 `Result`：
 
-<<< @/../examples/chapters/ch28/OrderWorkflow.fs#pure-decision{fsharp:line-numbers} [OrderWorkflow.fs]
+```fsharp:line-numbers [OrderWorkflow.fs]
+module OrderDecision =
+    let decide (product: ProductSnapshot option) (command: PlaceOrderCommand) : Result<OrderDraft, OrderDecisionError> =
+        let requestedSku = PlaceOrderCommand.sku command
+        let requestedQuantity = PlaceOrderCommand.quantity command
 
+        match product with
+        | None -> Error(ProductNotFound requestedSku)
+        | Some snapshot when not (StringComparer.Ordinal.Equals(snapshot.Sku, requestedSku)) ->
+            Error(ProductNotFound requestedSku)
+        | Some snapshot when requestedQuantity > snapshot.Available ->
+            Error(InsufficientStock(requestedQuantity, snapshot.Available))
+        | Some snapshot ->
+            Ok
+                { OrderId = PlaceOrderCommand.orderId command
+                  Sku = requestedSku
+                  Quantity = requestedQuantity
+                  Total = decimal requestedQuantity * snapshot.UnitPrice }
+```
 没有隐藏时钟、数据库或随机数，所以测试无需搭建对象图。安排输入，调用一次，再比较完整结果：
 
 ```fsharp
@@ -112,8 +98,36 @@ let ``pure decision reports the exact stock counterexample`` () =
 
 纯核心之外，样例工作流读取产品、读取时间并保存订单。依赖被写成函数记录，效果顺序由一个短 `match` 清楚限定：
 
-<<< @/../examples/chapters/ch28/OrderWorkflow.fs#ports-workflow{fsharp:line-numbers} [OrderWorkflow.fs]
+```fsharp:line-numbers [OrderWorkflow.fs]
+type PlacedOrder =
+    { OrderId: string
+      Sku: string
+      Quantity: int
+      Total: decimal
+      PlacedAt: DateTimeOffset }
 
+type OrderPorts =
+    { FindProduct: string -> ProductSnapshot option
+      GetUtcNow: unit -> DateTimeOffset
+      SaveOrder: PlacedOrder -> unit }
+
+module OrderWorkflow =
+    let place (ports: OrderPorts) (command: PlaceOrderCommand) : Result<PlacedOrder, OrderDecisionError> =
+        let product = command |> PlaceOrderCommand.sku |> ports.FindProduct
+
+        match OrderDecision.decide product command with
+        | Error error -> Error error
+        | Ok draft ->
+            let placed =
+                { OrderId = draft.OrderId
+                  Sku = draft.Sku
+                  Quantity = draft.Quantity
+                  Total = draft.Total
+                  PlacedAt = ports.GetUtcNow() }
+
+            ports.SaveOrder placed
+            Ok placed
+```
 成功分支才读取时钟并保存；决策失败直接返回错误。成功测试用几个闭包组成端口：固定返回产品和时间，用 `ResizeArray` 记录查询与保存，并用计数器记录时钟读取：
 
 ```fsharp
@@ -176,8 +190,41 @@ Assert.Equal(1, clockCalls)
 
 第 27 章把 DTO 与领域命令分开。本章使用真实 `System.Text.Json` 和实际选项证明该边界：camel-case 输出、大小写敏感输入、未知字段拒绝，以及 DTO 到智能构造命令的转换。
 
-<<< @/../examples/chapters/ch28/OrderWorkflow.fs#json-boundary{fsharp:line-numbers} [OrderWorkflow.fs]
+```fsharp:line-numbers [OrderWorkflow.fs]
+[<CLIMutable>]
+type PlaceOrderDto =
+    { OrderId: string | null
+      Sku: string | null
+      Quantity: int }
 
+type DtoError =
+    | MissingBody
+    | InvalidCommand of CommandError
+
+module PlaceOrderDto =
+    let toCommand (dto: PlaceOrderDto | null) =
+        match dto with
+        | null -> Error MissingBody
+        | value ->
+            PlaceOrderCommand.create value.OrderId value.Sku value.Quantity
+            |> Result.mapError InvalidCommand
+
+module PlaceOrderJson =
+    let private options =
+        let settings = JsonSerializerOptions()
+        settings.PropertyNamingPolicy <- JsonNamingPolicy.CamelCase
+        settings.PropertyNameCaseInsensitive <- false
+        settings.UnmappedMemberHandling <- JsonUnmappedMemberHandling.Disallow
+        settings
+
+    let serialize (dto: PlaceOrderDto) =
+        ArgumentNullException.ThrowIfNull(dto, nameof dto)
+        JsonSerializer.Serialize(dto, options)
+
+    let deserialize (json: string) : PlaceOrderDto | null =
+        ArgumentNullException.ThrowIfNull(json, nameof json)
+        JsonSerializer.Deserialize<PlaceOrderDto>(json, options)
+```
 `CLIMutable` DTO 可以暂时包含 null 和零；`PlaceOrderDto.toCommand` 把 null body 与领域命令错误明确分开。领域工作流从不接收 DTO。
 
 ### 检查 JSON 含义，不检查无关字节 {#json-shape}
@@ -250,13 +297,17 @@ Arrange—Act—Assert 是阅读边界，不要求机械注释。较短测试可
 
 ## 运行聚焦测试与完整测试 {#running-tests}
 
-从仓库根目录只运行本章聚焦测试：
+在包含这些测试的解决方案中，可用过滤器快速获得反馈：
 
 ```console
-dotnet test ThinkingInFSharp.slnx --configuration Release --filter FullyQualifiedName~Ch28
+dotnet test Sample.slnx --configuration Release --filter FullyQualifiedName~Ch28
 ```
 
-该过滤器从 ExampleTests 与 ContractTests 中选择本章检查。提交前再运行 `pnpm check:examples`，它锁定还原、构建整个解决方案、运行全部测试并执行所有登记示例。聚焦命令缩短反馈，完整门发现跨章节接线回归；两者不是替代关系。
+该过滤器会选择名称中含 `Ch28` 的测试。提交应用改动前，还应去掉过滤器运行同一解决方案，以检查跨项目接线：
+
+```console
+dotnet test Sample.slnx --configuration Release
+```
 
 ## 一份实用的选择清单 {#selection-checklist}
 

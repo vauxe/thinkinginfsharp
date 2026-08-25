@@ -2,27 +2,6 @@
 title: "Chapter 3 Solutions"
 description: "Reasoning about function types, lambdas, higher-order functions, currying, tupled parameters, and partial application."
 translationKey: solutions/ch-03-functions-as-values
-kind: solution
-part: 1
-chapter: 3
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch03-functions-as-values
-exerciseIds:
-  - ch03-exercise-01
-  - ch03-exercise-02
-  - ch03-exercise-03
-termIds: []
-sources:
-  - id: microsoft-functions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/
-    checked: "2026-08-24"
-  - id: microsoft-parameters
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/parameters-and-arguments
-    checked: "2026-08-24"
 ---
 
 # Chapter 3 Solutions {#overview}
@@ -48,12 +27,20 @@ The first argument to `lineTotal` must be `decimal`, and the second must be `int
 
 The named and anonymous functions are:
 
-<<< @/../examples/scripts/ch03-functions-as-values.fsx#named-and-anonymous{fsharp:line-numbers} [ch03-functions-as-values.fsx]
+```fsharp:line-numbers [ch03-functions-as-values.fsx]
+let increment seats = seats + 1
+let incrementAnonymous = fun seats -> seats + 1
 
+printfn "Named and anonymous: %d, %d" (increment 3) (incrementAnonymous 3)
+```
 The named call in the shared script is:
 
-<<< @/../examples/scripts/ch03-functions-as-values.fsx#higher-order{fsharp:line-numbers} [ch03-functions-as-values.fsx]
+```fsharp:line-numbers [ch03-functions-as-values.fsx]
+let applyTwice transform value = transform (transform value)
+let incrementedTwice = applyTwice increment 3
 
+printfn "Applied twice: %d" incrementedTwice
+```
 Read the equivalent anonymous call as `applyTwice (fun seats -> seats + 1) 3`; it also produces `5`. The anonymous function and `increment` both have type `int -> int`, so this call instantiates `'a` in `applyTwice` as `int`.
 
 An `int -> string` function cannot be used directly because the first transformation would produce a `string`, while the second call would still require an `int`. `applyTwice` requires `'a -> 'a`, not `'a -> 'b`. If the domain needs two different transformations in sequence, define a function whose type describes those stages rather than weakening this consistency.
@@ -62,10 +49,19 @@ An `int -> string` function cannot be used directly because the first transforma
 
 The two runnable definitions are:
 
-<<< @/../examples/scripts/ch03-functions-as-values.fsx#curried-function{fsharp:line-numbers} [ch03-functions-as-values.fsx]
+```fsharp:line-numbers [ch03-functions-as-values.fsx]
+let lineTotal unitPrice seats = unitPrice * decimal seats
+let standardLineTotal = lineTotal 19.50m
+let totalForThree = standardLineTotal 3
 
-<<< @/../examples/scripts/ch03-functions-as-values.fsx#tupled-function{fsharp:line-numbers} [ch03-functions-as-values.fsx]
+printfn "Curried total: %M" totalForThree
+```
+```fsharp:line-numbers [ch03-functions-as-values.fsx]
+let lineTotalTupled (unitPrice, seats) = unitPrice * decimal seats
+let tupledTotal = lineTotalTupled (19.50m, 3)
 
+printfn "Tupled total: %M" tupledTotal
+```
 The curried version has type `decimal -> int -> decimal` and is called as `lineTotal 19.50m 3`. The tupled version has type `decimal * int -> decimal` and is called as `lineTotalTupled (19.50m, 3)`. Only the former can directly fix the price with `lineTotal 19.50m`, producing `int -> decimal`.
 
 `addServiceFee` retains `2.00m`; its remaining input is a subtotal, so its type is `decimal -> decimal`. Semantically, the function forms a closure. If unit price and seat count are inherently one whole value in the domain, the tupled form writes “only accept a complete pair” into the input shape. Partial application is not the only design criterion.

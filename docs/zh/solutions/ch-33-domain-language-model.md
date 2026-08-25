@@ -2,36 +2,6 @@
 title: "第 33 章练习答案"
 description: "按角色分类预约值，在不跨越边界的情况下设计座位变更命令与事实，并依据明确保证选择持久化方式。"
 translationKey: solutions/ch-33-domain-language-model
-kind: solution
-part: 6
-chapter: 33
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - capstone-booking-domain
-exerciseIds:
-  - ch33-exercise-01
-  - ch33-exercise-02
-  - ch33-exercise-03
-termIds: []
-sources:
-  - id: microsoft-fsharp-records
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/records
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-discriminated-unions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions
-    checked: "2026-08-24"
-  - id: microsoft-domain-events
-    url: https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/domain-events-design-implementation
-    checked: "2026-08-24"
-  - id: microsoft-cqrs-pattern
-    url: https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs
-    checked: "2026-08-24"
-  - id: microsoft-event-sourcing-pattern
-    url: https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing
-    checked: "2026-08-24"
 ---
 
 # 第 33 章练习答案 {#overview}

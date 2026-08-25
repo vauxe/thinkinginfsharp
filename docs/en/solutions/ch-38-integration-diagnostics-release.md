@@ -2,38 +2,6 @@
 title: "Chapter 38 Solutions"
 description: "Audit inflated guarantees, design bounded telemetry collection, and turn the local booking check into a concrete release plan."
 translationKey: solutions/ch-38-integration-diagnostics-release
-kind: solution
-part: 6
-chapter: 38
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - capstone-booking-domain
-  - capstone-booking-contracts
-  - capstone-booking-infrastructure
-  - capstone-booking-api
-  - capstone-booking-csharp-client
-  - foundation-contract-tests
-exerciseIds:
-  - ch38-exercise-01
-  - ch38-exercise-02
-  - ch38-exercise-03
-termIds: []
-sources:
-  - id: microsoft-aspnet-integration-tests
-    url: https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: microsoft-tracing-instrumentation
-    url: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/distributed-tracing-instrumentation-walkthroughs
-    checked: "2026-08-25"
-  - id: microsoft-metrics-instrumentation
-    url: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/metrics-instrumentation
-    checked: "2026-08-25"
-  - id: microsoft-dotnet-publishing
-    url: https://learn.microsoft.com/en-us/dotnet/core/deploying/
-    checked: "2026-08-25"
 ---
 
 # Chapter 38 Solutions {#overview}
@@ -58,11 +26,11 @@ The first current claim is still useful: **within one process and one normalized
 
 The second current claim should split in two: **an exact completed operation replays its local result without repeating the modeled stub calls**, and **an ambiguous payment stops for reconciliation rather than charging again**. Neither sentence says what a real provider or notification consumer did.
 
-The third current claim is: **the repository provides a reproducible local acceptance check for the documented teaching topology**. “Production ready” is not a single testable property until a production contract names environment, traffic, security, dependencies, availability, durability, and ownership.
+The third defensible claim, once an application-specific gate has actually passed, is: **the application has a reproducible local acceptance check for its documented topology**. “Production ready” is not a single testable property until a production contract names environment, traffic, security, dependencies, availability, durability, and ownership.
 
 ### Rewrite the release note {#exercise-01-rewrite}
 
-A defensible note could read:
+A defensible note, after the described acceptance path has run successfully, could read:
 
 > The booking capstone now passes its locked local acceptance gate. The verified topology is one API process using one local snapshot path and controlled payment/notification adapters. Exact completed retries do not repeat those modeled effects, changed payloads conflict, ambiguous payment stops for reconciliation, and a C# HTTP consumer completes the public workflow. Multi-process storage, real provider delivery, security controls, telemetry export, artifact deployment, and production recovery remain outside this release.
 

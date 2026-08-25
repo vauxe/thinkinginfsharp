@@ -2,39 +2,6 @@
 title: "附录 D：从 C# 迁移到 F# 与互操作"
 description: "从值、领域模型、失败、异步、集合和公共边界重新设计 C# 系统，而不是逐句转写语法。"
 translationKey: appendices/d-csharp-migration
-kind: appendix
-appendix: D
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch27-fsharp-api
-  - ch27-csharp-client
-exerciseIds: []
-termIds: []
-sources:
-  - id: microsoft-fsharp-component-guidelines
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-null
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/values/null-values
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-nullable-value
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/nullable-value-types
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-async
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/tutorials/async
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-task-expressions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/task-expressions
-    checked: "2026-08-25"
-  - id: microsoft-dotnet-collection-guidelines
-    url: https://learn.microsoft.com/en-us/dotnet/standard/design-guidelines/guidelines-for-collections
-    checked: "2026-08-25"
-  - id: microsoft-dotnet-breaking-changes
-    url: https://learn.microsoft.com/en-us/dotnet/standard/library-guidance/breaking-changes
-    checked: "2026-08-25"
 ---
 
 # 附录 D：从 C# 迁移到 F# 与互操作 {#overview}
@@ -176,23 +143,68 @@ F# 的 `if`、`match`、`try`、循环和计算表达式都会产生值，因此
 
 第 27 章把领域选择留在 F# 内部：
 
-<<< @/../examples/chapters/ch27/FSharpApi/Library.fs#internal-model{fsharp:line-numbers} [Library.fs]
+```fsharp:line-numbers [Library.fs]
+type internal Decision =
+    | Accepted of confirmationCode: string * remainingSeats: int
+    | Rejected of message: string * suggestedSeats: int option
 
+module internal Decision =
+    let evaluate capacity (request: BookingRequest) =
+        if String.IsNullOrWhiteSpace request.RequestId then
+            Rejected("request id must not be blank", None)
+        elif String.IsNullOrWhiteSpace request.Attendee then
+            Rejected("attendee must not be blank", None)
+        elif request.Seats <= 0 then
+            Rejected("seat count must be positive", None)
+        elif request.Seats > capacity then
+            let suggestion = if capacity > 0 then Some capacity else None
+
+            Rejected($"requested {request.Seats} exceeds available {capacity}", suggestion)
+        else
+            let normalizedRequestId = request.RequestId.Trim().ToUpperInvariant()
+            Accepted($"CONF-{normalizedRequestId}", capacity - request.Seats)
+```
 单个适配器把该封闭联合及其 `option` 载荷转换为四个普通 CLR 公共类型：
 
-<<< @/../examples/chapters/ch27/FSharpApi/Library.fs#boundary-adapter{fsharp:line-numbers} [Library.fs]
+```fsharp:line-numbers [Library.fs]
+module internal ResponseAdapter =
+    let fromDecision decision =
+        match decision with
+        | Accepted(confirmationCode, remainingSeats) ->
+            BookingResponse(BookingOutcome.Accepted, confirmationCode, Nullable remainingSeats, null, Nullable<int>())
+        | Rejected(message, suggestedSeats) ->
+            let suggestion =
+                match suggestedSeats with
+                | Some seats -> Nullable seats
+                | None -> Nullable<int>()
 
+            BookingResponse(BookingOutcome.Rejected, null, Nullable<int>(), message, suggestion)
+```
 C# 消费者看到的是普通静态调用、枚举、属性、可空引用和可空值：
 
-<<< @/../examples/chapters/ch27/CSharpClient/Program.cs#accepted-call{csharp:line-numbers} [Program.cs]
+```csharp:line-numbers [Program.cs]
+var accepted = BookingApi.Evaluate(
+    capacity: 5,
+    request: new BookingRequest(requestId: "REQ-27", attendee: "Lin", seats: 2));
 
+Require(accepted.Outcome == BookingOutcome.Accepted, "accepted outcome");
+Require(default(BookingOutcome) == BookingOutcome.None, "valid enum zero value");
+Require(accepted.IsAccepted, "accepted flag");
+Require(accepted.ConfirmationCode == "CONF-REQ-27", "confirmation code");
+Require(accepted.RemainingSeats == 3, "remaining seats");
+Require(accepted.ErrorMessage is null, "accepted error must be null");
+Require(accepted.SuggestedSeats is null, "accepted suggestion must be null");
+
+Console.WriteLine(
+    $"Accepted: outcome={accepted.Outcome} code={accepted.ConfirmationCode} remaining={accepted.RemainingSeats}");
+```
 同一客户端还用反射断言只导出 `BookingApi`、`BookingOutcome`、`BookingRequest` 和 `BookingResponse`；任何公共签名都不含 `Microsoft.FSharp.*`；可空元数据正确；XML 文档随程序集一同发布。这些断言测试的是编译后契约，而不是想象中的源码映射。
 
-在仓库根目录运行这对项目：
+在示例所在目录运行这对项目：
 
 ```console
-dotnet build examples/chapters/ch27/CSharpClient/CSharpClient.csproj --configuration Release --no-restore
-dotnet run --project examples/chapters/ch27/CSharpClient/CSharpClient.csproj --configuration Release --no-build
+dotnet build CSharpClient.csproj --configuration Release --no-restore
+dotnet run --project CSharpClient.csproj --configuration Release --no-build
 ```
 
 ## 按接缝迁移，而不是按文件夹迁移 {#migration-workflow}

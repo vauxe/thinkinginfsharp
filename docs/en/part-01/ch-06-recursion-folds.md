@@ -2,46 +2,6 @@
 title: "Chapter 6: Recursion, Tail Calls, and Folds"
 description: "Derive recursion from list structure, distinguish ordinary and tail recursion, and rewrite linear accumulation with accumulators and List.fold."
 translationKey: part-01/ch-06-recursion-folds
-kind: chapter
-part: 1
-chapter: 6
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch06-recursion-folds
-  - ch06-non-tail-recursion
-  - capstone-part-01-booking-basics
-exerciseIds:
-  - ch06-exercise-01
-  - ch06-exercise-02
-  - ch06-exercise-03
-termIds:
-  - accumulator
-  - fold
-  - list
-  - pattern-matching
-  - recursion
-  - structural-recursion
-  - tail-call
-  - tail-recursion
-sources:
-  - id: microsoft-recursive-functions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/recursive-functions-the-rec-keyword
-    checked: "2026-08-25"
-  - id: microsoft-fsi-options
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/fsharp-interactive-options
-    checked: "2026-08-25"
-  - id: microsoft-functions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/
-    checked: "2026-08-24"
-  - id: microsoft-lists
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/lists
-    checked: "2026-08-24"
-  - id: fsharp-core-list
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-listmodule.html
-    checked: "2026-08-24"
 ---
 
 # Chapter 6: Recursion, Tail Calls, and Folds {#overview}
@@ -68,8 +28,12 @@ This chapter handles one recursive path through a singly linked list. Trees and 
 
 An ordinary non-recursive `let` name enters the following scope only after its right side has been evaluated. `let rec` makes a function name visible within its own body, allowing it to call itself:
 
-<<< @/../examples/scripts/ch06-recursion-folds.fsx#direct-recursion{fsharp:line-numbers} [ch06-recursion-folds.fsx]
-
+```fsharp:line-numbers [ch06-recursion-folds.fsx]
+let rec sumRecursive values =
+    match values with
+    | [] -> 0
+    | head :: tail -> head + sumRecursive tail
+```
 `rec` changes binding visibility only. It does not add a base case or prove that calls approach termination. Passing the original list back unchanged can recurse forever, while omitting `[]` makes the match non-exhaustive.
 
 Functions that call one another can be defined together with `let rec ... and ...`, but only real mutual dependence needs it. Putting unrelated functions in one recursive group expands inference and comprehension scope, so this chapter does not use that form.
@@ -109,8 +73,15 @@ In `head + sumRecursive tail`, addition with `head` still happens after the recu
 
 Pass the sum completed so far into the next step as an extra parameter:
 
-<<< @/../examples/scripts/ch06-recursion-folds.fsx#tail-recursion{fsharp:line-numbers} [ch06-recursion-folds.fsx]
+```fsharp:line-numbers [ch06-recursion-folds.fsx]
+[<TailCall>]
+let rec sumLoop accumulator values =
+    match values with
+    | [] -> accumulator
+    | head :: tail -> sumLoop (accumulator + head) tail
 
+let sumTailRecursive values = sumLoop 0 values
+```
 Each `sumLoop` step computes the new `accumulator + head` before calling itself with that value and `tail`. No addition or construction remains after the call. The branch result is exactly the call result, so it is in tail position.
 
 Understand an accumulator by writing its invariant: at every step, `accumulator + sum values` equals the original input sum. Initially the accumulator is `0`. Moving one `head` into it preserves the equation. When `values` is empty, the accumulator is the complete answer.
@@ -119,18 +90,34 @@ Outer `sumTailRecursive` hides the initial accumulator and leaves callers a clea
 
 ### `[<TailCall>]` checks intent {#tailcall-attribute}
 
-Starting with F# 8, `[<TailCall>]` can be placed on a module function or method. The compiler warns when it finds recursive calls in that function that are not in tail position. To make that diagnostic executable evidence, the repository separately compiles this deliberately invalid `.fs` project with warnings as errors and requires `FS3569`:
+Starting with F# 8, `[<TailCall>]` can be placed on a module function or method. The compiler warns when it finds recursive calls in that function that are not in tail position. Put this deliberately invalid `.fs` example in a minimal project with warnings as errors to observe `FS3569`:
 
-<<< @/../examples/expected-errors/ch06-non-tail-recursion/NonTailRecursion.fs#non-tail-recursion{fsharp:line-numbers} [NonTailRecursion.fs]
-
+```fsharp:line-numbers [NonTailRecursion.fs]
+[<TailCall>]
+let rec fibonacci n =
+    match n with
+    | 0
+    | 1 -> n
+    | value -> fibonacci (value - 1) + fibonacci (value - 2)
+```
 The ordinary script gate also runs FSI with `--warnaserror+`, but a successful script run is not used as proof of the `TailCall` diagnostic. The compiled negative fixture above supplies that proof; code position and the bounded run below supply the positive evidence for the shared loops.
 
 The attribute does not magically rewrite non-tail recursion and does not prove termination. It checks relevant call positions. Tail position is an important prerequisite for eliminating recursive stack growth, but cross-function calls, runtimes, debug settings, computation expressions, and other execution models can impose different limits. Do not infer “all recursion is stack-safe” from one synchronous self-recursive example.
 
 The shared script counts a 100,000-item list with tail recursion as runtime evidence for this concrete implementation:
 
-<<< @/../examples/scripts/ch06-recursion-folds.fsx#tail-count{fsharp:line-numbers} [ch06-recursion-folds.fsx]
+```fsharp:line-numbers [ch06-recursion-folds.fsx]
+[<TailCall>]
+let rec countLoop accumulator values =
+    match values with
+    | [] -> accumulator
+    | _ :: tail -> countLoop (accumulator + 1) tail
 
+let countTailRecursive values = countLoop 0 values
+let largeCount = countTailRecursive [ 1..100_000 ]
+
+printfn "Tail-recursive count: %d" largeCount
+```
 Do not compare by deliberately exhausting the process stack with non-tail recursion. A .NET stack overflow is not an ordinary error from which an application can reliably recover. Use code position, compiler diagnostics, and bounded tests.
 
 ## Tail recursion does not repair every algorithm {#tail-recursion-limits}
@@ -145,8 +132,10 @@ Review recursion with at least four questions: does the problem shrink, can the 
 
 Tail-recursive summation has a general skeleton: begin with state, combine each element into that state in order, and return the final state. `List.fold` keeps the traversal in the library and asks only for an update function and initial state:
 
-<<< @/../examples/scripts/ch06-recursion-folds.fsx#fold-sum{fsharp:line-numbers} [ch06-recursion-folds.fsx]
-
+```fsharp:line-numbers [ch06-recursion-folds.fsx]
+let sumWithFold values =
+    values |> List.fold (fun accumulator value -> accumulator + value) 0
+```
 Its core type is:
 
 ```text
@@ -173,8 +162,12 @@ folder a (folder b (folder c initial))
 
 Its folder receives the element before state, the reverse of `List.fold`'s state-first order. The shared script makes the difference visible with subtraction:
 
-<<< @/../examples/scripts/ch06-recursion-folds.fsx#fold-order{fsharp:line-numbers} [ch06-recursion-folds.fsx]
+```fsharp:line-numbers [ch06-recursion-folds.fsx]
+let leftAssociated = List.fold (fun state value -> state - value) 0 [ 1; 2; 3 ]
+let rightAssociated = List.foldBack (fun value state -> value - state) [ 1; 2; 3 ] 0
 
+printfn "Fold order: left=%d right=%d" leftAssociated rightAssociated
+```
 The left fold computes `((0 - 1) - 2) - 3 = -6`; the right fold computes `1 - (2 - (3 - 0)) = 2`. Addition within this example's integer range does not reveal direction, but that is no reason to assume all fold orders are equivalent.
 
 Do not infer a library function's stack or allocation implementation from semantic expansion alone. The API guarantees combination order and result semantics; consult the current FSharp.Core implementation and measure for performance. For order-sensitive behavior, state the mathematical association first.
@@ -205,10 +198,10 @@ None automatically prevents `int` range overflow or validates the business meani
 
 ## Run the shared example {#run-example}
 
-From the repository root, run:
+From the directory containing the example, run:
 
 ```console
-dotnet fsi --warnaserror+ --exec examples/scripts/ch06-recursion-folds.fsx
+dotnet fsi --warnaserror+ --exec ch06-recursion-folds.fsx
 ```
 
 You should see:
@@ -221,7 +214,7 @@ Tail-recursive count: 100000
 Fold order: left=-6 right=2
 ```
 
-Empty, singleton, ordinary, and large lists separately verify base behavior, equal semantics, and bounded runtime behavior of this tail-recursive implementation. The manifest checks all five lines in order.
+Empty, singleton, ordinary, and large lists separately verify base behavior, equal semantics, and bounded runtime behavior of this tail-recursive implementation. Compare all five output lines in order.
 
 ## Debugging: check decrease before tail position {#debugging}
 
@@ -277,10 +270,10 @@ Then imagine changing the recursive branch to recurse first and add `head` after
 
 ## Part I checkpoint {#part-checkpoint}
 
-Run the integrated booking script from the repository root:
+Run the integrated booking script from the directory containing the example:
 
 ```console
-dotnet fsi --warnaserror+ --exec examples/capstone/part-01/BookingBasics.fsx
+dotnet fsi --warnaserror+ --exec booking-basics.fsx
 ```
 
 Its output must distinguish valid from invalid input rows, accept only requests that fit, reject the over-capacity request, and finish with the correct booked and remaining capacity. This closes the Part I language path without claiming persistence or concurrency guarantees.

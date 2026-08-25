@@ -2,40 +2,6 @@
 title: "Chapter 15: Active Patterns and Domain Matching Boundaries"
 description: "Use complete, partial, and parameterized active patterns as explicit domain views while keeping I/O, expensive work, and detailed failure visible."
 translationKey: part-03/ch-15-active-patterns
-kind: chapter
-part: 3
-chapter: 15
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch15-active-patterns
-exerciseIds:
-  - ch15-exercise-01
-  - ch15-exercise-02
-  - ch15-exercise-03
-termIds:
-  - active-pattern
-  - complete-active-pattern
-  - parameterized-active-pattern
-  - partial-active-pattern
-  - pattern
-  - pattern-matching
-  - result
-sources:
-  - id: microsoft-active-patterns
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/active-patterns
-    checked: "2026-08-24"
-  - id: microsoft-pattern-matching
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/pattern-matching
-    checked: "2026-08-24"
-  - id: microsoft-component-design
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-24"
-  - id: fsharp-core-value-option
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-valueoption.html
-    checked: "2026-08-24"
 ---
 
 # Chapter 15: Active Patterns and Domain Matching Boundaries {#overview}
@@ -100,8 +66,22 @@ The three principal forms differ in one question:
 
 The shared script groups three declared statuses into a two-case workflow view:
 
-<<< @/../examples/scripts/ch15-active-patterns.fsx#complete-active-pattern{fsharp:line-numbers} [ch15-active-patterns.fsx]
+```fsharp:line-numbers [ch15-active-patterns.fsx]
+let (|Open|Closed|) status =
+    match status with
+    | Pending -> Open "pending"
+    | Confirmed code -> Open $"confirmed:{code}"
+    | Cancelled reason -> Closed reason
 
+let describeStatus status =
+    match status with
+    | Open detail -> $"open:{detail}"
+    | Closed reason -> $"closed:{reason}"
+
+printfn "Complete: pending=%s" (describeStatus Pending)
+printfn "Complete: confirmed=%s" (describeStatus (Confirmed "C-42"))
+printfn "Complete: cancelled=%s" (describeStatus (Cancelled "duplicate"))
+```
 `Open` and `Closed` cover every `BookingStatus`. The recognizer must return one of those active cases for every input, and a match containing both cases is exhaustive. Each case can carry a payload chosen for the consumer's view.
 
 This does not add new states to `BookingStatus`. `Pending` and `Confirmed` remain different domain states even though this workflow views both as open. The alternate partition is useful precisely because it does not rewrite the source model.
@@ -138,8 +118,23 @@ let (|Positive|_|) value =
 
 The shared script recognizes positive integer text as a seat count:
 
-<<< @/../examples/scripts/ch15-active-patterns.fsx#partial-active-pattern{fsharp:line-numbers} [ch15-active-patterns.fsx]
+```fsharp:line-numbers [ch15-active-patterns.fsx]
+let (|SeatCount|_|) raw =
+    match parseSeatCount raw with
+    | Ok value -> Some value
+    | Error _ -> None
 
+let describeRawSeatCount raw =
+    match raw with
+    | SeatCount value -> $"matched:{value}"
+    | _ -> "not-matched"
+
+printfn
+    "Partial: three=%s zero=%s text=%s"
+    (describeRawSeatCount "3")
+    (describeRawSeatCount "0")
+    (describeRawSeatCount "oops")
+```
 Both `"0"` and `"oops"` become “not matched.” That is appropriate only when the caller needs a yes/no shape test.
 
 ### Non-match is smaller than a modeled error {#non-match-versus-error}
@@ -172,8 +167,38 @@ match seats with
 
 The instrumented shared example records recognizer calls:
 
-<<< @/../examples/scripts/ch15-active-patterns.fsx#parameterized-active-pattern{fsharp:line-numbers} [ch15-active-patterns.fsx]
+```fsharp:line-numbers [ch15-active-patterns.fsx]
+let mutable thresholdChecks = 0
 
+let (|AtLeast|_|) minimum value =
+    thresholdChecks <- thresholdChecks + 1
+
+    if value >= minimum then Some value else None
+
+let classifyParty seats =
+    match seats with
+    | AtLeast 5 actual -> $"large:{actual}"
+    | AtLeast 2 actual -> $"group:{actual}"
+    | actual -> $"single:{actual}"
+
+let classifyWithCount seats =
+    thresholdChecks <- 0
+    let label = classifyParty seats
+    label, thresholdChecks
+
+let largeLabel, largeChecks = classifyWithCount 6
+let groupLabel, groupChecks = classifyWithCount 3
+let singleLabel, singleChecks = classifyWithCount 1
+
+printfn
+    "Parameterized: six=%s/%d three=%s/%d one=%s/%d"
+    largeLabel
+    largeChecks
+    groupLabel
+    groupChecks
+    singleLabel
+    singleChecks
+```
 Six seats satisfy the first clause after one check. Three seats fail `AtLeast 5`, then satisfy `AtLeast 2`, so the recognizer runs twice. One seat also checks both parameterized occurrences before reaching the fallback.
 
 The counter is evidence, not recommended recognizer design. Each pattern occurrence is executable work, and refactoring clauses can change how often it runs. Correctness must not depend on a hidden mutable call count.
@@ -250,10 +275,10 @@ Readable pattern syntax is the result, not the goal. If the recognizer's name hi
 
 ## Run the shared example {#run-example}
 
-From the repository root:
+From the directory containing the example:
 
 ```console
-dotnet fsi --exec examples/scripts/ch15-active-patterns.fsx
+dotnet fsi --exec ch15-active-patterns.fsx
 ```
 
 Six deterministic lines cover every complete partition, successful and failed partial recognition, preserved error details, and parameterized recognizer call counts.

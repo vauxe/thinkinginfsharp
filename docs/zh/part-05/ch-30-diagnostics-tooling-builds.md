@@ -2,53 +2,13 @@
 title: "第 30 章：诊断、调试、格式化与构建"
 description: "阅读首个相关编译器诊断，按所需证据选择 FSI 或调试器，以只读方式执行格式检查，并复现锁定的 Release 构建。"
 translationKey: part-05/ch-30-diagnostics-tooling-builds
-kind: chapter
-part: 5
-chapter: 30
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch11-value-restriction
-  - ch16-wrong-file-order
-exerciseIds:
-  - ch30-exercise-01
-  - ch30-exercise-02
-  - ch30-exercise-03
-termIds: []
-sources:
-  - id: microsoft-fsharp-compiler-options
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/compiler-options
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-interactive
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/tools/fsharp-interactive/
-    checked: "2026-08-24"
-  - id: microsoft-managed-debuggers
-    url: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/managed-debuggers
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-build
-    url: https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-build
-    checked: "2026-08-24"
-  - id: microsoft-nuget-lock-files
-    url: https://learn.microsoft.com/en-us/nuget/consume-packages/package-references-in-project-files#locking-dependencies
-    checked: "2026-08-24"
-  - id: microsoft-local-tools
-    url: https://learn.microsoft.com/en-us/dotnet/core/tools/local-tools-how-to-use
-    checked: "2026-08-24"
-  - id: fantomas-getting-started
-    url: https://fsprojects.github.io/fantomas/docs/end-users/GettingStarted.html
-    checked: "2026-08-24"
-  - id: fantomas-format-check
-    url: https://fsprojects.github.io/fantomas/docs/end-users/FormattingCheck.html
-    checked: "2026-08-24"
 ---
 
 # 第 30 章：诊断、调试、格式化与构建 {#overview}
 
 工具只有在缩短“症状到证据”的路径时才有用。编译器诊断回答静态问题，FSI 检验小表达式，调试器暴露某一次运行，格式化器消除样式差异，锁定构建则重建约定的依赖图。混淆这些职责只会制造没有诊断价值的仪式。
 
-本章使用仓库命令，而不绑定某个编辑器或 CI 厂商。IDE 可以在命令外包一层按钮，但项目、锁文件、工具清单和可重复命令才是共享契约。
+本章使用项目命令，而不绑定某个编辑器或 CI 厂商。IDE 可以在命令外包一层按钮，但项目文件、锁文件、工具清单和可重复命令才是共享契约。
 
 ## 学完本章你将能够做什么 {#outcomes}
 
@@ -100,12 +60,13 @@ path/File.fs(12,9): error FS0039: The value or constructor 'name' is not defined
 
 第 11 章的完整夹具只有一个绑定：
 
-<<< @/../examples/expected-errors/ch11-value-restriction.fsx{fsharp:line-numbers} [ch11-value-restriction.fsx]
-
+```fsharp:line-numbers [ch11-value-restriction.fsx]
+let ambiguousBuckets = Array.create 2 []
+```
 直接运行它：
 
 ```console
-dotnet fsi --exec examples/expected-errors/ch11-value-restriction.fsx
+dotnet fsi --exec value-restriction.fsx
 ```
 
 F# 10 报告 FS0030 和弱类型 `'_a list array`。`Array.create` 构造了一个元素类型未解析的可变数组值；同一个存储位置不能安全地针对无关元素类型泛化。诊断本身给出三种有意修复：用具体标注确定类型；为泛型函数显露数据参数；或在每次调用都应构造新值时添加 `()`。
@@ -116,8 +77,19 @@ F# 10 报告 FS0030 和弱类型 `'_a list array`。`Array.create` 构造了一�
 
 无效的第 16 章项目先编译 `Workflow.fs`，再编译 `Domain.fs`：
 
-<<< @/../examples/expected-errors/ch16-file-order/Ch16WrongOrder.fsproj{xml:line-numbers} [Ch16WrongOrder.fsproj]
+```xml:line-numbers [Ch16WrongOrder.fsproj]
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Include="../../chapters/ch16/Workflow.fs" Link="Workflow.fs" />
+    <Compile Include="../../chapters/ch16/Domain.fs" Link="Domain.fs" />
+  </ItemGroup>
+</Project>
+```
 F# 项目中的文件顺序是显式的。一个文件只能使用更早文件中的定义，不能使用更晚文件中的定义。`Workflow.fs` 打开 `ThinkingInFSharp.Ch16.Domain`，所以尽管两个文件都存在且各自语法有效，这个顺序仍会产生 FS0039。
 
 修复是在有效项目中把 `Domain.fs` 放到 `Workflow.fs` 前。把领域类型复制进 `Workflow.fs`、随意增加 `open`，或清理缓存，都没有修复依赖方向。首个缺失命名空间比随后缺失的 `Capacity`、`BookingRequest` 和联合案例更有力。
@@ -125,7 +97,7 @@ F# 项目中的文件顺序是显式的。一个文件只能使用更早文件�
 调查期间只运行无效项目：
 
 ```console
-dotnet build examples/expected-errors/ch16-file-order/Ch16WrongOrder.fsproj \
+dotnet build Ch16WrongOrder.fsproj \
   --configuration Release
 ```
 
@@ -189,7 +161,7 @@ Debug 构建通常提供最清楚的单步与局部值。Release 优化可能重
 
 ## 用锁定且只读的检查格式化 {#formatting}
 
-Fantomas 是源码格式化器，不是类型检查器或 linter。本仓库把它声明为本地 .NET 工具：
+Fantomas 是源码格式化器，不是类型检查器或 linter。项目可以把它声明为本地 .NET 工具：
 
 ```json
 {
@@ -246,9 +218,9 @@ Fantomas 规范布局。F# 编译器检查解析、名称解析、类型、约�
 ```console
 dotnet tool restore
 dotnet fantomas . --check
-dotnet restore ThinkingInFSharp.slnx --locked-mode
-dotnet build ThinkingInFSharp.slnx --configuration Release --no-restore
-dotnet test ThinkingInFSharp.slnx --configuration Release --no-build
+dotnet restore Sample.slnx --locked-mode
+dotnet build Sample.slnx --configuration Release --no-restore
+dotnet test Sample.slnx --configuration Release --no-build
 ```
 
 `dotnet build` 通常会隐式还原。`--no-restore` 证明构建使用前一项锁定还原产生的图。`--no-build` 同样防止测试隐藏构建步骤。这些标志澄清阶段归属，并非性能装饰。

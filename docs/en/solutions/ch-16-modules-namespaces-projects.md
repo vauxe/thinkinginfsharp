@@ -2,34 +2,6 @@
 title: "Chapter 16 Solutions"
 description: "Order a multi-file project, repair a namespace-level binding, and propagate an explicit nullable-reference contract through a wrapper."
 translationKey: solutions/ch-16-modules-namespaces-projects
-kind: solution
-part: 3
-chapter: 16
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch16-multifile-project
-  - ch16-wrong-file-order
-exerciseIds:
-  - ch16-exercise-01
-  - ch16-exercise-02
-  - ch16-exercise-03
-termIds: []
-sources:
-  - id: microsoft-modules
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/modules
-    checked: "2026-08-24"
-  - id: microsoft-namespaces
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/namespaces
-    checked: "2026-08-24"
-  - id: microsoft-open
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/import-declarations-the-open-keyword
-    checked: "2026-08-24"
-  - id: microsoft-null-values
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/values/null-values
-    checked: "2026-08-24"
 ---
 
 # Chapter 16 Solutions {#overview}

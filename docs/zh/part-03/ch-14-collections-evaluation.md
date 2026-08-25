@@ -2,58 +2,6 @@
 title: "第 14 章：集合选择与求值模型"
 description: "依据形状、求值时机、查找语义与转换成本，在列表、数组、序列、映射表、集合和 .NET 哈希集合之间作出选择。"
 translationKey: part-03/ch-14-collections-evaluation
-kind: chapter
-part: 3
-chapter: 14
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch14-collections-evaluation
-exerciseIds:
-  - ch14-exercise-01
-  - ch14-exercise-02
-  - ch14-exercise-03
-termIds:
-  - array
-  - comparison-constraint
-  - deferred-evaluation
-  - eager-evaluation
-  - enumeration
-  - hash-code
-  - list
-  - map
-  - sequence
-  - set
-sources:
-  - id: microsoft-collection-types
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/fsharp-collection-types
-    checked: "2026-08-24"
-  - id: microsoft-lists
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/lists
-    checked: "2026-08-24"
-  - id: microsoft-arrays
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/arrays
-    checked: "2026-08-24"
-  - id: microsoft-sequences
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/sequences
-    checked: "2026-08-24"
-  - id: fsharp-core-collections
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections.html
-    checked: "2026-08-24"
-  - id: fsharp-core-map
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-mapmodule.html
-    checked: "2026-08-24"
-  - id: fsharp-core-set
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-setmodule.html
-    checked: "2026-08-24"
-  - id: dotnet-dictionary
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2?view=net-10.0
-    checked: "2026-08-24"
-  - id: dotnet-hashset
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.hashset-1?view=net-10.0
-    checked: "2026-08-24"
 ---
 
 # 第 14 章：集合选择与求值模型 {#overview}
@@ -110,8 +58,17 @@ seats[1] <- true
 
 共享脚本把列表与数组行为并排展示：
 
-<<< @/../examples/scripts/ch14-collections-evaluation.fsx#eager-collections{fsharp:line-numbers} [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+let source = [ 1; 2; 3 ]
+let doubledList = source |> List.map ((*) 2)
+let doubledArray = source |> List.toArray |> Array.map ((*) 2)
+doubledArray[0] <- 20
 
+ensureEqual "list stays immutable" [ 2; 4; 6 ] doubledList
+ensureEqual "array element changes" [| 20; 4; 6 |] doubledArray
+ensureEqual "source stays unchanged" [ 1; 2; 3 ] source
+printfn "Eager: list=%A array=%A source=%A" doubledList doubledArray source
+```
 两种表示都不具有普遍“更快”的地位。主要访问模式、分配特征、元素类型与实测工作负载才决定结果。
 
 ### 序列：枚举契约，而非已存储数据 {#sequence}
@@ -162,8 +119,29 @@ let candidateSeatCounts maximum =
 
 共享示例用计数器让求值过程可见：
 
-<<< @/../examples/scripts/ch14-collections-evaluation.fsx#repeated-enumeration{fsharp:line-numbers} [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+let mutable pulls = 0
 
+let delayedSquares =
+    seq {
+        for value in 1..3 do
+            pulls <- pulls + 1
+            yield value * value
+    }
+
+ensureEqual "deferred before enumeration" 0 pulls
+printfn "Deferred before enumeration: pulls=%d" pulls
+
+let firstPass = delayedSquares |> Seq.toList
+ensureEqual "first values" [ 1; 4; 9 ] firstPass
+ensureEqual "first pass count" 3 pulls
+printfn "First enumeration: values=%A pulls=%d" firstPass pulls
+
+let secondPass = delayedSquares |> Seq.toList
+ensureEqual "second values" firstPass secondPass
+ensureEqual "second pass repeats production" 6 pulls
+printfn "Second enumeration: values=%A pulls=%d" secondPass pulls
+```
 构造 `delayedSquares` 后，计数器仍为零。第一次 `Seq.toList` 拉取三项；第二次会为这个序列表达式开始新枚举，并让主体再运行三次。
 
 这项观察并不表示每个 `IEnumerable<'T>` 都可以安全地重新遍历。具体来源控制其枚举器：它可能查询变化中的状态、包装资源、按约定只能使用一次，或者在再次遍历时抛出异常。`seq<'T>` 类型本身不承诺这些行为。
@@ -178,8 +156,24 @@ let candidateSeatCounts maximum =
 
 `Seq.cache` 会按需计算元素，并为后续枚举记住它们：
 
-<<< @/../examples/scripts/ch14-collections-evaluation.fsx#cached-sequence{fsharp:line-numbers} [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+let mutable cachedPulls = 0
 
+let cachedSquares =
+    seq {
+        for value in 1..3 do
+            cachedPulls <- cachedPulls + 1
+            yield value * value
+    }
+    |> Seq.cache
+
+let cachedFirst = cachedSquares |> Seq.toList
+let cachedSecond = cachedSquares |> Seq.toList
+
+ensureEqual "cached values" cachedFirst cachedSecond
+ensureEqual "cached production count" 3 cachedPulls
+printfn "Cached enumerations: first=%A second=%A pulls=%d" cachedFirst cachedSecond cachedPulls
+```
 当一项延迟计算必须重放，并且保留已产生元素可以接受时，缓存很合适。它不是普遍优化：缓存消耗内存、保留此前观察而不是重新取得最新值，并可能随很长或无限来源无界增长。
 
 当程序含义是“现在捕获全部值”时，用 `Seq.toList` 或 `Seq.toArray` 明确表达该边界。物化快照具有清楚的完成点与可预测重放，代价是一次完整遍历和全部元素的存储。
@@ -197,16 +191,31 @@ let candidateSeatCounts maximum =
 
 这些复制都是浅复制。若元素是指向可变对象的引用，两个集合仍可能指向同一个对象。共享脚本的数组到列表转换证明的是集合槽位彼此独立，而不是深复制：
 
-<<< @/../examples/scripts/ch14-collections-evaluation.fsx#conversion-snapshot{fsharp:line-numbers} [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+let mutableArray = [| 1; 2; 3 |]
+let listSnapshot = mutableArray |> Array.toList
+mutableArray[0] <- 99
 
+ensureEqual "list is an independent snapshot" [ 1; 2; 3 ] listSnapshot
+printfn "Conversion snapshot: array=%A list=%A" mutableArray listSnapshot
+```
 不要只为调用熟悉的模块函数而在 `list`、数组和 `seq` 之间反复来回转换。应保留适合工作流的表示，或只在清楚边界转换一次。
 
 ## 有序键与哈希键回答不同问题 {#lookup-semantics}
 
 脚本中的有序集合直接暴露比较顺序：
 
-<<< @/../examples/scripts/ch14-collections-evaluation.fsx#ordered-collections{fsharp:line-numbers} [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+let uniqueSeats = [ 3; 1; 3; 2 ] |> Set.ofList
 
+let bookingByCode =
+    [ "B2", "first"; "A1", "only"; "B2", "replacement" ] |> Map.ofList
+
+ensureEqual "set removes duplicates and orders" [ 1; 2; 3 ] (Set.toList uniqueSeats)
+ensureEqual "later map binding replaces earlier" "replacement" bookingByCode["B2"]
+
+printfn "Ordered collections: set=%A map=%A" (Set.toList uniqueSeats) (Map.toList bookingByCode)
+```
 `Map` 与 `Set` 需要全序关系来导航其树。因此，它们的类型参数带有 `comparison`，而非只有 `equality`。值作为键或元素期间，这项顺序还必须保持稳定。
 
 ### 哈希集合需要相等与相容哈希码 {#hash-collections}
@@ -215,8 +224,27 @@ let candidateSeatCounts maximum =
 
 脚本定义了一个带 `[<NoComparison>]`、只支持相等的键：
 
-<<< @/../examples/scripts/ch14-collections-evaluation.fsx#equality-only-key{fsharp:line-numbers} [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+[<CustomEquality; NoComparison>]
+type EmailAddress =
+    { Value: string }
 
+    override this.Equals(other: obj) =
+        match other with
+        | :? EmailAddress as candidate -> StringComparer.OrdinalIgnoreCase.Equals(this.Value, candidate.Value)
+        | _ -> false
+
+    override this.GetHashCode() =
+        StringComparer.OrdinalIgnoreCase.GetHashCode(this.Value)
+
+let recipients = Dictionary<EmailAddress, string>()
+recipients[{ Value = "lin@example.com" }] <- "first"
+recipients[{ Value = "LIN@example.com" }] <- "second"
+
+ensureEqual "hash equality replaces value" 1 recipients.Count
+ensureEqual "case-insensitive lookup" "second" recipients[{ Value = "Lin@Example.com" }]
+printfn "Hash dictionary: count=%d lookup=%s" recipients.Count recipients[{ Value = "Lin@Example.com" }]
+```
 字典会接受该键，因为它的相等与哈希语义已经足够。尝试使用 `Map<EmailAddress,string>` 会产生 FS0001：该类型明确不支持 `comparison` 约束。这是真实能力差异，不只是性能选择。
 
 对于不区分大小写字符串等上下文特定规则，向 `Dictionary` 或 `HashSet` 提供 `IEqualityComparer` 往往优于改变领域类型的全局相等。脚本把规则嵌入类型，只是为了让“只支持相等”的约束可见。
@@ -249,10 +277,10 @@ F# `Map` 与 `Set` 不可变且有序，树操作是对数时间。.NET `Diction
 
 ## 运行共享示例 {#run-example}
 
-在仓库根目录执行：
+在示例所在目录执行：
 
 ```console
-dotnet fsi --exec examples/scripts/ch14-collections-evaluation.fsx
+dotnet fsi --exec ch14-collections-evaluation.fsx
 ```
 
 八行确定性输出和可执行断言覆盖列表/数组的立即行为、序列的延迟与重复枚举、缓存、有序 `Map`/`Set` 行为、只支持相等的字典键，以及转换快照。

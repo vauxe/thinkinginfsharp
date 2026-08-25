@@ -2,38 +2,6 @@
 title: "第 22 章：Async<'T> 与 Task<'T>"
 description: "为稍后完成的工作建模，观察 F# async 与 task 表达式不同的启动语义，并在不阻塞的情况下跨越 .NET 边界。"
 translationKey: part-04/ch-22-async-task
-kind: chapter
-part: 4
-chapter: 22
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch22-async-task
-exerciseIds:
-  - ch22-exercise-01
-  - ch22-exercise-02
-  - ch22-exercise-03
-termIds:
-  - computation-expression
-  - effect
-sources:
-  - id: microsoft-fsharp-async-task
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/tutorials/async
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-async-expressions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/async-expressions
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-task-expressions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/task-expressions
-    checked: "2026-08-24"
-  - id: fsharp-core-async
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-control-fsharpasync.html
-    checked: "2026-08-24"
-  - id: dotnet-task-completion-source
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.threading.tasks.taskcompletionsource-1?view=net-10.0
-    checked: "2026-08-24"
 ---
 
 # 第 22 章：`Async<'T>` 与 `Task<'T>` {#overview}
@@ -80,8 +48,32 @@ sources:
 
 共享示例创建两个显式信号。`asyncEntered` 记录是否进入主体；`asyncRelease` 阻止主体完成。这里没有时钟，也不假设调度器速度。
 
-<<< @/../examples/scripts/ch22-async-task.fsx#async-start{fsharp:line-numbers} [ch22-async-task.fsx]
+```fsharp:line-numbers [ch22-async-task.fsx]
+let asyncEntered = newGate<bool> ()
+let asyncRelease = newGate<unit> ()
 
+let deferredAsync =
+    async {
+        asyncEntered.SetResult true
+        do! Async.AwaitTask asyncRelease.Task
+        return "async-done"
+    }
+
+assert (not asyncEntered.Task.IsCompleted)
+printfn "Async before start: entered=false"
+
+let runningAsync = Async.StartAsTask deferredAsync
+asyncEntered.Task.GetAwaiter().GetResult() |> ignore
+
+assert asyncEntered.Task.IsCompleted
+assert (not runningAsync.IsCompleted)
+printfn "Async after StartAsTask: entered=true completed=false"
+
+asyncRelease.SetResult()
+let asyncResult = runningAsync.GetAwaiter().GetResult()
+assert (asyncResult = "async-done")
+printfn "Async result: %s" asyncResult
+```
 构造 `deferredAsync` 不会设置 `asyncEntered`，所以第一个断言观察的是事实而不是竞争。`Async.StartAsTask deferredAsync` 是显式启动边界，并返回表示这次执行的任务。等待进入信号证明主体已经开始。释放信号仍然关闭，因此返回的任务必定尚未完成。
 
 一个 `Async<'T>` 值可以再次启动。每次启动都会产生一次新执行，包括再次发生其中的效果。这种可重复性利于组合，但并非自动记忆化。如果信用卡扣款只能发生一次，就不要在没有所有权或幂等策略时暴露可以任意重启的值。
@@ -100,8 +92,28 @@ sources:
 
 后半段使用相同的实验形状：
 
-<<< @/../examples/scripts/ch22-async-task.fsx#task-start{fsharp:line-numbers} [ch22-async-task.fsx]
+```fsharp:line-numbers [ch22-async-task.fsx]
+let taskEntered = newGate<bool> ()
+let taskRelease = newGate<unit> ()
 
+let immediateTask () =
+    task {
+        taskEntered.SetResult true
+        do! taskRelease.Task
+        return "task-done"
+    }
+
+let runningTask = immediateTask ()
+
+assert taskEntered.Task.IsCompleted
+assert (not runningTask.IsCompleted)
+printfn "Task after call: entered=true completed=false"
+
+taskRelease.SetResult()
+let taskResult = runningTask.GetAwaiter().GetResult()
+assert (taskResult = "task-done")
+printfn "Task result: %s" taskResult
+```
 调用 `immediateTask ()` 会求值 `task {}` 表达式。其主体同步设置 `taskEntered`，到达尚未完成的 `taskRelease.Task`，然后返回未完成的 `Task<string>`。因此，调用之后立即检查的两个断言都成立：
 
 - 已进入主体；
@@ -150,8 +162,18 @@ let quoteAndReserve fetchQuote reserve request =
 
 平台提供大量 `Task<'T>` API，而已有 F# 库和代码库可能提供 `Async<'T>`。转换是显式的：
 
-<<< @/../examples/scripts/ch22-async-task.fsx#interop{fsharp:line-numbers} [ch22-async-task.fsx]
+```fsharp:line-numbers [ch22-async-task.fsx]
+let taskFromAsync = async { return 21 } |> Async.StartAsTask
 
+let asyncFromTask = task { return 42 } |> Async.AwaitTask
+
+let fromAsync = taskFromAsync.GetAwaiter().GetResult()
+let fromTask = Async.RunSynchronously asyncFromTask
+
+assert (fromAsync = 21)
+assert (fromTask = 42)
+printfn "Interop: async-to-task=%d task-to-async=%d" fromAsync fromTask
+```
 `Async.StartAsTask` 会同时启动异步计算并返回任务。`Async.AwaitTask` 返回一项异步计算；当这项异步计算启动时，它会等待给定任务。它不会倒回或延迟已经运行的任务。
 
 F# 任务表达式也可以直接用 `let!` 绑定 `Async<'T>`。选择能让外围工作流保持一致的形式。桥接处的异常与取消细节是可观察契约，而不只是类型转换；第 23 章会明确测试它们。
@@ -196,13 +218,13 @@ F# 任务表达式也可以直接用 `let!` 绑定 `Async<'T>`。选择能让外
 
 ## 运行共享示例 {#run-example}
 
-在仓库根目录运行：
+在示例所在目录运行：
 
 ```console
-dotnet fsi --exec examples/scripts/ch22-async-task.fsx
+dotnet fsi --exec ch22-async-task.fsx
 ```
 
-六行确定性输出证明构造与启动的区别、完成前的挂起、最终结果以及两个互操作方向。manifest 会检查其精确顺序。
+六行确定性输出证明构造与启动的区别、完成前的挂起、最终结果以及两个互操作方向。请比较其精确顺序。
 
 ## 练习 {#exercises}
 

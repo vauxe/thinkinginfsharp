@@ -2,34 +2,6 @@
 title: "第 28 章练习答案"
 description: "按风险选择最小测试层，为缺失产品路径编写手写替身，并设计可选 JSON 字段的兼容演进。"
 translationKey: solutions/ch-28-testing-boundaries
-kind: solution
-part: 5
-chapter: 28
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - foundation-example-tests
-  - foundation-contract-tests
-exerciseIds:
-  - ch28-exercise-01
-  - ch28-exercise-02
-  - ch28-exercise-03
-termIds: []
-sources:
-  - id: microsoft-dotnet-testing
-    url: https://learn.microsoft.com/en-us/dotnet/core/testing/
-    checked: "2026-08-24"
-  - id: microsoft-unit-test-practices
-    url: https://learn.microsoft.com/en-us/dotnet/core/testing/unit-testing-best-practices
-    checked: "2026-08-24"
-  - id: system-text-json-unmapped
-    url: https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/missing-members
-    checked: "2026-08-24"
-  - id: system-text-json-casing
-    url: https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/character-casing
-    checked: "2026-08-24"
 ---
 
 # 第 28 章练习答案 {#overview}

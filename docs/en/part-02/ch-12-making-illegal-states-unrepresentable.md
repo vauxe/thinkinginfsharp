@@ -2,45 +2,6 @@
 title: "Chapter 12: Making Illegal States Unrepresentable"
 description: "Protect domain invariants with private representations, companion modules, smart constructors, and explicit file-level API boundaries."
 translationKey: part-02/ch-12-making-illegal-states-unrepresentable
-kind: chapter
-part: 2
-chapter: 12
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch12-making-illegal-states-unrepresentable
-  - capstone-booking-domain
-  - foundation-example-tests
-exerciseIds:
-  - ch12-exercise-01
-  - ch12-exercise-02
-  - ch12-exercise-03
-termIds:
-  - access-control
-  - invariant
-  - private-representation
-  - result
-  - signature-file
-  - smart-constructor
-  - unit-of-measure
-sources:
-  - id: microsoft-access-control
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/access-control
-    checked: "2026-08-24"
-  - id: microsoft-signature-files
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/signature-files
-    checked: "2026-08-24"
-  - id: microsoft-discriminated-unions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions
-    checked: "2026-08-24"
-  - id: microsoft-modules
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/modules
-    checked: "2026-08-24"
-  - id: microsoft-component-design
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-24"
 ---
 
 # Chapter 12: Making Illegal States Unrepresentable {#overview}
@@ -92,8 +53,20 @@ Either part alone is incomplete. A private wrapper with a public unchecked const
 
 The shared script defines the domain inside an explicit module:
 
-<<< @/../examples/scripts/ch12-making-illegal-states-unrepresentable.fsx#private-capacity{fsharp:line-numbers} [ch12-making-illegal-states-unrepresentable.fsx]
+```fsharp:line-numbers [ch12-making-illegal-states-unrepresentable.fsx]
+type CapacityError = NonPositiveCapacity of actual: int
 
+type Capacity = private Capacity of int<seat>
+
+module Capacity =
+    let create raw =
+        if raw > 0 then
+            raw |> LanguagePrimitives.Int32WithMeasure<seat> |> Capacity |> Ok
+        else
+            Error(NonPositiveCapacity raw)
+
+    let value (Capacity capacity) = capacity
+```
 Notice the modifier position:
 
 ```fsharp
@@ -134,8 +107,33 @@ Keep the trusted surface small. Every function inside the enclosing module that 
 
 The other protected components show two policies:
 
-<<< @/../examples/scripts/ch12-making-illegal-states-unrepresentable.fsx#protected-components{fsharp:line-numbers} [ch12-making-illegal-states-unrepresentable.fsx]
+```fsharp:line-numbers [ch12-making-illegal-states-unrepresentable.fsx]
+type EventIdError = | BlankEventId
 
+type EventId = private EventId of string
+
+module EventId =
+    let create raw =
+        if String.IsNullOrWhiteSpace raw then
+            Error BlankEventId
+        else
+            raw.Trim() |> EventId |> Ok
+
+    let value (EventId eventId) = eventId
+
+type SeatCountError = NonPositiveSeatCount of actual: int
+
+type SeatCount = private SeatCount of int<seat>
+
+module SeatCount =
+    let create raw =
+        if raw > 0 then
+            raw |> LanguagePrimitives.Int32WithMeasure<seat> |> SeatCount |> Ok
+        else
+            Error(NonPositiveSeatCount raw)
+
+    let value (SeatCount seats) = seats
+```
 `EventId.create` rejects blank input and trims surrounding whitespace. `SeatCount.create` rejects non-positive counts and restores the compile-time measure. Once constructed:
 
 - an `EventId` is nonblank and normalized according to the chosen trim rule;
@@ -151,8 +149,31 @@ Do not publish an unchecked escape hatch merely for convenience. If trusted migr
 
 The request model combines the two component proofs and also hides its record representation:
 
-<<< @/../examples/scripts/ch12-making-illegal-states-unrepresentable.fsx#private-request{fsharp:line-numbers} [ch12-making-illegal-states-unrepresentable.fsx]
+```fsharp:line-numbers [ch12-making-illegal-states-unrepresentable.fsx]
+type BookingRequestError =
+    | InvalidEventId of EventIdError
+    | InvalidSeatCount of SeatCountError
 
+type BookingRequest =
+    private
+        { EventId: EventId
+          Seats: SeatCount }
+
+module BookingRequest =
+    let create rawEventId rawSeats =
+        rawEventId
+        |> EventId.create
+        |> Result.mapError InvalidEventId
+        |> Result.bind (fun eventId ->
+            rawSeats
+            |> SeatCount.create
+            |> Result.mapError InvalidSeatCount
+            |> Result.map (fun seats -> { EventId = eventId; Seats = seats }))
+
+    let eventId request = request.EventId |> EventId.value
+
+    let seats request = request.Seats |> SeatCount.value
+```
 `BookingRequest.create` first creates an `EventId`, then a `SeatCount`, mapping each component error into request context. Only after both succeed does it construct the private record. The resulting value cannot contain a blank identifier or non-positive seat count through this API.
 
 This result pipeline preserves the first error, as Chapter 9 explained. If a UI must accumulate independent errors, use an accumulating validator later; changing the representation does not decide error-combination policy.
@@ -236,16 +257,44 @@ Start with the smallest truthful barrier. Protect `EventId` if nonblank identity
 
 ## Run the shared example {#run-example}
 
-From the repository root:
+From the directory containing the example:
 
 ```console
-dotnet fsi --exec examples/scripts/ch12-making-illegal-states-unrepresentable.fsx
+dotnet fsi --exec ch12-making-illegal-states-unrepresentable.fsx
 ```
 
 The five deterministic lines cover accepted capacity, rejected capacity, identifier normalization, valid request construction, and both request rejection paths:
 
-<<< @/../examples/scripts/ch12-making-illegal-states-unrepresentable.fsx#smart-constructor-results{fsharp:line-numbers} [ch12-making-illegal-states-unrepresentable.fsx]
+```fsharp:line-numbers [ch12-making-illegal-states-unrepresentable.fsx]
+let describeCapacityError error =
+    match error with
+    | NonPositiveCapacity actual -> $"capacity must be positive: {actual}"
 
+match Capacity.create 40 with
+| Ok capacity -> printfn "Capacity: accepted=%d" (Capacity.value capacity)
+| Error error -> printfn "Capacity: %s" (describeCapacityError error)
+
+match Capacity.create 0 with
+| Ok _ -> printfn "Capacity rejection: unexpected success"
+| Error error -> printfn "Capacity rejection: %s" (describeCapacityError error)
+
+let describeRequestError error =
+    match error with
+    | InvalidEventId BlankEventId -> "event id is blank"
+    | InvalidSeatCount(NonPositiveSeatCount actual) -> $"seat count must be positive: {actual}"
+
+match BookingRequest.create "  EVT-42  " 3 with
+| Ok request -> printfn "Request: event=%s seats=%d" (BookingRequest.eventId request) (BookingRequest.seats request)
+| Error error -> printfn "Request: %s" (describeRequestError error)
+
+match BookingRequest.create "   " 3 with
+| Ok _ -> printfn "Request rejection: unexpected event success"
+| Error error -> printfn "Request rejection: %s" (describeRequestError error)
+
+match BookingRequest.create "EVT-42" 0 with
+| Ok _ -> printfn "Request rejection: unexpected seat success"
+| Error error -> printfn "Request rejection: %s" (describeRequestError error)
+```
 ## Exercises {#exercises}
 
 ### Exercise 1: protect a percentage {#exercise-01}
@@ -284,7 +333,7 @@ Write the public portion of a `.fsi` signature for `Capacity` plus a `tryReserve
 Compile the booking domain and run its focused public-API tests:
 
 ```console
-dotnet test tests/ExampleTests/ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~BookingDomainTests
+dotnet test ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~BookingDomainTests
 ```
 
 Passing tests show that the supported constructors reject invalid identifiers, capacity, seat counts, and state transitions while valid values remain usable through the public API. They do not prove that an external adapter preserves those invariants; later boundary chapters test that separately.

@@ -2,42 +2,6 @@
 title: "Chapter 1: A First F# Session"
 description: "Choose among F# Interactive, scripts, and projects while building an accurate first model of expressions, values, and unit."
 translationKey: part-01/ch-01-first-session
-kind: chapter
-part: 1
-chapter: 1
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch01-first-session
-exerciseIds:
-  - ch01-exercise-01
-  - ch01-exercise-02
-  - ch01-exercise-03
-termIds:
-  - expression
-  - fsharp-interactive
-  - fsharp-script
-  - literal
-  - unit
-  - value
-sources:
-  - id: microsoft-fsi
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/tools/fsharp-interactive/
-    checked: "2026-08-24"
-  - id: microsoft-fsi-options
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/fsharp-interactive-options
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-cli
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/get-started/get-started-command-line
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-unit
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/unit-type
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-literals
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/literals
-    checked: "2026-08-24"
 ---
 
 # Chapter 1: A First F# Session {#overview}
@@ -60,13 +24,13 @@ You do not need functions, pattern matching, or collections yet. For now, read `
 
 ## Before you start {#before-you-start}
 
-The examples are verified with F# 10 and .NET SDK `10.0.301`. The repository's `global.json` selects that SDK feature band. Check your environment in a terminal:
+The examples were reviewed with F# 10 and .NET 10. Check your installed SDK in a terminal:
 
 ```console
 dotnet --version
 ```
 
-If you are using the book repository, run the commands below from its root. A shell prompt shown before a command is not part of the command. This chapter needs only the .NET SDK; an editor, an IDE, and extra NuGet packages are not prerequisites.
+This chapter needs only the .NET SDK; an editor, an IDE, and extra NuGet packages are not prerequisites. A shell prompt shown before a command is not part of the command.
 
 ## Choose the shortest feedback loop {#feedback-loop}
 
@@ -97,7 +61,7 @@ The `;;` sequence terminates an interactive submission. It is not punctuation th
 An F# script has the `.fsx` extension. This stable command runs a script and tells FSI to exit after it finishes:
 
 ```console
-dotnet fsi --exec examples/scripts/ch01-first-session.fsx
+dotnet fsi --exec ch01-first-session.fsx
 ```
 
 A script preserves the order, names, and output of an experiment. It can therefore live in version control and be rerun by a quality gate. You normally omit `;;` in a script because the file boundary and its syntax already tell the compiler what to process.
@@ -117,10 +81,20 @@ The project file records the target framework, source-file order, package depend
 
 ## Read the first program as expressions {#expressions}
 
-Read the shared example first; there is no need to memorize every symbol.
+Read the example first; there is no need to memorize every symbol.
 
-<<< @/../examples/scripts/ch01-first-session.fsx#first-session{fsharp:line-numbers} [ch01-first-session.fsx]
+```fsharp:line-numbers [ch01-first-session.fsx]
+let eventName = "Functional Foundations"
+let capacity = 40
+let booked = 18
+let remaining = capacity - booked
+let hasSeats = remaining > 0
+let summary = $"{eventName}: {remaining} seats remaining"
 
+let printResult = printfn "%s" summary
+printfn "Seats available: %b" hasSeats
+printfn "Printing returned: %A" printResult
+```
 ### Literals produce values {#literals-and-values}
 
 `"Functional Foundations"`, `40`, `18`, and `0` are **literals**: they represent values directly in source code. `let eventName = ...` gives a name to the value computed on the right. It does not create an empty box and assign into it later.
@@ -150,12 +124,12 @@ The example first evaluates `printfn "%s" summary`, so the summary appears on sc
 
 This distinction matters later. A signature ending in `unit` usually warns you that the meaningful result lies in an effect, such as writing a file, sending a response, or recording a log. It does not prove that the effect occurred, and it is not evidence that error handling succeeded.
 
-## Run the shared example {#run-example}
+## Run the example {#run-example}
 
-From the repository root, run:
+Copy the preceding code block into `ch01-first-session.fsx`, then run:
 
 ```console
-dotnet fsi --exec examples/scripts/ch01-first-session.fsx
+dotnet fsi --exec ch01-first-session.fsx
 ```
 
 You should see:
@@ -166,14 +140,14 @@ Seats available: true
 Printing returned: ()
 ```
 
-In interactive mode, FSI proactively displays the values and types of submissions. Under `--exec`, every line above comes from an explicit `printfn` call in the script. The repository's example manifest also asserts key lines, so the prose and executable behavior share one source of evidence.
+In interactive mode, FSI proactively displays the values and types of submissions. Under `--exec`, every line above comes from an explicit `printfn` call in the script, so rerunning the file reproduces the same ordered output.
 
 ## Debugging: identify the execution boundary first {#debugging}
 
 Problems in a first session usually occur at the execution boundary rather than in business logic.
 
 - **FSI keeps waiting:** the interactive submission may lack its closing `;;`, parenthesis, or quotation mark.
-- **The script path does not exist:** inspect the current directory. Paths in this book are relative to the repository root.
+- **The script path does not exist:** confirm that the terminal is in the directory where you saved the file.
 - **The script does not display a value:** unlike the prompt, a script does not echo every binding; call `printfn` explicitly or take a small expression back to FSI.
 - **An integer and a string do not combine:** F# does not casually guess conversions. Read the expected and actual types in the diagnostic, then decide what the data should mean.
 - **The output is right but the design is unclear:** one output proves only one run. Later chapters add types, failure paths, and testable boundaries.
@@ -192,7 +166,7 @@ Use the output you just observed to answer these questions:
 2. In what order do the output lines appear? Why does the summary appear before `printResult` is printed?
 3. Before editing, predict: if `booked` changes to `40`, which values change, and how should the output change?
 
-Then copy the script to a temporary location and test the prediction in question 3. Do not edit the repository's shared answer.
+Then edit your local copy and test the prediction in question 3.
 
 ### Exercise 2: migrate a small program {#exercise-02}
 

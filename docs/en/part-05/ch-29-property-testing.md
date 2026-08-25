@@ -2,33 +2,6 @@
 title: "Chapter 29: Property Testing with FsCheck"
 description: "Move from selected examples to domain invariants, then control generation, classification, shrinking, and replay without treating randomized checks as proof."
 translationKey: part-05/ch-29-property-testing
-kind: chapter
-part: 5
-chapter: 29
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - foundation-example-tests
-exerciseIds:
-  - ch29-exercise-01
-  - ch29-exercise-02
-  - ch29-exercise-03
-termIds: []
-sources:
-  - id: fscheck-properties
-    url: https://fscheck.github.io/FsCheck/Properties.html
-    checked: "2026-08-24"
-  - id: fscheck-test-data
-    url: https://fscheck.github.io/FsCheck/TestData.html
-    checked: "2026-08-24"
-  - id: fscheck-running-tests
-    url: https://fscheck.github.io/FsCheck/RunningTests.html
-    checked: "2026-08-24"
-  - id: nuget-fscheck-xunit
-    url: https://www.nuget.org/packages/FsCheck.Xunit/
-    checked: "2026-08-24"
 ---
 
 # Chapter 29: Property Testing with FsCheck {#overview}
@@ -63,8 +36,58 @@ That example is valuable because it communicates one policy decision. It does no
 
 The sample makes valid inputs unrepresentable outside a smart constructor and keeps each decision explicit:
 
-<<< @/../examples/chapters/ch29/Generators.fs#allocation-core{fsharp:line-numbers} [Generators.fs]
+```fsharp:line-numbers [Generators.fs]
+type AllocationCaseError =
+    | NegativeCapacity of capacity: int
+    | NonPositiveRequest of seats: int
 
+type AllocationCase =
+    private
+        { Capacity: int
+          Requests: int list }
+
+module AllocationCase =
+    let create capacity requests =
+        if capacity < 0 then
+            Error(NegativeCapacity capacity)
+        else
+            match requests |> List.tryFind (fun seats -> seats <= 0) with
+            | Some seats -> Error(NonPositiveRequest seats)
+            | None ->
+                Ok
+                    { Capacity = capacity
+                      Requests = requests }
+
+    let capacity sample = sample.Capacity
+    let requests sample = sample.Requests
+
+    let internal assumeValid capacity requests =
+        match create capacity requests with
+        | Ok sample -> sample
+        | Error error -> invalidArg (nameof requests) $"invalid allocation case: {error}"
+
+type Decision =
+    | Accepted of seats: int
+    | Rejected of seats: int
+
+type Allocation =
+    { Decisions: Decision list
+      Remaining: int }
+
+module SeatAllocation =
+    let allocate sample =
+        let folder (remaining, decisions) request =
+            if request <= remaining then
+                remaining - request, Accepted request :: decisions
+            else
+                remaining, Rejected request :: decisions
+
+        let remaining, reversedDecisions =
+            ((sample.Capacity, []), sample.Requests) ||> List.fold folder
+
+        { Decisions = List.rev reversedDecisions
+          Remaining = remaining }
+```
 The three statements describe relationships, not particular outputs. They tolerate many correct implementation changes. They also constrain different failure modes: conservation catches lost or invented capacity, preservation catches skipped or reordered requests, and bounds catch over-allocation.
 
 ### A property still needs an independent reason {#independent-oracle}
@@ -109,16 +132,82 @@ module Ch29Properties =
 
 The shared property functions are ordinary pure functions and can also be called by example tests or FSI:
 
-<<< @/../examples/chapters/ch29/Generators.fs#property-functions{fsharp:line-numbers} [Generators.fs]
+```fsharp:line-numbers [Generators.fs]
+module AllocationProperties =
+    let private requestedSeats decision =
+        match decision with
+        | Accepted seats
+        | Rejected seats -> seats
 
+    let conservesCapacity sample =
+        let allocation = SeatAllocation.allocate sample
+
+        let acceptedSeats =
+            allocation.Decisions
+            |> List.sumBy (function
+                | Accepted seats -> int64 seats
+                | Rejected _ -> 0L)
+
+        acceptedSeats + int64 allocation.Remaining = int64 sample.Capacity
+
+    let preservesRequests sample =
+        let actual =
+            sample |> SeatAllocation.allocate |> _.Decisions |> List.map requestedSeats
+
+        actual = sample.Requests
+
+    let remainingIsBounded sample =
+        let remaining = (SeatAllocation.allocate sample).Remaining
+        0 <= remaining && remaining <= sample.Capacity
+
+    let isOversubscribed sample =
+        (sample.Requests |> List.sumBy int64) > int64 sample.Capacity
+
+    // Plausible, but false: a rejected large request can be followed by a smaller accepted one.
+    let acceptedRequestsFormPrefix sample =
+        sample
+        |> SeatAllocation.allocate
+        |> _.Decisions
+        |> List.fold
+            (fun (stillValid, hasRejected) decision ->
+                match decision with
+                | Accepted _ -> stillValid && not hasRejected, hasRejected
+                | Rejected _ -> stillValid, true)
+            (true, false)
+        |> fst
+```
 Keeping the property body separate from the test attribute makes the claim easy to read and reuse. The attribute is runner configuration; it is not the domain specification.
 
 ## Generate the domain, not accidental noise {#generation}
 
 A `Gen<'T>` describes how to produce values as size and pseudo-random state vary. It does not produce a value when declared. FsCheck's generator computation expression composes dependent choices without mutation:
 
-<<< @/../examples/chapters/ch29/Generators.fs#generator{fsharp:line-numbers} [Generators.fs]
+```fsharp:line-numbers [Generators.fs]
+module private AllocationCaseGen =
+    let private general size =
+        let largest = max 1 (min 40 (size + 1))
+        let longest = min 12 size
 
+        gen {
+            let! capacity = Gen.choose (0, largest)
+            let! length = Gen.choose (0, longest)
+            let! requests = Gen.choose (1, largest + 1) |> Gen.listOfLength length
+            return AllocationCase.assumeValid capacity requests
+        }
+
+    let private rejectionThenFit size =
+        let largest = max 1 (min 40 (size + 1))
+
+        gen {
+            let! capacity = Gen.choose (1, largest)
+            let! tooLarge = Gen.choose (capacity + 1, capacity + largest)
+            let! fits = Gen.choose (1, capacity)
+            return AllocationCase.assumeValid capacity [ tooLarge; fits ]
+        }
+
+    let generator =
+        Gen.sized (fun size -> Gen.frequency [ 4, general size; 1, rejectionThenFit size ])
+```
 The general branch creates nonnegative capacity and only positive requests. The targeted branch creates a request too large to fit followed by one that can fit. `Gen.frequency` chooses the general branch with weight 4 and the targeted branch with weight 1; weights are relative, not guaranteed percentages in a finite run.
 
 This targeting is legitimate because “a later small request after a rejection” is an important business shape. The correct invariants must survive both branches. A generator should expose meaningful corners, not secretly encode the answer a property hopes to see.
@@ -137,8 +226,33 @@ An `Arbitrary<'T>` bundles a `Gen<'T>` with a shrinker of type `'T -> seq<'T>`. 
 
 The sample shrinker removes one request, lowers capacity, and lowers one request at a time:
 
-<<< @/../examples/chapters/ch29/Generators.fs#shrinker{fsharp:line-numbers} [Generators.fs]
+```fsharp:line-numbers [Generators.fs]
+module private AllocationCaseShrink =
+    let private removeEach requests =
+        requests
+        |> List.indexed
+        |> Seq.map (fun (index, _) -> List.removeAt index requests)
 
+    let private shrinkOneRequest requests =
+        seq {
+            for index, request in List.indexed requests do
+                for smaller in 1 .. request - 1 do
+                    yield List.updateAt index smaller requests
+        }
+
+    let shrink sample =
+        seq {
+            for requests in removeEach sample.Requests do
+                yield AllocationCase.assumeValid sample.Capacity requests
+
+            for capacity in 0 .. sample.Capacity - 1 do
+                yield AllocationCase.assumeValid capacity sample.Requests
+
+            for requests in shrinkOneRequest sample.Requests do
+                yield AllocationCase.assumeValid sample.Capacity requests
+        }
+        |> Seq.distinct
+```
 Every candidate still has nonnegative capacity and positive requests. Each candidate also decreases list length or a number, so shrinking moves toward a base case instead of cycling. `Seq.distinct` removes duplicate candidates; it does not change validity.
 
 The bundle registered with FsCheck is small:
@@ -184,7 +298,7 @@ Set `QuietOnSuccess = false` temporarily or run the property interactively to in
 
 This statement sounds plausible: “accepted requests form a prefix; after one rejection, every later request is rejected.” It is false for a greedy allocator that continues processing. With capacity 1 and requests `[2; 1]`, request 2 is rejected and request 1 is then accepted.
 
-The sample keeps the false property as a named function, runs it under a collecting runner, and expects `TestResult.Failed`. The repository remains green because the test asserts that FsCheck disproves the claim:
+The sample keeps the false property as a named function, runs it under a collecting runner, and expects `TestResult.Failed`. A test suite can remain green by asserting that FsCheck disproves the claim:
 
 ```fsharp
 let config =
@@ -217,7 +331,7 @@ A failure report includes the initial seed, the seed and size at the failing gen
 
 The two unsigned 64-bit values are pseudo-random state, not user data. Record the full triple printed after “Replay directly at failing step” when debugging. First replay the exact failure, then promote the smallest business-relevant counterexample into a named example test if it guards an important regression.
 
-Replay is most dependable with the same property, generator, shrinker, target runtime, and FsCheck version. This repository pins `FsCheck.Xunit` 3.4.0, which pins `FsCheck` 3.4.0. Changing generation order or upgrading the package may change which input a seed produces; the explicit regression example then remains the durable contract.
+Replay is most dependable with the same property, generator, shrinker, target runtime, and FsCheck version. The sample project uses `FsCheck.Xunit` 3.4.0, which pins `FsCheck` 3.4.0. Changing generation order or upgrading the package may change which input a seed produces; the explicit regression example then remains the durable contract.
 
 Do not make every ordinary passing run use one seed. Varying seeds searches new cases in routine runs; stored replay information is for diagnosis and stable demonstrations. A CI failure must print enough information to reproduce it locally.
 
@@ -243,15 +357,15 @@ One hundred well-distributed cases with a readable shrinker can be more useful t
 
 ## Run and diagnose this chapter {#running}
 
-Run the Chapter 29 tests from the repository root:
+Run the Chapter 29 tests from the directory containing the example:
 
 ```console
-dotnet test tests/ExampleTests/ExampleTests.fsproj \
+dotnet test ExampleTests.fsproj \
   --configuration Release \
   --filter FullyQualifiedName~Ch29
 ```
 
-Three properties each require 300 successful cases. The fourth uses a fixed failing-step replay and asserts that the false prefix property shrinks to capacity 1 with requests `[2; 1]`. Before committing, run `pnpm check:examples` to restore locked packages, compile all projects, execute all tests, and check every registered example.
+Three properties each require 300 successful cases. The fourth uses a fixed failing-step replay and asserts that the false prefix property shrinks to capacity 1 with requests `[2; 1]`. Then run the whole test project without the filter before committing.
 
 When a new property fails, read the report in this order: property name and labels, exception or false result, shrunk argument, original argument, then replay triple. Reproduce before editing. Decide whether the implementation, property, generator, or shrinker violated its contract; guessing from the smallest value alone often fixes the wrong layer.
 

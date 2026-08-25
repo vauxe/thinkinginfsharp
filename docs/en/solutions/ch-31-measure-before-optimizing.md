@@ -2,39 +2,6 @@
 title: "Chapter 31 Solutions"
 description: "Bound conclusions to the captured benchmark, design a behavior-preserving option versus voption allocation experiment, and choose evidence for three different system symptoms."
 translationKey: solutions/ch-31-measure-before-optimizing
-kind: solution
-part: 5
-chapter: 31
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch31-measure-before-optimizing
-exerciseIds:
-  - ch31-exercise-01
-  - ch31-exercise-02
-  - ch31-exercise-03
-termIds: []
-sources:
-  - id: benchmarkdotnet-getting-started
-    url: https://benchmarkdotnet.org/articles/guides/getting-started.html
-    checked: "2026-08-24"
-  - id: benchmarkdotnet-good-practices
-    url: https://benchmarkdotnet.org/articles/guides/good-practices.html
-    checked: "2026-08-24"
-  - id: benchmarkdotnet-diagnosers
-    url: https://benchmarkdotnet.org/articles/configs/diagnosers.html
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-diagnostics
-    url: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-value-options
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/value-options
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-native-aot
-    url: https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/
-    checked: "2026-08-24"
 ---
 
 # Chapter 31 Solutions {#overview}

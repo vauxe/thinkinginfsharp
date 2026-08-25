@@ -2,36 +2,6 @@
 title: "Chapter 34: The Pure Booking Workflow and Validation"
 description: "Derive one pure booking decider, accumulate independent field errors, short-circuit state-dependent rules, and evolve only accepted facts."
 translationKey: part-06/ch-34-pure-booking-workflow
-kind: chapter
-part: 6
-chapter: 34
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - capstone-booking-domain
-exerciseIds:
-  - ch34-exercise-01
-  - ch34-exercise-02
-  - ch34-exercise-03
-termIds: []
-sources:
-  - id: microsoft-fsharp-results
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/results
-    checked: "2026-08-25"
-  - id: fsharp-core-result-module
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-resultmodule.html
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-match-expressions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/match-expressions
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-discriminated-unions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-records
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/records
-    checked: "2026-08-25"
 ---
 
 # Chapter 34: The Pure Booking Workflow and Validation {#overview}
@@ -100,8 +70,25 @@ Accumulation is not “more functional” than short-circuiting. They answer dif
 
 The place command already had a private validated form. This chapter adds corresponding forms for confirmation and cancellation:
 
-<<< @/../examples/capstone/src/Booking.Domain/Validation.fs#validated-lifecycle-commands{fsharp:line-numbers} [Validation.fs]
+```fsharp:line-numbers [Validation.fs]
+type ValidConfirmBooking =
+    private
+        { RequestId: RequestId
+          ConfirmationCode: ConfirmationCode }
 
+module ValidConfirmBooking =
+    let requestId (command: ValidConfirmBooking) = command.RequestId
+    let confirmationCode (command: ValidConfirmBooking) = command.ConfirmationCode
+
+type ValidCancelBooking =
+    private
+        { RequestId: RequestId
+          Reason: CancellationReason }
+
+module ValidCancelBooking =
+    let requestId (command: ValidCancelBooking) = command.RequestId
+    let reason (command: ValidCancelBooking) = command.Reason
+```
 The raw records use `string` and `int` because a caller or future DTO begins with representation data. The validated records contain `RequestId`, `SeatCount`, `ConfirmationCode`, or `CancellationReason`. Their record constructors are private; callers obtain them only through validators and observe them through module functions.
 
 This split avoids two bad extremes. Making the raw command constructor private would force an untrusted boundary to pretend its fields were already valid. Leaving the validated record public would let callers bypass normalization and invariants. Separate types preserve both honest input and protected internal data.
@@ -112,8 +99,38 @@ A validated command guarantees only its field-level claims. `ValidConfirmBooking
 
 The project uses a small local combinator rather than hiding the policy in a validation framework:
 
-<<< @/../examples/capstone/src/Booking.Domain/Validation.fs#validation-accumulation{fsharp:line-numbers} [Validation.fs]
+```fsharp:line-numbers [Validation.fs]
+let private applyValidation valueResult functionResult =
+    match functionResult, valueResult with
+    | Ok mapping, Ok value -> Ok(mapping value)
+    | Error earlier, Error later -> Error(earlier @ later)
+    | Error errors, Ok _
+    | Ok _, Error errors -> Error errors
 
+let private validateRequestId (raw: string) =
+    RequestId.create raw
+    |> Result.mapError (fun error -> [ InvalidRequestId error ])
+
+let private validateSeatCount (raw: int) =
+    SeatCount.create raw
+    |> Result.mapError (fun error -> [ InvalidSeatCount error ])
+
+let private validateConfirmationCode raw =
+    ConfirmationCode.create raw
+    |> Result.mapError (fun error -> [ InvalidConfirmationCode error ])
+
+let private validateCancellationReason raw =
+    CancellationReason.create raw
+    |> Result.mapError (fun error -> [ InvalidCancellationReason error ])
+
+let private createValidCommand (requestId: RequestId) (seats: SeatCount) : ValidPlaceBooking =
+    { RequestId = requestId; Seats = seats }
+
+let validatePlaceBooking (command: PlaceBookingCommand) =
+    Ok createValidCommand
+    |> applyValidation (validateRequestId command.RequestId)
+    |> applyValidation (validateSeatCount command.Seats)
+```
 `applyValidation` combines a `Result` containing a constructor function with one validated field. Its four cases are exhaustive:
 
 - two successes apply the function to the value;
@@ -139,8 +156,25 @@ These validators are pure and cheap. F# evaluates the next validator expression 
 
 Confirmation and cancellation each validate two independent fields in the same order:
 
-<<< @/../examples/capstone/src/Booking.Domain/Validation.fs#lifecycle-validation{fsharp:line-numbers} [Validation.fs]
+```fsharp:line-numbers [Validation.fs]
+let private createValidConfirmCommand requestId confirmationCode : ValidConfirmBooking =
+    { RequestId = requestId
+      ConfirmationCode = confirmationCode }
 
+let validateConfirmBooking (command: ConfirmBooking) =
+    Ok createValidConfirmCommand
+    |> applyValidation (validateRequestId command.RequestId)
+    |> applyValidation (validateConfirmationCode command.ConfirmationCode)
+
+let private createValidCancelCommand requestId reason : ValidCancelBooking =
+    { RequestId = requestId
+      Reason = reason }
+
+let validateCancelBooking (command: CancelBooking) =
+    Ok createValidCancelCommand
+    |> applyValidation (validateRequestId command.RequestId)
+    |> applyValidation (validateCancellationReason command.Reason)
+```
 The shared `CommandValidationError` union makes the unified decider return one error list while retaining exact cases. A confirmation validator cannot actually produce a seat-count error; the broader union is the cost of one command-level error vocabulary. Tests fix the cases each validator may emit.
 
 Do not add “booking exists” to these functions. Doing so would require state, change a pure field conversion into a business decision, and make independent error accumulation ambiguous. The validated command is the boundary between those phases.
@@ -149,8 +183,15 @@ Do not add “booking exists” to these functions. Doing so would require state
 
 The decider exposes expected refusal categories explicitly:
 
-<<< @/../examples/capstone/src/Booking.Domain/Decider.fs#decision-contract{fsharp:line-numbers} [Decider.fs]
-
+```fsharp:line-numbers [Decider.fs]
+[<RequireQualifiedAccess>]
+type BookingDecisionError =
+    | InvalidCommand of CommandValidationError list
+    | BookingAlreadyExists of existingRequestId: RequestId
+    | BookingDoesNotExist
+    | BookingCreationFailed of BookingCreationError
+    | BookingTransitionFailed of BookingTransitionError
+```
 The cases retain their source:
 
 | Case | Source | Meaning |
@@ -169,8 +210,24 @@ These cases are expected values, not exceptions. A database timeout, cancellatio
 
 The unified function is an exhaustive match over `BookingCommand`:
 
-<<< @/../examples/capstone/src/Booking.Domain/Decider.fs#decide{fsharp:line-numbers} [Decider.fs]
-
+```fsharp:line-numbers [Decider.fs]
+let decide
+    (activity: Event)
+    (state: BookingState)
+    (command: BookingCommand)
+    : Result<BookingEvent, BookingDecisionError> =
+    match command with
+    | BookingCommand.Place placeCommand ->
+        decidePlaceBooking activity state placeCommand |> Result.mapError mapPlaceError
+    | BookingCommand.Confirm confirmCommand ->
+        validateConfirmBooking confirmCommand
+        |> Result.mapError BookingDecisionError.InvalidCommand
+        |> Result.bind (decideConfirm state)
+    | BookingCommand.Cancel cancelCommand ->
+        validateCancelBooking cancelCommand
+        |> Result.mapError BookingDecisionError.InvalidCommand
+        |> Result.bind (decideCancel state)
+```
 The branch structure is intentionally plain:
 
 - placement delegates to the already tested `decidePlaceBooking` and maps its error union;
@@ -188,8 +245,27 @@ Because the command is a closed discriminated union, adding another case makes t
 
 After field validation, confirmation and cancellation use sequential `Result` composition:
 
-<<< @/../examples/capstone/src/Booking.Domain/Decider.fs#lifecycle-decisions{fsharp:line-numbers} [Decider.fs]
+```fsharp:line-numbers [Decider.fs]
+let private requireBooking requestId state =
+    match state with
+    | NotBooked -> Error BookingDecisionError.BookingDoesNotExist
+    | Booked booking when Booking.requestId booking = requestId -> Ok booking
+    | Booked _ -> Error BookingDecisionError.BookingDoesNotExist
 
+let private decideConfirm state command =
+    requireBooking (ValidConfirmBooking.requestId command) state
+    |> Result.bind (fun booking ->
+        Booking.confirm (ValidConfirmBooking.confirmationCode command) booking
+        |> Result.map BookingConfirmed
+        |> Result.mapError BookingDecisionError.BookingTransitionFailed)
+
+let private decideCancel state command =
+    requireBooking (ValidCancelBooking.requestId command) state
+    |> Result.bind (fun booking ->
+        Booking.cancel (ValidCancelBooking.reason command) booking
+        |> Result.map BookingCancelled
+        |> Result.mapError BookingDecisionError.BookingTransitionFailed)
+```
 `requireBooking` must succeed before a transition has an input. This sample returns `BookingDoesNotExist` both when state is `NotBooked` and when the contained request ID differs. Only a matching protected booking flows onward.
 
 `Result.bind` then has the exact required semantics: an `Error` passes through without evaluating the binder; an `Ok booking` invokes the next function. Confirmation calls `Booking.confirm`; cancellation calls `Booking.cancel`. Those domain functions remain the only authorities for allowed lifecycle transitions.
@@ -202,8 +278,23 @@ The scheduled `Event` input is needed by placement because creation checks capac
 
 The earlier specialized decision remains visible and authoritative:
 
-<<< @/../examples/capstone/src/Booking.Domain/Workflow.fs#place-decision{fsharp:line-numbers} [Workflow.fs]
+```fsharp:line-numbers [Workflow.fs]
+type PlaceBookingError =
+    | InvalidCommand of CommandValidationError list
+    | BookingAlreadyExists of existingRequestId: RequestId
+    | BookingCreationFailed of BookingCreationError
 
+let decidePlaceBooking (event: Event) (state: BookingState) (command: PlaceBookingCommand) =
+    match validatePlaceBooking command with
+    | Error errors -> Error(InvalidCommand errors)
+    | Ok validCommand ->
+        match state with
+        | Booked existing -> Error(BookingAlreadyExists(Booking.requestId existing))
+        | NotBooked ->
+            Booking.create event (ValidPlaceBooking.requestId validCommand) (ValidPlaceBooking.seats validCommand)
+            |> Result.map BookingPlaced
+            |> Result.mapError BookingCreationFailed
+```
 Its nesting defines observable precedence:
 
 1. Validate request ID and seat count, accumulating both independent failures.
@@ -220,8 +311,13 @@ Trying to “collect all business errors” here would produce dubious output. O
 
 Decision and evolution remain separate functions:
 
-<<< @/../examples/capstone/src/Booking.Domain/Workflow.fs#evolve{fsharp:line-numbers} [Workflow.fs]
-
+```fsharp:line-numbers [Workflow.fs]
+let evolve (_: BookingState) (event: BookingEvent) =
+    match event with
+    | BookingPlaced booking
+    | BookingConfirmed booking
+    | BookingCancelled booking -> Booked booking
+```
 `decide` answers whether a command may produce a fact. `evolve` answers what state follows a fact that has already been accepted. The application uses them in that order:
 
 ```fsharp

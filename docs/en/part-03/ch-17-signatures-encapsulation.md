@@ -2,36 +2,6 @@
 title: "Chapter 17: Signatures, Access Control, and F#-Facing APIs"
 description: "Use `.fsi` files as checked public contracts, hide implementation representation, and design a small idiomatic surface for F# consumers."
 translationKey: part-03/ch-17-signatures-encapsulation
-kind: chapter
-part: 3
-chapter: 17
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch17-signature-library
-  - ch17-hidden-representation
-exerciseIds:
-  - ch17-exercise-01
-  - ch17-exercise-02
-  - ch17-exercise-03
-termIds:
-  - abstract-representation
-  - public-api-surface
-sources:
-  - id: microsoft-signature-files
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/signature-files
-    checked: "2026-08-24"
-  - id: microsoft-access-control
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/access-control
-    checked: "2026-08-24"
-  - id: microsoft-modules
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/modules
-    checked: "2026-08-24"
-  - id: microsoft-component-design
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-24"
 ---
 
 # Chapter 17: Signatures, Access Control, and F#-Facing APIs {#overview}
@@ -73,8 +43,19 @@ This is an information boundary, not a runtime call layer. Calling `Capacity.val
 
 The project records the pair explicitly:
 
-<<< @/../examples/chapters/ch17/Ch17.fsproj{xml:line-numbers} [Ch17.fsproj]
+```xml:line-numbers [Ch17.fsproj]
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Include="Library.fsi" />
+    <Compile Include="Library.fs" />
+  </ItemGroup>
+</Project>
+```
 The signature has the same base name as the implementation and appears immediately before it: `Library.fsi`, then `Library.fs`. Reversing them makes the compiler process an implementation before its contract; separating the pair with dependent code gives that code the wrong boundary.
 
 One implementation file may have at most its matching signature in this form. A signature is not a header that several unrelated `.fs` files append to, and a later file cannot reopen the implementation to reach declarations that were omitted.
@@ -85,8 +66,37 @@ Chapter 16's provider-before-consumer rule still applies. The pair acts as one p
 
 Here is the complete public contract used by the tests:
 
-<<< @/../examples/chapters/ch17/Library.fsi{fsharp:line-numbers} [Library.fsi]
+```fsharp:line-numbers [Library.fsi]
+namespace ThinkingInFSharp.Ch17
 
+module SeatAllocation =
+    type CapacityError = NonPositiveCapacity of actual: int
+
+    type Capacity
+
+    module Capacity =
+        val create: raw: int -> Result<Capacity, CapacityError>
+        val value: capacity: Capacity -> int
+
+    type SeatCountError = NonPositiveSeatCount of actual: int
+
+    type SeatCount
+
+    module SeatCount =
+        val create: raw: int -> Result<SeatCount, SeatCountError>
+        val value: seats: SeatCount -> int
+
+    type AllocationError = InsufficientCapacity of requested: int * available: int
+
+    type Allocation
+
+    module Allocation =
+        val capacity: allocation: Allocation -> Capacity
+        val requested: allocation: Allocation -> SeatCount
+        val remaining: allocation: Allocation -> int
+
+    val allocate: capacity: Capacity -> requested: SeatCount -> Result<Allocation, AllocationError>
+```
 Read it in layers:
 
 1. `namespace ThinkingInFSharp.Ch17` gives the stable outer path.
@@ -128,8 +138,60 @@ Do not hide every union or record. A public union is ideal when its complete set
 
 The implementation supplies the hidden cases, record fields, and function bodies:
 
-<<< @/../examples/chapters/ch17/Library.fs{fsharp:line-numbers} [Library.fs]
+```fsharp:line-numbers [Library.fs]
+namespace ThinkingInFSharp.Ch17
 
+module SeatAllocation =
+    type CapacityError = NonPositiveCapacity of actual: int
+
+    type Capacity = Capacity of int
+
+    module Capacity =
+        let create raw =
+            if raw > 0 then
+                Ok(Capacity raw)
+            else
+                Error(NonPositiveCapacity raw)
+
+        let value (Capacity capacity) = capacity
+
+    type SeatCountError = NonPositiveSeatCount of actual: int
+
+    type SeatCount = SeatCount of int
+
+    module SeatCount =
+        let create raw =
+            if raw > 0 then
+                Ok(SeatCount raw)
+            else
+                Error(NonPositiveSeatCount raw)
+
+        let value (SeatCount seats) = seats
+
+    type AllocationError = InsufficientCapacity of requested: int * available: int
+
+    type Allocation =
+        { Capacity: Capacity
+          Requested: SeatCount
+          Remaining: int }
+
+    module Allocation =
+        let capacity allocation = allocation.Capacity
+        let requested allocation = allocation.Requested
+        let remaining allocation = allocation.Remaining
+
+    let allocate capacity requested =
+        let available = Capacity.value capacity
+        let requestedSeats = SeatCount.value requested
+
+        if requestedSeats <= available then
+            Ok
+                { Capacity = capacity
+                  Requested = requested
+                  Remaining = available - requestedSeats }
+        else
+            Error(InsufficientCapacity(requestedSeats, available))
+```
 Inside `Library.fs`, the `Capacity` and `SeatCount` union cases are available, and `Allocation` can be constructed as a record. Outside the implementation file, the matching `.fsi` removes those shapes from the visible API even though the `.fs` declarations themselves do not use `private` representation modifiers.
 
 This separation permits a later implementation to store a different numeric type, cache a derived value, or replace the allocation record, provided the published types and behavior remain compatible. The signature does not prove behavioral equivalence; tests still protect invariants and semantics.
@@ -209,8 +271,14 @@ The chapter tests live in another project and reference the library assembly. Th
 
 That positive suite proves the surface is sufficient. A separate expected-error consumer proves it is restrictive:
 
-<<< @/../examples/expected-errors/ch17-hidden-representation/Consumer.fs{fsharp:line-numbers} [Consumer.fs — expected error]
+```fsharp:line-numbers [Consumer.fs — expected error]
+namespace ThinkingInFSharp.Ch17.InvalidConsumer
 
+open ThinkingInFSharp.Ch17.SeatAllocation
+
+module Consumer =
+    let invalidCapacity = Capacity 0
+```
 `Capacity 0` attempts to use the implementation union case. The public signature contains only the abstract type name, so F# 10 rejects the expression with `FS0800`. The test does not use reflection to inspect private layout because layout is precisely what a consumer contract should ignore.
 
 Compile-time opacity and behavioral tests answer different questions:
@@ -254,17 +322,17 @@ Generate or write a signature after representative call sites reveal the right A
 
 ## Build and verify the example {#build-test}
 
-From the repository root:
+From the directory containing the example:
 
 ```console
-dotnet build examples/chapters/ch17/Ch17.fsproj -c Release --locked-mode
-dotnet test tests/ExampleTests/ExampleTests.fsproj -c Release --no-restore --filter FullyQualifiedName~Ch17SignatureTests
+dotnet build Ch17.fsproj -c Release --locked-mode
+dotnet test ExampleTests.fsproj -c Release --no-restore --filter FullyQualifiedName~Ch17SignatureTests
 ```
 
 The focused suite passes. This command is intentionally expected to fail and is checked separately:
 
 ```console
-dotnet build examples/expected-errors/ch17-hidden-representation/Ch17HiddenRepresentation.fsproj -c Release
+dotnet build Ch17HiddenRepresentation.fsproj -c Release
 ```
 
 Its required `FS0800` diagnostic guards the representation-hiding claim. A successful build of that invalid consumer would be a regression, not a passing example.

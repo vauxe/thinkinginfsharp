@@ -2,38 +2,6 @@
 title: "第 20 章：函数式核心与副作用边界"
 description: "把时间、随机数和环境访问变成显式值或函数依赖，让领域决策可重放，并让效果策略清晰可见。"
 translationKey: part-04/ch-20-functional-core-effects
-kind: chapter
-part: 4
-chapter: 20
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch20-functional-core-effects
-exerciseIds:
-  - ch20-exercise-01
-  - ch20-exercise-02
-  - ch20-exercise-03
-termIds:
-  - closure
-  - effect
-sources:
-  - id: microsoft-functions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/
-    checked: "2026-08-24"
-  - id: microsoft-component-design
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-24"
-  - id: dotnet-utc-now
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.datetimeoffset.utcnow?view=net-10.0
-    checked: "2026-08-24"
-  - id: dotnet-random-next
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.random.next?view=net-10.0
-    checked: "2026-08-24"
-  - id: dotnet-environment-variable
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.environment.getenvironmentvariable?view=net-10.0
-    checked: "2026-08-24"
 ---
 
 # 第 20 章：函数式核心与副作用边界 {#overview}
@@ -75,12 +43,35 @@ F# 函数本身就是值，因此修复可以很小。读取一次效果并把�
 
 示例只建模活动决策所需的事实：
 
-<<< @/../examples/scripts/ch20-functional-core-effects.fsx#model{fsharp:line-numbers} [ch20-functional-core-effects.fsx]
+```fsharp:line-numbers [ch20-functional-core-effects.fsx]
+type Campaign =
+    { OpensAt: DateTimeOffset
+      ClosesAt: DateTimeOffset
+      CodePrefix: string
+      DefaultRegion: string }
 
+type Candidate =
+    { SubmittedAt: DateTimeOffset
+      Draw: int
+      Region: string }
+
+type Decision =
+    | NotOpen
+    | Closed
+    | Accepted of code: string
+```
 `Campaign` 包含策略。`Candidate` 包含已为一次尝试捕获的观察。`Decision` 命名每个纯结果。决策函数因而很直接：
 
-<<< @/../examples/scripts/ch20-functional-core-effects.fsx#pure-core{fsharp:line-numbers} [ch20-functional-core-effects.fsx]
-
+```fsharp:line-numbers [ch20-functional-core-effects.fsx]
+let decide campaign candidate =
+    if candidate.SubmittedAt < campaign.OpensAt then
+        NotOpen
+    elif candidate.SubmittedAt >= campaign.ClosesAt then
+        Closed
+    else
+        let suffix = candidate.Draw.ToString("D4")
+        Accepted $"{campaign.CodePrefix}-{candidate.Region}-{suffix}"
+```
 `decide` 不会询问现在几点，而是把 `Candidate.SubmittedAt` 与所提供的窗口比较。它不会生成后缀或发现区域，因为这些值已经存在。给定相同的两个记录，它会返回相同联合用例，且不执行外部工作。
 
 把时间作为数据传入还声明了快照语义。该决策中的每次比较都使用同一个已捕获时刻。若多次调用 `UtcNow`，一个逻辑决策执行到一半时就可能跨过窗口边界。
@@ -91,8 +82,32 @@ F# 函数本身就是值，因此修复可以很小。读取一次效果并把�
 
 编排契约是一个包含三个具名函数值的记录：
 
-<<< @/../examples/scripts/ch20-functional-core-effects.fsx#effects{fsharp:line-numbers} [ch20-functional-core-effects.fsx]
+```fsharp:line-numbers [ch20-functional-core-effects.fsx]
+type RuntimeEffects =
+    { UtcNow: unit -> DateTimeOffset
+      NextInt: int -> int
+      ReadSetting: string -> string option }
 
+let private normalizedRegion (fallback: string) (value: string option) =
+    value
+    |> Option.map (fun text -> text.Trim())
+    |> Option.filter (String.IsNullOrWhiteSpace >> not)
+    |> Option.defaultValue fallback
+
+let captureCandidate campaign effects =
+    let submittedAt = effects.UtcNow()
+    let draw = effects.NextInt 10_000
+
+    if draw < 0 || draw >= 10_000 then
+        invalidArg (nameof effects) "NextInt returned a value outside its requested range."
+
+    let region =
+        effects.ReadSetting "BOOKING_REGION" |> normalizedRegion campaign.DefaultRegion
+
+    { SubmittedAt = submittedAt
+      Draw = draw
+      Region = region }
+```
 其形状为：
 
 ```text
@@ -111,8 +126,12 @@ ReadSetting ──────────┘          效果                 �
 
 系统适配器很小：
 
-<<< @/../examples/scripts/ch20-functional-core-effects.fsx#system-adapter{fsharp:line-numbers} [ch20-functional-core-effects.fsx]
-
+```fsharp:line-numbers [ch20-functional-core-effects.fsx]
+let systemEffects (random: Random) =
+    { UtcNow = fun () -> DateTimeOffset.UtcNow
+      NextInt = fun upperExclusive -> random.Next upperExclusive
+      ReadSetting = fun name -> Environment.GetEnvironmentVariable name |> Option.ofObj }
+```
 构造该记录不会读取时间或环境。每个闭包只在 `captureCandidate` 调用它时执行操作：
 
 - `DateTimeOffset.UtcNow` 读取当前 UTC 时刻；
@@ -127,8 +146,18 @@ ReadSetting ──────────┘          效果                 �
 
 闭包是函数值与它从定义范围捕获的值。确定性提供者是几个很小的闭包：
 
-<<< @/../examples/scripts/ch20-functional-core-effects.fsx#closures{fsharp:line-numbers} [ch20-functional-core-effects.fsx]
+```fsharp:line-numbers [ch20-functional-core-effects.fsx]
+let fixedClock instant = fun () -> instant
 
+let fixedDraw draw =
+    fun upperExclusive ->
+        if draw < 0 || draw >= upperExclusive then
+            invalidArg (nameof draw) "Fixed draw is outside the requested range."
+
+        draw
+
+let settingsFrom values = fun name -> Map.tryFind name values
+```
 `fixedClock instant` 返回一个记住 `instant` 的 `unit -> DateTimeOffset` 函数。`fixedDraw draw` 记住所选抽取值，但仍验证调用方要求的范围。`settingsFrom values` 记住不可变映射表。
 
 这些闭包是纯的，因为其捕获值不可变，函数体也不执行效果。闭包也可以捕获可变计数器、数据库客户端或随机生成器；那样调用它就会有副作用。“闭包”描述上下文如何保留，不是纯净保证。
@@ -183,8 +212,69 @@ type IClock =
 
 脚本使用固定依赖，并且只把可变 `ResizeArray` 用作测试仪表：
 
-<<< @/../examples/scripts/ch20-functional-core-effects.fsx#deterministic-test{fsharp:line-numbers} [ch20-functional-core-effects.fsx]
+```fsharp:line-numbers [ch20-functional-core-effects.fsx]
+let instant = DateTimeOffset(2026, 9, 1, 12, 0, 0, TimeSpan.Zero)
 
+let campaign =
+    { OpensAt = instant.AddHours(-1.0)
+      ClosesAt = instant.AddHours(1.0)
+      CodePrefix = "BOOK"
+      DefaultRegion = "global" }
+
+let calls = ResizeArray<string>()
+
+let observedEffects =
+    { UtcNow =
+        fun () ->
+            calls.Add "clock"
+            instant
+      NextInt =
+        fun upperExclusive ->
+            calls.Add $"random:{upperExclusive}"
+            7
+      ReadSetting =
+        fun name ->
+            calls.Add $"environment:{name}"
+            Some " eu-west " }
+
+let candidate = captureCandidate campaign observedEffects
+let firstDecision = decide campaign candidate
+let replayedDecision = decide campaign candidate
+
+let expectedCalls = [ "clock"; "random:10000"; "environment:BOOKING_REGION" ]
+
+assert (candidate.SubmittedAt = instant)
+assert (candidate.Draw = 7)
+assert (candidate.Region = "eu-west")
+assert (firstDecision = Accepted "BOOK-eu-west-0007")
+assert (replayedDecision = firstDecision)
+assert (List.ofSeq calls = expectedCalls)
+
+let fallbackEffects =
+    { UtcNow = fixedClock instant
+      NextInt = fixedDraw 42
+      ReadSetting = settingsFrom Map.empty }
+
+let fallbackDecision =
+    fallbackEffects |> captureCandidate campaign |> decide campaign
+
+assert (fallbackDecision = Accepted "BOOK-global-0042")
+
+let earlyDecision =
+    decide
+        campaign
+        { candidate with
+            SubmittedAt = campaign.OpensAt.AddTicks(-1L) }
+
+let closedDecision =
+    decide
+        campaign
+        { candidate with
+            SubmittedAt = campaign.ClosesAt }
+
+assert (earlyDecision = NotOpen)
+assert (closedDecision = Closed)
+```
 断言证明：
 
 - 捕获的时刻、抽取值和去除空白后的区域正是所提供的值；
@@ -197,13 +287,13 @@ type IClock =
 
 ## 运行共享示例 {#run-example}
 
-在仓库根目录运行：
+在示例所在目录运行：
 
 ```console
-dotnet fsi --exec examples/scripts/ch20-functional-core-effects.fsx
+dotnet fsi --exec ch20-functional-core-effects.fsx
 ```
 
-六行确定性输出会报告捕获快照、接受代码、后备区域、窗口边界、确切效果顺序和重放结果。manifest 会检查其顺序与文本。
+六行确定性输出会报告捕获快照、接受代码、后备区域、窗口边界、确切效果顺序和重放结果。请比较其顺序与文本。
 
 ## 效果仍然需要失败契约 {#failure-contracts}
 

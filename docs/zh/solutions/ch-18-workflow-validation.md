@@ -2,30 +2,6 @@
 title: "第 18 章答案"
 description: "分离纯检查、依赖检查和有副作用检查，实现有序错误累积，并把未说明的计算表达式改写为显式语义。"
 translationKey: solutions/ch-18-workflow-validation
-kind: solution
-part: 3
-chapter: 18
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch18-workflow-validation
-exerciseIds:
-  - ch18-exercise-01
-  - ch18-exercise-02
-  - ch18-exercise-03
-termIds: []
-sources:
-  - id: microsoft-results
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/results
-    checked: "2026-08-24"
-  - id: fsharp-core-result
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-resultmodule.html
-    checked: "2026-08-24"
-  - id: microsoft-computation-expressions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/computation-expressions
-    checked: "2026-08-24"
 ---
 
 # 第 18 章答案 {#overview}

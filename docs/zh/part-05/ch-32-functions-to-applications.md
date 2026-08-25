@@ -2,43 +2,6 @@
 title: "第 32 章：从函数到应用"
 description: "通过显式表达配置、端口、组合、取消、所有权和最小可观测性，从纯工作流推导出一个小型可执行 F# 应用。"
 translationKey: part-05/ch-32-functions-to-applications
-kind: chapter
-part: 5
-chapter: 32
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch32-functions-to-applications
-  - foundation-example-tests
-exerciseIds:
-  - ch32-exercise-01
-  - ch32-exercise-02
-  - ch32-exercise-03
-termIds: []
-sources:
-  - id: microsoft-dotnet-generic-host
-    url: https://learn.microsoft.com/en-us/dotnet/core/extensions/generic-host
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-configuration
-    url: https://learn.microsoft.com/en-us/dotnet/core/extensions/configuration
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-logging
-    url: https://learn.microsoft.com/en-us/dotnet/core/extensions/logging
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-metrics
-    url: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/metrics-instrumentation
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-metric-collection
-    url: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/metrics-collection
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-tracing
-    url: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/distributed-tracing-instrumentation-walkthroughs
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-di-guidelines
-    url: https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection/guidelines
-    checked: "2026-08-24"
 ---
 
 # 第 32 章：从函数到应用 {#overview}
@@ -97,8 +60,19 @@ sources:
 
 从纯工作流的输入和输出开始。`decidePlaceBooking` 需要一个 `Event`、当前 `BookingState` 和 `PlaceBookingCommand`；它返回 `Result<BookingEvent, PlaceBookingError>`。因此，运行中的应用必须取得当前状态并持久化被接受的事件。样例中只有这两种副作用能力：
 
-<<< @/../examples/chapters/ch32/Ports.fs#ports{fsharp:line-numbers} [Ports.fs]
+```fsharp:line-numbers [Ports.fs]
+type BookingPorts =
+    { LoadBooking: RequestId -> CancellationToken -> Task<BookingState>
+      AppendEvent: RequestId -> BookingEvent -> CancellationToken -> Task<unit>
+      OwnedResource: IDisposable }
 
+type BookingLog =
+    { EventName: string
+      Outcome: string
+      RequestId: string
+      Seats: int
+      Detail: string }
+```
 这条记录包含函数，而不是实现类。每个签名都表达了有用的信息：
 
 - 在存储边界处，`RequestId` 已经是经过验证的领域值；
@@ -115,8 +89,46 @@ sources:
 
 环境变量、JSON、命令行参数和机密存储都始于外部数据。它们存在并不意味着它们是有效的领域配置。应在启动附近只解析并验证一次，再把类型化值向内传递：
 
-<<< @/../examples/chapters/ch32/Ports.fs#configuration{fsharp:line-numbers} [Ports.fs]
+```fsharp:line-numbers [Ports.fs]
+type ConfigError =
+    | MissingSetting of name: string
+    | InvalidSetting of name: string * value: string
 
+type AppConfig = private { Event: Event }
+
+module AppConfig =
+    [<Literal>]
+    let EventIdSetting = "BOOKING_EVENT_ID"
+
+    [<Literal>]
+    let CapacitySetting = "BOOKING_CAPACITY"
+
+    let private readEventId (lookup: string -> string option) =
+        match lookup EventIdSetting with
+        | None -> Error [ MissingSetting EventIdSetting ]
+        | Some raw ->
+            EventId.create raw
+            |> Result.mapError (fun _ -> [ InvalidSetting(EventIdSetting, raw) ])
+
+    let private readCapacity (lookup: string -> string option) =
+        match lookup CapacitySetting with
+        | None -> Error [ MissingSetting CapacitySetting ]
+        | Some raw ->
+            match Int32.TryParse raw with
+            | true, value ->
+                Capacity.create value
+                |> Result.mapError (fun _ -> [ InvalidSetting(CapacitySetting, raw) ])
+            | false, _ -> Error [ InvalidSetting(CapacitySetting, raw) ]
+
+    let load lookup =
+        match readEventId lookup, readCapacity lookup with
+        | Ok eventId, Ok capacity -> Ok { Event = Event.create eventId capacity }
+        | Error eventErrors, Error capacityErrors -> Error(eventErrors @ capacityErrors)
+        | Error errors, Ok _
+        | Ok _, Error errors -> Error errors
+
+    let event config = config.Event
+```
 `AppConfig.load` 接受查找函数，而不是直接读取 `Environment`。生产代码传入环境查找；固定演示和测试传入确定性函数。这个微小接缝避免了全局可变状态，也不需要配置框架。
 
 加载器会累积 `BOOKING_EVENT_ID` 和 `BOOKING_CAPACITY` 的独立错误。如果两者都错了，运维人员可以在下次启动前一次修复。解析整数只是表示步骤；`Capacity.create` 执行容量必须为正的领域规则。私有 `AppConfig` 记录阻止后续代码直接构造未经验证的配置记录。
@@ -136,8 +148,11 @@ sources:
 
 组合根是选择具体依赖并建立所有权的最外层位置。在样例中，可复用的构造函数刻意保持平淡无奇：
 
-<<< @/../examples/chapters/ch32/Composition.fs#composition-root{fsharp:line-numbers} [Composition.fs]
-
+```fsharp:line-numbers [Composition.fs]
+module Composition =
+    let start config ports writeLog =
+        new BookingApplication(AppConfig.event config, ports, writeLog)
+```
 `Program` 完成其余进程特定工作：选择查找函数、安装演示监听器、构造内存存储、创建应用、运行一条命令，并把结果转换成输出和退出码。领域模块不包含这些选择。
 
 从字面意义上说，手工构造就是依赖注入：依赖通过参数到达。DI 容器会自动化注册、解析、作用域和释放；控制反转并不是由容器创造的。即使日后由容器完成构造，保留组合根仍然有价值。
@@ -148,8 +163,48 @@ sources:
 
 应用方法拥有执行顺序，同时复用现有领域工作流：
 
-<<< @/../examples/chapters/ch32/Composition.fs#place{fsharp:line-numbers} [Composition.fs]
+```fsharp:line-numbers [Composition.fs]
+member _.Place(command: PlaceBookingCommand, cancellationToken: CancellationToken) =
+    task {
+        ensureActive ()
 
+        let activity =
+            activities.StartActivity(DiagnosticNames.PlaceActivityName, ActivityKind.Internal)
+
+        try
+            try
+                cancellationToken.ThrowIfCancellationRequested()
+
+                match validatePlaceBooking command with
+                | Error errors ->
+                    let failure = InvalidCommand errors
+                    observe activity command "rejected" (sprintf "%A" failure)
+                    return Error failure
+                | Ok validCommand ->
+                    let requestId = ValidPlaceBooking.requestId validCommand
+                    let! state = ports.LoadBooking requestId cancellationToken
+
+                    match decidePlaceBooking event state command with
+                    | Error failure ->
+                        observe activity command "rejected" (sprintf "%A" failure)
+                        return Error failure
+                    | Ok bookingEvent ->
+                        do! ports.AppendEvent requestId bookingEvent cancellationToken
+                        observe activity command "accepted" "event-appended"
+                        return Ok bookingEvent
+            with
+            | :? OperationCanceledException as error ->
+                observe activity command "canceled" "operation-canceled"
+                return raise error
+            | error ->
+                observe activity command "faulted" (error.GetType().Name)
+                return raise error
+        finally
+            match activity with
+            | null -> ()
+            | current -> current.Dispose()
+    }
+```
 按顺序阅读该方法：
 
 1. 拒绝释放后的使用，并启动一个可能为空的活动。
@@ -211,8 +266,20 @@ sources:
 
 诊断名称是稳定常量，应用创建一个计数器：
 
-<<< @/../examples/chapters/ch32/Composition.fs#diagnostics-names{fsharp:line-numbers} [Composition.fs]
+```fsharp:line-numbers [Composition.fs]
+module DiagnosticNames =
+    [<Literal>]
+    let MeterName = "ThinkingInFSharp.Ch32.Booking"
 
+    [<Literal>]
+    let ActivitySourceName = "ThinkingInFSharp.Ch32.Booking"
+
+    [<Literal>]
+    let RequestCounterName = "booking.requests"
+
+    [<Literal>]
+    let PlaceActivityName = "booking.place"
+```
 `Counter<int64>.Add` 发布一次增量。它本身不会创建历史存储、速率图、保留策略或告警。收集工具聚合测量，并可以把它们导出到后端。演示中的 `MeterListener` 只观察一次进程内测量，以便样例和测试证明插桩确实触发。
 
 `outcome` 标签在本应用中有四个有界值：`accepted`、`rejected`、`canceled` 和 `faulted`。请求 ID 被刻意排除。指标系统通常会为每一种标签组合分配时间序列；无界 ID 会造成过多内存、存储和成本。
@@ -232,7 +299,7 @@ sources:
 完成 Release 构建后运行确定性演示：
 
 ```console
-dotnet examples/chapters/ch32/bin/Release/net10.0/Ch32.App.dll --demo
+dotnet bin/Release/net10.0/Ch32.App.dll --demo
 ```
 
 它精确输出：
@@ -336,10 +403,10 @@ lifecycle: store-disposed=true
 
 ## 第五部分检查点 {#part-checkpoint}
 
-从仓库根目录运行聚焦组合测试：
+在示例所在目录运行聚焦组合测试：
 
 ```console
-dotnet test tests/ExampleTests/ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~Ch32CompositionTests
+dotnet test ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~Ch32CompositionTests
 ```
 
 测试通过表明：配置错误会累积，端口调用前会观察取消，受所有权管理的资源会释放，并且样例会发出结构化日志、指标与已结束活动。它们仍只证明进程内装配，不证明生产导出或持久交付。

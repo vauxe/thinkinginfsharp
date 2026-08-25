@@ -2,27 +2,6 @@
 title: "Chapter 7 Solutions"
 description: "Reasoning about tuple migration, immutable updates, structural equality, reference identity, hash contracts, and business ordering."
 translationKey: solutions/ch-07-records-equality
-kind: solution
-part: 2
-chapter: 7
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch07-records-equality
-exerciseIds:
-  - ch07-exercise-01
-  - ch07-exercise-02
-  - ch07-exercise-03
-termIds: []
-sources:
-  - id: microsoft-records
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/records
-    checked: "2026-08-24"
-  - id: fsharp-core-language-primitives
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-languageprimitives.html
-    checked: "2026-08-24"
 ---
 
 # Chapter 7 Solutions {#overview}
@@ -58,8 +37,21 @@ The record removes the risk of swapping two `string` positions while still type-
 
 The shared definitions provide the predictions directly:
 
-<<< @/../examples/scripts/ch07-records-equality.fsx#equality-identity-hash{fsharp:line-numbers} [ch07-records-equality.fsx]
+```fsharp:line-numbers [ch07-records-equality.fsx]
+let equalCopy =
+    { EventId = "A-1"
+      Attendee = "Lin"
+      Seats = 2 }
 
+let alias = original
+let structurallyEqual = original = equalCopy
+let physicallyEqual = LanguagePrimitives.PhysicalEquality original equalCopy
+let aliasIsSameReference = LanguagePrimitives.PhysicalEquality original alias
+let equalHashesAgree = hash original = hash equalCopy
+
+printfn "Equality: structural=%b physical=%b alias=%b" structurallyEqual physicallyEqual aliasIsSameReference
+printfn "Hashes agree for equal records: %b" equalHashesAgree
+```
 Let `updated = { original with Seats = 3 }`, let `equalCopy` repeat all original fields, and let `alias = original`:
 
 | Comparison | Result | Reason |

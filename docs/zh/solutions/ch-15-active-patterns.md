@@ -2,30 +2,6 @@
 title: "第 15 章练习答案"
 description: "建立完整领域视图、保留解析错误，并把数据库工作移出活动模式匹配。"
 translationKey: solutions/ch-15-active-patterns
-kind: solution
-part: 3
-chapter: 15
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch15-active-patterns
-exerciseIds:
-  - ch15-exercise-01
-  - ch15-exercise-02
-  - ch15-exercise-03
-termIds: []
-sources:
-  - id: microsoft-active-patterns
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/active-patterns
-    checked: "2026-08-24"
-  - id: microsoft-pattern-matching
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/pattern-matching
-    checked: "2026-08-24"
-  - id: microsoft-component-design
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-24"
 ---
 
 # 第 15 章练习答案 {#overview}

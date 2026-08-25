@@ -2,13 +2,6 @@
 title: "Appendix G: Solutions and Open-Exercise Review Guide"
 description: "Reach all 45 solution pages and review closed, diagnostic, and open design exercises without pretending that engineering has one canonical answer."
 translationKey: appendices/g-solutions-guide
-kind: appendix
-appendix: G
-status: complete
-exampleIds: []
-exerciseIds: []
-termIds: []
-sources: []
 ---
 
 # Appendix G: Solutions and Open-Exercise Review Guide {#overview}
@@ -17,7 +10,7 @@ A solution is feedback, not a substitute for attempting the exercise. Compare co
 
 Some exercises have a narrow observable result; others ask for a diagnosis or an engineering design. The solution pages therefore show reasoning, constraints, and representative implementations. They do not claim that every open question has one canonical answer.
 
-This page is generated from chapter and solution metadata. Its check requires one bilingual solution page for every chapter, identical exercise identifiers, reachable exercise anchors, and links in both directions.
+Each chapter links to its own solution page. Attempt the exercise first, then use the solution to compare reasoning and tradeoffs.
 
 ## Before opening a solution {#before-opening}
 
@@ -63,7 +56,7 @@ Reject an answer that suppresses a relevant warning, hides a new union case behi
 | framework/platform adoption | compiled minimal slice plus explicit untested platform/deployment limits |
 | proposed architecture or package choice | written constraints, official-source review, spike plan, rollback/removal condition |
 
-Not every prose design in a solution page is an executed repository artifact. Each page distinguishes runnable example evidence, compiler evidence, official-source review, and proposed work. Do not promote a proposal to “verified” because it appears under Solutions.
+Not every prose design in a solution page is executable evidence. Distinguish code you ran, compiler evidence, official-source review, and proposed work. Do not promote a proposal to “verified” merely because it appears under Solutions.
 
 ## All chapter answers {#answer-index}
 

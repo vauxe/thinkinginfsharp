@@ -2,30 +2,6 @@
 title: "Chapter 12 Solutions"
 description: "Protect a bounded value, choose an outer-record boundary, and correct a cross-file capacity API whose types blur capacity with availability."
 translationKey: solutions/ch-12-making-illegal-states-unrepresentable
-kind: solution
-part: 2
-chapter: 12
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch12-making-illegal-states-unrepresentable
-exerciseIds:
-  - ch12-exercise-01
-  - ch12-exercise-02
-  - ch12-exercise-03
-termIds: []
-sources:
-  - id: microsoft-access-control
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/access-control
-    checked: "2026-08-24"
-  - id: microsoft-signature-files
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/signature-files
-    checked: "2026-08-24"
-  - id: microsoft-component-design
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-24"
 ---
 
 # Chapter 12 Solutions {#overview}

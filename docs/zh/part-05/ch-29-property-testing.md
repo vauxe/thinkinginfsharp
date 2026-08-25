@@ -2,33 +2,6 @@
 title: "第 29 章：使用 FsCheck 进行性质测试"
 description: "从选定示例走向领域不变量，控制生成、分类、缩减与重放，同时不把随机检查误作证明。"
 translationKey: part-05/ch-29-property-testing
-kind: chapter
-part: 5
-chapter: 29
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - foundation-example-tests
-exerciseIds:
-  - ch29-exercise-01
-  - ch29-exercise-02
-  - ch29-exercise-03
-termIds: []
-sources:
-  - id: fscheck-properties
-    url: https://fscheck.github.io/FsCheck/Properties.html
-    checked: "2026-08-24"
-  - id: fscheck-test-data
-    url: https://fscheck.github.io/FsCheck/TestData.html
-    checked: "2026-08-24"
-  - id: fscheck-running-tests
-    url: https://fscheck.github.io/FsCheck/RunningTests.html
-    checked: "2026-08-24"
-  - id: nuget-fscheck-xunit
-    url: https://www.nuget.org/packages/FsCheck.Xunit/
-    checked: "2026-08-24"
 ---
 
 # 第 29 章：使用 FsCheck 进行性质测试 {#overview}
@@ -63,8 +36,58 @@ sources:
 
 样例通过智能构造器阻止外部表示无效输入，并显式保留每项决策：
 
-<<< @/../examples/chapters/ch29/Generators.fs#allocation-core{fsharp:line-numbers} [Generators.fs]
+```fsharp:line-numbers [Generators.fs]
+type AllocationCaseError =
+    | NegativeCapacity of capacity: int
+    | NonPositiveRequest of seats: int
 
+type AllocationCase =
+    private
+        { Capacity: int
+          Requests: int list }
+
+module AllocationCase =
+    let create capacity requests =
+        if capacity < 0 then
+            Error(NegativeCapacity capacity)
+        else
+            match requests |> List.tryFind (fun seats -> seats <= 0) with
+            | Some seats -> Error(NonPositiveRequest seats)
+            | None ->
+                Ok
+                    { Capacity = capacity
+                      Requests = requests }
+
+    let capacity sample = sample.Capacity
+    let requests sample = sample.Requests
+
+    let internal assumeValid capacity requests =
+        match create capacity requests with
+        | Ok sample -> sample
+        | Error error -> invalidArg (nameof requests) $"invalid allocation case: {error}"
+
+type Decision =
+    | Accepted of seats: int
+    | Rejected of seats: int
+
+type Allocation =
+    { Decisions: Decision list
+      Remaining: int }
+
+module SeatAllocation =
+    let allocate sample =
+        let folder (remaining, decisions) request =
+            if request <= remaining then
+                remaining - request, Accepted request :: decisions
+            else
+                remaining, Rejected request :: decisions
+
+        let remaining, reversedDecisions =
+            ((sample.Capacity, []), sample.Requests) ||> List.fold folder
+
+        { Decisions = List.rev reversedDecisions
+          Remaining = remaining }
+```
 这三条陈述描述的是关系，而非某个输出。许多正确的实现变更都不会破坏它们。它们也约束不同的故障：守恒能发现容量丢失或凭空增加，保序能发现请求被跳过或重排，边界则能发现超额分配。
 
 ### 性质仍需要独立依据 {#independent-oracle}
@@ -109,16 +132,82 @@ module Ch29Properties =
 
 共享性质函数都是普通纯函数，也可以由示例测试或 FSI 直接调用：
 
-<<< @/../examples/chapters/ch29/Generators.fs#property-functions{fsharp:line-numbers} [Generators.fs]
+```fsharp:line-numbers [Generators.fs]
+module AllocationProperties =
+    let private requestedSeats decision =
+        match decision with
+        | Accepted seats
+        | Rejected seats -> seats
 
+    let conservesCapacity sample =
+        let allocation = SeatAllocation.allocate sample
+
+        let acceptedSeats =
+            allocation.Decisions
+            |> List.sumBy (function
+                | Accepted seats -> int64 seats
+                | Rejected _ -> 0L)
+
+        acceptedSeats + int64 allocation.Remaining = int64 sample.Capacity
+
+    let preservesRequests sample =
+        let actual =
+            sample |> SeatAllocation.allocate |> _.Decisions |> List.map requestedSeats
+
+        actual = sample.Requests
+
+    let remainingIsBounded sample =
+        let remaining = (SeatAllocation.allocate sample).Remaining
+        0 <= remaining && remaining <= sample.Capacity
+
+    let isOversubscribed sample =
+        (sample.Requests |> List.sumBy int64) > int64 sample.Capacity
+
+    // Plausible, but false: a rejected large request can be followed by a smaller accepted one.
+    let acceptedRequestsFormPrefix sample =
+        sample
+        |> SeatAllocation.allocate
+        |> _.Decisions
+        |> List.fold
+            (fun (stillValid, hasRejected) decision ->
+                match decision with
+                | Accepted _ -> stillValid && not hasRejected, hasRejected
+                | Rejected _ -> stillValid, true)
+            (true, false)
+        |> fst
+```
 把性质主体与测试特性分离，可以让主张易读且可复用。特性是运行器配置，不是领域规格。
 
 ## 生成领域数据，而非偶然噪声 {#generation}
 
 `Gen<'T>` 描述值如何随规模和伪随机状态变化而产生，声明时并不会立即产生值。FsCheck 的生成器计算表达式无需可变状态即可组合相互依赖的选择：
 
-<<< @/../examples/chapters/ch29/Generators.fs#generator{fsharp:line-numbers} [Generators.fs]
+```fsharp:line-numbers [Generators.fs]
+module private AllocationCaseGen =
+    let private general size =
+        let largest = max 1 (min 40 (size + 1))
+        let longest = min 12 size
 
+        gen {
+            let! capacity = Gen.choose (0, largest)
+            let! length = Gen.choose (0, longest)
+            let! requests = Gen.choose (1, largest + 1) |> Gen.listOfLength length
+            return AllocationCase.assumeValid capacity requests
+        }
+
+    let private rejectionThenFit size =
+        let largest = max 1 (min 40 (size + 1))
+
+        gen {
+            let! capacity = Gen.choose (1, largest)
+            let! tooLarge = Gen.choose (capacity + 1, capacity + largest)
+            let! fits = Gen.choose (1, capacity)
+            return AllocationCase.assumeValid capacity [ tooLarge; fits ]
+        }
+
+    let generator =
+        Gen.sized (fun size -> Gen.frequency [ 4, general size; 1, rejectionThenFit size ])
+```
 一般分支生成非负容量和全为正数的请求。定向分支生成一个大到无法容纳的请求，再跟一个可以容纳的请求。`Gen.frequency` 以权重 4 选择一般分支、以权重 1 选择定向分支；权重是相对值，并不保证有限运行中的精确百分比。
 
 这种定向是合理的，因为“拒绝后又出现较小请求”是一种重要业务形态。正确不变量必须经受两个分支。生成器应暴露有意义的角落，而不应暗中编码性质希望看到的答案。
@@ -137,8 +226,33 @@ module Ch29Properties =
 
 样例缩减器会移除一个请求、降低容量，以及每次降低一个请求：
 
-<<< @/../examples/chapters/ch29/Generators.fs#shrinker{fsharp:line-numbers} [Generators.fs]
+```fsharp:line-numbers [Generators.fs]
+module private AllocationCaseShrink =
+    let private removeEach requests =
+        requests
+        |> List.indexed
+        |> Seq.map (fun (index, _) -> List.removeAt index requests)
 
+    let private shrinkOneRequest requests =
+        seq {
+            for index, request in List.indexed requests do
+                for smaller in 1 .. request - 1 do
+                    yield List.updateAt index smaller requests
+        }
+
+    let shrink sample =
+        seq {
+            for requests in removeEach sample.Requests do
+                yield AllocationCase.assumeValid sample.Capacity requests
+
+            for capacity in 0 .. sample.Capacity - 1 do
+                yield AllocationCase.assumeValid capacity sample.Requests
+
+            for requests in shrinkOneRequest sample.Requests do
+                yield AllocationCase.assumeValid sample.Capacity requests
+        }
+        |> Seq.distinct
+```
 每个候选仍拥有非负容量和正数请求。每个候选也会减少列表长度或某个数值，因此缩减会走向基本情形而非循环。`Seq.distinct` 去除重复候选，不改变有效性。
 
 向 FsCheck 注册的捆绑类型很小：
@@ -184,7 +298,7 @@ let ``remaining capacity stays within bounds`` (sample: AllocationCase) =
 
 这个说法听起来合理：“接受的请求构成前缀；一旦拒绝，后续请求全被拒绝。”对于会继续处理的贪心分配器，它是错的。容量为 1、请求为 `[2; 1]` 时，请求 2 被拒绝，随后请求 1 被接受。
 
-样例把错误性质保留为具名函数，用收集结果的运行器执行，并期待 `TestResult.Failed`。仓库仍然保持绿色，因为测试断言 FsCheck 能推翻该主张：
+样例把错误性质保留为具名函数，用收集结果的运行器执行，并期待 `TestResult.Failed`。测试套件可以通过断言 FsCheck 能推翻该主张而保持绿色：
 
 ```fsharp
 let config =
@@ -217,7 +331,7 @@ match runner.Result with
 
 两个无符号 64 位值是伪随机状态，不是用户数据。调试时应记录“Replay directly at failing step”之后打印的完整三元组。先精确重放失败；如果最小反例守护着重要回归，再把它提升为具名示例测试。
 
-在性质、生成器、缩减器、目标运行时和 FsCheck 版本相同时，重放最可靠。本仓库锁定 `FsCheck.Xunit` 3.4.0，后者精确锁定 `FsCheck` 3.4.0。改变生成顺序或升级包可能改变某个种子产生的输入；此时显式回归示例仍是持久契约。
+在性质、生成器、缩减器、目标运行时和 FsCheck 版本相同时，重放最可靠。示例项目使用 `FsCheck.Xunit` 3.4.0，后者精确锁定 `FsCheck` 3.4.0。改变生成顺序或升级包可能改变某个种子产生的输入；此时显式回归示例仍是持久契约。
 
 不要让每次普通通过运行都使用同一个种子。日常运行改变种子可以搜索新案例；保存的重放信息用于诊断与稳定演示。CI 失败必须打印足够信息，让人能在本地复现。
 
@@ -243,15 +357,15 @@ match runner.Result with
 
 ## 运行并诊断本章 {#running}
 
-从仓库根目录运行第 29 章测试：
+在示例所在目录运行第 29 章测试：
 
 ```console
-dotnet test tests/ExampleTests/ExampleTests.fsproj \
+dotnet test ExampleTests.fsproj \
   --configuration Release \
   --filter FullyQualifiedName~Ch29
 ```
 
-三个性质各要求 300 个成功案例。第四项使用固定的失败步骤重放，并断言错误的前缀性质会缩减到容量 1、请求 `[2; 1]`。提交前运行 `pnpm check:examples`，以锁定还原包、编译全部项目、执行所有测试并检查每个已登记样例。
+三个性质各要求 300 个成功案例。第四项使用固定的失败步骤重放，并断言错误的前缀性质会缩减到容量 1、请求 `[2; 1]`。提交前还应去掉过滤器，运行整个测试项目。
 
 新性质失败时，应按此顺序阅读报告：性质名称与标签、异常或假结果、缩减参数、原始参数，最后是重放三元组。编辑代码前先复现。判断是实现、性质、生成器还是缩减器违反契约；只凭最小值猜测，常会修错层次。
 

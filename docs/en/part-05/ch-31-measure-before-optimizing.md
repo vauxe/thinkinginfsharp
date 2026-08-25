@@ -2,51 +2,6 @@
 title: "Chapter 31: Measure Before Optimizing"
 description: "Move from a user-visible performance requirement through profiling and a controlled F# benchmark to an equivalent, measured change without turning local results into universal rules."
 translationKey: part-05/ch-31-measure-before-optimizing
-kind: chapter
-part: 5
-chapter: 31
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch31-measure-before-optimizing
-exerciseIds:
-  - ch31-exercise-01
-  - ch31-exercise-02
-  - ch31-exercise-03
-termIds: []
-sources:
-  - id: benchmarkdotnet-getting-started
-    url: https://benchmarkdotnet.org/articles/guides/getting-started.html
-    checked: "2026-08-24"
-  - id: benchmarkdotnet-good-practices
-    url: https://benchmarkdotnet.org/articles/guides/good-practices.html
-    checked: "2026-08-24"
-  - id: benchmarkdotnet-diagnosers
-    url: https://benchmarkdotnet.org/articles/configs/diagnosers.html
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-diagnostics
-    url: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-inline-functions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/inline-functions
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-value-options
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/value-options
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-byrefs
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/byrefs
-    checked: "2026-08-24"
-  - id: microsoft-memory-span-guidelines
-    url: https://learn.microsoft.com/en-us/dotnet/standard/memory-and-spans/memory-t-usage-guidelines
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-trimming
-    url: https://learn.microsoft.com/en-us/dotnet/core/deploying/trimming/trim-self-contained
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-native-aot
-    url: https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/
-    checked: "2026-08-24"
 ---
 
 # Chapter 31: Measure Before Optimizing {#overview}
@@ -105,8 +60,22 @@ Stop when the target is met or the measured benefit no longer justifies complexi
 
 The sample sums positive seat values no greater than a configured maximum. Its baseline is an idiomatic array pipeline; its candidate performs the same decision and addition in one pass:
 
-<<< @/../examples/chapters/ch31/Benchmarks.fs#aggregation-implementations{fsharp:line-numbers} [Benchmarks.fs]
+```fsharp:line-numbers [Benchmarks.fs]
+module RequestAggregation =
+    let arrayPipeline maxSeats (requests: int array) =
+        requests
+        |> Array.filter (fun seats -> seats > 0 && seats <= maxSeats)
+        |> Array.sumBy int64
 
+    let singlePass maxSeats (requests: int array) =
+        let mutable total = 0L
+
+        for seats in requests do
+            if seats > 0 && seats <= maxSeats then
+                total <- total + int64 seats
+
+        total
+```
 `arrayPipeline` exposes intent clearly: select qualifying elements, then sum their `int64` values. It also materializes the filtered array before the second traversal. That cost may be irrelevant outside a hot path, so the pipeline remains a good default when no measurement implicates it.
 
 `singlePass` keeps a mutable accumulator inside one function. No mutable reference escapes, and the observable result remains a value. Local mutation is an implementation technique, not a demand that the domain model become mutable. The array itself must still not be concurrently modified during either calculation.
@@ -117,14 +86,44 @@ The candidate changes traversal structure and therefore creates correctness risk
 
 The sample checks four named cases and 256 deterministic generated cases before any benchmark begins:
 
-<<< @/../examples/chapters/ch31/Benchmarks.fs#equivalence{fsharp:line-numbers} [Benchmarks.fs]
+```fsharp:line-numbers [Benchmarks.fs]
+module Equivalence =
+    let private fixedCases =
+        [| 0, [||]
+           4, [| 1; 4; 5; 0; -1; 2 |]
+           1, [| 1; 1; 2; -3 |]
+           6, [| 6; 5; 4; 3; 2; 1 |] |]
 
+    let verify () =
+        let random = Random 31
+
+        let generatedCases =
+            Array.init 256 (fun length ->
+                let maxSeats = random.Next(0, 8)
+                let requests = Array.init length (fun _ -> random.Next(-2, 12))
+                maxSeats, requests)
+
+        Array.append fixedCases generatedCases
+        |> Array.iteri (fun index (maxSeats, requests) ->
+            let expected = RequestAggregation.arrayPipeline maxSeats requests
+            let actual = RequestAggregation.singlePass maxSeats requests
+
+            if actual <> expected then
+                failwithf
+                    "equivalence case %d failed: maxSeats=%d expected=%d actual=%d"
+                    index
+                    maxSeats
+                    expected
+                    actual)
+
+        fixedCases.Length + generatedCases.Length
+```
 The reference implementation and candidate are independently shaped, which makes comparison useful. The cases include empty input, exact boundaries, rejected values, negative values, and varying lengths. Passing 260 cases is evidence, not a mathematical proof; production rules may require additional properties, overflow cases, or domain-level tests.
 
 Run only the semantic gate while editing:
 
 ```console
-dotnet run --project examples/chapters/ch31/Ch31.Benchmarks.fsproj \
+dotnet run --project Ch31.Benchmarks.fsproj \
   --configuration Release --no-restore -- --verify-only
 ```
 
@@ -134,8 +133,27 @@ Do not encode a noisy time limit in this check. Correctness gates should be dete
 
 The benchmark fixture moves deterministic input construction into `GlobalSetup`, returns each computed sum, tests two data sizes, marks the pipeline as the baseline, and enables managed-allocation reporting:
 
-<<< @/../examples/chapters/ch31/Benchmarks.fs#benchmark{fsharp:line-numbers} [Benchmarks.fs]
+```fsharp:line-numbers [Benchmarks.fs]
+[<MemoryDiagnoser>]
+type RequestAggregationBenchmarks() =
+    let mutable requests = Array.empty<int>
 
+    [<Params(256, 4096)>]
+    member val Count = 0 with get, set
+
+    [<GlobalSetup>]
+    member this.Setup() =
+        let random = Random 31
+        requests <- Array.init this.Count (fun _ -> random.Next(-2, 12))
+
+    [<Benchmark(Baseline = true)>]
+    member _.ArrayPipeline() =
+        RequestAggregation.arrayPipeline 6 requests
+
+    [<Benchmark>]
+    member _.SinglePass() =
+        RequestAggregation.singlePass 6 requests
+```
 Each choice closes a common loophole:
 
 - setup time is excluded from the operation being compared;
@@ -150,7 +168,7 @@ The project locks BenchmarkDotNet 0.15.8 and all resolved dependencies. Run it f
 The quick mode is only an execution check:
 
 ```console
-dotnet run --project examples/chapters/ch31/Ch31.Benchmarks.fsproj \
+dotnet run --project Ch31.Benchmarks.fsproj \
   --configuration Release --no-restore -- --smoke
 ```
 

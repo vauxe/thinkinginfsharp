@@ -2,66 +2,6 @@
 title: "Chapter 45: Scripting, Automation, Packages, and What Comes Next"
 description: "Turn F# scripts into deterministic local automation, choose and lock packages deliberately, and build a practical path for continued F# mastery."
 translationKey: part-07/ch-45-scripting-packages-next
-kind: chapter
-part: 7
-chapter: 45
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch45-scripting-packages-next
-exerciseIds:
-  - ch45-exercise-01
-  - ch45-exercise-02
-  - ch45-exercise-03
-termIds: []
-sources:
-  - id: microsoft-fsi
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/tools/fsharp-interactive/
-    checked: "2026-08-25"
-  - id: microsoft-fsi-options
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/fsharp-interactive-options
-    checked: "2026-08-25"
-  - id: microsoft-package-reference
-    url: https://learn.microsoft.com/en-us/nuget/consume-packages/package-references-in-project-files
-    checked: "2026-08-25"
-  - id: microsoft-package-evaluation
-    url: https://learn.microsoft.com/en-us/nuget/consume-packages/finding-and-choosing-packages
-    checked: "2026-08-25"
-  - id: microsoft-nuget-audit
-    url: https://learn.microsoft.com/en-us/nuget/concepts/auditing-packages
-    checked: "2026-08-25"
-  - id: microsoft-package-source-mapping
-    url: https://learn.microsoft.com/en-us/nuget/consume-packages/package-source-mapping
-    checked: "2026-08-25"
-  - id: microsoft-dotnet-tools
-    url: https://learn.microsoft.com/en-us/dotnet/core/tools/global-tools
-    checked: "2026-08-25"
-  - id: fake-build
-    url: https://fake.build/
-    checked: "2026-08-25"
-  - id: paket-docs
-    url: https://fsprojects.github.io/Paket/
-    checked: "2026-08-25"
-  - id: microsoft-quotations
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/code-quotations
-    checked: "2026-08-25"
-  - id: microsoft-srtp
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/statically-resolved-type-parameters
-    checked: "2026-08-25"
-  - id: microsoft-flexible-types
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/flexible-types
-    checked: "2026-08-25"
-  - id: microsoft-byrefs
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/byrefs
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-tour
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/tour
-    checked: "2026-08-25"
-  - id: fsharp-core-api
-    url: https://fsharp.github.io/fsharp-core-docs/
-    checked: "2026-08-25"
 ---
 
 # Chapter 45: Scripting, Automation, Packages, and What Comes Next {#overview}
@@ -113,7 +53,7 @@ The session remembers earlier bindings, opened namespaces, loaded files, referen
 
 ### Use a script for a complete, reviewable operation {#script-operation}
 
-A script should state its inputs, outputs, failure behavior, and owned effects as clearly as a small application. It may still be concise. The manifest script has one file, uses only libraries included with .NET, creates no global installation, and can be invoked from the repository root.
+A script should state its inputs, outputs, failure behavior, and owned effects as clearly as a small application. It may still be concise. The manifest script has one file, uses only libraries included with .NET, creates no global installation, and can be invoked from the directory containing the example.
 
 The useful distinction is not “throwaway versus production.” It is “bounded operation versus growing product.” A one-off data repair may deserve stricter validation, backups, and audit evidence than a long-lived developer convenience.
 
@@ -130,8 +70,8 @@ Microsoft documents the command shape as `dotnet fsi [options] [script-file [arg
 The manifest script accepts these forms:
 
 ```console
-dotnet fsi --exec examples/scripts/ch45-scripting-packages-next.fsx write ./artifacts ./artifacts.manifest.json
-dotnet fsi --exec examples/scripts/ch45-scripting-packages-next.fsx check ./artifacts ./artifacts.manifest.json
+dotnet fsi --exec ch45-scripting-packages-next.fsx write ./artifacts ./artifacts.manifest.json
+dotnet fsi --exec ch45-scripting-packages-next.fsx check ./artifacts ./artifacts.manifest.json
 ```
 
 `--exec` runs the script and exits rather than remaining interactive. `write` converges the output toward desired content. `check` performs no write and returns exit code `2` when the output is absent or stale. Unexpected failures return `1`; success returns `0`.
@@ -171,14 +111,30 @@ Its contract is deliberately narrow:
 - JSON has schema version `1`, UTF-8 without a BOM, and one final newline;
 - unchanged desired content leaves the existing output untouched;
 - replacement uses a uniquely named file in the output directory, then moves it over the destination;
-- no-argument execution owns and removes a unique temporary fixture for repository verification.
+- no-argument execution owns and removes a unique temporary fixture for its self-test.
 
 ### Model observable outcomes, not incidental steps {#manifest-model}
 
 The script distinguishes planning data from write and check outcomes:
 
-<<< @/../examples/scripts/ch45-scripting-packages-next.fsx#manifest-model{fsharp:line-numbers} [ch45-scripting-packages-next.fsx]
+```fsharp:line-numbers [ch45-scripting-packages-next.fsx]
+type ManifestEntry =
+    { Path: string
+      Bytes: int64
+      Sha256: string }
 
+type ManifestPlan =
+    { Entries: ManifestEntry array
+      Json: string }
+
+type WriteOutcome =
+    | Updated of fileCount: int
+    | Unchanged of fileCount: int
+
+type CheckOutcome =
+    | Current of fileCount: int
+    | Stale of fileCount: int
+```
 `ManifestPlan` contains both structured entries and the exact bytes-as-text desired at the boundary. `Updated` and `Unchanged` are not Booleans with undocumented meaning. `Current` and `Stale` make read-only CI behavior a separate contract from mutation.
 
 The model remains small because this is local automation. A public tool might add schema compatibility, structured diagnostics, cancellation, logging, and a stable serialized result. Those needs would be promotion signals.
@@ -187,8 +143,48 @@ The model remains small because this is local automation. A public tool might ad
 
 The filesystem adapter resolves full paths, uses the operating system's path equality for excluding the output, recursively skips reparse points, normalizes reported separators, and hashes each open stream:
 
-<<< @/../examples/scripts/ch45-scripting-packages-next.fsx#artifact-scan{fsharp:line-numbers} [ch45-scripting-packages-next.fsx]
+```fsharp:line-numbers [ch45-scripting-packages-next.fsx]
+let pathComparer =
+    if OperatingSystem.IsWindows() then
+        StringComparer.OrdinalIgnoreCase
+    else
+        StringComparer.Ordinal
 
+let samePath left right =
+    pathComparer.Equals(Path.GetFullPath left, Path.GetFullPath right)
+
+let isReparsePoint (attributes: FileAttributes) =
+    attributes.HasFlag FileAttributes.ReparsePoint
+
+let rec regularFilesUnder directory =
+    seq {
+        for path in Directory.EnumerateFileSystemEntries directory do
+            let attributes = File.GetAttributes path
+
+            if not (isReparsePoint attributes) then
+                if attributes.HasFlag FileAttributes.Directory then
+                    yield! regularFilesUnder path
+                else
+                    yield path
+    }
+
+let normalizedRelativePath root path =
+    Path
+        .GetRelativePath(root, path)
+        .Replace(Path.DirectorySeparatorChar, '/')
+        .Replace(Path.AltDirectorySeparatorChar, '/')
+
+let hashFile path =
+    use input = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read)
+    let length = input.Length
+
+    let digest =
+        SHA256.HashData input
+        |> Convert.ToHexString
+        |> fun text -> text.ToLowerInvariant()
+
+    length, digest
+```
 Skipping links avoids accidentally walking outside the selected tree or entering a cycle. It is a policy, not a universal rule: a deployment format that intentionally includes links would need to record link targets safely instead.
 
 Opening with `FileShare.Read` prevents cooperating Windows writers from modifying the file while it is hashed. This is not a transactional filesystem snapshot, especially across platforms. If producers may mutate the tree concurrently, first publish an immutable staging directory or use a storage mechanism with snapshot semantics.
@@ -199,8 +195,54 @@ SHA-256 lets a later consumer detect whether bytes differ from the recorded byte
 
 The planner renders JSON with `Utf8JsonWriter` instead of relying on unspecified reflection ordering. It sorts entries before rendering and fixes property order, casing, indentation, encoding, and newline policy:
 
-<<< @/../examples/scripts/ch45-scripting-packages-next.fsx#manifest-plan{fsharp:line-numbers} [ch45-scripting-packages-next.fsx]
+```fsharp:line-numbers [ch45-scripting-packages-next.fsx]
+let renderManifest (entries: ManifestEntry array) =
+    use buffer = new MemoryStream()
 
+    use writer = new Utf8JsonWriter(buffer, JsonWriterOptions(Indented = true))
+
+    writer.WriteStartObject()
+    writer.WriteNumber("schemaVersion", 1)
+    writer.WriteStartArray("files")
+
+    for entry in entries do
+        writer.WriteStartObject()
+        writer.WriteString("path", entry.Path)
+        writer.WriteNumber("bytes", entry.Bytes)
+        writer.WriteString("sha256", entry.Sha256)
+        writer.WriteEndObject()
+
+    writer.WriteEndArray()
+    writer.WriteEndObject()
+    writer.Flush()
+
+    Encoding.UTF8.GetString(buffer.ToArray()) + "\n"
+
+let planManifest sourceDirectory outputFile =
+    let sourceRoot = Path.GetFullPath sourceDirectory
+    let outputPath = Path.GetFullPath outputFile
+
+    if not (Directory.Exists sourceRoot) then
+        invalidArg (nameof sourceDirectory) $"Source directory does not exist: {sourceRoot}"
+
+    if isReparsePoint (File.GetAttributes sourceRoot) then
+        invalidArg (nameof sourceDirectory) $"Source directory must not be a symbolic link: {sourceRoot}"
+
+    let entries =
+        regularFilesUnder sourceRoot
+        |> Seq.filter (fun path -> not (samePath path outputPath))
+        |> Seq.map (fun path ->
+            let length, digest = hashFile path
+
+            { Path = normalizedRelativePath sourceRoot path
+              Bytes = length
+              Sha256 = digest })
+        |> Seq.sortWith (fun left right -> StringComparer.Ordinal.Compare(left.Path, right.Path))
+        |> Seq.toArray
+
+    { Entries = entries
+      Json = renderManifest entries }
+```
 The boundary still reads files, so `planManifest` is not pure. The important separation is that it computes one complete desired result before deciding whether to mutate the output. `renderManifest` itself is deterministic for the same entry array.
 
 Stable output prevents noisy diffs and makes equality meaningful. Sorting after enumeration avoids inheriting filesystem order. Relative paths avoid embedding a developer's absolute directory. No timestamps, machine names, or random identifiers enter the final JSON.
@@ -209,8 +251,39 @@ Stable output prevents noisy diffs and makes equality meaningful. Sorting after 
 
 The application layer compares existing and desired text. Only a difference creates a temporary file and replaces the destination:
 
-<<< @/../examples/scripts/ch45-scripting-packages-next.fsx#idempotent-write{fsharp:line-numbers} [ch45-scripting-packages-next.fsx]
+```fsharp:line-numbers [ch45-scripting-packages-next.fsx]
+let replaceFromSameDirectory (outputPath: string) (content: string) =
+    let outputDirectory = Path.GetDirectoryName outputPath
+    Directory.CreateDirectory outputDirectory |> ignore
 
+    let temporaryPath =
+        Path.Combine(outputDirectory, $".{Path.GetFileName outputPath}.{Guid.NewGuid():N}.tmp")
+
+    try
+        File.WriteAllText(temporaryPath, content, UTF8Encoding(false))
+        File.Move(temporaryPath, outputPath, overwrite = true)
+    finally
+        if File.Exists temporaryPath then
+            File.Delete temporaryPath
+
+let writeManifest sourceDirectory outputFile =
+    let outputPath = Path.GetFullPath outputFile
+    let plan = planManifest sourceDirectory outputPath
+
+    match readExisting outputPath with
+    | Some existing when existing = plan.Json -> Unchanged plan.Entries.Length
+    | _ ->
+        replaceFromSameDirectory outputPath plan.Json
+        Updated plan.Entries.Length
+
+let checkManifest sourceDirectory outputFile =
+    let outputPath = Path.GetFullPath outputFile
+    let plan = planManifest sourceDirectory outputPath
+
+    match readExisting outputPath with
+    | Some existing when existing = plan.Json -> Current plan.Entries.Length
+    | _ -> Stale plan.Entries.Length
+```
 This gives the useful idempotence property: after one successful `write`, another `write` over unchanged inputs reports `Unchanged` and does not alter the output timestamp. The same-directory temporary file keeps the final move on one filesystem and narrows the window in which a partial destination is visible.
 
 Do not overstate that guarantee. The code does not request durable flushes, coordinate concurrent writers, preserve every prior permission or metadata bit, or recover an interrupted network filesystem. “Replace after complete local write” is accurate; “transactionally durable under every crash” is not.
@@ -221,10 +294,10 @@ Do not overstate that guarantee. The code does not request durable flushes, coor
 
 With no arguments, the manifest script creates two files in a unique directory under `Path.GetTempPath()`. It writes once, sets the output timestamp to a sentinel, writes again, checks without mutation, verifies ordinal normalized paths, and removes only that owned directory in `finally`.
 
-Run the verified slice from the repository root:
+Run the verified slice from the directory containing the example:
 
 ```console
-dotnet fsi --exec examples/scripts/ch45-scripting-packages-next.fsx
+dotnet fsi --exec ch45-scripting-packages-next.fsx
 ```
 
 The registered example requires these ordered observations:
@@ -238,7 +311,7 @@ Manifest paths: nested/beta.bin, notes.txt
 Cleanup: removed=true
 ```
 
-The repository executes that script in a fresh FSI process under .NET SDK `10.0.301` and F# 10. The evidence covers the temporary fixture, exact output order, idempotent second write, read-only current check, path normalization, and cleanup. It does not cover hostile directories, concurrent producers, millions of files, remote filesystems, signatures, or every Windows/Linux filesystem.
+Run the script in a fresh FSI process. Its output lets you check the temporary fixture, exact output order, idempotent second write, read-only current check, path normalization, and cleanup. It does not cover hostile directories, concurrent producers, millions of files, remote filesystems, signatures, or every Windows/Linux filesystem.
 
 ## Treat automation as a public interface as soon as another caller depends on it {#automation-interface}
 
@@ -266,7 +339,7 @@ Idempotence is not immunity to wrong inputs. A deterministic script can reliably
 
 Shell scripts are excellent at invoking commands and connecting streams. They become less portable when data parsing, branching, escaping, collections, error models, or filesystem rules dominate. F# gives those decisions types and normal .NET APIs while still invoking external processes when appropriate.
 
-Do not wrap every `dotnet build` in F# merely to say the build uses F#. A short task runner provided by the repository may be clearer. Introduce F# where it owns meaningful parsing, planning, validation, concurrency, or reusable policy.
+Do not wrap every `dotnet build` in F# merely to say the build uses F#. A short task file may be clearer. Introduce F# where it owns meaningful parsing, planning, validation, concurrency, or reusable policy.
 
 When invoking a process, pass an argument list rather than constructing an unescaped shell string, capture exit status and bounded output, propagate cancellation, and decide which environment variables are inherited. Secrets must not appear in command lines or normal logs.
 
@@ -325,7 +398,7 @@ In an SDK-style application or tool project, specify direct PackageReference ver
 
 A lock file answers resolution, not trust or runtime correctness. It does not prove that a package is safe, licensed for the product, compatible with the target, or behaviorally correct. It also does not force a consuming application's graph to use a library project's private resolution; the top-level consumer resolves its own closure.
 
-Keep SDK and tool versions explicit too. This repository pins the SDK in `global.json`, local tools in `.config/dotnet-tools.json`, NuGet graphs in project lock files, and JavaScript tools in a workspace lock file. Each mechanism covers a different graph.
+Keep SDK and tool versions explicit too. A project can pin the SDK in `global.json`, local tools in `.config/dotnet-tools.json`, NuGet graphs in project lock files, and JavaScript tools in a workspace lock file. Each mechanism covers a different graph; use only the ones the project actually needs.
 
 Update intentionally: change one bounded set, regenerate the lock, inspect direct and transitive differences, read relevant release notes, run focused and full tests, and retain rollback. “Latest” is a query result, not a review policy.
 

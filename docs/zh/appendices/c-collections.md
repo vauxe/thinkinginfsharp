@@ -2,53 +2,6 @@
 title: "附录 C：集合选择与复杂度"
 description: "按求值、更新、查找、顺序、键契约与有条件的复杂度选择 F#/.NET 集合，而不是只看熟悉的名称。"
 translationKey: appendices/c-collections
-kind: appendix
-appendix: C
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch14-collections-evaluation
-exerciseIds: []
-termIds: []
-sources:
-  - id: microsoft-fsharp-collection-types
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/fsharp-collection-types
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-lists
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/lists
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-sequences
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/sequences
-    checked: "2026-08-25"
-  - id: fsharp-core-collections
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections.html
-    checked: "2026-08-25"
-  - id: fsharp-core-list
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-listmodule.html
-    checked: "2026-08-25"
-  - id: fsharp-core-seq
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-seqmodule.html
-    checked: "2026-08-25"
-  - id: fsharp-core-map
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-mapmodule.html
-    checked: "2026-08-25"
-  - id: fsharp-core-set
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-setmodule.html
-    checked: "2026-08-25"
-  - id: microsoft-dotnet-collections
-    url: https://learn.microsoft.com/en-us/dotnet/standard/collections/
-    checked: "2026-08-25"
-  - id: microsoft-dotnet-list
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.list-1?view=net-10.0
-    checked: "2026-08-25"
-  - id: microsoft-dotnet-dictionary
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2?view=net-10.0
-    checked: "2026-08-25"
-  - id: microsoft-dotnet-hashset
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.hashset-1?view=net-10.0
-    checked: "2026-08-25"
 ---
 
 # 附录 C：集合选择与复杂度 {#overview}
@@ -135,8 +88,29 @@ F# list 是不可变单链表。它的实用成本模型直接来自这种形状
 
 许多 `Seq` 变换返回延迟可枚举值。创建管道可能为 O(1)，而以后每次枚举才执行工作。`Seq.fold`、`Seq.toList` 或完整 `Seq.length` 等终端操作会消费元素。
 
-<<< @/../examples/scripts/ch14-collections-evaluation.fsx#repeated-enumeration{fsharp:line-numbers} [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+let mutable pulls = 0
 
+let delayedSquares =
+    seq {
+        for value in 1..3 do
+            pulls <- pulls + 1
+            yield value * value
+    }
+
+ensureEqual "deferred before enumeration" 0 pulls
+printfn "Deferred before enumeration: pulls=%d" pulls
+
+let firstPass = delayedSquares |> Seq.toList
+ensureEqual "first values" [ 1; 4; 9 ] firstPass
+ensureEqual "first pass count" 3 pulls
+printfn "First enumeration: values=%A pulls=%d" firstPass pulls
+
+let secondPass = delayedSquares |> Seq.toList
+ensureEqual "second values" firstPass secondPass
+ensureEqual "second pass repeats production" 6 pulls
+printfn "Second enumeration: values=%A pulls=%d" secondPass pulls
+```
 对产生 `n` 个元素的有限序列：
 
 - 完整扫描为 O(n)，另加生产者与回调成本；
@@ -153,8 +127,17 @@ F# list 是不可变单链表。它的实用成本模型直接来自这种形状
 
 FSharp.Core 把 `Map` 与 `Set` 记录为由 F# 泛型比较排序的不可变二叉树集合。它们的类型携带 `comparison` 约束。
 
-<<< @/../examples/scripts/ch14-collections-evaluation.fsx#ordered-collections{fsharp:line-numbers} [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+let uniqueSeats = [ 3; 1; 3; 2 ] |> Set.ofList
 
+let bookingByCode =
+    [ "B2", "first"; "A1", "only"; "B2", "replacement" ] |> Map.ofList
+
+ensureEqual "set removes duplicates and orders" [ 1; 2; 3 ] (Set.toList uniqueSeats)
+ensureEqual "later map binding replaces earlier" "replacement" bookingByCode["B2"]
+
+printfn "Ordered collections: set=%A map=%A" (Set.toList uniqueSeats) (Map.toList bookingByCode)
+```
 | 操作 | `Map` / `Set` 官方界限 | 条件 |
 |---|---|---|
 | find/tryFind/contains | O(log n) | 树比较路径 |
@@ -172,8 +155,27 @@ FSharp.Core 把 `Map` 与 `Set` 记录为由 F# 泛型比较排序的不可变�
 
 .NET 把 Dictionary 键检索记录为非常快、接近 O(1)，其速度取决于哈希质量。.NET 集合复杂度表会区分哈希插入/查找的均摊或期望 O(1) 与最坏 O(n)。
 
-<<< @/../examples/scripts/ch14-collections-evaluation.fsx#equality-only-key{fsharp:line-numbers} [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+[<CustomEquality; NoComparison>]
+type EmailAddress =
+    { Value: string }
 
+    override this.Equals(other: obj) =
+        match other with
+        | :? EmailAddress as candidate -> StringComparer.OrdinalIgnoreCase.Equals(this.Value, candidate.Value)
+        | _ -> false
+
+    override this.GetHashCode() =
+        StringComparer.OrdinalIgnoreCase.GetHashCode(this.Value)
+
+let recipients = Dictionary<EmailAddress, string>()
+recipients[{ Value = "lin@example.com" }] <- "first"
+recipients[{ Value = "LIN@example.com" }] <- "second"
+
+ensureEqual "hash equality replaces value" 1 recipients.Count
+ensureEqual "case-insensitive lookup" "second" recipients[{ Value = "Lin@Example.com" }]
+printfn "Hash dictionary: count=%d lookup=%s" recipients.Count recipients[{ Value = "Lin@Example.com" }]
+```
 | 操作 | 期望/均摊 | 最坏情况或限制 |
 |---|---|---|
 | dictionary 查找/add | O(1) | 碰撞或扩容路径 O(n) |

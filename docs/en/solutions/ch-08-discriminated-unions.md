@@ -2,27 +2,6 @@
 title: "Chapter 8 Solutions"
 description: "Reasoning about flag combinations, union cases, exhaustiveness, and state-transition policy."
 translationKey: solutions/ch-08-discriminated-unions
-kind: solution
-part: 2
-chapter: 8
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch08-discriminated-unions
-exerciseIds:
-  - ch08-exercise-01
-  - ch08-exercise-02
-  - ch08-exercise-03
-termIds: []
-sources:
-  - id: microsoft-discriminated-unions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions
-    checked: "2026-08-24"
-  - id: microsoft-match-expressions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/match-expressions
-    checked: "2026-08-24"
 ---
 
 # Chapter 8 Solutions {#overview}

@@ -2,47 +2,6 @@
 title: "第 11 章：泛型、约束与度量单位"
 description: "理解自动泛化、值限制、相等与比较约束、条件式结构能力，以及度量单位。"
 translationKey: part-02/ch-11-generics-constraints
-kind: chapter
-part: 2
-chapter: 11
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch11-generics-constraints
-exerciseIds:
-  - ch11-exercise-01
-  - ch11-exercise-02
-  - ch11-exercise-03
-termIds:
-  - automatic-generalization
-  - comparison-constraint
-  - equality-constraint
-  - generic-type-parameter
-  - statically-resolved-type-parameter
-  - type-inference
-  - unit-of-measure
-  - value-restriction
-sources:
-  - id: microsoft-generics
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/
-    checked: "2026-08-24"
-  - id: microsoft-automatic-generalization
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/automatic-generalization
-    checked: "2026-08-24"
-  - id: microsoft-generic-constraints
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/constraints
-    checked: "2026-08-24"
-  - id: microsoft-srtp
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/statically-resolved-type-parameters
-    checked: "2026-08-25"
-  - id: microsoft-units-of-measure
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/units-of-measure
-    checked: "2026-08-24"
-  - id: fsharp-core-language-primitives
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-languageprimitives.html
-    checked: "2026-08-24"
 ---
 
 # 第 11 章：泛型、约束与度量单位 {#overview}
@@ -69,8 +28,20 @@ sources:
 
 共享函数只是把输入的两个副本放进列表，并未以其他方式使用它：
 
-<<< @/../examples/scripts/ch11-generics-constraints.fsx#automatic-generalization{fsharp:line-numbers} [ch11-generics-constraints.fsx]
+```fsharp:line-numbers [ch11-generics-constraints.fsx]
+let duplicate value = [ value; value ]
 
+let integerCopies = duplicate 3
+let attendeeCopies = duplicate "Lin"
+
+printfn "Generalized function: ints=%A strings=%A" integerCopies attendeeCopies
+
+let genericEmpty = []
+let oneInteger = 1 :: genericEmpty
+let oneAttendee = "Ada" :: genericEmpty
+
+printfn "Simple generic value: ints=%A strings=%A" oneInteger oneAttendee
+```
 F# 推断出：
 
 ```fsharp
@@ -148,8 +119,20 @@ let alwaysKeep = List.filter (fun _ -> true) // FS0030
 
 共享脚本展示第三种形式：
 
-<<< @/../examples/scripts/ch11-generics-constraints.fsx#value-restriction-fixes{fsharp:line-numbers} [ch11-generics-constraints.fsx]
+```fsharp:line-numbers [ch11-generics-constraints.fsx]
+let makeEmptyBuckets () = Array.create 2 []
 
+let integerBuckets: int list array = makeEmptyBuckets ()
+let attendeeBuckets: string list array = makeEmptyBuckets ()
+
+let anotherIntegerBuckets: int list array = makeEmptyBuckets ()
+
+printfn
+    "Value restriction fixes: ints=%d strings=%d fresh=%b"
+    integerBuckets.Length
+    attendeeBuckets.Length
+    (not (LanguagePrimitives.PhysicalEquality integerBuckets anotherIntegerBuckets))
+```
 添加 `()` 会改变语义：每次调用都分配新数组。这适合工厂，却不适合调用方本应共享的单例缓存。对 `alwaysKeep` 做 eta 展开会公开其数据实参，同时保持纯变换含义；类型标注则把值固定为一种类型。应根据所有权与生命周期选择修复方式，而不是随便采用能让 FS0030 消失的编辑。
 
 少数场景存在显式泛型值语法，但它不是默认修复。清楚的普通函数更容易调用，也会让求值时机可见。
@@ -158,8 +141,23 @@ let alwaysKeep = List.filter (fun _ -> true) // FS0030
 
 无约束的 `'T` 不承诺排序、算术、成员，甚至不承诺 F# 泛型相等。定义中使用的操作会加入最小必要能力：
 
-<<< @/../examples/scripts/ch11-generics-constraints.fsx#equality-comparison{fsharp:line-numbers} [ch11-generics-constraints.fsx]
+```fsharp:line-numbers [ch11-generics-constraints.fsx]
+type Envelope<'T> = { Label: string; Payload: 'T }
 
+let same left right = left = right
+let comesBefore left right = compare left right < 0
+
+let first = { Label = "A"; Payload = 2 }
+
+let firstAgain = { Label = "A"; Payload = 2 }
+
+let second = { Label = "B"; Payload = 1 }
+
+let sortedLabels =
+    [ second; first ] |> List.sort |> List.map (fun envelope -> envelope.Label)
+
+printfn "Constraints: equal=%b ordered=%b sorted=%A" (same first firstAgain) (comesBefore first second) sortedLabels
+```
 重要的推断签名在概念上是：
 
 ```fsharp
@@ -221,8 +219,22 @@ let inline add left right = left + right
 
 座位数与经过分钟数都可能用数字表示，但二者相加毫无意义。F# 可以把编译期度量附着在受支持的数值类型上：
 
-<<< @/../examples/scripts/ch11-generics-constraints.fsx#units-of-measure{fsharp:line-numbers} [ch11-generics-constraints.fsx]
+```fsharp:line-numbers [ch11-generics-constraints.fsx]
+[<Measure>]
+type seat
 
+[<Measure>]
+type minute
+
+let addMeasured (left: int<'Measure>) (right: int<'Measure>) = left + right
+
+let capacity = 40<seat>
+let requested = addMeasured 2<seat> 3<seat>
+let remaining = capacity - requested
+let bookingRate = 12.0<seat> / 3.0<minute>
+
+printfn "Measures: requested=%d remaining=%d rate=%.1f" requested remaining bookingRate
+```
 `[<Measure>] type seat` 声明一个度量，而不是运行时记录或包装器。`int<seat>` 是座位数量。加减法要求度量相容；乘除法会组合度量，因此 `bookingRate` 的类型是 `float<seat/minute>`。
 
 `addMeasured` 中的度量变量允许任意一种度量，却要求两个实参共享它：
@@ -252,10 +264,10 @@ let seatsFromInt raw : int<seat> =
 
 ## 运行共享示例 {#run-example}
 
-在仓库根目录执行：
+在示例所在目录执行：
 
 ```console
-dotnet fsi --exec examples/scripts/ch11-generics-constraints.fsx
+dotnet fsi --exec ch11-generics-constraints.fsx
 ```
 
 五行确定性输出展示：一个泛化函数用于两种类型、安全的简单泛型值、规避值限制且每次生成新值的工厂、通过泛型记录推断出的相等/比较约束，以及经过量纲检查的算术。

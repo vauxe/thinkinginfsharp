@@ -2,46 +2,6 @@
 title: "Chapter 40 Solutions"
 description: "Choose bounded data tools, absorb CSV schema drift explicitly, and turn an exploratory classifier into reproducible training and inference systems."
 translationKey: solutions/ch-40-data-analytics
-kind: solution
-part: 7
-chapter: 40
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ecosystem-data-csv-provider
-  - foundation-example-tests
-exerciseIds:
-  - ch40-exercise-01
-  - ch40-exercise-02
-  - ch40-exercise-03
-termIds: []
-sources:
-  - id: fsharp-data-csv-provider
-    url: https://fsprojects.github.io/FSharp.Data/library/CsvProvider.html
-    checked: "2026-08-25"
-  - id: ef-core-10
-    url: https://learn.microsoft.com/en-us/ef/core/what-is-new/ef-core-10.0/whatsnew
-    checked: "2026-08-25"
-  - id: dapper-nuget
-    url: https://www.nuget.org/packages/Dapper/2.1.79
-    checked: "2026-08-25"
-  - id: deedle-nuget
-    url: https://www.nuget.org/packages/Deedle/8.0.0
-    checked: "2026-08-25"
-  - id: plotly-net-nuget
-    url: https://www.nuget.org/packages/Plotly.NET/5.1.0
-    checked: "2026-08-25"
-  - id: mlnet-overview
-    url: https://learn.microsoft.com/en-us/dotnet/machine-learning/mldotnet-api
-    checked: "2026-08-25"
-  - id: onnxruntime-csharp
-    url: https://onnxruntime.ai/docs/get-started/with-csharp.html
-    checked: "2026-08-25"
-  - id: dotnet-interactive-deprecation
-    url: https://github.com/dotnet/interactive/issues/4163
-    checked: "2026-08-25"
 ---
 
 # Chapter 40 Solutions {#overview}

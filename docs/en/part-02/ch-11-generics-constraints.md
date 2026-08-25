@@ -2,47 +2,6 @@
 title: "Chapter 11: Generics, Constraints, and Units"
 description: "Understand automatic generalization, the value restriction, equality and comparison constraints, conditional structural capabilities, and units of measure."
 translationKey: part-02/ch-11-generics-constraints
-kind: chapter
-part: 2
-chapter: 11
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch11-generics-constraints
-exerciseIds:
-  - ch11-exercise-01
-  - ch11-exercise-02
-  - ch11-exercise-03
-termIds:
-  - automatic-generalization
-  - comparison-constraint
-  - equality-constraint
-  - generic-type-parameter
-  - statically-resolved-type-parameter
-  - type-inference
-  - unit-of-measure
-  - value-restriction
-sources:
-  - id: microsoft-generics
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/
-    checked: "2026-08-24"
-  - id: microsoft-automatic-generalization
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/automatic-generalization
-    checked: "2026-08-24"
-  - id: microsoft-generic-constraints
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/constraints
-    checked: "2026-08-24"
-  - id: microsoft-srtp
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/statically-resolved-type-parameters
-    checked: "2026-08-25"
-  - id: microsoft-units-of-measure
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/units-of-measure
-    checked: "2026-08-24"
-  - id: fsharp-core-language-primitives
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-languageprimitives.html
-    checked: "2026-08-24"
 ---
 
 # Chapter 11: Generics, Constraints, and Units {#overview}
@@ -69,8 +28,20 @@ By the end of this chapter, you should be able to:
 
 The shared function uses its input only to place two copies in a list:
 
-<<< @/../examples/scripts/ch11-generics-constraints.fsx#automatic-generalization{fsharp:line-numbers} [ch11-generics-constraints.fsx]
+```fsharp:line-numbers [ch11-generics-constraints.fsx]
+let duplicate value = [ value; value ]
 
+let integerCopies = duplicate 3
+let attendeeCopies = duplicate "Lin"
+
+printfn "Generalized function: ints=%A strings=%A" integerCopies attendeeCopies
+
+let genericEmpty = []
+let oneInteger = 1 :: genericEmpty
+let oneAttendee = "Ada" :: genericEmpty
+
+printfn "Simple generic value: ints=%A strings=%A" oneInteger oneAttendee
+```
 F# infers:
 
 ```fsharp
@@ -148,8 +119,20 @@ There are three common intents:
 
 The shared script demonstrates the third form:
 
-<<< @/../examples/scripts/ch11-generics-constraints.fsx#value-restriction-fixes{fsharp:line-numbers} [ch11-generics-constraints.fsx]
+```fsharp:line-numbers [ch11-generics-constraints.fsx]
+let makeEmptyBuckets () = Array.create 2 []
 
+let integerBuckets: int list array = makeEmptyBuckets ()
+let attendeeBuckets: string list array = makeEmptyBuckets ()
+
+let anotherIntegerBuckets: int list array = makeEmptyBuckets ()
+
+printfn
+    "Value restriction fixes: ints=%d strings=%d fresh=%b"
+    integerBuckets.Length
+    attendeeBuckets.Length
+    (not (LanguagePrimitives.PhysicalEquality integerBuckets anotherIntegerBuckets))
+```
 Adding `()` changes semantics: each call allocates a new array. That is correct for a factory, not for a singleton cache callers are meant to share. Eta-expanding `alwaysKeep` exposes its data argument but retains its pure transformation meaning. An annotation instead commits a value to one type. Select the remedy from ownership and lifetime, not from whichever edit makes FS0030 disappear.
 
 Explicit generic value syntax exists for rare cases, but it is not the default repair. A clear ordinary function is easier to call and makes evaluation timing visible.
@@ -158,8 +141,23 @@ Explicit generic value syntax exists for rare cases, but it is not the default r
 
 An unconstrained `'T` offers no promise of ordering, arithmetic, members, or even F# generic equality. The operation used in a definition adds the smallest required capability:
 
-<<< @/../examples/scripts/ch11-generics-constraints.fsx#equality-comparison{fsharp:line-numbers} [ch11-generics-constraints.fsx]
+```fsharp:line-numbers [ch11-generics-constraints.fsx]
+type Envelope<'T> = { Label: string; Payload: 'T }
 
+let same left right = left = right
+let comesBefore left right = compare left right < 0
+
+let first = { Label = "A"; Payload = 2 }
+
+let firstAgain = { Label = "A"; Payload = 2 }
+
+let second = { Label = "B"; Payload = 1 }
+
+let sortedLabels =
+    [ second; first ] |> List.sort |> List.map (fun envelope -> envelope.Label)
+
+printfn "Constraints: equal=%b ordered=%b sorted=%A" (same first firstAgain) (comesBefore first second) sortedLabels
+```
 The important inferred signatures are conceptually:
 
 ```fsharp
@@ -221,8 +219,22 @@ The shared measured addition deliberately fixes the representation as `int` and 
 
 Seat counts and elapsed minutes may both be represented by numbers, but adding them is meaningless. F# can attach compile-time measures to supported numeric types:
 
-<<< @/../examples/scripts/ch11-generics-constraints.fsx#units-of-measure{fsharp:line-numbers} [ch11-generics-constraints.fsx]
+```fsharp:line-numbers [ch11-generics-constraints.fsx]
+[<Measure>]
+type seat
 
+[<Measure>]
+type minute
+
+let addMeasured (left: int<'Measure>) (right: int<'Measure>) = left + right
+
+let capacity = 40<seat>
+let requested = addMeasured 2<seat> 3<seat>
+let remaining = capacity - requested
+let bookingRate = 12.0<seat> / 3.0<minute>
+
+printfn "Measures: requested=%d remaining=%d rate=%.1f" requested remaining bookingRate
+```
 `[<Measure>] type seat` declares a measure, not a runtime record or wrapper. `int<seat>` is a seat-count quantity. Addition and subtraction require compatible measures; multiplication and division combine them, so `bookingRate` has type `float<seat/minute>`.
 
 The measure variable in `addMeasured` allows any one measure but requires both arguments to share it:
@@ -252,10 +264,10 @@ Do not confuse the `unit` type, whose sole value is `()`, with a unit **of measu
 
 ## Run the shared example {#run-example}
 
-From the repository root:
+From the directory containing the example:
 
 ```console
-dotnet fsi --exec examples/scripts/ch11-generics-constraints.fsx
+dotnet fsi --exec ch11-generics-constraints.fsx
 ```
 
 The five deterministic lines demonstrate one generalized function at two types, a safe simple generic value, a fresh-value factory that avoids the value restriction, inferred equality/comparison constraints through a generic record, and dimension-checked arithmetic.

@@ -2,36 +2,6 @@
 title: "第 8 章：可辨识联合与状态建模"
 description: "从矛盾布尔标志推导可辨识联合，用案例专属数据与穷尽匹配表达互斥状态和转换。"
 translationKey: part-02/ch-08-discriminated-unions
-kind: chapter
-part: 2
-chapter: 8
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch08-discriminated-unions
-exerciseIds:
-  - ch08-exercise-01
-  - ch08-exercise-02
-  - ch08-exercise-03
-termIds:
-  - discriminated-union
-  - exhaustiveness
-  - pattern
-  - pattern-matching
-  - record
-  - union-case
-sources:
-  - id: microsoft-discriminated-unions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions
-    checked: "2026-08-24"
-  - id: microsoft-match-expressions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/match-expressions
-    checked: "2026-08-24"
-  - id: microsoft-pattern-matching
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/pattern-matching
-    checked: "2026-08-24"
 ---
 
 # 第 8 章：可辨识联合与状态建模 {#overview}
@@ -58,8 +28,23 @@ sources:
 
 共享脚本先保留一个故意薄弱的记录：
 
-<<< @/../examples/scripts/ch08-discriminated-unions.fsx#flag-contradiction{fsharp:line-numbers} [ch08-discriminated-unions.fsx]
+```fsharp:line-numbers [ch08-discriminated-unions.fsx]
+type BookingFlags =
+    { IsPending: bool
+      IsConfirmed: bool
+      IsCancelled: bool }
 
+let contradictoryFlags =
+    { IsPending = true
+      IsConfirmed = true
+      IsCancelled = false }
+
+printfn
+    "Flag model contradiction: pending=%b confirmed=%b cancelled=%b"
+    contradictoryFlags.IsPending
+    contradictoryFlags.IsConfirmed
+    contradictoryFlags.IsCancelled
+```
 记录确保三个字段都存在且为 `bool`，却无法说明“恰好一个为真”。每增加一个开关，组合空间翻倍；验证函数必须在每次构造与更新后重新排除矛盾。
 
 更糟的是，案例专属数据常被拆成可空或可选字段：`ConfirmationCode` 在未确认时为何存在？`CancellationReason` 在已确认时该是什么？数据关系只留在约定中。
@@ -70,8 +55,12 @@ sources:
 
 用一个类型列出全部合法状态：
 
-<<< @/../examples/scripts/ch08-discriminated-unions.fsx#union-definition{fsharp:line-numbers} [ch08-discriminated-unions.fsx]
-
+```fsharp:line-numbers [ch08-discriminated-unions.fsx]
+type BookingStatus =
+    | Pending
+    | Confirmed of confirmationCode: string
+    | Cancelled of reason: string
+```
 `BookingStatus` 是可辨识联合；`Pending`、`Confirmed`、`Cancelled` 是三个**联合案例**。一个值在任一时刻只能由其中一个案例构造，因此不存在“同时待处理又已确认”的值。
 
 `Pending` 不带数据。`Confirmed` 带一个命名为 `confirmationCode` 的 `string` 字段，`Cancelled` 带一个 `reason`。这些字段不是三个案例共有的可选属性，而是对应案例的组成部分。
@@ -96,8 +85,19 @@ let cancelled = Cancelled "duplicate"
 
 共享函数覆盖三个案例：
 
-<<< @/../examples/scripts/ch08-discriminated-unions.fsx#exhaustive-match{fsharp:line-numbers} [ch08-discriminated-unions.fsx]
+```fsharp:line-numbers [ch08-discriminated-unions.fsx]
+let describeStatus status =
+    match status with
+    | Pending -> "pending"
+    | Confirmed confirmationCode -> $"confirmed:{confirmationCode}"
+    | Cancelled reason -> $"cancelled:{reason}"
 
+let statuses = [ Pending; Confirmed "C-42"; Cancelled "duplicate" ]
+
+let descriptions = statuses |> List.map describeStatus
+
+printfn "Statuses: %A" descriptions
+```
 每个分支返回 `string`，因此整个 `match` 也是 `string` 表达式。编译器知道 `BookingStatus` 的封闭案例集合，能检查模式是否覆盖全部形状。
 
 若以后增加 `Waitlisted of position: int`，所有没有覆盖它的显式匹配会产生诊断。这把模型演进转化为一份由编译器定位的待办清单，而不是等待罕见运行路径发现遗漏。
@@ -113,7 +113,7 @@ let incomplete status =
     | Confirmed code -> $"confirmed:{code}"
 ```
 
-F# 编译器会报告 FS0025 非穷尽模式警告，并举出未覆盖值。仓库把警告视为错误，所以这种代码不能进入有效示例。
+F# 编译器会报告 FS0025 非穷尽模式警告，并举出未覆盖值。启用“警告即错误”的项目会在构建时拒绝这种代码。
 
 不要机械添加 `| _ -> "other"` 消除警告。若每个状态具有不同业务语义，通配符会让新增案例悄悄落入旧分支。只有剩余案例确实共享同一规则、并且你有意接受未来案例也走该规则时，通配符才合适。
 
@@ -121,8 +121,15 @@ F# 编译器会报告 FS0025 非穷尽模式警告，并举出未覆盖值。仓
 
 要读取确认码，必须先证明状态是 `Confirmed`：
 
-<<< @/../examples/scripts/ch08-discriminated-unions.fsx#case-data{fsharp:line-numbers} [ch08-discriminated-unions.fsx]
+```fsharp:line-numbers [ch08-discriminated-unions.fsx]
+let confirmationCode status =
+    match status with
+    | Confirmed code -> Some code
+    | Pending
+    | Cancelled _ -> None
 
+printfn "Confirmed case carries code: %s" (confirmationCode (Confirmed "C-42") |> Option.defaultValue "none")
+```
 `confirmationCode` 返回 `string option`：确认状态得到 `Some code`，其他状态得到 `None`。这里先复用第 5 章为 `List.choose` 建立的最小 `option` 直觉；下一章会系统讨论缺失值组合。
 
 关键不是多写一次 `match`，而是代码不能在 `Pending` 上直接读取不存在的 `ConfirmationCode`。案例标签是携带数据有效性的证据。
@@ -140,8 +147,18 @@ OR 模式的替代项必须绑定兼容的名称与类型；这里两者都不�
 
 共享示例把确认写成纯函数：
 
-<<< @/../examples/scripts/ch08-discriminated-unions.fsx#transition{fsharp:line-numbers} [ch08-discriminated-unions.fsx]
+```fsharp:line-numbers [ch08-discriminated-unions.fsx]
+let confirm code status =
+    match status with
+    | Pending -> Confirmed code
+    | Confirmed _
+    | Cancelled _ -> status
 
+let transitioned = Pending |> confirm "C-99"
+
+printfn "Transition: pending -> %s" (describeStatus transitioned)
+printfn "All descriptions: %d" (List.length descriptions)
+```
 `confirm` 在 `Pending` 上构造 `Confirmed code`；对已确认或已取消状态返回原值。函数不改写输入，输出仍由 `BookingStatus` 限制在合法案例中。
 
 “无效转换保持原状”只是本章为了聚焦类型形状所选的策略，不一定适合真实预约系统。重复确认可能应幂等成功，也可能要报告冲突；取消后确认通常应返回有上下文的失败。第 9 章用 `Result` 把这种决策放进返回类型，而不是静默丢失信息。
@@ -183,10 +200,10 @@ F# 9 起，联合值会生成如 `.IsConfirmed` 的案例测试属性。它适�
 
 ## 运行共享示例 {#run-example}
 
-从仓库根目录执行：
+在示例所在目录执行：
 
 ```console
-dotnet fsi --exec examples/scripts/ch08-discriminated-unions.fsx
+dotnet fsi --exec ch08-discriminated-unions.fsx
 ```
 
 应得到：
@@ -199,7 +216,7 @@ Transition: pending -> confirmed:C-99
 All descriptions: 3
 ```
 
-第一行保留反例，后四行证明联合构造、穷尽解构、案例专属数据和纯转换。有效脚本自身不存在非穷尽匹配；manifest 按顺序检查五行。
+第一行保留反例，后四行证明联合构造、穷尽解构、案例专属数据和纯转换。有效脚本自身不存在非穷尽匹配；请按顺序比较五行。
 
 ## 调试：检查形状，而不只是分支 {#debugging}
 

@@ -2,64 +2,6 @@
 title: "第 40 章：数据、类型提供器、分析与机器学习"
 description: "根据模式所有权、执行语义、规模与证据，选择数据访问、查询、分析、可视化和机器学习工具。"
 translationKey: part-07/ch-40-data-analytics
-kind: chapter
-part: 7
-chapter: 40
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ecosystem-data-csv-provider
-  - foundation-example-tests
-exerciseIds:
-  - ch40-exercise-01
-  - ch40-exercise-02
-  - ch40-exercise-03
-termIds: []
-sources:
-  - id: microsoft-fsharp-query-expressions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/query-expressions
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-interactive
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/tools/fsharp-interactive/
-    checked: "2026-08-25"
-  - id: fsharp-data-csv-provider
-    url: https://fsprojects.github.io/FSharp.Data/library/CsvProvider.html
-    checked: "2026-08-25"
-  - id: fsharp-data-nuget
-    url: https://www.nuget.org/packages/FSharp.Data/8.2.0
-    checked: "2026-08-25"
-  - id: ef-core-10
-    url: https://learn.microsoft.com/en-us/ef/core/what-is-new/ef-core-10.0/whatsnew
-    checked: "2026-08-25"
-  - id: dapper-nuget
-    url: https://www.nuget.org/packages/Dapper/2.1.79
-    checked: "2026-08-25"
-  - id: sqlprovider-nuget
-    url: https://www.nuget.org/packages/SQLProvider/1.5.27
-    checked: "2026-08-25"
-  - id: deedle-nuget
-    url: https://www.nuget.org/packages/Deedle/8.0.0
-    checked: "2026-08-25"
-  - id: plotly-net-nuget
-    url: https://www.nuget.org/packages/Plotly.NET/5.1.0
-    checked: "2026-08-25"
-  - id: mlnet-overview
-    url: https://learn.microsoft.com/en-us/dotnet/machine-learning/mldotnet-api
-    checked: "2026-08-25"
-  - id: microsoft-ml-nuget
-    url: https://www.nuget.org/packages/Microsoft.ML/5.0.0
-    checked: "2026-08-25"
-  - id: torchsharp-nuget
-    url: https://www.nuget.org/packages/TorchSharp/0.107.0
-    checked: "2026-08-25"
-  - id: onnxruntime-csharp
-    url: https://onnxruntime.ai/docs/get-started/with-csharp.html
-    checked: "2026-08-25"
-  - id: dotnet-interactive-deprecation
-    url: https://github.com/dotnet/interactive/issues/4163
-    checked: "2026-08-25"
 ---
 
 # 第 40 章：数据、类型提供器、分析与机器学习 {#overview}
@@ -115,12 +57,19 @@ F# 的记录、度量单位、模式匹配、序列与高阶函数能直接描�
 
 ## 检查已验证的本地 CSV 切片 {#representative-sample}
 
-数据样例以 `net10.0` 为目标，并锁定 [FSharp.Data 8.2.0](https://www.nuget.org/packages/FSharp.Data/8.2.0)。其包锁文件记录解析后的完整传递图。唯一编译期数据源是 `tests/ContentFixtures/data/sample.csv`；编译不依赖 URL、数据库、账号或机密。
+数据样例以 `net10.0` 为目标，并锁定 [FSharp.Data 8.2.0](https://www.nuget.org/packages/FSharp.Data/8.2.0)。其包锁文件记录解析后的完整传递图。唯一编译期数据源是 `sample.csv`；编译不依赖 URL、数据库、账号或机密。
 
 官方 [CSV 提供器指南](https://fsprojects.github.io/FSharp.Data/library/CsvProvider.html) 解释了两个不同时刻：检查代码时由样本提供列名和推断类型，运行时则由 `Load` 或 `Parse` 提供数据。数据样例让设计期位置不受构建工作目录影响：
 
-<<< @/../examples/ecosystem/data/Program.fs#data-sample-provider{fsharp:line-numbers} [Program.fs]
-
+```fsharp:line-numbers [Program.fs]
+type private Orders =
+    CsvProvider<
+        "../../../sample.csv",
+        ResolutionFolder=ResolutionFolder,
+        Culture="en-US",
+        PreferDateOnly=true
+     >
+```
 固定样本使 `Units` 成为 `int`、`UnitPrice` 成为 `decimal`、`OrderedAt` 成为 `DateOnly`。`Culture="en-US"` 与 `PreferDateOnly=true` 都是推断契约的一部分。改变这些静态参数或样本，生成的 API 就可能在编译期变化。
 
 这是有用反馈，但不是运行期证明。后续文件仍可能缺失、不可读、过大、编码不同、格式错误或语义无效。样本是模式见证，不是未来每个字节的验证器。
@@ -129,8 +78,19 @@ F# 的记录、度量单位、模式匹配、序列与高阶函数能直接描�
 
 数据样例不返回 `Orders.Row`，而是把生成行转换成普通记录：
 
-<<< @/../examples/ecosystem/data/Program.fs#data-sample-results{fsharp:line-numbers} [Program.fs]
+```fsharp:line-numbers [Program.fs]
+type RegionSummary =
+    { Region: string
+      OrderCount: int
+      Units: int
+      Revenue: decimal }
 
+type HighValueOrder =
+    { OrderId: string
+      Region: string
+      OrderedAt: DateOnly
+      Revenue: decimal }
+```
 这个边界有三个好处：
 
 - 调用方不会继承提供器包或由样本派生的公开 API；
@@ -143,16 +103,45 @@ F# 的记录、度量单位、模式匹配、序列与高阶函数能直接描�
 
 区域汇总对生成行分组，每组只物化一次，计算总数、排序并返回列表：
 
-<<< @/../examples/ecosystem/data/Program.fs#data-sample-sequence-query{fsharp:line-numbers} [Program.fs]
+```fsharp:line-numbers [Program.fs]
+let summarizeByRegion (path: string) : RegionSummary list =
+    Orders.Load(path).Rows
+    |> Seq.groupBy _.Region
+    |> Seq.map (fun (region, rows) ->
+        let rows = Seq.toArray rows
 
+        ({ Region = region
+           OrderCount = rows.Length
+           Units = rows |> Array.sumBy _.Units
+           Revenue = rows |> Array.sumBy revenue }
+        : RegionSummary))
+    |> Seq.sortByDescending _.Revenue
+    |> Seq.toList
+```
 数据集只有六行，因此内存内序列是诚实选择。管道之所以易读，是因为求值预算已知。把相同代码盲目用于 60 GB 文件会改变运维契约：`CsvProvider` 默认缓存行；即使关闭缓存，`groupBy`、排序和最终物化仍可能保留大量数据。
 
 ### 根据来源理解查询表达式 {#query-expression-sample}
 
 第二个函数使用 F# 查询语法：
 
-<<< @/../examples/ecosystem/data/Program.fs#data-sample-query-expression{fsharp:line-numbers} [Program.fs]
+```fsharp:line-numbers [Program.fs]
+let highValueOrders (minimumRevenue: decimal) (path: string) : HighValueOrder list =
+    query {
+        for row in Orders.Load(path).Rows do
+            let rowRevenue = revenue row
+            where (rowRevenue >= minimumRevenue)
+            sortByDescending rowRevenue
 
+            select (
+                { OrderId = row.OrderId
+                  Region = row.Region
+                  OrderedAt = row.OrderedAt
+                  Revenue = rowRevenue }
+                : HighValueOrder
+            )
+    }
+    |> Seq.toList
+```
 这里的 `Orders.Load(path).Rows` 是进程内序列，因此筛选、排序与投影都在本地执行。语法像数据库查询，但根本没有 SQL。
 
 聚焦测试精确断言六行数据的聚合、`DateOnly` 值、阈值与降序。锁定还原后，Release `--no-restore` 构建与测试无需网络模式即可通过。控制台把用户提供的路径解析为绝对路径，并打印三条确定汇总。这些证据只覆盖固定本地形状和计算；不覆盖任意上传、巨型文件、编码攻击或数据库提供器。
@@ -349,18 +338,18 @@ SDK 自带 [F# Interactive](https://learn.microsoft.com/en-us/dotnet/fsharp/tool
 
 以下是带日期观察，不是通用栈推荐：
 
-| 选择 | 2026-08-25 核对的稳定表面 | 本仓库内已验证 | 关键采用问题 |
+| 选择 | 2026-08-25 核对的稳定表面 | 本章状态 | 关键采用问题 |
 |---|---|---|---|
-| FSharp.Data | 8.2.0；含 `net8.0` 与 `netstandard2.0` 资产 | 是，在 `net10.0` 上使用本地 CSV 与聚焦检查 | 固定样本是否是诚实的模式见证？ |
-| Dapper | 2.1.79 | 否 | 显式 SQL 加 DTO 映射是否契合所有权？ |
-| EF Core | .NET 10 上的 10 LTS | 否 | 跟踪、迁移与 LINQ 翻译能否偿还实体摩擦？ |
-| SQLProvider | 1.5.27 | 否 | 能否安全复现设计期模式与目标驱动？ |
-| Deedle | 8.0.0；含 `net10.0` 资产 | 否 | 带标签对齐与缺失数据操作是否值得引入数据帧？ |
-| Plotly.NET | 5.1.0 稳定；存在 6.0 预发布版 | 否 | 需要什么渲染、可访问性与数据导出契约？ |
-| Microsoft.ML | 5.0.0 稳定；存在 6.0 预发布版 | 否 | 进程内经典 .NET ML 是否是正确产品边界？ |
-| TorchSharp | 0.107.0 加一个原生 LibTorch 包 | 否 | 团队能否拥有原生部署与 1.0 前演进？ |
+| FSharp.Data | 8.2.0；含 `net8.0` 与 `netstandard2.0` 资产 | 已示例 | 固定样本是否是诚实的模式见证？ |
+| Dapper | 2.1.79 | 仅研究 | 显式 SQL 加 DTO 映射是否契合所有权？ |
+| EF Core | .NET 10 上的 10 LTS | 仅研究 | 跟踪、迁移与 LINQ 翻译能否偿还实体摩擦？ |
+| SQLProvider | 1.5.27 | 仅研究 | 能否安全复现设计期模式与目标驱动？ |
+| Deedle | 8.0.0；含 `net10.0` 资产 | 仅研究 | 带标签对齐与缺失数据操作是否值得引入数据帧？ |
+| Plotly.NET | 5.1.0 稳定；存在 6.0 预发布版 | 仅研究 | 需要什么渲染、可访问性与数据导出契约？ |
+| Microsoft.ML | 5.0.0 稳定；存在 6.0 预发布版 | 仅研究 | 进程内经典 .NET ML 是否是正确产品边界？ |
+| TorchSharp | 0.107.0 加一个原生 LibTorch 包 | 仅研究 | 团队能否拥有原生部署与 1.0 前演进？ |
 
-“否”表示已审阅主要包信息，但本仓库没有还原、编译、执行、基准测试或安全测试该选项。计算出的目标兼容性不等于包内目标资产，稳定包标签也不证明适合产品。
+“已示例”表示本章包含小型用法或配置。“仅研究”表示真实应用必须自行还原、编译、执行、基准测试并安全审阅相关选项。计算出的目标兼容性不等于包内目标资产，稳定包标签也不证明适合产品。
 
 ## 开展范围受限的数据栈试验 {#adoption-spike}
 
@@ -426,7 +415,7 @@ SDK 自带 [F# Interactive](https://learn.microsoft.com/en-us/dotnet/fsharp/tool
 - 测试图表输入与可访问性；视觉可信不等于正确。
 - 分离训练证据、不可变模型打包与推理运维。
 - ML.NET 适合许多进程内 .NET 任务；ONNX 是推理契约；TorchSharp 增加原生张量/运行时所有权。
-- 版本表是带日期证据，本仓库未执行的生态选项仍是未验证状态。
+- 版本表是带日期观察；应用必须验证自己采用的选项。
 - 选择满足真实工作负载的最小边界，再锁定、测试、测量并演练变化。
 
 第 41 章把相同纪律带进浏览器：Fable 把 F# 编译为 JavaScript，那里的运行时、API 表面、包图与状态模型都不同于服务端 .NET。

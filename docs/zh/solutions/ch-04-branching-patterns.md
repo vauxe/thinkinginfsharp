@@ -2,28 +2,6 @@
 title: "第 4 章练习答案"
 description: "条件结果、匹配顺序、守卫、元组与列表模式的推理答案。"
 translationKey: solutions/ch-04-branching-patterns
-kind: solution
-part: 1
-chapter: 4
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch04-branching-patterns
-  - ch04-exercise-03-solution
-exerciseIds:
-  - ch04-exercise-01
-  - ch04-exercise-02
-  - ch04-exercise-03
-termIds: []
-sources:
-  - id: microsoft-conditionals
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/conditional-expressions-if-then-else
-    checked: "2026-08-24"
-  - id: microsoft-match
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/match-expressions
-    checked: "2026-08-24"
 ---
 
 # 第 4 章练习答案 {#overview}
@@ -36,8 +14,12 @@ sources:
 
 共享定义是：
 
-<<< @/../examples/scripts/ch04-branching-patterns.fsx#if-expression{fsharp:line-numbers} [ch04-branching-patterns.fsx]
+```fsharp:line-numbers [ch04-branching-patterns.fsx]
+let availability remaining =
+    if remaining > 0 then "available" else "full"
 
+printfn "Availability: %s" (availability 3)
+```
 `availability 3` 的条件为 `true`，结果是 `"available"`；`availability 0` 的条件为 `false`，结果是 `"full"`。条件 `remaining > 0` 是 `bool`，两个分支都是 `string`，因此整个函数是 `int -> string`。
 
 若 `then` 返回字符串而 `else` 只调用 `printfn`，两个结果分别为 `string` 与 `unit`，无法统一。输出效果不会变成字符串结果。只有在整个条件表达式只负责效果、`then` 也返回 `unit` 时，才可以省略 `else`；未命中路径的结果于是也是 `()`。
@@ -60,16 +42,30 @@ sources:
 
 定义如下：
 
-<<< @/../examples/solutions/ch04-exercise-03.fsx#solution{fsharp:line-numbers} [ch04-exercise-03.fsx]
+```fsharp:line-numbers [ch04-exercise-03.fsx]
+let classifyRequest (remaining, requested) =
+    match remaining, requested with
+    | _, requested when requested <= 0 -> "invalid"
+    | remaining, requested when requested <= remaining -> "accepted"
+    | _ -> "too large"
 
+printfn "Requests: %s, %s, %s" (classifyRequest (5, 0)) (classifyRequest (5, 3)) (classifyRequest (2, 3))
+```
 `(5, 0)` 先命中请求数不大于零，结果 `"invalid"`；`(5, 3)` 跳过第一条，在第二条满足 `3 <= 5`，结果 `"accepted"`；`(2, 3)` 两个守卫都失败，由 `_` 得到 `"too large"`。函数类型是 `int * int -> string`。
 
 顺序很重要：若接受规则在前，`(0, 0)` 会先满足 `0 <= 0`，无效请求被误收。规则顺序在这里直接表达业务优先级。
 
 队列部分是：
 
-<<< @/../examples/scripts/ch04-branching-patterns.fsx#list-pattern{fsharp:line-numbers} [ch04-branching-patterns.fsx]
+```fsharp:line-numbers [ch04-branching-patterns.fsx]
+let describeQueue queue =
+    match queue with
+    | [] -> "empty"
+    | [ only ] -> $"one: {only}"
+    | first :: second :: _ -> $"next: {first}, then {second}"
 
+printfn "Queues: %s | %s | %s" (describeQueue []) (describeQueue [ "Lin" ]) (describeQueue [ "Lin"; "Ada"; "Sam" ])
+```
 两项和四项列表都命中 `first :: second :: _`。前两个名称分别绑定前两项，`_` 匹配剩余列表：两项时余下 `[]`，四项时余下两项。它不是第三个元素，也不创建可读取名称。
 
 ## 应该注意什么 {#what-to-notice}

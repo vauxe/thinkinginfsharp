@@ -2,38 +2,6 @@
 title: "Chapter 35 Solutions"
 description: "Evolve a versioned snapshot, audit interruption points in replacement, and redesign composition for borrowed production clients."
 translationKey: solutions/ch-35-ports-persistence-config
-kind: solution
-part: 6
-chapter: 35
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - capstone-booking-domain
-  - capstone-booking-contracts
-  - capstone-booking-infrastructure
-exerciseIds:
-  - ch35-exercise-01
-  - ch35-exercise-02
-  - ch35-exercise-03
-termIds: []
-sources:
-  - id: microsoft-json-property-names
-    url: https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/customize-properties
-    checked: "2026-08-25"
-  - id: microsoft-json-unmapped-members
-    url: https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/missing-members
-    checked: "2026-08-25"
-  - id: microsoft-file-move
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.io.file.move?view=net-10.0
-    checked: "2026-08-25"
-  - id: microsoft-filestream-flush
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.io.filestream.flush?view=net-10.0
-    checked: "2026-08-25"
-  - id: microsoft-cancellation-token
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.threading.cancellationtoken?view=net-10.0
-    checked: "2026-08-25"
 ---
 
 # Chapter 35 Solutions {#overview}

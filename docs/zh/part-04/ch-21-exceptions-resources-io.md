@@ -2,40 +2,6 @@
 title: "第 21 章：异常、资源与 I/O"
 description: "用 try/with 制定特定异常策略，用 use 及时释放资源，并在不抹掉原因、不混淆领域缺失的前提下翻译文件系统失败。"
 translationKey: part-04/ch-21-exceptions-resources-io
-kind: chapter
-part: 4
-chapter: 21
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch21-exceptions-resources-io
-exerciseIds:
-  - ch21-exercise-01
-  - ch21-exercise-02
-  - ch21-exercise-03
-termIds:
-  - effect
-  - option
-  - result
-  - validation-accumulation
-sources:
-  - id: microsoft-try-with
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/exception-handling/the-try-with-expression
-    checked: "2026-08-24"
-  - id: microsoft-raise-reraise
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/exception-handling/the-raise-function
-    checked: "2026-08-24"
-  - id: microsoft-try-finally
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/exception-handling/the-try-finally-expression
-    checked: "2026-08-24"
-  - id: microsoft-use
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/resource-management-the-use-keyword
-    checked: "2026-08-24"
-  - id: dotnet-stream-reader
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.io.streamreader?view=net-10.0
-    checked: "2026-08-24"
 ---
 
 # 第 21 章：异常、资源与 I/O {#overview}
@@ -112,8 +78,11 @@ let read path =
 
 共享帮助函数接收获取函数与操作：
 
-<<< @/../examples/scripts/ch21-exceptions-resources-io.fsx#resource-scope{fsharp:line-numbers} [ch21-exceptions-resources-io.fsx]
-
+```fsharp:line-numbers [ch21-exceptions-resources-io.fsx]
+let withReader (openReader: string -> StreamReader) path operation =
+    use reader = openReader path
+    operation reader
+```
 其契约近似为：
 
 ```text
@@ -130,12 +99,24 @@ let read path =
 
 错误联合会区分已知结果，并为诊断细节重要的故障保留异常对象：
 
-<<< @/../examples/scripts/ch21-exceptions-resources-io.fsx#error-model{fsharp:line-numbers} [ch21-exceptions-resources-io.fsx]
-
+```fsharp:line-numbers [ch21-exceptions-resources-io.fsx]
+type ReadTextError =
+    | PathNotFound of path: string
+    | AccessDenied of path: string * cause: UnauthorizedAccessException
+    | IoFailure of path: string * cause: IOException
+```
 适配器执行翻译：
 
-<<< @/../examples/scripts/ch21-exceptions-resources-io.fsx#translate-errors{fsharp:line-numbers} [ch21-exceptions-resources-io.fsx]
-
+```fsharp:line-numbers [ch21-exceptions-resources-io.fsx]
+let readText path =
+    try
+        withReader File.OpenText path (fun reader -> reader.ReadToEnd()) |> Ok
+    with
+    | :? FileNotFoundException
+    | :? DirectoryNotFoundException -> Error(PathNotFound path)
+    | :? UnauthorizedAccessException as cause -> Error(AccessDenied(path, cause))
+    | :? IOException as cause -> Error(IoFailure(path, cause))
+```
 其中几项选择是有意的：
 
 - 文件缺失与目录缺失都变成 `PathNotFound path`，因为该调用方用同一种方式处理它们；
@@ -158,8 +139,74 @@ let read path =
 
 共享脚本会在 `Path.GetTempPath()` 下创建唯一目录，写入一个文件，并打开真实 `StreamReader` 实例：
 
-<<< @/../examples/scripts/ch21-exceptions-resources-io.fsx#temp-tests{fsharp:line-numbers} [ch21-exceptions-resources-io.fsx]
+```fsharp:line-numbers [ch21-exceptions-resources-io.fsx]
+let tempName = Guid.NewGuid().ToString("N")
 
+let tempDirectory =
+    Path.Combine(Path.GetTempPath(), $"thinkinginfsharp-ch21-{tempName}")
+
+let filePath = Path.Combine(tempDirectory, "seats.txt")
+let missingPath = Path.Combine(tempDirectory, "missing.txt")
+let mutable cleanupRemoved = false
+
+Directory.CreateDirectory tempDirectory |> ignore
+
+try
+    File.WriteAllText(filePath, "42")
+
+    let mutable successReader = None
+
+    let openSuccess path =
+        let reader = File.OpenText path
+        successReader <- Some reader
+        reader
+
+    let text = withReader openSuccess filePath (fun reader -> reader.ReadToEnd())
+
+    let successDisposed = readerIsDisposed successReader
+
+    let mutable failureReader = None
+
+    let openFailure path =
+        let reader = File.OpenText path
+        failureReader <- Some reader
+        reader
+
+    let failureCaught =
+        try
+            withReader openFailure filePath (fun reader ->
+                reader.ReadToEnd() |> ignore
+                raise (InvalidDataException "invalid-data"))
+
+            false
+        with :? InvalidDataException as cause ->
+            assert (cause.Message = "invalid-data")
+            true
+
+    let failureDisposed = readerIsDisposed failureReader
+    let readResult = readText filePath
+    let missingResult = readText missingPath
+
+    assert (text = "42")
+    assert successDisposed
+    assert failureCaught
+    assert failureDisposed
+    assert (readResult = Ok "42")
+
+    match missingResult with
+    | Error(PathNotFound path) -> assert (path = missingPath)
+    | other -> failwithf "Expected PathNotFound, received %A" other
+
+    printfn "Success: text=%s disposed=%b" text successDisposed
+    printfn "Failure: caught=%b disposed=%b" failureCaught failureDisposed
+    printfn "Read result: %s" (renderReadResult readResult)
+    printfn "Missing result: %s" (renderReadResult missingResult)
+finally
+    if Directory.Exists tempDirectory then
+        Directory.Delete(tempDirectory, recursive = true)
+
+    cleanupRemoved <- not (Directory.Exists tempDirectory)
+```
 两个打开函数只为测试观察而保留 reader 引用。成功操作返回后，对保留 reader 调用 `Peek` 会抛出 `ObjectDisposedException`。第二项操作读取文件后抛出 `InvalidDataException`；在 `withReader` 外部捕获该异常后，这个 reader 同样已经释放。
 
 这是两条控制路径的直接证据。它比断言源码中出现 `use` 关键字更强，也比尝试删除已打开文件更可移植——类 Unix 系统与 Windows 对打开文件删除有不同表现。
@@ -220,13 +267,13 @@ let read path =
 
 ## 运行共享示例 {#run-example}
 
-在仓库根目录运行：
+在示例所在目录运行：
 
 ```console
-dotnet fsi --exec examples/scripts/ch21-exceptions-resources-io.fsx
+dotnet fsi --exec ch21-exceptions-resources-io.fsx
 ```
 
-五行确定性输出会证明成功路径释放、异常路径释放、成功读取、缺失路径翻译和最终临时目录清理。manifest 会检查确切输出。
+五行确定性输出会证明成功路径释放、异常路径释放、成功读取、缺失路径翻译和最终临时目录清理。请比较精确输出。
 
 ## 练习 {#exercises}
 

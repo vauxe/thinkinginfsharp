@@ -2,45 +2,6 @@
 title: "Chapter 37: Consistency, Idempotency, Retries, and Partial Failure"
 description: "Protect aggregate booking capacity, make command retries explicit, persist effect progress, and state the exact limits of a local F# consistency boundary."
 translationKey: part-06/ch-37-consistency-idempotency
-kind: chapter
-part: 6
-chapter: 37
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - capstone-booking-domain
-  - capstone-booking-contracts
-  - capstone-booking-infrastructure
-  - foundation-contract-tests
-exerciseIds:
-  - ch37-exercise-01
-  - ch37-exercise-02
-  - ch37-exercise-03
-termIds: []
-sources:
-  - id: microsoft-semaphore-slim
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.threading.semaphoreslim?view=net-10.0
-    checked: "2026-08-25"
-  - id: microsoft-file-move
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.io.file.move?view=net-10.0
-    checked: "2026-08-25"
-  - id: microsoft-file-flush
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.io.filestream.flush?view=net-10.0
-    checked: "2026-08-25"
-  - id: microsoft-retry-pattern
-    url: https://learn.microsoft.com/en-us/azure/architecture/patterns/retry
-    checked: "2026-08-25"
-  - id: microsoft-transactional-outbox
-    url: https://learn.microsoft.com/en-us/azure/architecture/databases/guide/transactional-out-box-cosmos
-    checked: "2026-08-25"
-  - id: microsoft-minimize-coordination
-    url: https://learn.microsoft.com/en-us/azure/architecture/guide/design-principles/minimize-coordination
-    checked: "2026-08-25"
-  - id: ietf-http-semantics
-    url: https://www.rfc-editor.org/rfc/rfc9110.html#section-9.2.2
-    checked: "2026-08-25"
 ---
 
 # Chapter 37: Consistency, Idempotency, Retries, and Partial Failure {#overview}
@@ -142,8 +103,24 @@ The snapshot is limited to 1 MiB and read as strict UTF-8. This is ample for the
 
 Every `AtomicBookingStore` constructed for the same normalized path retrieves shared state and workflow gates. Case-only path variants conservatively share a gate. The workflow gate surrounds the complete application command; the state gate protects each snapshot read or replacement.
 
-<<< @/../examples/capstone/src/Booking.Infrastructure/AtomicBookingStore.fs#process-local-gates{fsharp:line-numbers} [AtomicBookingStore.fs]
+```fsharp:line-numbers [AtomicBookingStore.fs]
+// These gates coordinate every store instance for the same path in this process. They do not
+// claim to serialize writers in different processes or machines.
+module private AtomicPathGates =
+    // Treat case-only variants conservatively as one path. On a case-sensitive file system this
+    // may serialize unrelated files, but it cannot weaken consistency for either file.
+    let private stateGates =
+        ConcurrentDictionary<string, SemaphoreSlim>(StringComparer.OrdinalIgnoreCase)
 
+    let private workflowGates =
+        ConcurrentDictionary<string, SemaphoreSlim>(StringComparer.OrdinalIgnoreCase)
+
+    let state (path: string) =
+        stateGates.GetOrAdd(path, fun _ -> new SemaphoreSlim(1, 1))
+
+    let workflow (path: string) =
+        workflowGates.GetOrAdd(path, fun _ -> new SemaphoreSlim(1, 1))
+```
 `WaitAsync cancellationToken` lets a cancelled caller leave while waiting. `finally` pairs every successful entry with `Release`. Microsoft documents `SemaphoreSlim` as a local semaphore for synchronization within one application and explicitly says it does not support named system semaphores. That is exactly the implemented scope, not a hidden distributed lock. See the [.NET 10 `SemaphoreSlim` documentation](https://learn.microsoft.com/en-us/dotnet/api/system.threading.semaphoreslim?view=net-10.0).
 
 Holding one workflow gate while a payment or notification runs is conservative. It prevents two service instances in this process from launching the same effect concurrently, and keeps the example understandable. It also means one slow dependency blocks unrelated bookings for this activity. `SemaphoreSlim` does not promise FIFO fairness.
@@ -152,8 +129,60 @@ For a small local application this tradeoff is honest. For high throughput, part
 
 The aggregate decision and first persisted phase happen under the state gate:
 
-<<< @/../examples/capstone/src/Booking.Infrastructure/AtomicBookingStore.fs#atomic-capacity-decision{fsharp:line-numbers} [AtomicBookingStore.fs]
+```fsharp:line-numbers [AtomicBookingStore.fs]
+match identity.Kind with
+| AtomicOperationKind.Place ->
+    let requested = candidate |> Booking.seats |> SeatCount.value |> int64
 
+    let remaining =
+        (state.Capacity |> Capacity.value |> int64)
+        - AtomicStoreImplementation.occupiedSeats state
+        - AtomicStoreImplementation.reservedSeats state
+        |> max 0L
+
+    if requested > remaining then
+        return
+            Ok(AtomicBeginResult.AggregateCapacityExceeded(int requested, int remaining))
+    else
+        let operation: StoredOperation =
+            { Identity = identity
+              Phase = Reserved
+              Candidate = candidate }
+
+        let changed =
+            { state with
+                Operations = Map.add identity.Key operation state.Operations }
+
+        let! saved =
+            AtomicStoreImplementation.writeState
+                directoryPath
+                snapshotPath
+                changed
+                cancellationToken
+
+        return saved |> Result.map (fun () -> AtomicBeginResult.StartPayment token)
+| AtomicOperationKind.Confirm
+| AtomicOperationKind.Cancel ->
+    let operation: StoredOperation =
+        { Identity = identity
+          Phase = NotificationPending
+          Candidate = candidate }
+
+    let changed =
+        { state with
+            Bookings =
+                Map.add (RequestId.value identity.RequestId) candidate state.Bookings
+            Operations = Map.add identity.Key operation state.Operations }
+
+    let! saved =
+        AtomicStoreImplementation.writeState
+            directoryPath
+            snapshotPath
+            changed
+            cancellationToken
+
+    return saved |> Result.map (fun () -> AtomicBeginResult.SendNotification token)
+```
 The domain decider still decides legal lifecycle transitions. The store adds only the aggregate fact the one-booking state cannot know. Accepted placement first records a reservation; confirmation and cancellation update the booking and record pending notification together.
 
 ## Do not confuse safe replacement with a database transaction {#file-replacement}
@@ -222,8 +251,84 @@ The phase names describe evidence, not optimism:
 
 The service orders storage and effects accordingly:
 
-<<< @/../examples/capstone/src/Booking.Infrastructure/Idempotency.fs#effect-progress{fsharp:line-numbers} [Idempotency.fs]
+```fsharp:line-numbers [Idempotency.fs]
+let sendNotification
+    (token: AtomicOperationToken)
+    (cancellationToken: CancellationToken)
+    : Task<Result<Booking, BookingConsistencyError>> =
+    task {
+        let! delivered = tryExternal cancellationToken (fun () -> notify (notificationFor token) cancellationToken)
 
+        match delivered with
+        | Error error -> return Error error
+        | Ok() ->
+            let! completed = store.CompleteNotification(activity, token, cancellationToken)
+
+            return completed |> storage |> Result.map (fun () -> token.Candidate)
+    }
+
+let chargeAndCommit
+    (token: AtomicOperationToken)
+    (payment: PaymentRequest)
+    (cancellationToken: CancellationToken)
+    : Task<Result<Booking, BookingConsistencyError>> =
+    task {
+        let! marked = store.MarkPaymentStarted(activity, token, cancellationToken)
+
+        match storage marked with
+        | Error error -> return Error error
+        | Ok() ->
+            let! paymentResult = tryExternal cancellationToken (fun () -> charge payment cancellationToken)
+
+            match paymentResult with
+            | Error error -> return Error error
+            | Ok(PaymentOutcome.Declined _) ->
+                let! recorded = store.RecordPaymentDeclined(activity, token, cancellationToken)
+
+                return
+                    match storage recorded with
+                    | Error error -> Error error
+                    | Ok() -> Error BookingConsistencyError.PaymentDeclined
+            | Ok(PaymentOutcome.Authorized _) ->
+                let! committed = store.CommitAuthorizedBooking(activity, token, cancellationToken)
+
+                match storage committed with
+                | Error error -> return Error error
+                | Ok() -> return! sendNotification token cancellationToken
+    }
+
+let executePrepared
+    (prepared: PreparedCommand)
+    (cancellationToken: CancellationToken)
+    : Task<Result<Booking, BookingConsistencyError>> =
+    task {
+        let! begun = store.Begin(activity, prepared.Identity, prepared.Command, cancellationToken)
+
+        match storage begun with
+        | Error error -> return Error error
+        | Ok(AtomicBeginResult.Replay booking) -> return Ok booking
+        | Ok(AtomicBeginResult.DecisionRejected error) ->
+            return Error(BookingConsistencyError.DecisionRejected error)
+        | Ok(AtomicBeginResult.AggregateCapacityExceeded(requested, remaining)) ->
+            return Error(BookingConsistencyError.AggregateCapacityExceeded(requested, remaining))
+        | Ok AtomicBeginResult.IdempotencyConflict -> return Error BookingConsistencyError.IdempotencyConflict
+        | Ok AtomicBeginResult.PreviousOperationIncomplete ->
+            return Error BookingConsistencyError.PreviousOperationIncomplete
+        | Ok AtomicBeginResult.PaymentDeclined -> return Error BookingConsistencyError.PaymentDeclined
+        | Ok AtomicBeginResult.PaymentOutcomeUnknown -> return Error BookingConsistencyError.PaymentOutcomeUnknown
+        | Ok(AtomicBeginResult.SendNotification token) -> return! sendNotification token cancellationToken
+        | Ok(AtomicBeginResult.StartPayment token) ->
+            match prepared.Payment with
+            | Some payment -> return! chargeAndCommit token payment cancellationToken
+            | None ->
+                return
+                    Error(
+                        BookingConsistencyError.StorageUnavailable(
+                            BookingStoreError.CorruptSnapshot SnapshotCorruption.InconsistentData
+                        )
+                    )
+    }
+```
 Before calling payment, the service changes `Reserved` to `PaymentStarted`. A crash after that write but before the provider call creates a conservative false positive: recovery says “unknown” even if no charge occurred. The alternative—calling first and recording later—creates a window in which a completed charge looks absent and is blindly repeated. For money, stopping for reconciliation is the safer sample policy.
 
 After authorization returns, the booking and `NotificationPending` phase are saved in one aggregate replacement. A notification failure therefore cannot erase the booking. Retrying the same command skips payment and attempts only the pending notification.

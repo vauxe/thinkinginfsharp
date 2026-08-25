@@ -2,44 +2,6 @@
 title: "Chapter 19: .NET APIs and Null Boundaries"
 description: "Call ordinary .NET constructors, members, overloads, and interfaces from F#, then convert nullable references and values into honest domain types at one boundary."
 translationKey: part-04/ch-19-dotnet-null-boundaries
-kind: chapter
-part: 4
-chapter: 19
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch19-null-boundaries
-exerciseIds:
-  - ch19-exercise-01
-  - ch19-exercise-02
-  - ch19-exercise-03
-termIds:
-  - nullable-reference-type
-  - option
-sources:
-  - id: microsoft-constructors
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/members/constructors
-    checked: "2026-08-24"
-  - id: microsoft-methods
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/members/methods
-    checked: "2026-08-24"
-  - id: microsoft-interfaces
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/interfaces
-    checked: "2026-08-24"
-  - id: microsoft-null-values
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/values/null-values
-    checked: "2026-08-24"
-  - id: microsoft-nullable-value-types
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/nullable-value-types
-    checked: "2026-08-24"
-  - id: fsharp-core-option
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-optionmodule.html
-    checked: "2026-08-24"
-  - id: dotnet-type-gettype
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.type.gettype?view=net-10.0
-    checked: "2026-08-24"
 ---
 
 # Chapter 19: .NET APIs and Null Boundaries {#overview}
@@ -67,8 +29,15 @@ By the end of this chapter, you should be able to:
 
 The shared example begins without I/O:
 
-<<< @/../examples/chapters/ch19/NullBoundaries.fs#dotnet-calls{fsharp:line-numbers} [NullBoundaries.fs]
+```fsharp:line-numbers [NullBoundaries.fs]
+let createAbsoluteUri (raw: string) : Uri = Uri(raw, UriKind.Absolute)
 
+let uriHost (uri: Uri) : string = uri.Host
+
+let joinLabels (labels: string array) : string = String.Join(" / ", labels)
+
+let countItems (items: IReadOnlyCollection<'T>) : int = items.Count
+```
 Each definition is an ordinary function whose result is a value. The capitalized type and member names follow .NET conventions; pipelines, local bindings, pattern matching, and domain types remain available around them.
 
 ### Construction and member access {#construction-members}
@@ -140,10 +109,18 @@ Use the narrowest honest contract. Mark an input `T | null` when its producer ca
 
 The boundary error and conversion are executable shared code:
 
-<<< @/../examples/chapters/ch19/NullBoundaries.fs#boundary-errors{fsharp:line-numbers} [NullBoundaries.fs]
-
-<<< @/../examples/chapters/ch19/NullBoundaries.fs#nullable-input{fsharp:line-numbers} [NullBoundaries.fs]
-
+```fsharp:line-numbers [NullBoundaries.fs]
+type BoundaryTextError =
+    | MissingText
+    | BlankText
+```
+```fsharp:line-numbers [NullBoundaries.fs]
+let requireText (raw: string | null) : Result<string, BoundaryTextError> =
+    match raw with
+    | Null -> Error MissingText
+    | NonNull value when String.IsNullOrWhiteSpace value -> Error BlankText
+    | NonNull value -> Ok(value.Trim())
+```
 `Null` handles the null reference. In each `NonNull value` branch, analysis narrows `value` to non-null `string`, so `Trim()` is safe under the stated contract. Whitespace is a different invalid fact and receives a different error.
 
 The literal `null` pattern also works. `Null`/`NonNull` is useful when the narrowed non-null value should be named. `NonNullQuick` instead throws `NullReferenceException` on null; use that only when throwing is the intended contract, not as a shortcut around boundary design.
@@ -152,8 +129,10 @@ The literal `null` pattern also works. `Null`/`NonNull` is useful when the narro
 
 `Type.GetType(name, throwOnError = false)` is a real .NET API whose return may be null when the type is not found. The adapter converts that convention exactly once:
 
-<<< @/../examples/chapters/ch19/NullBoundaries.fs#nullable-return{fsharp:line-numbers} [NullBoundaries.fs]
-
+```fsharp:line-numbers [NullBoundaries.fs]
+let tryResolveType (typeName: string) : Type option =
+    Type.GetType(typeName, throwOnError = false) |> Option.ofObj
+```
 `Option.ofObj` maps null to `None` and a non-null reference to `Some value`. Downstream F# code now sees `Type option`, not a nullable reference that must be rechecked everywhere.
 
 The argument `throwOnError = false` means “return null when lookup does not find the type”; the .NET contract documents other conditions that may still throw. `option` describes absence, not arbitrary failure. Do not catch every exception and erase its cause merely to obtain a tidy type.
@@ -179,8 +158,11 @@ Reading `Value` while `HasValue` is false throws `InvalidOperationException`. Ch
 
 FSharp.Core supplies named conversions:
 
-<<< @/../examples/chapters/ch19/NullBoundaries.fs#nullable-value-conversions{fsharp:line-numbers} [NullBoundaries.fs]
+```fsharp:line-numbers [NullBoundaries.fs]
+let nullableIntToOption (value: Nullable<int>) : int option = Option.ofNullable value
 
+let optionToNullableInt (value: int option) : Nullable<int> = Option.toNullable value
+```
 `Option.ofNullable` maps an absent nullable value to `None`; `Option.toNullable` maps `None` back to an empty `Nullable<T>`. For a present value, both preserve the payload. These functions require an appropriate value type.
 
 Keep `Nullable<T>` when an external member explicitly requires or returns it. Prefer `option` after the boundary when absence is part of the F# model. Converting repeatedly inside the core is a sign that the boundary has not been placed clearly.
@@ -191,8 +173,11 @@ Keep `Nullable<T>` when an external member explicitly requires or returns it. Pr
 
 Nullable references use `Option.ofObj` and `Option.toObj`, not the `Nullable<T>` conversions:
 
-<<< @/../examples/chapters/ch19/NullBoundaries.fs#nullable-reference-conversions{fsharp:line-numbers} [NullBoundaries.fs]
+```fsharp:line-numbers [NullBoundaries.fs]
+let nullableTextToOption (value: string | null) : string option = Option.ofObj value
 
+let optionToNullableText (value: string option) : string | null = Option.toObj value
+```
 The direction should be visible in adapter code:
 
 - inbound nullable reference: `T | null -> T option` with `Option.ofObj`;
@@ -205,8 +190,9 @@ Do not use `defaultArg optionValue null` as a vague substitute. Under null check
 
 An option says whether its case is `None` or `Some`; it does not independently validate the payload. With a payload type that explicitly admits null, this is legal:
 
-<<< @/../examples/chapters/ch19/NullBoundaries.fs#some-null{fsharp:line-numbers} [NullBoundaries.fs]
-
+```fsharp:line-numbers [NullBoundaries.fs]
+let someNullText: (string | null) option = Some null
+```
 The value is `Some`, and its payload is null. Older or unchecked .NET code can also violate assumptions. Therefore the accurate rule is:
 
 > Use `None` for domain absence, keep ordinary option payload types non-null, and normalize foreign null at the boundary.
@@ -251,10 +237,10 @@ Use `option` when ordinary absence needs no explanation. Use `Result` when calle
 
 ## Run the contract tests {#run-tests}
 
-From the repository root:
+From the directory containing the example:
 
 ```console
-dotnet test tests/ContractTests/ContractTests.fsproj \
+dotnet test ContractTests.fsproj \
   --configuration Release \
   --filter FullyQualifiedName~Ch19NullTests
 ```

@@ -2,37 +2,6 @@
 title: "Chapter 18: Explicit Workflow Composition and Validation Accumulation"
 description: "Choose first-error sequencing for dependent steps and explicit error accumulation for independent checks, using ordinary F# functions before builder syntax."
 translationKey: part-03/ch-18-workflow-validation
-kind: chapter
-part: 3
-chapter: 18
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch18-workflow-validation
-  - capstone-booking-domain
-  - foundation-example-tests
-exerciseIds:
-  - ch18-exercise-01
-  - ch18-exercise-02
-  - ch18-exercise-03
-termIds:
-  - computation-expression
-  - validation-accumulation
-sources:
-  - id: microsoft-results
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/results
-    checked: "2026-08-24"
-  - id: fsharp-core-result
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-resultmodule.html
-    checked: "2026-08-24"
-  - id: microsoft-computation-expressions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/computation-expressions
-    checked: "2026-08-24"
-  - id: microsoft-component-design
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-24"
 ---
 
 # Chapter 18: Explicit Workflow Composition and Validation Accumulation {#overview}
@@ -84,14 +53,51 @@ Do not accumulate by reflex. A command-line tool may intentionally report only t
 
 The shared script separates raw text from successfully checked values:
 
-<<< @/../examples/scripts/ch18-workflow-validation.fsx#model{fsharp:line-numbers} [ch18-workflow-validation.fsx]
+```fsharp:line-numbers [ch18-workflow-validation.fsx]
+type ValidationError =
+    | MissingRequestId
+    | MissingAttendee
+    | SeatsNotInteger of raw: string
+    | NonPositiveSeats of actual: int
+    | ExceedsCapacity of requested: int * available: int
 
+type RequestId = RequestId of string
+type Attendee = Attendee of string
+type SeatCount = SeatCount of int
+
+type RawBooking =
+    { RequestId: string
+      Attendee: string
+      Seats: string }
+
+type ValidBooking =
+    { RequestId: RequestId
+      Attendee: Attendee
+      Seats: SeatCount }
+```
 `RawBooking` can contain blank or malformed text. `ValidBooking` requires `RequestId`, `Attendee`, and `SeatCount` values, so its construction is delayed until the three component checks succeed.
 
 The error union keeps facts rather than formatted UI messages. Each field validator returns `Result<'Value, ValidationError list>`:
 
-<<< @/../examples/scripts/ch18-workflow-validation.fsx#field-validation{fsharp:line-numbers} [ch18-workflow-validation.fsx]
+```fsharp:line-numbers [ch18-workflow-validation.fsx]
+let validateRequestId raw =
+    if String.IsNullOrWhiteSpace raw then
+        Error [ MissingRequestId ]
+    else
+        Ok(RequestId(raw.Trim()))
 
+let validateAttendee raw =
+    if String.IsNullOrWhiteSpace raw then
+        Error [ MissingAttendee ]
+    else
+        Ok(Attendee(raw.Trim()))
+
+let validateSeats (raw: string) =
+    match Int32.TryParse raw with
+    | true, value when value > 0 -> Ok(SeatCount value)
+    | true, value -> Error [ NonPositiveSeats value ]
+    | false, _ -> Error [ SeatsNotInteger raw ]
+```
 Each individual validator currently produces either one value or a singleton error list. A list gives the combining layer a common error carrier. The type technically permits `Error []`; this implementation never produces it. If non-emptiness itself becomes a critical invariant, protect it with a non-empty error type rather than relying on convention.
 
 Inside `validateSeats`, integer parsing must precede the positivity comparison. Those two checks are dependent: there is no integer to compare when parsing fails. Accumulation across fields does not require pretending every operation inside one field is independent.
@@ -110,8 +116,18 @@ The binder is not called in the `Error` case. The error type is preserved; `bind
 
 The first strategy nests three dependent continuations:
 
-<<< @/../examples/scripts/ch18-workflow-validation.fsx#first-error{fsharp:line-numbers} [ch18-workflow-validation.fsx]
-
+```fsharp:line-numbers [ch18-workflow-validation.fsx]
+let validateFirstError (raw: RawBooking) =
+    validateRequestId raw.RequestId
+    |> Result.bind (fun requestId ->
+        validateAttendee raw.Attendee
+        |> Result.bind (fun attendee ->
+            validateSeats raw.Seats
+            |> Result.map (fun seats ->
+                { RequestId = requestId
+                  Attendee = attendee
+                  Seats = seats })))
+```
 With a completely invalid request, `validateRequestId` returns `Error [MissingRequestId]`. The attendee and seat validators are inside the success continuation, so neither runs and the result contains only the first error.
 
 This behavior is correct when each step consumes the protected output of the preceding step. It is also a valid product policy when only one message should be returned. But merely reordering `Result.bind` calls cannot make it accumulate errors; it only changes which failure becomes first.
@@ -126,8 +142,29 @@ Short-circuiting also prevents unnecessary work, but that is a consequence rathe
 
 The accumulating strategy evaluates all three field functions before deciding whether construction is possible:
 
-<<< @/../examples/scripts/ch18-workflow-validation.fsx#accumulation{fsharp:line-numbers} [ch18-workflow-validation.fsx]
+```fsharp:line-numbers [ch18-workflow-validation.fsx]
+let errorsOf result =
+    match result with
+    | Ok _ -> []
+    | Error errors -> errors
 
+let validateAccumulating (raw: RawBooking) =
+    let requestIdResult = validateRequestId raw.RequestId
+    let attendeeResult = validateAttendee raw.Attendee
+    let seatsResult = validateSeats raw.Seats
+
+    match requestIdResult, attendeeResult, seatsResult with
+    | Ok requestId, Ok attendee, Ok seats ->
+        Ok
+            { RequestId = requestId
+              Attendee = attendee
+              Seats = seats }
+    | _ ->
+        [ yield! errorsOf requestIdResult
+          yield! errorsOf attendeeResult
+          yield! errorsOf seatsResult ]
+        |> Error
+```
 If every result is `Ok`, the match constructs one `ValidBooking`. Otherwise, `errorsOf` contributes each failure list in field order. The invalid example therefore produces:
 
 ```text
@@ -148,8 +185,25 @@ Likewise, do not construct a half-valid domain record and patch it later. Keep s
 
 The explicit three-way match is easy to audit. When the pattern repeats, factor only the combination mechanics:
 
-<<< @/../examples/scripts/ch18-workflow-validation.fsx#reusable-accumulation{fsharp:line-numbers} [ch18-workflow-validation.fsx]
+```fsharp:line-numbers [ch18-workflow-validation.fsx]
+let applyValidation valueResult functionResult =
+    match functionResult, valueResult with
+    | Ok mapping, Ok value -> Ok(mapping value)
+    | Error functionErrors, Error valueErrors -> Error(functionErrors @ valueErrors)
+    | Error errors, Ok _
+    | Ok _, Error errors -> Error errors
 
+let createBooking requestId attendee seats : ValidBooking =
+    { RequestId = requestId
+      Attendee = attendee
+      Seats = seats }
+
+let validateAccumulatingWithApply (raw: RawBooking) =
+    Ok createBooking
+    |> applyValidation (validateRequestId raw.RequestId)
+    |> applyValidation (validateAttendee raw.Attendee)
+    |> applyValidation (validateSeats raw.Seats)
+```
 `applyValidation` has four cases:
 
 - apply the successful function to the successful value;
@@ -166,8 +220,25 @@ Repeated list append can become expensive for very large validation sets. A smal
 
 After a seat count exists, comparing it with capacity is a dependent business check:
 
-<<< @/../examples/scripts/ch18-workflow-validation.fsx#dependent-workflow{fsharp:line-numbers} [ch18-workflow-validation.fsx]
+```fsharp:line-numbers [ch18-workflow-validation.fsx]
+let ensureWithin capacity (SeatCount requested as seats) =
+    if requested <= capacity then
+        Ok seats
+    else
+        Error [ ExceedsCapacity(requested, capacity) ]
 
+let validateSeatsThenCapacity checkCapacity rawSeats =
+    validateSeats rawSeats |> Result.bind checkCapacity
+
+let observeDependentValidation rawSeats =
+    let mutable capacityChecks = 0
+
+    let observedCheck seats =
+        capacityChecks <- capacityChecks + 1
+        ensureWithin 4 seats
+
+    validateSeatsThenCapacity observedCheck rawSeats, capacityChecks
+```
 `validateSeatsThenCapacity` uses `Result.bind`. Its injected capacity function receives only a valid `SeatCount`. The instrumented wrapper counts calls without putting mutation into either production function:
 
 | Input | Result | Capacity checks |
@@ -238,13 +309,13 @@ Types state possible results; combining functions state evaluation policy. Revie
 
 ## Run the shared example {#run-example}
 
-From the repository root:
+From the directory containing the example:
 
 ```console
-dotnet fsi --exec examples/scripts/ch18-workflow-validation.fsx
+dotnet fsi --exec ch18-workflow-validation.fsx
 ```
 
-Seven deterministic lines and assertions prove first-error output, three- and two-error accumulation, agreement on valid input, and capacity-check counts for invalid, excessive, and accepted seat text. The manifest checks their exact order.
+Seven deterministic lines and assertions prove first-error output, three- and two-error accumulation, agreement on valid input, and capacity-check counts for invalid, excessive, and accepted seat text. Compare their exact order.
 
 ## Exercises {#exercises}
 
@@ -290,10 +361,10 @@ Explain why FSharp.Core alone does not establish that this compiles or accumulat
 
 ## Part III checkpoint {#part-checkpoint}
 
-Run the focused workflow tests from the repository root:
+Run the focused workflow tests from the directory containing the example:
 
 ```console
-dotnet test tests/ExampleTests/ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~BookingWorkflowTests
+dotnet test ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~BookingWorkflowTests
 ```
 
 Passing tests show that independent command errors accumulate in field order, valid commands produce events, and existing state short-circuits later capacity work. They exercise ordinary functions, so the evidence does not depend on an unstated computation-expression builder.

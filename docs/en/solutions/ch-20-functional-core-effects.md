@@ -2,30 +2,6 @@
 title: "Chapter 20 Solutions"
 description: "Expose hidden runtime inputs, select the smallest honest dependency shape, and preserve expected boundary failures without flattening contract violations."
 translationKey: solutions/ch-20-functional-core-effects
-kind: solution
-part: 4
-chapter: 20
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch20-functional-core-effects
-exerciseIds:
-  - ch20-exercise-01
-  - ch20-exercise-02
-  - ch20-exercise-03
-termIds: []
-sources:
-  - id: microsoft-functions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/
-    checked: "2026-08-24"
-  - id: microsoft-component-design
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-24"
-  - id: dotnet-environment-variable
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.environment.getenvironmentvariable?view=net-10.0
-    checked: "2026-08-24"
 ---
 
 # Chapter 20 Solutions {#overview}

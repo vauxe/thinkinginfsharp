@@ -2,33 +2,6 @@
 title: "第 37 章答案"
 description: "把容量控制扩展到跨进程，对账结果不明确的支付，并设计不冒充恰好一次投递的发件箱。"
 translationKey: solutions/ch-37-consistency-idempotency
-kind: solution
-part: 6
-chapter: 37
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - capstone-booking-domain
-  - capstone-booking-contracts
-  - capstone-booking-infrastructure
-  - foundation-contract-tests
-exerciseIds:
-  - ch37-exercise-01
-  - ch37-exercise-02
-  - ch37-exercise-03
-termIds: []
-sources:
-  - id: microsoft-retry-pattern
-    url: https://learn.microsoft.com/en-us/azure/architecture/patterns/retry
-    checked: "2026-08-25"
-  - id: microsoft-transactional-outbox
-    url: https://learn.microsoft.com/en-us/azure/architecture/databases/guide/transactional-out-box-cosmos
-    checked: "2026-08-25"
-  - id: microsoft-minimize-coordination
-    url: https://learn.microsoft.com/en-us/azure/architecture/guide/design-principles/minimize-coordination
-    checked: "2026-08-25"
 ---
 
 # 第 37 章答案 {#overview}

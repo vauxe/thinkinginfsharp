@@ -2,44 +2,6 @@
 title: "第 7 章：记录、更新、相等与比较"
 description: "从位置元组过渡到命名记录，掌握匿名记录、不可变更新，并严格区分结构相等、比较、引用身份与哈希码。"
 translationKey: part-02/ch-07-records-equality
-kind: chapter
-part: 2
-chapter: 7
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch07-records-equality
-exerciseIds:
-  - ch07-exercise-01
-  - ch07-exercise-02
-  - ch07-exercise-03
-termIds:
-  - anonymous-record
-  - hash-code
-  - immutability
-  - record
-  - reference-identity
-  - structural-comparison
-  - structural-equality
-  - tuple
-sources:
-  - id: microsoft-records
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/records
-    checked: "2026-08-24"
-  - id: microsoft-copy-update
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/copy-and-update-record-expressions
-    checked: "2026-08-24"
-  - id: microsoft-anonymous-records
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/anonymous-records
-    checked: "2026-08-24"
-  - id: fsharp-core-language-primitives
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-languageprimitives.html
-    checked: "2026-08-24"
-  - id: microsoft-gethashcode
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.object.gethashcode?view=net-10.0
-    checked: "2026-08-24"
 ---
 
 # 第 7 章：记录、更新、相等与比较 {#overview}
@@ -81,8 +43,17 @@ let attendee, seats = request
 
 共享脚本定义了一个预约草稿：
 
-<<< @/../examples/scripts/ch07-records-equality.fsx#record-definition{fsharp:line-numbers} [ch07-records-equality.fsx]
+```fsharp:line-numbers [ch07-records-equality.fsx]
+type BookingDraft =
+    { EventId: string
+      Attendee: string
+      Seats: int }
 
+let original =
+    { EventId = "A-1"
+      Attendee = "Lin"
+      Seats = 2 }
+```
 `BookingDraft` 是一个命名类型。字段标签参与构造与访问，字段顺序不再是调用者理解含义的唯一线索。普通记录默认是 .NET 引用类型，但其字段默认不可改写；“引用类型”和“可变对象”不是同义词。
 
 两个分别声明的记录类型即使字段名称和类型完全相同，也仍是不同的名义类型。命名让领域含义进入编译边界：`BookingDraft` 不会仅因形状相似就自动成为另一个记录类型。
@@ -118,8 +89,11 @@ let label { EventId = eventId; Attendee = attendee; Seats = seats } =
 
 共享示例把座位数从 `2` 改为 `3`：
 
-<<< @/../examples/scripts/ch07-records-equality.fsx#copy-update{fsharp:line-numbers} [ch07-records-equality.fsx]
+```fsharp:line-numbers [ch07-records-equality.fsx]
+let updated = { original with Seats = 3 }
 
+printfn "Record update: original=%d updated=%d" original.Seats updated.Seats
+```
 `{ original with Seats = 3 }` 产生新的 `BookingDraft`。`original.Seats` 仍为 `2`，`updated.Seats` 为 `3`。它表达“新状态源自旧状态，仅这些字段改变”，无需重复其他字段。
 
 复制更新不是递归深复制。未更新字段的值被沿用；若字段中放着另一个引用对象，新旧记录可以继续引用同一个对象。不可变领域模型通常让嵌套值也保持不可变，从而不必靠深复制防守共享。
@@ -130,8 +104,13 @@ F# 7 起支持用字段路径更新嵌套记录，但简洁语法不会改变上
 
 匿名记录用 `{| ... |}` 构造，不先声明类型名。共享脚本从命名记录投影并增加计算字段：
 
-<<< @/../examples/scripts/ch07-records-equality.fsx#anonymous-record{fsharp:line-numbers} [ch07-records-equality.fsx]
+```fsharp:line-numbers [ch07-records-equality.fsx]
+let summary =
+    {| updated with
+        IsGroup = updated.Seats > 1 |}
 
+printfn "Anonymous summary: %s -> %d seats, group=%b" summary.Attendee summary.Seats summary.IsGroup
+```
 `summary` 的形状由全部字段标签、字段类型以及它是引用还是 `struct` 匿名记录共同决定。另一匿名记录只有在精确形状相同时才是同一匿名记录类型；这里没有“至少包含这些字段”的结构子类型。
 
 匿名记录支持字段访问、结构相等/比较与复制更新，还能在更新时增加字段。它目前不支持记录模式匹配，通常用点访问读取字段。
@@ -142,8 +121,21 @@ F# 7 起支持用字段路径更新嵌套记录，但简洁语法不会改变上
 
 两个 `BookingDraft` 即使分别构造，只要对应字段结构相等，F# 的 `=` 就返回 `true`：
 
-<<< @/../examples/scripts/ch07-records-equality.fsx#equality-identity-hash{fsharp:line-numbers} [ch07-records-equality.fsx]
+```fsharp:line-numbers [ch07-records-equality.fsx]
+let equalCopy =
+    { EventId = "A-1"
+      Attendee = "Lin"
+      Seats = 2 }
 
+let alias = original
+let structurallyEqual = original = equalCopy
+let physicallyEqual = LanguagePrimitives.PhysicalEquality original equalCopy
+let aliasIsSameReference = LanguagePrimitives.PhysicalEquality original alias
+let equalHashesAgree = hash original = hash equalCopy
+
+printfn "Equality: structural=%b physical=%b alias=%b" structurallyEqual physicallyEqual aliasIsSameReference
+printfn "Hashes agree for equal records: %b" equalHashesAgree
+```
 记录自动生成的相等会递归使用字段类型的相等语义。这个能力是组合性的：若组成类型不支持 F# 相等约束，外层记录也不能无条件获得正常的结构相等。第 11 章会把这条规则写成泛型约束。
 
 结构相等回答“内容按该类型的规则是否相等”。它不回答两个变量是否代表同一内存对象，也不证明两个业务实体拥有同一身份。例如两个内容相同的预约草稿可以相等，但真实预约仍可能需要独立请求标识。
@@ -172,8 +164,25 @@ F# 7 起支持用字段路径更新嵌套记录，但简洁语法不会改变上
 
 当所有字段支持比较时，记录也自动支持结构比较，因此可以直接 `List.sort`：
 
-<<< @/../examples/scripts/ch07-records-equality.fsx#structural-comparison{fsharp:line-numbers} [ch07-records-equality.fsx]
+```fsharp:line-numbers [ch07-records-equality.fsx]
+let drafts =
+    [ { EventId = "B-2"
+        Attendee = "Lin"
+        Seats = 2 }
+      { EventId = "A-1"
+        Attendee = "Lin"
+        Seats = 1 }
+      { EventId = "A-1"
+        Attendee = "Ada"
+        Seats = 2 } ]
 
+let sortedLabels =
+    drafts
+    |> List.sort
+    |> List.map (fun draft -> $"{draft.EventId}:{draft.Attendee}:{draft.Seats}")
+
+printfn "Structural sort: %A" sortedLabels
+```
 本例依记录声明的字段次序比较：先 `EventId`，相同时比较 `Attendee`，再比较 `Seats`。所以 `A-1:Ada:2` 位于 `A-1:Lin:1` 之前。
 
 默认顺序适合需要确定性、且结构顺序确实符合意图的值。业务顺序往往不同，例如按座位数降序再按参加者排序。此时应显式写 `List.sortBy` 或 `List.sortWith`，让规则出现在代码中。新增或重排记录字段不应悄悄改变一项重要业务规则。
@@ -193,10 +202,10 @@ F# 7 起支持用字段路径更新嵌套记录，但简洁语法不会改变上
 
 ## 运行共享示例 {#run-example}
 
-从仓库根目录执行：
+在示例所在目录执行：
 
 ```console
-dotnet fsi --exec examples/scripts/ch07-records-equality.fsx
+dotnet fsi --exec ch07-records-equality.fsx
 ```
 
 应得到：
@@ -209,7 +218,7 @@ Hashes agree for equal records: true
 Structural sort: ["A-1:Ada:2"; "A-1:Lin:1"; "B-2:Lin:2"]
 ```
 
-五行分别固定不可变更新、匿名投影、内容与身份反例、相等—哈希必要契约和结构排序。manifest 按顺序检查它们；脚本不输出具体哈希整数，因为该数值不是稳定契约。
+五行分别固定不可变更新、匿名投影、内容与身份反例、相等—哈希必要契约和结构排序。请按顺序比较它们；脚本不输出具体哈希整数，因为该数值不是稳定契约。
 
 ## 调试：先说清你在比较什么 {#debugging}
 

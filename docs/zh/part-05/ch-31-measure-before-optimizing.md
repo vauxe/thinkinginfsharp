@@ -2,51 +2,6 @@
 title: "第 31 章：先测量再优化"
 description: "从用户可见的性能需求出发，经过剖析与受控的 F# 基准，得到保持等价且经过测量的修改，同时不把局部结果冒充普遍规律。"
 translationKey: part-05/ch-31-measure-before-optimizing
-kind: chapter
-part: 5
-chapter: 31
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch31-measure-before-optimizing
-exerciseIds:
-  - ch31-exercise-01
-  - ch31-exercise-02
-  - ch31-exercise-03
-termIds: []
-sources:
-  - id: benchmarkdotnet-getting-started
-    url: https://benchmarkdotnet.org/articles/guides/getting-started.html
-    checked: "2026-08-24"
-  - id: benchmarkdotnet-good-practices
-    url: https://benchmarkdotnet.org/articles/guides/good-practices.html
-    checked: "2026-08-24"
-  - id: benchmarkdotnet-diagnosers
-    url: https://benchmarkdotnet.org/articles/configs/diagnosers.html
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-diagnostics
-    url: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-inline-functions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/inline-functions
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-value-options
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/value-options
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-byrefs
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/byrefs
-    checked: "2026-08-24"
-  - id: microsoft-memory-span-guidelines
-    url: https://learn.microsoft.com/en-us/dotnet/standard/memory-and-spans/memory-t-usage-guidelines
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-trimming
-    url: https://learn.microsoft.com/en-us/dotnet/core/deploying/trimming/trim-self-contained
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-native-aot
-    url: https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/
-    checked: "2026-08-24"
 ---
 
 # 第 31 章：先测量再优化 {#overview}
@@ -105,8 +60,22 @@ F# 要高效，并不要求放弃表达式、不可变性或领域类型。清�
 
 样例对不大于配置上限的正座位值求和。基线是惯用的数组管道；候选实现以一次遍历完成同样的判断与加法：
 
-<<< @/../examples/chapters/ch31/Benchmarks.fs#aggregation-implementations{fsharp:line-numbers} [Benchmarks.fs]
+```fsharp:line-numbers [Benchmarks.fs]
+module RequestAggregation =
+    let arrayPipeline maxSeats (requests: int array) =
+        requests
+        |> Array.filter (fun seats -> seats > 0 && seats <= maxSeats)
+        |> Array.sumBy int64
 
+    let singlePass maxSeats (requests: int array) =
+        let mutable total = 0L
+
+        for seats in requests do
+            if seats > 0 && seats <= maxSeats then
+                total <- total + int64 seats
+
+        total
+```
 `arrayPipeline` 清楚表达意图：选择符合条件的元素，再把它们转换为 `int64` 后求和。它也会在第二次遍历前物化筛选数组。若不处于热点，这项成本可能无关紧要；因此没有测量指向它时，管道仍是良好默认选择。
 
 `singlePass` 把可变累加器封闭在一个函数里。没有可变引用逸出，可观察结果仍是值。局部可变状态是一种实现技术，并不要求领域模型变成可变。两种计算期间，数组本身仍不得被并发修改。
@@ -117,14 +86,44 @@ F# 要高效，并不要求放弃表达式、不可变性或领域类型。清�
 
 任何基准开始前，样例都会检查四个具名案例与 256 个确定性生成案例：
 
-<<< @/../examples/chapters/ch31/Benchmarks.fs#equivalence{fsharp:line-numbers} [Benchmarks.fs]
+```fsharp:line-numbers [Benchmarks.fs]
+module Equivalence =
+    let private fixedCases =
+        [| 0, [||]
+           4, [| 1; 4; 5; 0; -1; 2 |]
+           1, [| 1; 1; 2; -3 |]
+           6, [| 6; 5; 4; 3; 2; 1 |] |]
 
+    let verify () =
+        let random = Random 31
+
+        let generatedCases =
+            Array.init 256 (fun length ->
+                let maxSeats = random.Next(0, 8)
+                let requests = Array.init length (fun _ -> random.Next(-2, 12))
+                maxSeats, requests)
+
+        Array.append fixedCases generatedCases
+        |> Array.iteri (fun index (maxSeats, requests) ->
+            let expected = RequestAggregation.arrayPipeline maxSeats requests
+            let actual = RequestAggregation.singlePass maxSeats requests
+
+            if actual <> expected then
+                failwithf
+                    "equivalence case %d failed: maxSeats=%d expected=%d actual=%d"
+                    index
+                    maxSeats
+                    expected
+                    actual)
+
+        fixedCases.Length + generatedCases.Length
+```
 参考实现与候选实现具有独立结构，因此比较有意义。案例覆盖空输入、精确边界、被拒绝值、负值和不同长度。260 个案例通过是证据，并非数学证明；生产规则可能还需要更多性质、溢出案例或领域级测试。
 
 编辑期间只运行语义关卡：
 
 ```console
-dotnet run --project examples/chapters/ch31/Ch31.Benchmarks.fsproj \
+dotnet run --project Ch31.Benchmarks.fsproj \
   --configuration Release --no-restore -- --verify-only
 ```
 
@@ -134,8 +133,27 @@ dotnet run --project examples/chapters/ch31/Ch31.Benchmarks.fsproj \
 
 基准夹具把确定性输入构造移入 `GlobalSetup`，返回每次求和结果，测试两种数据规模，把管道标为基线，并启用托管分配报告：
 
-<<< @/../examples/chapters/ch31/Benchmarks.fs#benchmark{fsharp:line-numbers} [Benchmarks.fs]
+```fsharp:line-numbers [Benchmarks.fs]
+[<MemoryDiagnoser>]
+type RequestAggregationBenchmarks() =
+    let mutable requests = Array.empty<int>
 
+    [<Params(256, 4096)>]
+    member val Count = 0 with get, set
+
+    [<GlobalSetup>]
+    member this.Setup() =
+        let random = Random 31
+        requests <- Array.init this.Count (fun _ -> random.Next(-2, 12))
+
+    [<Benchmark(Baseline = true)>]
+    member _.ArrayPipeline() =
+        RequestAggregation.arrayPipeline 6 requests
+
+    [<Benchmark>]
+    member _.SinglePass() =
+        RequestAggregation.singlePass 6 requests
+```
 每个选择都堵住一个常见漏洞：
 
 - 设置耗时不计入被比较的操作；
@@ -150,7 +168,7 @@ dotnet run --project examples/chapters/ch31/Ch31.Benchmarks.fsproj \
 快速模式只是执行检查：
 
 ```console
-dotnet run --project examples/chapters/ch31/Ch31.Benchmarks.fsproj \
+dotnet run --project Ch31.Benchmarks.fsproj \
   --configuration Release --no-restore -- --smoke
 ```
 

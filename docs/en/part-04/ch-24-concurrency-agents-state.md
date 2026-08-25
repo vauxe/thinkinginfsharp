@@ -2,42 +2,6 @@
 title: "Chapter 24: Parallelism, Concurrency, Agents, and Controlled Mutation"
 description: "Separate overlapping work from CPU parallelism, reproduce a race deterministically, and choose immutable data, locks, atomics, agents, or concurrent caches by invariant."
 translationKey: part-04/ch-24-concurrency-agents-state
-kind: chapter
-part: 4
-chapter: 24
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch24-concurrency-agents-state
-  - capstone-booking-domain
-  - foundation-example-tests
-exerciseIds:
-  - ch24-exercise-01
-  - ch24-exercise-02
-  - ch24-exercise-03
-termIds:
-  - effect
-sources:
-  - id: dotnet-task-parallel-library
-    url: https://learn.microsoft.com/en-us/dotnet/standard/parallel-programming/task-parallel-library-tpl
-    checked: "2026-08-24"
-  - id: dotnet-data-parallelism
-    url: https://learn.microsoft.com/en-us/dotnet/standard/parallel-programming/data-parallelism-task-parallel-library
-    checked: "2026-08-24"
-  - id: fsharp-array-parallel
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-arraymodule-parallel.html
-    checked: "2026-08-24"
-  - id: dotnet-interlocked
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.threading.interlocked?view=net-10.0
-    checked: "2026-08-24"
-  - id: fsharp-mailbox-processor
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-control-fsharpmailboxprocessor-1.html
-    checked: "2026-08-24"
-  - id: dotnet-concurrent-get-or-add
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.collections.concurrent.concurrentdictionary-2.getoradd?view=net-10.0
-    checked: "2026-08-24"
 ---
 
 # Chapter 24: Parallelism, Concurrency, Agents, and Controlled Mutation {#overview}
@@ -78,8 +42,34 @@ Start with the requirement. Use asynchronous APIs to avoid blocking scarce threa
 
 The shared example starts two task expressions. Each records entry and then awaits the same closed gate:
 
-<<< @/../examples/scripts/ch24-concurrency-agents-state.fsx#concurrent-waits{fsharp:line-numbers} [ch24-concurrency-agents-state.fsx]
+```fsharp:line-numbers [ch24-concurrency-agents-state.fsx]
+let releaseWaits = newGate<unit> ()
+let entered = [| 0 |]
 
+let waitingWork label =
+    task {
+        Interlocked.Increment(&entered[0]) |> ignore
+        do! releaseWaits.Task
+        return label
+    }
+
+let firstWait = waitingWork "first"
+let secondWait = waitingWork "second"
+let bothPending = not firstWait.IsCompleted && not secondWait.IsCompleted
+
+assert (entered[0] = 2)
+assert bothPending
+printfn "Concurrent waits: entered=%d pending=%b" entered[0] bothPending
+
+releaseWaits.SetResult()
+
+let waitResults =
+    let running = Task.WhenAll [| firstWait; secondWait |]
+    running.GetAwaiter().GetResult()
+
+assert (waitResults = [| "first"; "second" |])
+printfn "Concurrent results: %A" waitResults
+```
 Both operations are in progress and neither has completed. That proves concurrent lifetimes. It says nothing about simultaneous CPU execution or thread identity. Releasing one gate lets both resume, and `Task.WhenAll` returns results in input-task order even though completion scheduling is not asserted.
 
 Unbounded concurrency is not a performance plan. Every external dependency has connection, queue, memory, and rate limits. Bound concurrency near the constrained resource and decide how excess work waits, fails, or is rejected.
@@ -88,8 +78,15 @@ Unbounded concurrency is not a performance plan. Every external dependency has c
 
 `Array.Parallel.map` partitions an array transformation through the .NET parallel infrastructure:
 
-<<< @/../examples/scripts/ch24-concurrency-agents-state.fsx#parallel-map{fsharp:line-numbers} [ch24-concurrency-agents-state.fsx]
+```fsharp:line-numbers [ch24-concurrency-agents-state.fsx]
+let values = [| 1..8 |]
+let sequentialSquares = values |> Array.map (fun value -> value * value)
+let parallelSquares = values |> Array.Parallel.map (fun value -> value * value)
+let parallelAgrees = parallelSquares = sequentialSquares
 
+assert parallelAgrees
+printfn "Parallel map agrees: %b" parallelAgrees
+```
 The mapping is pure and each output depends on one input, so scheduling order cannot change the value. The assertion proves functional equivalence, not speed. On a small array this parallel version is likely unnecessary; Chapter 31 measures before choosing it.
 
 Review a parallel mapping for:
@@ -109,8 +106,34 @@ The expression `counter <- counter + 1` reads, computes, and writes. Two threads
 
 Probabilistic stress sometimes misses that race. The shared test uses a two-participant `Barrier`: both long-running workers read before either may write. The bad result is therefore forced, not hoped for:
 
-<<< @/../examples/scripts/ch24-concurrency-agents-state.fsx#shared-state{fsharp:line-numbers} [ch24-concurrency-agents-state.fsx]
+```fsharp:line-numbers [ch24-concurrency-agents-state.fsx]
+let racyCounter = [| 0 |]
 
+runTwoWithBarrier (fun barrier ->
+    let snapshot = racyCounter[0]
+    barrier.SignalAndWait() |> ignore
+    racyCounter[0] <- snapshot + 1)
+
+let lockedCounter = [| 0 |]
+let counterLock = obj ()
+
+runTwoWithBarrier (fun barrier ->
+    barrier.SignalAndWait() |> ignore
+
+    lock counterLock (fun () -> lockedCounter[0] <- lockedCounter[0] + 1))
+
+let atomicCounter = [| 0 |]
+
+runTwoWithBarrier (fun barrier ->
+    barrier.SignalAndWait() |> ignore
+    Interlocked.Increment(&atomicCounter[0]) |> ignore)
+
+assert (racyCounter[0] = 1)
+assert (lockedCounter[0] = 2)
+assert (atomicCounter[0] = 2)
+
+printfn "Shared counter: race=%d lock=%d interlocked=%d" racyCounter[0] lockedCounter[0] atomicCounter[0]
+```
 The same barrier starts two corrected variants. `lock` makes the whole read-modify-write critical section exclusive. `Interlocked.Increment` performs its supported update atomically. The deterministic results are `1`, `2`, and `2`.
 
 `volatile` visibility alone would not turn a multi-step increment into an atomic operation. Likewise, a thread-safe collection protects its own methods; it does not automatically make a sequence across several calls a transaction.
@@ -139,8 +162,43 @@ When several locks are unavoidable, define one acquisition order. Otherwise two 
 
 The capacity example updates `Remaining` and `Accepted` as one invariant:
 
-<<< @/../examples/scripts/ch24-concurrency-agents-state.fsx#compound-invariant{fsharp:line-numbers} [ch24-concurrency-agents-state.fsx]
+```fsharp:line-numbers [ch24-concurrency-agents-state.fsx]
+type CapacityState =
+    { mutable Remaining: int
+      mutable Accepted: int }
 
+let capacity = { Remaining = 3; Accepted = 0 }
+let capacityLock = obj ()
+
+let tryReserve seats =
+    lock capacityLock (fun () ->
+        if seats > 0 && seats <= capacity.Remaining then
+            capacity.Remaining <- capacity.Remaining - seats
+            capacity.Accepted <- capacity.Accepted + 1
+            true
+        else
+            false)
+
+let reservationResults = Array.zeroCreate<bool> 2
+let reservationIndex = [| -1 |]
+
+runTwoWithBarrier (fun barrier ->
+    let index = Interlocked.Increment(&reservationIndex[0])
+    barrier.SignalAndWait() |> ignore
+    reservationResults[index] <- tryReserve 2)
+
+let acceptedReservations = reservationResults |> Array.filter id |> Array.length
+let capacityInvariant = capacity.Remaining = 1 && capacity.Accepted = 1
+
+assert (acceptedReservations = 1)
+assert capacityInvariant
+
+printfn
+    "Locked capacity: accepted=%d remaining=%d invariant=%b"
+    acceptedReservations
+    capacity.Remaining
+    capacityInvariant
+```
 Two requests for two seats race against capacity three. Exactly one succeeds, and both fields describe the same committed transition. Separate atomic decrements and increments would not by themselves make the pair transactional or prevent capacity from going negative.
 
 ### Atomics protect particular operations {#atomics}
@@ -155,8 +213,61 @@ Once correctness depends on several locations, a check followed by an update, or
 
 The shared reservation agent owns `remaining` and `accepted`:
 
-<<< @/../examples/scripts/ch24-concurrency-agents-state.fsx#mailbox-agent{fsharp:line-numbers} [ch24-concurrency-agents-state.fsx]
+```fsharp:line-numbers [ch24-concurrency-agents-state.fsx]
+type ReservationReply =
+    | Accepted of remaining: int
+    | Rejected of remaining: int
 
+type ReservationMessage =
+    | Reserve of seats: int * reply: AsyncReplyChannel<ReservationReply>
+    | Stop of reply: AsyncReplyChannel<int * int>
+
+let reservationAgent =
+    MailboxProcessor.Start(fun inbox ->
+        let rec loop remaining accepted =
+            async {
+                let! message = inbox.Receive()
+
+                match message with
+                | Reserve(seats, reply) when seats > 0 && seats <= remaining ->
+                    let nextRemaining = remaining - seats
+                    reply.Reply(Accepted nextRemaining)
+                    return! loop nextRemaining (accepted + 1)
+                | Reserve(_, reply) ->
+                    reply.Reply(Rejected remaining)
+                    return! loop remaining accepted
+                | Stop reply -> reply.Reply(remaining, accepted)
+            }
+
+        loop 3 0)
+
+let agentReplies =
+    [| reservationAgent.PostAndAsyncReply(fun reply -> Reserve(2, reply))
+       reservationAgent.PostAndAsyncReply(fun reply -> Reserve(2, reply)) |]
+    |> Async.Parallel
+    |> Async.RunSynchronously
+
+let agentAccepted =
+    agentReplies
+    |> Array.filter (function
+        | Accepted _ -> true
+        | Rejected _ -> false)
+    |> Array.length
+
+let agentRemaining, agentAcceptedState = reservationAgent.PostAndReply Stop
+
+assert (agentAccepted = 1)
+assert (agentRemaining = 1)
+assert (agentAcceptedState = 1)
+
+printfn
+    "Agent capacity: accepted=%d remaining=%d invariant=%b"
+    agentAccepted
+    agentRemaining
+    (agentAcceptedState = agentAccepted)
+
+reservationAgent.Dispose()
+```
 Two callers create reply-awaiting computations, and `Async.Parallel` starts them together. Arrival order is intentionally unspecified, so the test asserts only the invariant: one accepted request, one seat remaining, and agent state agreeing with replies. `Stop` returns the final state and ends the loop; the processor is then disposed.
 
 Reply channels are capabilities that must be replied to exactly once. Define behavior for malformed messages, handler exceptions, cancellation, shutdown, and callers that stop waiting. Monitor the queue or bound admission if producers can outrun the single consumer.
@@ -187,8 +298,39 @@ A cache needs more than a thread-safe dictionary. Specify:
 
 The example stores `Lazy<int>` values:
 
-<<< @/../examples/scripts/ch24-concurrency-agents-state.fsx#cache{fsharp:line-numbers} [ch24-concurrency-agents-state.fsx]
+```fsharp:line-numbers [ch24-concurrency-agents-state.fsx]
+let cache = ConcurrentDictionary<string, Lazy<int>>()
+let computations = [| 0 |]
 
+let getCached key =
+    cache.GetOrAdd(
+        key,
+        fun _ ->
+            lazy
+                (Interlocked.Increment(&computations[0]) |> ignore
+                 23)
+    )
+    |> fun delayed -> delayed.Value
+
+let cacheBarrier = new Barrier(2)
+
+let cachedTasks =
+    [| startLongRunning (fun () ->
+           cacheBarrier.SignalAndWait() |> ignore
+           getCached "quote" |> ignore)
+       startLongRunning (fun () ->
+           cacheBarrier.SignalAndWait() |> ignore
+           getCached "quote" |> ignore) |]
+
+Task.WaitAll cachedTasks
+let cachedValues = [| getCached "quote"; getCached "quote" |]
+
+assert (cachedValues = [| 23; 23 |])
+assert (computations[0] = 1)
+assert (cache.Count = 1)
+printfn "Cache: values=%A computations=%d entries=%d" cachedValues computations[0] cache.Count
+cacheBarrier.Dispose()
+```
 Competing dictionary factories may allocate more than one `Lazy`, but callers evaluate the one instance actually returned by the dictionary. Default `Lazy` execution-and-publication semantics make the demonstrated computation run once. This also caches an exception thrown during value creation and the dictionary grows without eviction; those are policies, not universally desirable defaults.
 
 For remote work, a shared in-flight `Task<'T>` can implement single-flight behavior, but Chapter 23's ownership questions still apply. One caller should not accidentally cancel work shared by all.
@@ -207,10 +349,10 @@ Repeat focused tests to expose resource and lifecycle mistakes, but repetition i
 
 ## Run the shared example {#run-example}
 
-From the repository root:
+From the directory containing the example:
 
 ```console
-dotnet fsi --checknulls+ --exec examples/scripts/ch24-concurrency-agents-state.fsx
+dotnet fsi --checknulls+ --exec ch24-concurrency-agents-state.fsx
 ```
 
 Seven deterministic lines cover concurrent waiting, data-parallel equivalence, forced lost update, lock and atomic corrections, a compound capacity invariant, agent serialization, and a single-computation cache.
@@ -253,7 +395,7 @@ Explain why a thread-safe dictionary alone cannot guarantee freshness, bounded m
 Run the booking port contract against deterministic asynchronous substitutes:
 
 ```console
-dotnet test tests/ExampleTests/ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~BookingAsyncPortTests
+dotnet test ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~BookingAsyncPortTests
 ```
 
 Passing tests show that caller cancellation tokens reach every port and that controlled operations remain pending until they explicitly succeed, fail, or observe cancellation. They do not establish cross-process consistency or durability.

@@ -2,51 +2,6 @@
 title: "第 36 章：Web API、JSON 与输入边界"
 description: "用小型 F# Minimal API 暴露预约工作流，同时让 JSON、验证、取消、失败与机密停留在显式边界。"
 translationKey: part-06/ch-36-web-api-boundaries
-kind: chapter
-part: 6
-chapter: 36
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - capstone-booking-domain
-  - capstone-booking-contracts
-  - capstone-booking-infrastructure
-  - capstone-booking-api
-exerciseIds:
-  - ch36-exercise-01
-  - ch36-exercise-02
-  - ch36-exercise-03
-termIds: []
-sources:
-  - id: microsoft-minimal-api
-    url: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: microsoft-http-json
-    url: https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.http.httprequestjsonextensions?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: microsoft-json-unmapped
-    url: https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/missing-members
-    checked: "2026-08-25"
-  - id: microsoft-request-aborted
-    url: https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.http.defaulthttpcontext.requestaborted?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: microsoft-testserver
-    url: https://learn.microsoft.com/en-us/aspnet/core/test/middleware?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: ietf-rfc3986-unreserved
-    url: https://www.rfc-editor.org/rfc/rfc3986.html#section-2.3
-    checked: "2026-08-25"
-  - id: microsoft-kestrel-security
-    url: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/servers/kestrel/security-considerations?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: microsoft-app-secrets
-    url: https://learn.microsoft.com/en-us/aspnet/core/security/app-secrets?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: microsoft-http-logging
-    url: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/http-logging/?view=aspnetcore-10.0
-    checked: "2026-08-25"
 ---
 
 # 第 36 章：Web API、JSON 与输入边界 {#overview}
@@ -91,8 +46,41 @@ HTTP 字节
 
 ASP.NET Core 把通过 `MapGet`、`MapPost` 等方法映射的函数称为路由处理程序。处理程序可以返回框架结果、字符串，或由框架序列化的值。本例改用显式 `RequestDelegate` 处理程序，让字节上限、JSON 错误体与取消行为在一个适合教学的文件中保持可见。
 
-<<< @/../examples/capstone/src/Booking.Api/Endpoints.fs#endpoint-map{fsharp:line-numbers} [Endpoints.fs]
+```fsharp:line-numbers [Endpoints.fs]
+let private mapHandlers (application: WebApplication) place confirm cancel load =
+    ArgumentNullException.ThrowIfNull(application, nameof application)
 
+    let protectedHandler handler =
+        RequestDelegate(fun context -> safely handler context)
+
+    application.MapPost("/api/bookings/place", protectedHandler place) |> ignore
+
+    application.MapPost("/api/bookings/confirm", protectedHandler confirm) |> ignore
+
+    application.MapPost("/api/bookings/cancel", protectedHandler cancel) |> ignore
+
+    application.MapGet("/api/bookings/{requestId}", protectedHandler load) |> ignore
+
+let map (application: WebApplication) (dependencies: BookingApiDependencies) =
+    let execute = executeCommand dependencies
+
+    mapHandlers
+        application
+        (handlePlaceWith execute)
+        (handleConfirmWith execute)
+        (handleCancelWith execute)
+        (handleGet dependencies)
+
+let mapConsistent (application: WebApplication) (dependencies: ConsistentBookingApiDependencies) =
+    let execute = executeConsistent dependencies
+
+    mapHandlers
+        application
+        (handlePlaceWith execute)
+        (handleConfirmWith execute)
+        (handleCancelWith execute)
+        (handleConsistentGet dependencies)
+```
 直接使用委托并不是说 Minimal API 自动绑定有错。它只是一个局部选择，让本章的边界策略可以执行并由契约测试固定。练习 1 会要求你用自动绑定保留同一份契约。
 
 ## 发布四条狭窄路由 {#route-contract}
@@ -116,8 +104,23 @@ API 暴露命令，而不是用一个通用端点接收可辨识联合的序列�
 
 成功的处理程序通过 `BookingMapping.ofDomain` 投影受保护的 `Booking` 值；它们从不把领域记录或联合交给序列化器。失败的处理程序只返回一种由 API 拥有的形状：
 
-<<< @/../examples/capstone/src/Booking.Api/Endpoints.fs#api-error-contract{fsharp:line-numbers} [Endpoints.fs]
+```fsharp:line-numbers [Endpoints.fs]
+[<CLIMutable>]
+type ApiFieldErrorDto =
+    { [<JsonPropertyName("field")>]
+      Field: string
+      [<JsonPropertyName("code")>]
+      Code: string }
 
+[<CLIMutable>]
+type ApiErrorDto =
+    { [<JsonPropertyName("code")>]
+      Code: string
+      [<JsonPropertyName("message")>]
+      Message: string
+      [<JsonPropertyName("errors")>]
+      Errors: ApiFieldErrorDto array }
+```
 `code` 是稳定、机器可读的决定。`message` 是安全的说明文字，不是存放异常或提供商响应的位置。`errors` 包含稳定的字段/代码对；非字段失败时它为空。
 
 传输消息使用英文，本书则以中英文解释。客户端应依据代码分支，而不是依据翻译后的散文。以后本地化面向人的文字时，协议行为因此可以保持不变。
@@ -148,8 +151,52 @@ JSON `null` 可以反序列化为空 DTO。缺少 `seats` 属性会得到 `Nulla
 
 Kestrel 默认的请求体上限远大于这些微小的命令文档。宿主把它降低到 16 KiB，端点在读取时也执行同一上限：
 
-<<< @/../examples/capstone/src/Booking.Api/Endpoints.fs#bounded-json-body{fsharp:line-numbers} [Endpoints.fs]
+```fsharp:line-numbers [Endpoints.fs]
+// The small command contract is buffered only up to the documented limit. This also
+// enforces the limit under TestServer, where Kestrel-specific limits do not run.
+let private readBody (context: HttpContext) =
+    task {
+        if not (context.Request.HasJsonContentType()) then
+            return Error UnsupportedMediaType
+        elif
+            context.Request.ContentLength.HasValue
+            && context.Request.ContentLength.Value > int64 MaxRequestBodyBytes
+        then
+            return Error TooLarge
+        else
+            use body = new MemoryStream(MaxRequestBodyBytes)
+            let chunk = Array.zeroCreate<byte> 4096
+            let mutable finished = false
+            let mutable tooLarge = false
 
+            while not finished && not tooLarge do
+                let remaining = MaxRequestBodyBytes - int body.Length
+                let requested = min chunk.Length (remaining + 1)
+
+                let! count = context.Request.Body.ReadAsync(chunk.AsMemory(0, requested), context.RequestAborted)
+
+                if count = 0 then
+                    finished <- true
+                elif body.Length + int64 count > int64 MaxRequestBodyBytes then
+                    tooLarge <- true
+                else
+                    body.Write(chunk, 0, count)
+
+            if tooLarge then
+                return Error TooLarge
+            else
+                return Ok(body.ToArray())
+    }
+
+let private deserialize<'dto when 'dto: not struct and 'dto: not null>
+    (bytes: byte array)
+    : Result<'dto | null, BodyError> =
+    try
+        let span = ReadOnlySpan<byte>(bytes)
+        Ok(JsonSerializer.Deserialize<'dto>(span, jsonOptions))
+    with :? JsonException ->
+        Error InvalidJson
+```
 发送方提供 `Content-Length` 时，检查它可以尽早拒绝，但仅靠该头部并不构成上限。分块请求和自定义测试流可能没有声明长度。因此循环最多多读一个字节就停止，并且绝不按攻击者控制的输入大小分配内存。
 
 这里缓冲请求体，是因为最大值刻意很小，而严格反序列化需要完整命令。文件上传端点需要不同的流式设计和自己的上限；把这份 16 KiB 策略复制到每个端点只会成为照搬仪式。
@@ -160,8 +207,65 @@ Kestrel 默认的请求体上限远大于这些微小的命令文档。宿主把
 
 完成映射与验证后，端点拥有原始命令、受保护的请求 ID、可选的受保护支付请求和成功状态码。此时才可以协调效果：
 
-<<< @/../examples/capstone/src/Booking.Api/Endpoints.fs#endpoint-workflow{fsharp:line-numbers} [Endpoints.fs]
+```fsharp:line-numbers [Endpoints.fs]
+let private executeCommand dependencies prepared (context: HttpContext) =
+    task {
+        let cancellationToken = context.RequestAborted
+        cancellationToken.ThrowIfCancellationRequested()
+        let! state = dependencies.Ports.LoadBooking prepared.RequestId cancellationToken
 
+        match Decider.decide dependencies.Activity state prepared.Command with
+        | Error error -> return! writeDecisionError context error
+        | Ok bookingEvent ->
+            let! payment = authorize dependencies.Ports prepared.Payment cancellationToken
+
+            match payment with
+            | PaymentRefused ->
+                return!
+                    writeError
+                        context
+                        StatusCodes.Status422UnprocessableEntity
+                        "payment_declined"
+                        "Payment was declined."
+                        [||]
+            | PaymentUnavailable ->
+                return!
+                    writeError
+                        context
+                        StatusCodes.Status503ServiceUnavailable
+                        "dependency_unavailable"
+                        "An external dependency is unavailable."
+                        [||]
+            | PaymentAccepted ->
+                do! dependencies.Ports.AppendEvent prepared.RequestId bookingEvent cancellationToken
+
+                let! notified =
+                    tryExternal (fun () ->
+                        dependencies.Ports.Notify (notificationFor bookingEvent) cancellationToken)
+
+                match notified with
+                | Error() ->
+                    return!
+                        writeError
+                            context
+                            StatusCodes.Status503ServiceUnavailable
+                            "dependency_unavailable"
+                            "An external dependency is unavailable."
+                            [||]
+                | Ok() -> return! writeBooking context prepared (BookingEvent.booking bookingEvent)
+    }
+
+let private executeConsistent (dependencies: ConsistentBookingApiDependencies) prepared (context: HttpContext) =
+    task {
+        let cancellationToken = context.RequestAborted
+        cancellationToken.ThrowIfCancellationRequested()
+        let! result = dependencies.Execute prepared.Command cancellationToken
+
+        match result with
+        | Ok booking -> return! writeBooking context prepared booking
+        | Error error -> return! writeConsistencyError context error
+    }
+```
 顺序是有意选择的：
 
 1. 加载当前预约状态；
@@ -225,8 +329,43 @@ API 不会查看私有预约字段来重新实现状态转换。它使用 `Decid
 
 最外层处理程序区分客户端取消、Kestrel 的超大请求体异常、类型化存储适配器异常与意外故障：
 
-<<< @/../examples/capstone/src/Booking.Api/Endpoints.fs#safe-error-boundary{fsharp:line-numbers} [Endpoints.fs]
-
+```fsharp:line-numbers [Endpoints.fs]
+let private safely handler (context: HttpContext) =
+    task {
+        try
+            return! handler context
+        with
+        | :? OperationCanceledException as error when context.RequestAborted.IsCancellationRequested ->
+            return raise error
+        | :? OperationCanceledException ->
+            return!
+                writeError
+                    context
+                    StatusCodes.Status503ServiceUnavailable
+                    "dependency_unavailable"
+                    "An external dependency is unavailable."
+                    [||]
+        | :? BadHttpRequestException as error when error.StatusCode = StatusCodes.Status413PayloadTooLarge ->
+            return! writeBodyError context TooLarge
+        | :? BookingStoreAdapterException ->
+            return!
+                writeError
+                    context
+                    StatusCodes.Status503ServiceUnavailable
+                    "storage_unavailable"
+                    "Booking storage is unavailable."
+                    [||]
+        | _ when context.Response.HasStarted -> context.Abort()
+        | _ ->
+            return!
+                writeError
+                    context
+                    StatusCodes.Status500InternalServerError
+                    "internal_error"
+                    "The request could not be completed."
+                    [||]
+    }
+```
 适配器把已知的提供商传输或可用性故障包装为 `DependencyUnavailableException`，并把原异常保留为 `InnerException` 供内部诊断。具体 `Charge` 或 `Notify` 调用只把这一类型化信号转换为 `503 dependency_unavailable`；任意程序缺陷异常会继续到最外层边界，成为安全的 `500 internal_error`。`BookingStoreAdapterException` 同样为内部代码保留类型化类别，但通过 HTTP 只暴露 `storage_unavailable`。
 
 如果响应头已经开始后才发生错误，写入第二份 JSON 文档会破坏响应。处理程序会改为中止该连接。已知 DTO 的序列化刻意很简单，但边界仍不会假装已经开始的响应可以被替换。
@@ -237,8 +376,45 @@ API 不会查看私有预约字段来重新实现状态转换。它使用 `Decid
 
 宿主读取 `BOOKING_STORE_PATH`，以及可选的 `BOOKING_EVENT_ID` 和 `BOOKING_CAPACITY`，然后构造受保护的配置与领域值。被拒绝的设置只产生 `invalid_booking_store`、`invalid_event_id` 或 `invalid_capacity`；原始值不会被打印。
 
-<<< @/../examples/capstone/src/Booking.Api/Program.fs#api-host{fsharp:line-numbers} [Program.fs]
+```fsharp:line-numbers [Program.fs]
+[<EntryPoint>]
+let main arguments =
+    match StartupConfiguration.load () with
+    | Error error ->
+        eprintfn "Booking API startup configuration is invalid (%s)." (errorCode error)
+        2
+    | Ok configuration ->
+        let builder = WebApplication.CreateBuilder arguments
 
+        builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning) |> ignore
+        BookingDiagnostics.add builder.Services
+
+        builder.WebHost.ConfigureKestrel(
+            Action<KestrelServerOptions>(fun options ->
+                options.AddServerHeader <- false
+                options.Limits.MaxRequestBodySize <- int64 BookingEndpoints.MaxRequestBodyBytes)
+        )
+        |> ignore
+
+        let store = AtomicBookingStore configuration.Store
+        use payment = new PaymentStub(PaymentStubBehavior.Authorize "TX-LOCAL-STUB")
+        use notification = new NotificationStub(NotificationStubBehavior.Deliver)
+
+        let service =
+            IdempotentBookingService(configuration.Activity, store, payment.Invoke, notification.Invoke)
+
+        use application = builder.Build()
+
+        BookingDiagnostics.useMiddleware application
+
+        BookingEndpoints.mapConsistent
+            application
+            { Execute = fun command token -> service.Execute(command, token)
+              Load = fun requestId token -> service.Load(requestId, token) }
+
+        application.Run()
+        0
+```
 样例中的路径、活动 ID 与容量是普通配置，不是凭据。规则依然有用：不能仅仅因为这个具体值不是机密，就回显一条不可信的配置路径。以后真正的支付密钥必须留在源码控制和响应之外。
 
 环境变量能让值不进入已提交代码，但 Microsoft 明确警告，它们通常以明文保存；进程或机器失陷时仍然可见。开发 Secret Manager 只用于开发，部署时应选择受控的生产机密存储。
@@ -268,7 +444,7 @@ Kestrel 的 `Server` 头已关闭，以减少无必要的实现披露。这是�
 
 ## 在本地运行 API {#local-run}
 
-以下命令使用临时快照，并且只绑定到回环地址。请从仓库根目录运行。
+以下命令使用临时快照，并且只绑定到回环地址。请在示例所在目录运行。
 
 ### 启动宿主 {#local-start}
 
@@ -279,7 +455,7 @@ BOOKING_STORE_PATH="${TMPDIR:-/tmp}/thinking-in-fsharp-booking.json" \
 BOOKING_EVENT_ID="EVT-LOCAL" \
 BOOKING_CAPACITY="4" \
 ASPNETCORE_URLS="http://127.0.0.1:5086" \
-dotnet run --project examples/capstone/src/Booking.Api/Booking.Api.fsproj -c Release
+dotnet run --project Booking.Api.fsproj -c Release
 ```
 
 在 PowerShell 中：
@@ -289,7 +465,7 @@ $env:BOOKING_STORE_PATH = Join-Path ([IO.Path]::GetTempPath()) "thinking-in-fsha
 $env:BOOKING_EVENT_ID = "EVT-LOCAL"
 $env:BOOKING_CAPACITY = "4"
 $env:ASPNETCORE_URLS = "http://127.0.0.1:5086"
-dotnet run --project examples/capstone/src/Booking.Api/Booking.Api.fsproj -c Release
+dotnet run --project Booking.Api.fsproj -c Release
 ```
 
 ### 发送成功请求 {#local-success}

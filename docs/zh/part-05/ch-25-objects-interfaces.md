@@ -2,43 +2,6 @@
 title: "第 25 章：在 F# 中定义对象"
 description: "从语义而非仪式出发，在函数、记录、联合类型、类、接口、对象表达式、扩展与结构体之间作选择。"
 translationKey: part-05/ch-25-objects-interfaces
-kind: chapter
-part: 5
-chapter: 25
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch25-objects-interfaces
-exerciseIds:
-  - ch25-exercise-01
-  - ch25-exercise-02
-  - ch25-exercise-03
-termIds:
-  - invariant
-  - record
-  - reference-identity
-  - smart-constructor
-sources:
-  - id: microsoft-fsharp-classes
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/classes
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-constructors
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/members/constructors
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-interfaces
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/interfaces
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-object-expressions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/object-expressions
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-type-extensions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/type-extensions
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-structs
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/structs
-    checked: "2026-08-24"
 ---
 
 # 第 25 章：在 F# 中定义对象 {#overview}
@@ -88,8 +51,87 @@ F# 是 .NET 语言，所以类、成员、接口、继承和值类型都是语�
 
 经过验证的本章示例对报价计算建模。`Quote` 仍采用私有记录表示，错误仍是可辨识联合；只有计算器行为用类表示：
 
-<<< @/../examples/chapters/ch25/Types.fs{fsharp:line-numbers} [Types.fs]
+```fsharp:line-numbers [Types.fs]
+namespace ThinkingInFSharp.Ch25
 
+type QuoteRequest = { Seats: int; UnitPrice: decimal }
+
+type QuoteError =
+    | NonPositiveSeats of actual: int
+    | NegativeUnitPrice of actual: decimal
+    | InvalidDiscountRate of actual: decimal
+
+type Quote =
+    private
+        { Seats: int
+          Subtotal: decimal
+          Discount: decimal
+          Tax: decimal
+          Total: decimal }
+
+module Quote =
+    let seats quote = quote.Seats
+    let subtotal quote = quote.Subtotal
+    let discount quote = quote.Discount
+    let tax quote = quote.Tax
+    let total quote = quote.Total
+
+type IDiscountPolicy =
+    abstract Rate: QuoteRequest -> decimal
+
+type IQuoteService =
+    abstract Quote: QuoteRequest -> Result<Quote, QuoteError>
+
+type PriceCalculator(taxRate: decimal, discountPolicy: IDiscountPolicy) =
+    do
+        if taxRate < 0M then
+            invalidArg (nameof taxRate) "Tax rate cannot be negative."
+
+    new(discountPolicy: IDiscountPolicy) = PriceCalculator(0M, discountPolicy)
+
+    member _.TaxRate = taxRate
+
+    member _.Calculate(request: QuoteRequest) =
+        if request.Seats <= 0 then
+            Error(NonPositiveSeats request.Seats)
+        elif request.UnitPrice < 0M then
+            Error(NegativeUnitPrice request.UnitPrice)
+        else
+            let discountRate = discountPolicy.Rate request
+
+            if discountRate < 0M || discountRate > 1M then
+                Error(InvalidDiscountRate discountRate)
+            else
+                let subtotal = decimal request.Seats * request.UnitPrice
+                let discount = subtotal * discountRate
+                let taxable = subtotal - discount
+                let tax = taxable * taxRate
+
+                Ok
+                    { Seats = request.Seats
+                      Subtotal = subtotal
+                      Discount = discount
+                      Tax = tax
+                      Total = taxable + tax }
+
+    interface IQuoteService with
+        member this.Quote request = this.Calculate request
+
+[<AutoOpen>]
+module QuoteExtensions =
+    type Quote with
+        member this.IsDiscounted = Quote.discount this > 0M
+        member this.TotalAmount = Quote.total this
+
+[<Struct>]
+type QuoteRevision = private QuoteRevision of int
+
+module QuoteRevision =
+    let create raw =
+        if raw > 0 then Ok(QuoteRevision raw) else Error raw
+
+    let value (QuoteRevision revision) = revision
+```
 在 `PriceCalculator(taxRate, discountPolicy)` 中，参数列表声明主构造函数。开头的 `do` 绑定属于该构造函数，每次创建实例都会执行。`new(discountPolicy)` 成员是附加构造函数；它必须委托给主构造函数，此处补上零税率。
 
 构造函数参数在整个类中都处于作用域内。开头的 `let` 可以让字段或辅助函数保持私有，`member` 则把方法或属性暴露到 .NET 元数据中。成员不需要当前实例时使用 `_`；只有确实需要时才给自标识符命名。
@@ -192,11 +234,11 @@ F# 类可以继承一个直接基类，并实现多个接口。当框架契约�
 
 ## 运行已验证示例 {#run-example}
 
-在仓库根目录执行：
+在示例所在目录执行：
 
 ```console
-dotnet run --project examples/chapters/ch25/Ch25.fsproj --configuration Release
-dotnet test ThinkingInFSharp.slnx --configuration Release --filter FullyQualifiedName~Ch25Object
+dotnet run --project Ch25.fsproj --configuration Release
+dotnet test Sample.slnx --configuration Release --filter FullyQualifiedName~Ch25Object
 ```
 
 程序打印类、接口、扩展与结构体观察结果。聚焦测试覆盖两个构造函数、成员验证、显式接口视图、对象表达式替身、扩展派生成员、值复制、不同装箱对象，以及无效的零初始化修订号。

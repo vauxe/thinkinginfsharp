@@ -2,27 +2,6 @@
 title: "第 8 章练习答案"
 description: "标志组合、联合案例、穷尽性与状态转换策略的推理答案。"
 translationKey: solutions/ch-08-discriminated-unions
-kind: solution
-part: 2
-chapter: 8
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch08-discriminated-unions
-exerciseIds:
-  - ch08-exercise-01
-  - ch08-exercise-02
-  - ch08-exercise-03
-termIds: []
-sources:
-  - id: microsoft-discriminated-unions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions
-    checked: "2026-08-24"
-  - id: microsoft-match-expressions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/match-expressions
-    checked: "2026-08-24"
 ---
 
 # 第 8 章练习答案 {#overview}

@@ -2,36 +2,6 @@
 title: "Chapter 8: Discriminated Unions and State Modeling"
 description: "Derive discriminated unions from contradictory Boolean flags, then express exclusive states and transitions with case-specific data and exhaustive matching."
 translationKey: part-02/ch-08-discriminated-unions
-kind: chapter
-part: 2
-chapter: 8
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch08-discriminated-unions
-exerciseIds:
-  - ch08-exercise-01
-  - ch08-exercise-02
-  - ch08-exercise-03
-termIds:
-  - discriminated-union
-  - exhaustiveness
-  - pattern
-  - pattern-matching
-  - record
-  - union-case
-sources:
-  - id: microsoft-discriminated-unions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions
-    checked: "2026-08-24"
-  - id: microsoft-match-expressions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/match-expressions
-    checked: "2026-08-24"
-  - id: microsoft-pattern-matching
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/pattern-matching
-    checked: "2026-08-24"
 ---
 
 # Chapter 8: Discriminated Unions and State Modeling {#overview}
@@ -58,8 +28,23 @@ This chapter handles a closed, synchronous, in-memory state representation. Chap
 
 The shared script first retains an intentionally weak record:
 
-<<< @/../examples/scripts/ch08-discriminated-unions.fsx#flag-contradiction{fsharp:line-numbers} [ch08-discriminated-unions.fsx]
+```fsharp:line-numbers [ch08-discriminated-unions.fsx]
+type BookingFlags =
+    { IsPending: bool
+      IsConfirmed: bool
+      IsCancelled: bool }
 
+let contradictoryFlags =
+    { IsPending = true
+      IsConfirmed = true
+      IsCancelled = false }
+
+printfn
+    "Flag model contradiction: pending=%b confirmed=%b cancelled=%b"
+    contradictoryFlags.IsPending
+    contradictoryFlags.IsConfirmed
+    contradictoryFlags.IsCancelled
+```
 The record ensures that all three fields exist and are `bool`, but cannot say “exactly one is true.” Each added switch doubles the combination space. A validation function must reject contradictions after every construction and update.
 
 Worse, case-specific data often gets flattened into nullable or optional fields. Why does `ConfirmationCode` exist when a booking is unconfirmed? What should `CancellationReason` contain for a confirmed booking? The data relationship survives only as convention.
@@ -70,8 +55,12 @@ This does not make Boolean values bad. `HasDietaryRequirements` and `NeedsWheelc
 
 List every legal state in one type:
 
-<<< @/../examples/scripts/ch08-discriminated-unions.fsx#union-definition{fsharp:line-numbers} [ch08-discriminated-unions.fsx]
-
+```fsharp:line-numbers [ch08-discriminated-unions.fsx]
+type BookingStatus =
+    | Pending
+    | Confirmed of confirmationCode: string
+    | Cancelled of reason: string
+```
 `BookingStatus` is a discriminated union. `Pending`, `Confirmed`, and `Cancelled` are its three **union cases**. A value is constructed by exactly one case at a time, so no value can be both pending and confirmed.
 
 `Pending` carries no data. `Confirmed` carries a `string` field named `confirmationCode`, while `Cancelled` carries a `reason`. These are not optional properties shared by all three cases; each field is part of its particular case.
@@ -96,8 +85,19 @@ In a pattern, the same case name verifies shape and binds carried data. `Confirm
 
 The shared function covers all three cases:
 
-<<< @/../examples/scripts/ch08-discriminated-unions.fsx#exhaustive-match{fsharp:line-numbers} [ch08-discriminated-unions.fsx]
+```fsharp:line-numbers [ch08-discriminated-unions.fsx]
+let describeStatus status =
+    match status with
+    | Pending -> "pending"
+    | Confirmed confirmationCode -> $"confirmed:{confirmationCode}"
+    | Cancelled reason -> $"cancelled:{reason}"
 
+let statuses = [ Pending; Confirmed "C-42"; Cancelled "duplicate" ]
+
+let descriptions = statuses |> List.map describeStatus
+
+printfn "Statuses: %A" descriptions
+```
 Every branch returns `string`, so the whole `match` is a `string` expression. The compiler knows the closed set of `BookingStatus` cases and can check whether patterns cover every shape.
 
 If the type later gains `Waitlisted of position: int`, every explicit match that omits it produces a diagnostic. Model evolution becomes a compiler-located change list instead of an omission discovered on a rare runtime path.
@@ -113,7 +113,7 @@ let incomplete status =
     | Confirmed code -> $"confirmed:{code}"
 ```
 
-The F# compiler reports warning FS0025 for an incomplete pattern match and gives an uncovered value as an example. The repository treats warnings as errors, so this code cannot enter a valid example.
+The F# compiler reports warning FS0025 for an incomplete pattern match and gives an uncovered value as an example. A project that treats warnings as errors will reject this code at build time.
 
 Do not mechanically add `| _ -> "other"` to silence it. When states have distinct business meaning, a wildcard lets a future case fall silently into old behavior. A wildcard is appropriate only when remaining cases truly share one rule and you intentionally accept future cases under that rule too.
 
@@ -121,8 +121,15 @@ Do not mechanically add `| _ -> "other"` to silence it. When states have distinc
 
 To read a confirmation code, first prove the state is `Confirmed`:
 
-<<< @/../examples/scripts/ch08-discriminated-unions.fsx#case-data{fsharp:line-numbers} [ch08-discriminated-unions.fsx]
+```fsharp:line-numbers [ch08-discriminated-unions.fsx]
+let confirmationCode status =
+    match status with
+    | Confirmed code -> Some code
+    | Pending
+    | Cancelled _ -> None
 
+printfn "Confirmed case carries code: %s" (confirmationCode (Confirmed "C-42") |> Option.defaultValue "none")
+```
 `confirmationCode` returns `string option`: confirmed state yields `Some code`, and other states yield `None`. This reuses the minimal `option` intuition established for `List.choose` in Chapter 5. The next chapter treats missing-value composition systematically.
 
 The important part is not one extra `match`; code cannot directly read a nonexistent `ConfirmationCode` from `Pending`. The case label is evidence that its carried data is valid.
@@ -140,8 +147,18 @@ Alternatives in an OR pattern must bind compatible names and types. Neither alte
 
 The shared example writes confirmation as a pure function:
 
-<<< @/../examples/scripts/ch08-discriminated-unions.fsx#transition{fsharp:line-numbers} [ch08-discriminated-unions.fsx]
+```fsharp:line-numbers [ch08-discriminated-unions.fsx]
+let confirm code status =
+    match status with
+    | Pending -> Confirmed code
+    | Confirmed _
+    | Cancelled _ -> status
 
+let transitioned = Pending |> confirm "C-99"
+
+printfn "Transition: pending -> %s" (describeStatus transitioned)
+printfn "All descriptions: %d" (List.length descriptions)
+```
 `confirm` constructs `Confirmed code` from `Pending`; for already confirmed or cancelled state, it returns the original value. The function does not mutate its input, and its output remains inside the legal `BookingStatus` cases.
 
 “Keep the original state on an invalid transition” is merely this chapter's strategy for focusing on type shape. It may be wrong for a real booking system. Repeated confirmation might be idempotent success or a conflict; confirming after cancellation normally deserves contextual failure. Chapter 9 uses `Result` to place that decision in the return type instead of silently discarding information.
@@ -183,10 +200,10 @@ If a union has many cases differing only by a few independent switches, the mode
 
 ## Run the shared example {#run-example}
 
-From the repository root, run:
+From the directory containing the example, run:
 
 ```console
-dotnet fsi --exec examples/scripts/ch08-discriminated-unions.fsx
+dotnet fsi --exec ch08-discriminated-unions.fsx
 ```
 
 You should see:
@@ -199,7 +216,7 @@ Transition: pending -> confirmed:C-99
 All descriptions: 3
 ```
 
-The first line preserves the counterexample. The remaining four prove union construction, exhaustive deconstruction, case-specific data, and pure transition. The valid script itself contains no incomplete match, and the manifest checks all five lines in order.
+The first line preserves the counterexample. The remaining four prove union construction, exhaustive deconstruction, case-specific data, and pure transition. The valid script itself contains no incomplete match; compare all five lines in order.
 
 ## Debugging: inspect shape, not only branches {#debugging}
 

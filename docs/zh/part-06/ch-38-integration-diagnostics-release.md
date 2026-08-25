@@ -2,41 +2,6 @@
 title: "第 38 章：集成、诊断、C# 客户端与发布证据"
 description: "用真实组合根、HTTP 集成测试、C# 契约客户端、受限诊断和可复现发布证据，让预约系统形成闭环。"
 translationKey: part-06/ch-38-integration-diagnostics-release
-kind: chapter
-part: 6
-chapter: 38
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - capstone-booking-domain
-  - capstone-booking-contracts
-  - capstone-booking-infrastructure
-  - capstone-booking-api
-  - capstone-booking-csharp-client
-  - foundation-contract-tests
-exerciseIds:
-  - ch38-exercise-01
-  - ch38-exercise-02
-  - ch38-exercise-03
-termIds: []
-sources:
-  - id: microsoft-aspnet-integration-tests
-    url: https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: microsoft-tracing-instrumentation
-    url: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/distributed-tracing-instrumentation-walkthroughs
-    checked: "2026-08-25"
-  - id: microsoft-metrics-instrumentation
-    url: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/metrics-instrumentation
-    checked: "2026-08-25"
-  - id: microsoft-aspnet-logging
-    url: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/logging/?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: microsoft-dotnet-publishing
-    url: https://learn.microsoft.com/en-us/dotnet/core/deploying/
-    checked: "2026-08-25"
 ---
 
 # 第 38 章：集成、诊断、C# 客户端与发布证据 {#overview}
@@ -66,8 +31,45 @@ sources:
 
 第 37 章有意保留了这处缺口。较早的 `BookingEndpoints.map` 路径接收 `AsyncPorts`，无法提供聚合级幂等与容量保证。最终入口点则构造 `AtomicBookingStore`、受控支付与通知适配器以及 `IdempotentBookingService`，然后只向 HTTP 层暴露两个操作。
 
-<<< @/../examples/capstone/src/Booking.Api/Program.fs#api-host{fsharp:line-numbers} [Program.fs]
+```fsharp:line-numbers [Program.fs]
+[<EntryPoint>]
+let main arguments =
+    match StartupConfiguration.load () with
+    | Error error ->
+        eprintfn "Booking API startup configuration is invalid (%s)." (errorCode error)
+        2
+    | Ok configuration ->
+        let builder = WebApplication.CreateBuilder arguments
 
+        builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning) |> ignore
+        BookingDiagnostics.add builder.Services
+
+        builder.WebHost.ConfigureKestrel(
+            Action<KestrelServerOptions>(fun options ->
+                options.AddServerHeader <- false
+                options.Limits.MaxRequestBodySize <- int64 BookingEndpoints.MaxRequestBodyBytes)
+        )
+        |> ignore
+
+        let store = AtomicBookingStore configuration.Store
+        use payment = new PaymentStub(PaymentStubBehavior.Authorize "TX-LOCAL-STUB")
+        use notification = new NotificationStub(NotificationStubBehavior.Deliver)
+
+        let service =
+            IdempotentBookingService(configuration.Activity, store, payment.Invoke, notification.Invoke)
+
+        use application = builder.Build()
+
+        BookingDiagnostics.useMiddleware application
+
+        BookingEndpoints.mapConsistent
+            application
+            { Execute = fun command token -> service.Execute(command, token)
+              Load = fun requestId token -> service.Load(requestId, token) }
+
+        application.Run()
+        0
+```
 从外到内阅读这段代码：
 
 1. 监听器启动前先解析启动配置。
@@ -83,8 +85,41 @@ sources:
 
 最终集成没有复制四个端点。`map` 与 `mapConsistent` 共享正文上限、严格反序列化、DTO 映射、验证、成功序列化、路由提取与安全错误边界，只有命令执行和读取方式不同。
 
-<<< @/../examples/capstone/src/Booking.Api/Endpoints.fs#endpoint-map{fsharp:line-numbers} [Endpoints.fs]
+```fsharp:line-numbers [Endpoints.fs]
+let private mapHandlers (application: WebApplication) place confirm cancel load =
+    ArgumentNullException.ThrowIfNull(application, nameof application)
 
+    let protectedHandler handler =
+        RequestDelegate(fun context -> safely handler context)
+
+    application.MapPost("/api/bookings/place", protectedHandler place) |> ignore
+
+    application.MapPost("/api/bookings/confirm", protectedHandler confirm) |> ignore
+
+    application.MapPost("/api/bookings/cancel", protectedHandler cancel) |> ignore
+
+    application.MapGet("/api/bookings/{requestId}", protectedHandler load) |> ignore
+
+let map (application: WebApplication) (dependencies: BookingApiDependencies) =
+    let execute = executeCommand dependencies
+
+    mapHandlers
+        application
+        (handlePlaceWith execute)
+        (handleConfirmWith execute)
+        (handleCancelWith execute)
+        (handleGet dependencies)
+
+let mapConsistent (application: WebApplication) (dependencies: ConsistentBookingApiDependencies) =
+    let execute = executeConsistent dependencies
+
+    mapHandlers
+        application
+        (handlePlaceWith execute)
+        (handleConfirmWith execute)
+        (handleCancelWith execute)
+        (handleConsistentGet dependencies)
+```
 `ConsistentBookingApiDependencies` 是用函数记录表达的窄适配器接口。端点层知道执行会返回 `Result<Booking, BookingConsistencyError>`，却不知道快照如何加锁或替换。穷尽模式匹配把每种已声明错误翻译成稳定状态码与 `ApiErrorDto` 代码。
 
 这个边界也形成了实用的测试接缝。HTTP 契约测试可以提供受控函数，可执行程序则可以提供真实本地服务；两条路径都不需要服务定位器或可变全局依赖。
@@ -131,8 +166,42 @@ F# 与 C# 共享 CLR，却不具有完全相同的使用体验。公开 F# API �
 
 客户端只直接引用 `Booking.Contracts`，从不引用 `Booking.Domain` 或 `Booking.Infrastructure`，而且只通过 `HttpClient` 与 JSON 和服务通信。
 
-<<< @/../examples/capstone/clients/Booking.CSharpClient/Program.cs#csharp-http-contract-client{csharp:line-numbers} [Program.cs]
+```csharp:line-numbers [Program.cs]
+var place = new PlaceBookingDto
+{
+    RequestId = requestId,
+    Seats = 2
+};
 
+using var placedResponse = await client.PostAsJsonAsync("api/bookings/place", place, json);
+var placed = await ReadBooking(placedResponse, json);
+Require(placed.Status == HttpStatusCode.Created, "Place must return 201 Created.");
+Require(placed.Booking.RequestId == requestId, "Place request ID round-trip.");
+Require(placed.Booking.Seats == 2, "Place seat count round-trip.");
+Require(placed.Booking.Status == "pending", "Placed booking must be pending.");
+
+using var replayedResponse = await client.PostAsJsonAsync("api/bookings/place", place, json);
+var replayed = await ReadBooking(replayedResponse, json);
+Require(replayed.Status == HttpStatusCode.Created, "Exact replay must return the acknowledged status.");
+Require(replayed.Body == placed.Body, "Exact replay must return the acknowledged booking.");
+
+var confirm = new ConfirmBookingDto
+{
+    RequestId = requestId,
+    ConfirmationCode = "CONF-CSHARP"
+};
+
+using var confirmedResponse = await client.PostAsJsonAsync("api/bookings/confirm", confirm, json);
+var confirmed = await ReadBooking(confirmedResponse, json);
+Require(confirmed.Status == HttpStatusCode.OK, "Confirm must return 200 OK.");
+Require(confirmed.Booking.Status == "confirmed", "Confirmed booking status.");
+Require(confirmed.Booking.ConfirmationCode == "CONF-CSHARP", "Confirmation code round-trip.");
+
+var escapedRequestId = Uri.EscapeDataString(requestId);
+using var loadedResponse = await client.GetAsync($"api/bookings/{escapedRequestId}");
+var loaded = await ReadBooking(loadedResponse, json);
+Require(loaded.Body == confirmed.Body, "GET must return the current confirmed booking.");
+```
 这一条流程检查四项契约性质：
 
 | 步骤 | 契约证据 |
@@ -193,15 +262,15 @@ Booking request completed correlationId=<trace-id> method=<method> endpoint=<rou
 
 ## 把验证收束为一条命令 {#release-check}
 
-使用 Node.js 22+、pnpm 11.7，并执行 `pnpm install --frozen-lockfile` 安装工作区后，收官项目验收命令是：
+真实应用应把验收路径收束为一条有文档的命令。对于 .NET 解决方案，基础命令可以是：
 
 ```console
-pnpm check:capstone
+dotnet test Sample.slnx --configuration Release
 ```
 
-脚本通过参数数组而不是拼接 shell 命令来启动程序。它创建名称唯一的临时目录，让 API 在 `127.0.0.1` 的 `0` 号端口启动，读取实际监听地址，并在 `finally` 中清理精确的子进程与目录。
+若验收还需要独立 API 进程与客户端，应用自己的脚本应创建名称唯一的临时目录，让 API 在 `127.0.0.1` 的可用端口启动，并在 `finally` 中清理精确的子进程与目录。这种编排属于应用，而不属于本书站点。
 
-它的阶段有意按以下顺序排列：
+稳健的验收命令应有意按以下顺序排列阶段：
 
 1. 以锁定模式还原解决方案；
 2. 不再次还原，以 `Release` 构建完整解决方案；
@@ -213,7 +282,7 @@ pnpm check:capstone
 8. 要求至少一条成功日志，并拒绝已知含机密文本；
 9. 即使失败，也停止服务器并删除临时快照。
 
-成功结尾形如：
+简洁的最终报告可以形如：
 
 ```text
 Capstone check passed.
@@ -228,11 +297,11 @@ Diagnostics: success=true client-error=true correlation=<32 lowercase hex charac
 
 ### 从干净状态复现 {#clean-state}
 
-`examples/capstone/README.md` 列出了精确前置条件、冻结包安装、单命令检查，以及 Bash/zsh 和 PowerShell 手工流程。手工路径适合检查日志或单步跟踪请求；自动路径的价值则在于控制名称、端口、超时、断言与清理。
+应用的 README 应列出精确前置条件、单命令检查与手工调试流程。手工路径适合检查日志或单步跟踪请求；自动路径的价值则在于控制名称、端口、超时、断言与清理。
 
 “无需外部服务”意味着流程不需要云账号、私有源、支付提供商、消息代理或遥测后端。当本地缓存为空时，锁定还原仍可能下载公开 NuGet 包。输入可复现不代表离线缓存一定存在。
 
-不要为了让手工命令看起来方便，就让读者删除一个宽泛目录。README 创建唯一的可丢弃目录，并在 API 停止后只删除该精确路径；生产数据绝不能成为清理目标。
+不要为了让手工命令看起来方便，就让读者删除一个宽泛目录。应创建唯一的可丢弃目录，并在 API 停止后只删除该精确路径；生产数据绝不能成为清理目标。
 
 ## 不要把构建称为部署 {#build-publish-deploy}
 
@@ -347,7 +416,7 @@ F# 也让策略核心保持小于宿主成为自然选择。可执行程序绝�
 - 关联 ID 用于串联证据，不代表调用者身份或授权。
 - 指标需要受限维度，高基数细节应留在受控追踪或日志中。
 - 插桩源在收集、存储、策略和责任归属建立前不会产生运维能力。
-- `pnpm check:capstone` 是具有边界清理的可复现本地验收门。
+- 一条有文档的验收命令应拥有清理过程，并在任一必要阶段失败时整体失败。
 - 构建、发布、部署和运维是具有不同证据的不同阶段。
 - 保证台账必须同时保留已证明行为和明确限制。
 - F# 使策略与边界精确；生产保证仍来自真实基础设施与运维。

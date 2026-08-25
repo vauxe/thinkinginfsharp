@@ -2,48 +2,6 @@
 title: "第 2 章：值、绑定与表达式"
 description: "准确区分值、let 绑定、局部遮蔽与表达式，并学会阅读 F# 的基本类型和推断结果。"
 translationKey: part-01/ch-02-values-bindings-expressions
-kind: chapter
-part: 1
-chapter: 2
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch02-values-bindings-expressions
-exerciseIds:
-  - ch02-exercise-01
-  - ch02-exercise-02
-  - ch02-exercise-03
-termIds:
-  - binding
-  - expression
-  - immutability
-  - literal
-  - numeric-conversion
-  - shadowing
-  - type-annotation
-  - type-inference
-  - value
-sources:
-  - id: microsoft-values
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/values/
-    checked: "2026-08-24"
-  - id: microsoft-let-bindings
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/let-bindings
-    checked: "2026-08-24"
-  - id: microsoft-type-inference
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/type-inference
-    checked: "2026-08-24"
-  - id: microsoft-basic-types
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/basic-types
-    checked: "2026-08-24"
-  - id: microsoft-literals
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/literals
-    checked: "2026-08-24"
-  - id: microsoft-tour
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/tour
-    checked: "2026-08-24"
 ---
 
 # 第 2 章：值、绑定与表达式 {#overview}
@@ -73,8 +31,17 @@ sources:
 
 **绑定**则不是另一个值。它是名称与值之间的关联。先看共享脚本中的一组绑定：
 
-<<< @/../examples/scripts/ch02-values-bindings-expressions.fsx#basic-values{fsharp:line-numbers} [ch02-values-bindings-expressions.fsx]
+```fsharp:line-numbers [ch02-values-bindings-expressions.fsx]
+let eventName = "Functional Foundations"
+let capacity = 40
+let fillRatio = 0.45
+let ticketPrice = 19.50m
+let eventCode = 'F'
+let registrationOpen = true
+let noFurtherResult = ()
 
+printfn "%s (%c): capacity=%d, fill=%.2f, open=%b" eventName eventCode capacity fillRatio registrationOpen
+```
 ### 怎样读 `let` {#read-let}
 
 把 `let capacity = 40` 分三步读：
@@ -99,8 +66,14 @@ F# 也支持 `let mutable`，因为局部计数、数组更新和某些互操作
 
 作用域决定名称在哪里可见。F# 用缩进表达很多局部结构；下面 `normalizedCapacity` 的右侧包含两个局部绑定：
 
-<<< @/../examples/scripts/ch02-values-bindings-expressions.fsx#local-shadowing{fsharp:line-numbers} [ch02-values-bindings-expressions.fsx]
+```fsharp:line-numbers [ch02-values-bindings-expressions.fsx]
+let normalizedCapacity =
+    let capacity = 20
+    let capacity = capacity + 4
+    capacity
 
+printfn "Normalized capacity: %d; outer capacity: %d" normalizedCapacity capacity
+```
 第二个局部 `capacity` **遮蔽**第一个局部同名绑定：它先使用旧值计算 `24`，再建立一个新绑定。旧值没有被改写，只是在后续局部范围里无法再通过名称 `capacity` 访问。
 
 局部表达式结束后，两个局部绑定都离开作用域，脚本顶层的 `capacity` 仍是 `40`。因此输出同时证明 `normalizedCapacity` 是 `24`、外层 `capacity` 是 `40`。
@@ -146,8 +119,13 @@ F# 还提供有符号、无符号的其他整数宽度、`float32` 和 `bigint` 
 
 下面一段同时展示两者：
 
-<<< @/../examples/scripts/ch02-values-bindings-expressions.fsx#annotations-and-conversion{fsharp:line-numbers} [ch02-values-bindings-expressions.fsx]
+```fsharp:line-numbers [ch02-values-bindings-expressions.fsx]
+let requestedSeats: int = 3
+let pricePerSeat: decimal = 19.50m
+let totalPrice = decimal requestedSeats * pricePerSeat
 
+printfn "Ticket total: %M" totalPrice
+```
 `requestedSeats: int` 和 `pricePerSeat: decimal` 是**类型标注**。它们约束现有表达式必须具有所写类型；标注本身不会在运行时改变值。
 
 `decimal requestedSeats` 是**显式转换**：它从 `int` 值产生新的 `decimal` 值。乘法两侧因此都是 `decimal`。F# 不会在普通数值算术中自动扩大这些已有值；显式边界避免符号、范围、精度和舍入规则被藏起来。
@@ -180,10 +158,10 @@ val noFurtherResult: unit = ()
 
 ## 运行共享示例 {#run-example}
 
-从仓库根目录执行：
+在示例所在目录执行：
 
 ```console
-dotnet fsi --exec examples/scripts/ch02-values-bindings-expressions.fsx
+dotnet fsi --exec ch02-values-bindings-expressions.fsx
 ```
 
 应得到：
@@ -194,7 +172,7 @@ Ticket total: 58.50
 Normalized capacity: 24; outer capacity: 40
 ```
 
-manifest 按这个顺序断言这些确定性输出。脚本中的格式化只影响显示，不改变 `fillRatio` 或 `totalPrice` 的类型。
+请按这个顺序比较确定性输出。脚本中的格式化只影响显示，不改变 `fillRatio` 或 `totalPrice` 的类型。
 
 ## 调试：追踪第一个冲突约束 {#debugging}
 

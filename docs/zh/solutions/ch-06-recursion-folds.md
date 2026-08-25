@@ -2,27 +2,6 @@
 title: "第 6 章练习答案"
 description: "结构递归、累加器不变量、尾调用与左右折叠的推理答案。"
 translationKey: solutions/ch-06-recursion-folds
-kind: solution
-part: 1
-chapter: 6
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch06-recursion-folds
-exerciseIds:
-  - ch06-exercise-01
-  - ch06-exercise-02
-  - ch06-exercise-03
-termIds: []
-sources:
-  - id: microsoft-recursive-functions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/recursive-functions-the-rec-keyword
-    checked: "2026-08-24"
-  - id: microsoft-lists
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/lists
-    checked: "2026-08-24"
 ---
 
 # 第 6 章练习答案 {#overview}
@@ -35,8 +14,12 @@ sources:
 
 共享定义是：
 
-<<< @/../examples/scripts/ch06-recursion-folds.fsx#direct-recursion{fsharp:line-numbers} [ch06-recursion-folds.fsx]
-
+```fsharp:line-numbers [ch06-recursion-folds.fsx]
+let rec sumRecursive values =
+    match values with
+    | [] -> 0
+    | head :: tail -> head + sumRecursive tail
+```
 完整展开为 `3 + sumRecursive [0; 4]`，再到 `3 + (0 + sumRecursive [4])`，再到 `3 + (0 + (4 + sumRecursive []))`，基础规则给出 `0`，最终为 `7`。
 
 三次非空调用的 `(head, tail)` 分别是 `(3, [0; 4])`、`(0, [4])`、`(4, [])`。每次尾部长度减少一，有限输入最终到达空列表，所以终止。
@@ -47,8 +30,15 @@ sources:
 
 尾递归定义为：
 
-<<< @/../examples/scripts/ch06-recursion-folds.fsx#tail-recursion{fsharp:line-numbers} [ch06-recursion-folds.fsx]
+```fsharp:line-numbers [ch06-recursion-folds.fsx]
+[<TailCall>]
+let rec sumLoop accumulator values =
+    match values with
+    | [] -> accumulator
+    | head :: tail -> sumLoop (accumulator + head) tail
 
+let sumTailRecursive values = sumLoop 0 values
+```
 状态依次是 `(0, [3; 0; 4])`、`(3, [0; 4])`、`(3, [4])`、`(7, [])`。每一步中，累加器加剩余列表之和都为 `7`；最后剩余和为零，累加器就是结果。
 
 若先递归再加 `head`，调用返回后仍有加法，`[<TailCall>]` 应给出非尾递归警告，在本书警告即错误设置下阻止构建。即使属性检查通过，它仍未证明输入有限、参数确实递减、算术不溢出或结果满足领域规则；这些要靠推理、类型选择和测试分别验证。
@@ -57,8 +47,12 @@ sources:
 
 顺序示例是：
 
-<<< @/../examples/scripts/ch06-recursion-folds.fsx#fold-order{fsharp:line-numbers} [ch06-recursion-folds.fsx]
+```fsharp:line-numbers [ch06-recursion-folds.fsx]
+let leftAssociated = List.fold (fun state value -> state - value) 0 [ 1; 2; 3 ]
+let rightAssociated = List.foldBack (fun value state -> value - state) [ 1; 2; 3 ] 0
 
+printfn "Fold order: left=%d right=%d" leftAssociated rightAssociated
+```
 左折叠括号为 `((0 - 1) - 2) - 3`，结果 `-6`。右折叠括号为 `1 - (2 - (3 - 0))`，结果 `2`。两者的方向与 folder 参数顺序都不同。
 
 用 `List.fold` 计数时，初始状态是 `0`；folder 可写成接收 `count` 与被忽略元素、返回 `count + 1`，抽象类型为 `int -> 'a -> int`。完整操作把 `'a list` 折叠成 `int`。

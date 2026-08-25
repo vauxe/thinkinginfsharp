@@ -2,63 +2,6 @@
 title: "Chapter 43 Solutions"
 description: "Choose proportional UI boundaries, turn the verified Avalonia slice into a desktop release plan, and design an honest mobile project and evidence graph."
 translationKey: solutions/ch-43-avalonia-desktop-mobile
-kind: solution
-part: 7
-chapter: 43
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ecosystem-avalonia-desktop
-exerciseIds:
-  - ch43-exercise-01
-  - ch43-exercise-02
-  - ch43-exercise-03
-termIds: []
-sources:
-  - id: avalonia-templates
-    url: https://github.com/AvaloniaUI/Avalonia.Templates
-    checked: "2026-08-25"
-  - id: avalonia-supported-platforms
-    url: https://docs.avaloniaui.net/docs/supported-platforms
-    checked: "2026-08-25"
-  - id: avalonia-cross-platform-architecture
-    url: https://docs.avaloniaui.net/docs/fundamentals/cross-platform-architecture
-    checked: "2026-08-25"
-  - id: avalonia-cross-platform-solution
-    url: https://docs.avaloniaui.net/docs/app-development/cross-platform-solution-setup
-    checked: "2026-08-25"
-  - id: avalonia-application-lifetimes
-    url: https://docs.avaloniaui.net/docs/fundamentals/application-lifetimes
-    checked: "2026-08-25"
-  - id: avalonia-threading
-    url: https://docs.avaloniaui.net/docs/app-development/threading
-    checked: "2026-08-25"
-  - id: avalonia-accessibility
-    url: https://docs.avaloniaui.net/docs/app-development/accessibility
-    checked: "2026-08-25"
-  - id: avalonia-headless-testing
-    url: https://docs.avaloniaui.net/docs/testing/setting-up-the-headless-platform
-    checked: "2026-08-25"
-  - id: avalonia-deploy-macos
-    url: https://docs.avaloniaui.net/docs/deployment/macos
-    checked: "2026-08-25"
-  - id: avalonia-deploy-linux
-    url: https://docs.avaloniaui.net/docs/deployment/linux
-    checked: "2026-08-25"
-  - id: avalonia-deploy-ios
-    url: https://docs.avaloniaui.net/docs/deployment/ios
-    checked: "2026-08-25"
-  - id: dotnet-publishing
-    url: https://learn.microsoft.com/dotnet/core/deploying/
-    checked: "2026-08-25"
-  - id: dotnet-wpf-migration
-    url: https://learn.microsoft.com/dotnet/desktop/wpf/migration/
-    checked: "2026-08-25"
-  - id: dotnet-maui
-    url: https://learn.microsoft.com/dotnet/maui/?view=net-maui-10.0
-    checked: "2026-08-25"
 ---
 
 # Chapter 43 Solutions {#overview}
@@ -132,7 +75,7 @@ The comparison should measure:
 
 ## Exercise 2: turn the desktop sample into a desktop release {#exercise-02}
 
-Begin with the evidence ledger. The desktop sample currently proves a locked Avalonia 12.1.1 graph, `net10.0` Release compilation, AXAML compilation, and passing pure-state tests; the complete repository example suite also proves that the sample remains integrated. It does not prove a displayed native window: the automated macOS attempt stopped before window creation with RenderTimer error `-6661`. Windows, Linux, publish output, packages, signing, installation, updates, and accessibility are unexecuted.
+Begin with the evidence ledger. This chapter shows a locked Avalonia 12.1.1 project, `net10.0` source, AXAML, and pure-state tests. After copying it, run restore, Release compilation, tests, and native launch before claiming they pass. Windows, macOS, Linux, publish output, packages, signing, installation, updates, and accessibility require their own evidence.
 
 ### Restructure without losing the small core {#desktop-structure}
 
@@ -213,7 +156,7 @@ Booking.Client.Tests         pure workflow, persistence, port contracts
 Booking.Client.UiTests       shared headless view behavior
 ```
 
-The repository would pin the .NET SDK, Avalonia packages, NuGet locks, workload manifest/version set, Android SDK/JDK expectations, and Xcode compatibility. Platform CI images are part of the toolchain, not invisible infrastructure.
+The application should pin the .NET SDK, Avalonia packages, NuGet locks, workload manifest/version set, Android SDK/JDK expectations, and Xcode compatibility. Platform CI images are part of the toolchain, not invisible infrastructure.
 
 ### Model draft and submission states {#mobile-state}
 

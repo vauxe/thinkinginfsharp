@@ -2,43 +2,6 @@
 title: "Appendix E: Common Compiler Diagnostic Index"
 description: "Diagnose frequent F# 10 compiler messages by evidence, root-cause questions, and the smallest semantically correct repair."
 translationKey: appendices/e-compiler-errors
-kind: appendix
-appendix: E
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch11-value-restriction
-  - ch16-wrong-file-order
-  - ch17-hidden-representation
-exerciseIds: []
-termIds: []
-sources:
-  - id: microsoft-fsharp-compiler-messages
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/compiler-messages/
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-fs0001
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/compiler-messages/fs0001
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-fs0025
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/compiler-messages/fs0025
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-compiler-options
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/compiler-options
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-formatting
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/formatting
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-automatic-generalization
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/automatic-generalization
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-signature-files
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/signature-files
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-null-values
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/values/null-values
-    checked: "2026-08-25"
 ---
 
 # Appendix E: Common Compiler Diagnostic Index {#overview}
@@ -117,10 +80,11 @@ Read the expected and actual types literally. Follow repeated type variables thr
 
 `FS0027` is direct evidence that `<-` targets an immutable binding. First ask whether the intended operation is transformation: `let updated = ...` and record copy-and-update often express it better. If a loop, buffer, cache, or interop API genuinely owns changing state, make only that narrow binding mutable.
 
-`FS0030` is subtler. This repository's real fixture creates one mutable array value whose element type remains weakly generic:
+`FS0030` is subtler. This minimal example creates one mutable array value whose element type remains weakly generic:
 
-<<< @/../examples/expected-errors/ch11-value-restriction.fsx{fsharp:line-numbers} [ch11-value-restriction.fsx — expected error]
-
+```fsharp:line-numbers [ch11-value-restriction.fsx — expected error]
+let ambiguousBuckets = Array.create 2 []
+```
 Choose among three repairs by semantics:
 
 | Intent | Repair | Consequence |
@@ -156,18 +120,35 @@ Check `FS0039` in this order:
 5. whether generated source actually ran;
 6. F# `<Compile>` order—provider `.fsi`/`.fs` files must precede consumers.
 
-The repository's wrong-order project intentionally lists `Workflow.fs` before `Domain.fs`:
+This wrong-order project intentionally lists `Workflow.fs` before `Domain.fs`:
 
-<<< @/../examples/expected-errors/ch16-file-order/Ch16WrongOrder.fsproj{xml:line-numbers} [Ch16WrongOrder.fsproj — expected error]
+```xml:line-numbers [Ch16WrongOrder.fsproj — expected error]
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Include="../../chapters/ch16/Workflow.fs" Link="Workflow.fs" />
+    <Compile Include="../../chapters/ch16/Domain.fs" Link="Domain.fs" />
+  </ItemGroup>
+</Project>
+```
 The first missing namespace causes further unknown types and values. Repair the first dependency, not every cascade. An `open` only shortens available names; it does not add an assembly reference or make a later file available. See [Chapter 16](../part-03/ch-16-modules-namespaces-projects).
 
 ## Hidden representation: FS0800 {#hidden-representation}
 
 The separate Chapter 17 consumer attempts to construct a union case omitted by the library's `.fsi` file:
 
-<<< @/../examples/expected-errors/ch17-hidden-representation/Consumer.fs{fsharp:line-numbers} [Consumer.fs — expected error]
+```fsharp:line-numbers [Consumer.fs — expected error]
+namespace ThinkingInFSharp.Ch17.InvalidConsumer
 
+open ThinkingInFSharp.Ch17.SeatAllocation
+
+module Consumer =
+    let invalidCapacity = Capacity 0
+```
 F# 10 reports the terse `FS0800: Invalid use of a type name`. The surrounding signature supplies the missing context: `Capacity` is public as an abstract type, but its representation is not a public constructor. Use `Capacity.create` and handle its validation result. Changing access or deleting the signature defeats the invariant rather than repairing the consumer.
 
 ## Nullable boundaries: FS3261 {#nullable-boundaries}
@@ -182,13 +163,7 @@ Do not disable nullable checking for a whole project because one interop boundar
 
 ## What was actually run {#verification}
 
-On 2026-08-25, `dotnet --version` selected SDK 10.0.301 and FSI reported F# 10. The small probes ran with `--warnaserror+ --checknulls+`; each exited nonzero and emitted its listed code. Durable expected-error fixtures are checked by the repository manifest:
-
-```console
-pnpm check:examples
-```
-
-That gate requires the Chapter 6 non-tail-recursion project to fail with `FS3569`, the Chapter 11 script with `FS0030`, the Chapter 16 project with `FS0039`, and the Chapter 17 external consumer with `FS0800`. It fails if a fixture unexpectedly compiles, emits the wrong diagnostic, times out, or is missing from the manifest. Other one- or two-line probes were temporary evidence, not extra production examples.
+On 2026-08-25, these diagnostics were observed with .NET SDK 10.0.301 and F# 10. The small probes ran with `--warnaserror+ --checknulls+`; each exited nonzero and emitted its listed code. Reproduce one minimal example at a time: a compiler update may change the wording, while the error code and type relationship are the durable evidence.
 
 ## Before asking for help {#before-help}
 

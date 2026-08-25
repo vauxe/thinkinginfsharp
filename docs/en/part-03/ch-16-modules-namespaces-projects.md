@@ -2,56 +2,6 @@
 title: "Chapter 16: Modules, Namespaces, Projects, and Compiler Settings"
 description: "Turn a script into a dependency-ordered F# project, separate namespaces from modules, and make compiler contracts—including minimal nullable annotations—explicit."
 translationKey: part-03/ch-16-modules-namespaces-projects
-kind: chapter
-part: 3
-chapter: 16
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch16-multifile-project
-  - ch16-wrong-file-order
-exerciseIds:
-  - ch16-exercise-01
-  - ch16-exercise-02
-  - ch16-exercise-03
-termIds:
-  - assembly
-  - compilation-order
-  - module
-  - namespace
-  - nullable-reference-type
-  - open-declaration
-  - project-file
-sources:
-  - id: microsoft-modules
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/modules
-    checked: "2026-08-24"
-  - id: microsoft-namespaces
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/namespaces
-    checked: "2026-08-24"
-  - id: microsoft-open
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/import-declarations-the-open-keyword
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-file-order
-    url: https://learn.microsoft.com/en-us/odata/webapi-8/tutorials/basic-crud-in-fsharp
-    checked: "2026-08-24"
-  - id: microsoft-compiler-options
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/compiler-options
-    checked: "2026-08-24"
-  - id: microsoft-null-values
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/values/null-values
-    checked: "2026-08-24"
-  - id: microsoft-global-json
-    url: https://learn.microsoft.com/en-us/dotnet/core/tools/global-json
-    checked: "2026-08-24"
-  - id: microsoft-msbuild-items
-    url: https://learn.microsoft.com/en-us/visualstudio/msbuild/common-msbuild-project-items
-    checked: "2026-08-24"
-  - id: microsoft-component-design
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-24"
 ---
 
 # Chapter 16: Modules, Namespaces, Projects, and Compiler Settings {#overview}
@@ -81,7 +31,7 @@ Use `.fsx` scripts while discovering expressions and APIs. Move to a project whe
 The chapter example has this physical layout:
 
 ```text
-examples/chapters/ch16/
+./
 ├── Ch16.fsproj
 ├── Domain.fs
 ├── Workflow.fs
@@ -119,8 +69,21 @@ Arrows mean “must be seen before,” not “calls at runtime.” `Domain.fs` r
 
 The project file lists source inputs in dependency order:
 
-<<< @/../examples/chapters/ch16/Ch16.fsproj{xml:line-numbers} [Ch16.fsproj]
+```xml:line-numbers [Ch16.fsproj]
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Include="Domain.fs" />
+    <Compile Include="Workflow.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+</Project>
+```
 `<Compile Include="Domain.fs" />` contributes a compiler input. The next item can use its definitions, and the item after that can use both preceding files. Reordering tabs or moving files in the folder does not change this contract; changing the `<Compile>` sequence does.
 
 The same ordering rule applies within a source file: definitions normally use earlier definitions. F# has explicit constructs for genuine recursion, but ordinary program layers should read from foundations toward composition.
@@ -129,10 +92,21 @@ The same ordering rule applies within a source file: definitions normally use ea
 
 ### The wrong order is a real compiler error {#wrong-order}
 
-The repository contains a separate expected-error project that deliberately lists `Workflow.fs` first:
+This minimal expected-error project deliberately lists `Workflow.fs` first:
 
-<<< @/../examples/expected-errors/ch16-file-order/Ch16WrongOrder.fsproj{xml:line-numbers} [Ch16WrongOrder.fsproj]
+```xml:line-numbers [Ch16WrongOrder.fsproj]
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Include="Workflow.fs" />
+    <Compile Include="Domain.fs" />
+  </ItemGroup>
+</Project>
+```
 When the compiler reaches this line in `Workflow.fs`:
 
 ```fsharp
@@ -218,9 +192,9 @@ Read settings by the question they answer:
 | `<OutputType>Exe</OutputType>` | Is the project packaged as an executable rather than the default library? |
 | `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` | Must compiler warnings fail the build? |
 
-These controls are related but not interchangeable. Selecting SDK `10.0.301` does not itself say that a project targets `net10.0`, and targeting `net10.0` does not by itself freeze every F# language feature. This repository states both policies rather than relying on whatever happens to be installed.
+These controls are related but not interchangeable. Selecting SDK `10.0.301` does not itself say that a project targets `net10.0`, and targeting `net10.0` does not by itself freeze every F# language feature. A reproducible project states both policies rather than relying on whatever happens to be installed.
 
-Shared policy can live in `Directory.Build.props`; MSBuild imports it for descendant projects. This repository centrally sets `LangVersion`, nullable checking, warnings as errors, deterministic output, and locked package restore. `Ch16.fsproj` repeats `<Nullable>enable</Nullable>` so the standalone teaching example shows its own essential boundary. In a larger codebase, centralize stable policy and override only intentionally.
+Shared policy can live in `Directory.Build.props`; MSBuild imports it for descendant projects. A larger codebase can centralize `LangVersion`, nullable checking, warnings as errors, deterministic output, and locked package restore there. Keep a small standalone teaching project self-contained; centralize stable policy only when several real projects share it.
 
 Prefer fixing a diagnostic to globally suppressing it. Warnings-as-errors makes that discipline reproducible in local builds and CI; it does not mean every possible optional warning has been enabled.
 
@@ -277,12 +251,12 @@ Keep each project small enough to have one reason to change, but do not split so
 
 ## Build, run, and test the project {#build-test}
 
-From the repository root:
+From the directory containing the example:
 
 ```console
-dotnet build examples/chapters/ch16/Ch16.fsproj -c Release --locked-mode
-dotnet run --project examples/chapters/ch16/Ch16.fsproj -c Release --no-build
-dotnet test tests/ExampleTests/ExampleTests.fsproj -c Release --no-restore --filter FullyQualifiedName~Ch16ProjectTests
+dotnet build Ch16.fsproj -c Release --locked-mode
+dotnet run --project Ch16.fsproj -c Release --no-build
+dotnet test ExampleTests.fsproj -c Release --no-restore --filter FullyQualifiedName~Ch16ProjectTests
 ```
 
 The executable prints:

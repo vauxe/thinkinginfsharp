@@ -2,28 +2,6 @@
 title: "Chapter 4 Solutions"
 description: "Reasoning about conditional results, match order, guards, and tuple and list patterns."
 translationKey: solutions/ch-04-branching-patterns
-kind: solution
-part: 1
-chapter: 4
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch04-branching-patterns
-  - ch04-exercise-03-solution
-exerciseIds:
-  - ch04-exercise-01
-  - ch04-exercise-02
-  - ch04-exercise-03
-termIds: []
-sources:
-  - id: microsoft-conditionals
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/conditional-expressions-if-then-else
-    checked: "2026-08-24"
-  - id: microsoft-match
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/match-expressions
-    checked: "2026-08-24"
 ---
 
 # Chapter 4 Solutions {#overview}
@@ -36,8 +14,12 @@ The important part of a branch answer is not the final string but the first succ
 
 The shared definition is:
 
-<<< @/../examples/scripts/ch04-branching-patterns.fsx#if-expression{fsharp:line-numbers} [ch04-branching-patterns.fsx]
+```fsharp:line-numbers [ch04-branching-patterns.fsx]
+let availability remaining =
+    if remaining > 0 then "available" else "full"
 
+printfn "Availability: %s" (availability 3)
+```
 The condition for `availability 3` is `true`, producing `"available"`. The condition for `availability 0` is `false`, producing `"full"`. The condition `remaining > 0` is `bool`, and both branches are `string`, so the whole function is `int -> string`.
 
 If `then` returns a string while `else` only calls `printfn`, the result types are `string` and `unit` and cannot unify. An output effect does not become a string result. Omitting `else` is legal only when the whole conditional is effect-only and `then` also returns `unit`; the nonmatching path then also produces `()`.
@@ -60,16 +42,30 @@ Move the wildcard first and it matches every input before the other rules, makin
 
 The definition is:
 
-<<< @/../examples/solutions/ch04-exercise-03.fsx#solution{fsharp:line-numbers} [ch04-exercise-03.fsx]
+```fsharp:line-numbers [ch04-exercise-03.fsx]
+let classifyRequest (remaining, requested) =
+    match remaining, requested with
+    | _, requested when requested <= 0 -> "invalid"
+    | remaining, requested when requested <= remaining -> "accepted"
+    | _ -> "too large"
 
+printfn "Requests: %s, %s, %s" (classifyRequest (5, 0)) (classifyRequest (5, 3)) (classifyRequest (2, 3))
+```
 `(5, 0)` first satisfies requested-not-positive and produces `"invalid"`. `(5, 3)` skips that rule and satisfies `3 <= 5`, producing `"accepted"`. Both guards fail for `(2, 3)`, so `_` produces `"too large"`. The function type is `int * int -> string`.
 
 Order matters: if the acceptance rule came first, `(0, 0)` would satisfy `0 <= 0` before invalidity was checked. Rule order directly expresses business priority here.
 
 The queue definition is:
 
-<<< @/../examples/scripts/ch04-branching-patterns.fsx#list-pattern{fsharp:line-numbers} [ch04-branching-patterns.fsx]
+```fsharp:line-numbers [ch04-branching-patterns.fsx]
+let describeQueue queue =
+    match queue with
+    | [] -> "empty"
+    | [ only ] -> $"one: {only}"
+    | first :: second :: _ -> $"next: {first}, then {second}"
 
+printfn "Queues: %s | %s | %s" (describeQueue []) (describeQueue [ "Lin" ]) (describeQueue [ "Lin"; "Ada"; "Sam" ])
+```
 Both a two-item and a four-item list match `first :: second :: _`. The first two names bind the first two items, while `_` matches the remaining list: `[]` for two items and a two-item tail for four. It is not the third element and establishes no readable name.
 
 ## What to notice {#what-to-notice}

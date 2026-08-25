@@ -2,43 +2,6 @@
 title: "第 39 章：ASP.NET Core 与 F# Web 生态"
 description: "依据边界形状、团队需求和已核实的维护证据，在平台原生 Minimal API、控制器与函数式 F# Web 库之间作选择，而不是追逐潮流。"
 translationKey: part-07/ch-39-web-ecosystem
-kind: chapter
-part: 7
-chapter: 39
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ecosystem-web-minimal-api
-  - foundation-contract-tests
-exerciseIds:
-  - ch39-exercise-01
-  - ch39-exercise-02
-  - ch39-exercise-03
-termIds: []
-sources:
-  - id: microsoft-aspnet-api-overview
-    url: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/apis?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: microsoft-minimal-api-reference
-    url: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: microsoft-aspnet-integration-tests
-    url: https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: giraffe-nuget
-    url: https://www.nuget.org/packages/Giraffe/8.3.0
-    checked: "2026-08-25"
-  - id: falco-nuget
-    url: https://www.nuget.org/packages/Falco/5.2.0
-    checked: "2026-08-25"
-  - id: oxpecker-nuget
-    url: https://www.nuget.org/packages/Oxpecker/2.0.1
-    checked: "2026-08-25"
-  - id: saturn-nuget
-    url: https://www.nuget.org/packages/Saturn/0.17.0
-    checked: "2026-08-25"
 ---
 
 # 第 39 章：ASP.NET Core 与 F# Web 生态 {#overview}
@@ -83,16 +46,82 @@ Web 样例有意远小于预约收官项目。它只回答一个问题：当输�
 
 项目使用 `Microsoft.NET.Sdk.Web`、目标为 `net10.0`，没有第三方包引用。锁文件记录 `FSharp.Core` 10.1.301。公开 JSON 类型是普通 CLR 友好记录，而不是领域可辨识联合：
 
-<<< @/../examples/ecosystem/web/Program.fs#web-sample-contract{fsharp:line-numbers} [Program.fs]
+```fsharp:line-numbers [Program.fs]
+[<CLIMutable>]
+type GreetingRequestDto =
+    { [<JsonPropertyName("name")>]
+      Name: string | null }
 
+[<CLIMutable>]
+type GreetingResponseDto =
+    { [<JsonPropertyName("message")>]
+      Message: string }
+
+[<CLIMutable>]
+type WebSampleErrorDto =
+    { [<JsonPropertyName("code")>]
+      Code: string
+      [<JsonPropertyName("message")>]
+      Message: string }
+```
 `GreetingRequestDto.Name` 接受 `null`，因为 JSON 是不可信边界。验证会先把这种表示转换成非空白局部 `name`，成功路径才继续。这重复了第六部分的核心教训：宽松的边界表示并不要求宽松的领域。
 
 ### 显式完成框架适配 {#explicit-adaptation}
 
 处理器形状是 `HttpContext -> Task`，随后包装成 ASP.NET Core 的 `RequestDelegate`。它检查媒体类型，采用区分大小写且拒绝未知成员的严格 JSON，验证名称，并且只产生稳定错误代码与消息。
 
-<<< @/../examples/ecosystem/web/Program.fs#web-sample-handler{fsharp:line-numbers} [Program.fs]
+```fsharp:line-numbers [Program.fs]
+let private greet (context: HttpContext) : Task =
+    task {
+        if not (context.Request.HasJsonContentType()) then
+            return!
+                writeError
+                    context
+                    StatusCodes.Status415UnsupportedMediaType
+                    "unsupported_media_type"
+                    "Content-Type must be a JSON media type."
+        else
+            try
+                let! request =
+                    JsonSerializer.DeserializeAsync<GreetingRequestDto>(
+                        context.Request.Body,
+                        jsonOptions,
+                        context.RequestAborted
+                    )
 
+                match request with
+                | null ->
+                    return! writeError context StatusCodes.Status400BadRequest "name_required" "Name is required."
+                | value ->
+                    match value.Name with
+                    | null ->
+                        return!
+                            writeError context StatusCodes.Status400BadRequest "name_required" "Name is required."
+                    | name when String.IsNullOrWhiteSpace name ->
+                        return!
+                            writeError context StatusCodes.Status400BadRequest "name_required" "Name is required."
+                    | name ->
+                        return! writeJson context StatusCodes.Status200OK { Message = $"Hello, {name.Trim()}!" }
+            with
+            | :? JsonException ->
+                return!
+                    writeError
+                        context
+                        StatusCodes.Status400BadRequest
+                        "invalid_json"
+                        "The request body is not valid for this endpoint."
+            | :? OperationCanceledException as error when context.RequestAborted.IsCancellationRequested ->
+                return raise error
+            | _ when context.Response.HasStarted -> context.Abort()
+            | _ ->
+                return!
+                    writeError
+                        context
+                        StatusCodes.Status500InternalServerError
+                        "internal_error"
+                        "The request could not be completed."
+    }
+```
 几个细节比代码行数更重要：
 
 - `RequestAborted` 传入反序列化，并在客户端取消时重新抛出；
@@ -105,8 +134,12 @@ F# 10 空值检查还迫使处理器先匹配 `value.Name`，然后才能调用 
 
 最终映射与宿主没有隐藏框架：
 
-<<< @/../examples/ecosystem/web/Program.fs#web-sample-map{fsharp:line-numbers} [Program.fs]
+```fsharp:line-numbers [Program.fs]
+let map (application: WebApplication) =
+    ArgumentNullException.ThrowIfNull(application, nameof application)
 
+    application.MapPost("/api/greetings", RequestDelegate greet) |> ignore
+```
 这种映射风格比自动 Minimal API 参数绑定更底层。这是为了稳定教学契约而作的刻意选择，并非建议手工反序列化每个请求。[.NET 10 Minimal API 参考](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis?view=aspnetcore-10.0) 记录了内建绑定、验证、响应、过滤器、授权及其他平台功能。自动绑定契合契约时就使用它；兼容性或错误形状要求足以证明必要时再接管控制。
 
 ### 精确说明测试证明了什么 {#sample-evidence}
@@ -117,7 +150,7 @@ F# 10 空值检查还迫使处理器先匹配 `value.Name`，然后才能调用 
 - 格式错误 JSON、名称缺失、名称空白、属性大小写错误和未知成员都会安全失败；
 - 非 JSON 媒体类型返回 `415`，不会进入处理器契约。
 
-完整解决方案以警告即错误的 Release 配置构建，样例也注册进示例清单。它没有测试真实套接字、代理、TLS、认证、速率限制、正文大小策略或部署；这些能力不会因为使用 Minimal API 就神秘出现。
+这个示例刻意保持很小。它没有测试真实套接字、代理、TLS、认证、速率限制、正文大小策略或部署；这些能力不会因为使用 Minimal API 就神秘出现。
 
 ## 先选择抽象层次 {#abstraction-level}
 
@@ -226,16 +259,16 @@ F# 能定义控制器类、特性、方法、任务与 CLR DTO。摩擦来自架
 
 下表是带日期的观察，不是永恒排名：
 
-| 选择 | 2026-08-25 核对的稳定表面 | 本仓库已验证 | 关键采用问题 |
+| 选择 | 2026-08-25 核对的稳定表面 | 本章状态 | 关键采用问题 |
 |---|---|---:|---|
-| ASP.NET Core Minimal API | .NET SDK/运行时 10.0.301 | 是，Release + HTTP 契约用例 | 团队能否限制 C# 形状 API 的摩擦？ |
-| 控制器 API | ASP.NET Core 10 平台文档 | 否 | 必要的控制器扩展点是否值得这些仪式？ |
-| Giraffe | NuGet 8.3.0 | 否 | 延续式处理器组合是否契合团队？ |
-| Falco | NuGet 5.2.0 稳定版 | 否 | 聚焦端点与相关包能否覆盖必要集成？ |
-| Oxpecker | NuGet 2.0.1，`net10.0` 资产 | 否 | 较新的端点/全栈表面是否符合运维与升级要求？ |
-| Saturn | NuGet 0.17.0，`net6.0` 资产 | 否 | 约定价值是否超过所需的 .NET 10 兼容证明成本？ |
+| ASP.NET Core Minimal API | .NET SDK/运行时 10.0.301 | 已示例 | 团队能否限制 C# 形状 API 的摩擦？ |
+| 控制器 API | ASP.NET Core 10 平台文档 | 仅研究 | 必要的控制器扩展点是否值得这些仪式？ |
+| Giraffe | NuGet 8.3.0 | 仅研究 | 延续式处理器组合是否契合团队？ |
+| Falco | NuGet 5.2.0 稳定版 | 仅研究 | 聚焦端点与相关包能否覆盖必要集成？ |
+| Oxpecker | NuGet 2.0.1，`net10.0` 资产 | 仅研究 | 较新的端点/全栈表面是否符合运维与升级要求？ |
+| Saturn | NuGet 0.17.0，`net6.0` 资产 | 仅研究 | 约定价值是否超过所需的 .NET 10 兼容证明成本？ |
 
-“未在这里验证”含义很精确：审阅了官方包信息，但本仓库没有还原、编译、执行或安全测试该框架。这不是负面质量判断。
+“已示例”表示本章展示了这种方法，不表示书站附带可执行服务。“仅研究”也不是负面质量判断；采用前应在真实应用中评估。
 
 ## 分开那些经常被捆绑的决定 {#separate-decisions}
 

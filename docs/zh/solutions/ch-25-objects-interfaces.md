@@ -2,33 +2,6 @@
 title: "第 25 章答案"
 description: "移除仪式性类、比较函数与接口策略边界，并重新设计结构体，让其默认表示有效。"
 translationKey: solutions/ch-25-objects-interfaces
-kind: solution
-part: 5
-chapter: 25
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch25-objects-interfaces
-exerciseIds:
-  - ch25-exercise-01
-  - ch25-exercise-02
-  - ch25-exercise-03
-termIds: []
-sources:
-  - id: microsoft-fsharp-classes
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/classes
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-interfaces
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/interfaces
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-object-expressions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/object-expressions
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-structs
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/structs
-    checked: "2026-08-24"
 ---
 
 # 第 25 章答案 {#overview}

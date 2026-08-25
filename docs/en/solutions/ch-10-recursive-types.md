@@ -2,27 +2,6 @@
 title: "Chapter 10 Solutions"
 description: "Derive a short-circuiting query, map laws, and a one-pass tree summary from recursive cases."
 translationKey: solutions/ch-10-recursive-types
-kind: solution
-part: 2
-chapter: 10
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch10-recursive-types
-exerciseIds:
-  - ch10-exercise-01
-  - ch10-exercise-02
-  - ch10-exercise-03
-termIds: []
-sources:
-  - id: microsoft-discriminated-unions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions
-    checked: "2026-08-24"
-  - id: microsoft-recursive-functions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/recursive-functions-the-rec-keyword
-    checked: "2026-08-24"
 ---
 
 # Chapter 10 Solutions {#overview}

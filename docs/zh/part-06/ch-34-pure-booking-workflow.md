@@ -2,36 +2,6 @@
 title: "第 34 章：纯预约工作流与验证"
 description: "推导一个纯预约决策器，累积独立字段错误，短路依赖状态的规则，并且只演化已接受的事实。"
 translationKey: part-06/ch-34-pure-booking-workflow
-kind: chapter
-part: 6
-chapter: 34
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - capstone-booking-domain
-exerciseIds:
-  - ch34-exercise-01
-  - ch34-exercise-02
-  - ch34-exercise-03
-termIds: []
-sources:
-  - id: microsoft-fsharp-results
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/results
-    checked: "2026-08-25"
-  - id: fsharp-core-result-module
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-resultmodule.html
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-match-expressions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/match-expressions
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-discriminated-unions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-records
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/records
-    checked: "2026-08-25"
 ---
 
 # 第 34 章：纯预约工作流与验证 {#overview}
@@ -100,8 +70,25 @@ Event
 
 预约命令已经有私有的已验证形式。本章为确认与取消增加了对应形式：
 
-<<< @/../examples/capstone/src/Booking.Domain/Validation.fs#validated-lifecycle-commands{fsharp:line-numbers} [Validation.fs]
+```fsharp:line-numbers [Validation.fs]
+type ValidConfirmBooking =
+    private
+        { RequestId: RequestId
+          ConfirmationCode: ConfirmationCode }
 
+module ValidConfirmBooking =
+    let requestId (command: ValidConfirmBooking) = command.RequestId
+    let confirmationCode (command: ValidConfirmBooking) = command.ConfirmationCode
+
+type ValidCancelBooking =
+    private
+        { RequestId: RequestId
+          Reason: CancellationReason }
+
+module ValidCancelBooking =
+    let requestId (command: ValidCancelBooking) = command.RequestId
+    let reason (command: ValidCancelBooking) = command.Reason
+```
 原始记录使用 `string` 和 `int`，因为调用方或未来 DTO 从表示数据开始。已验证记录包含 `RequestId`、`SeatCount`、`ConfirmationCode` 或 `CancellationReason`。它们的记录构造器是私有的；调用方只能通过验证器获得，再通过模块函数观察。
 
 这种拆分避开两个错误极端。把原始命令构造器设为私有，会迫使不可信边界假装字段已经有效；让已验证记录保持公开，则允许调用方绕过规范化与不变量。独立类型既保留诚实输入，也保留受保护内部数据。
@@ -112,8 +99,38 @@ Event
 
 项目使用一个小型局部组合器，不让验证框架隐藏策略：
 
-<<< @/../examples/capstone/src/Booking.Domain/Validation.fs#validation-accumulation{fsharp:line-numbers} [Validation.fs]
+```fsharp:line-numbers [Validation.fs]
+let private applyValidation valueResult functionResult =
+    match functionResult, valueResult with
+    | Ok mapping, Ok value -> Ok(mapping value)
+    | Error earlier, Error later -> Error(earlier @ later)
+    | Error errors, Ok _
+    | Ok _, Error errors -> Error errors
 
+let private validateRequestId (raw: string) =
+    RequestId.create raw
+    |> Result.mapError (fun error -> [ InvalidRequestId error ])
+
+let private validateSeatCount (raw: int) =
+    SeatCount.create raw
+    |> Result.mapError (fun error -> [ InvalidSeatCount error ])
+
+let private validateConfirmationCode raw =
+    ConfirmationCode.create raw
+    |> Result.mapError (fun error -> [ InvalidConfirmationCode error ])
+
+let private validateCancellationReason raw =
+    CancellationReason.create raw
+    |> Result.mapError (fun error -> [ InvalidCancellationReason error ])
+
+let private createValidCommand (requestId: RequestId) (seats: SeatCount) : ValidPlaceBooking =
+    { RequestId = requestId; Seats = seats }
+
+let validatePlaceBooking (command: PlaceBookingCommand) =
+    Ok createValidCommand
+    |> applyValidation (validateRequestId command.RequestId)
+    |> applyValidation (validateSeatCount command.Seats)
+```
 `applyValidation` 把包含构造函数的 `Result` 与一个已验证字段组合起来。它的四种情况已经穷尽：
 
 - 两者成功时，把函数应用于值；
@@ -139,8 +156,25 @@ Ok createValidCommand
 
 确认与取消各自按相同顺序验证两个独立字段：
 
-<<< @/../examples/capstone/src/Booking.Domain/Validation.fs#lifecycle-validation{fsharp:line-numbers} [Validation.fs]
+```fsharp:line-numbers [Validation.fs]
+let private createValidConfirmCommand requestId confirmationCode : ValidConfirmBooking =
+    { RequestId = requestId
+      ConfirmationCode = confirmationCode }
 
+let validateConfirmBooking (command: ConfirmBooking) =
+    Ok createValidConfirmCommand
+    |> applyValidation (validateRequestId command.RequestId)
+    |> applyValidation (validateConfirmationCode command.ConfirmationCode)
+
+let private createValidCancelCommand requestId reason : ValidCancelBooking =
+    { RequestId = requestId
+      Reason = reason }
+
+let validateCancelBooking (command: CancelBooking) =
+    Ok createValidCancelCommand
+    |> applyValidation (validateRequestId command.RequestId)
+    |> applyValidation (validateCancellationReason command.Reason)
+```
 共享的 `CommandValidationError` 联合让统一决策器返回同一种错误列表，同时保留精确案例。确认验证器实际上不可能产生座位数错误；更宽的联合是统一命令级错误词汇的成本。测试固定每个验证器可能发出的案例。
 
 不要把“预约存在”添加到这些函数里。那会要求状态，把纯字段转换改成业务决策，也让独立错误累积变得含糊。已验证命令就是两阶段之间的边界。
@@ -149,8 +183,15 @@ Ok createValidCommand
 
 决策器显式暴露预期拒绝类别：
 
-<<< @/../examples/capstone/src/Booking.Domain/Decider.fs#decision-contract{fsharp:line-numbers} [Decider.fs]
-
+```fsharp:line-numbers [Decider.fs]
+[<RequireQualifiedAccess>]
+type BookingDecisionError =
+    | InvalidCommand of CommandValidationError list
+    | BookingAlreadyExists of existingRequestId: RequestId
+    | BookingDoesNotExist
+    | BookingCreationFailed of BookingCreationError
+    | BookingTransitionFailed of BookingTransitionError
+```
 每个案例保留其来源：
 
 | 案例 | 来源 | 含义 |
@@ -169,8 +210,24 @@ Ok createValidCommand
 
 统一函数对 `BookingCommand` 做穷尽匹配：
 
-<<< @/../examples/capstone/src/Booking.Domain/Decider.fs#decide{fsharp:line-numbers} [Decider.fs]
-
+```fsharp:line-numbers [Decider.fs]
+let decide
+    (activity: Event)
+    (state: BookingState)
+    (command: BookingCommand)
+    : Result<BookingEvent, BookingDecisionError> =
+    match command with
+    | BookingCommand.Place placeCommand ->
+        decidePlaceBooking activity state placeCommand |> Result.mapError mapPlaceError
+    | BookingCommand.Confirm confirmCommand ->
+        validateConfirmBooking confirmCommand
+        |> Result.mapError BookingDecisionError.InvalidCommand
+        |> Result.bind (decideConfirm state)
+    | BookingCommand.Cancel cancelCommand ->
+        validateCancelBooking cancelCommand
+        |> Result.mapError BookingDecisionError.InvalidCommand
+        |> Result.bind (decideCancel state)
+```
 分支结构有意保持直白：
 
 - 预约分支委托给已经测试的 `decidePlaceBooking`，并映射其错误联合；
@@ -188,8 +245,27 @@ Ok createValidCommand
 
 字段验证后，确认与取消使用顺序式 `Result` 组合：
 
-<<< @/../examples/capstone/src/Booking.Domain/Decider.fs#lifecycle-decisions{fsharp:line-numbers} [Decider.fs]
+```fsharp:line-numbers [Decider.fs]
+let private requireBooking requestId state =
+    match state with
+    | NotBooked -> Error BookingDecisionError.BookingDoesNotExist
+    | Booked booking when Booking.requestId booking = requestId -> Ok booking
+    | Booked _ -> Error BookingDecisionError.BookingDoesNotExist
 
+let private decideConfirm state command =
+    requireBooking (ValidConfirmBooking.requestId command) state
+    |> Result.bind (fun booking ->
+        Booking.confirm (ValidConfirmBooking.confirmationCode command) booking
+        |> Result.map BookingConfirmed
+        |> Result.mapError BookingDecisionError.BookingTransitionFailed)
+
+let private decideCancel state command =
+    requireBooking (ValidCancelBooking.requestId command) state
+    |> Result.bind (fun booking ->
+        Booking.cancel (ValidCancelBooking.reason command) booking
+        |> Result.map BookingCancelled
+        |> Result.mapError BookingDecisionError.BookingTransitionFailed)
+```
 `requireBooking` 必须先成功，转换才有输入。本示例在状态为 `NotBooked` 和所含请求标识不同时都返回 `BookingDoesNotExist`。只有匹配的受保护预约会继续向后流动。
 
 随后 `Result.bind` 恰好提供所需语义：`Error` 原样通过，不会求值绑定函数；`Ok booking` 则调用下一函数。确认调用 `Booking.confirm`，取消调用 `Booking.cancel`。这些领域函数仍是生命周期转换许可的唯一权威。
@@ -202,8 +278,23 @@ Ok createValidCommand
 
 较早的专用决策继续清晰可见，并保持权威：
 
-<<< @/../examples/capstone/src/Booking.Domain/Workflow.fs#place-decision{fsharp:line-numbers} [Workflow.fs]
+```fsharp:line-numbers [Workflow.fs]
+type PlaceBookingError =
+    | InvalidCommand of CommandValidationError list
+    | BookingAlreadyExists of existingRequestId: RequestId
+    | BookingCreationFailed of BookingCreationError
 
+let decidePlaceBooking (event: Event) (state: BookingState) (command: PlaceBookingCommand) =
+    match validatePlaceBooking command with
+    | Error errors -> Error(InvalidCommand errors)
+    | Ok validCommand ->
+        match state with
+        | Booked existing -> Error(BookingAlreadyExists(Booking.requestId existing))
+        | NotBooked ->
+            Booking.create event (ValidPlaceBooking.requestId validCommand) (ValidPlaceBooking.seats validCommand)
+            |> Result.map BookingPlaced
+            |> Result.mapError BookingCreationFailed
+```
 它的嵌套结构定义了可观察的优先级：
 
 1. 验证请求标识与座位数，并累积两项独立失败。
@@ -220,8 +311,13 @@ Ok createValidCommand
 
 决策与演化继续保持为两个函数：
 
-<<< @/../examples/capstone/src/Booking.Domain/Workflow.fs#evolve{fsharp:line-numbers} [Workflow.fs]
-
+```fsharp:line-numbers [Workflow.fs]
+let evolve (_: BookingState) (event: BookingEvent) =
+    match event with
+    | BookingPlaced booking
+    | BookingConfirmed booking
+    | BookingCancelled booking -> Booked booking
+```
 `decide` 回答命令是否可以产生事实；`evolve` 回答已经接受该事实后是什么状态。应用按此顺序使用它们：
 
 ```fsharp

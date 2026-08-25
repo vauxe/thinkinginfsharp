@@ -2,46 +2,6 @@
 title: "第 27 章：为 C# 设计 F# API"
 description: "从 C# 调用点反推稳定的 .NET 公共表面，同时让联合、option、纯函数与领域不变量留在 F# 内部。"
 translationKey: part-05/ch-27-fsharp-api-for-csharp
-kind: chapter
-part: 5
-chapter: 27
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch27-fsharp-api
-  - ch27-csharp-client
-exerciseIds:
-  - ch27-exercise-01
-  - ch27-exercise-02
-  - ch27-exercise-03
-termIds: []
-sources:
-  - id: microsoft-fsharp-component-guidelines
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-xml-docs
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/xml-documentation
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-null
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/values/null-values
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-nullable-value
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/nullable-value-types
-    checked: "2026-08-24"
-  - id: dotnet-breaking-changes
-    url: https://learn.microsoft.com/en-us/dotnet/standard/library-guidance/breaking-changes
-    checked: "2026-08-24"
-  - id: dotnet-package-compatibility
-    url: https://learn.microsoft.com/en-us/dotnet/standard/library-guidance/nuget-package-compatibility-rules
-    checked: "2026-08-24"
-  - id: dotnet-enum-zero
-    url: https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1008
-    checked: "2026-08-24"
-  - id: fsharp-climutable
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-climutableattribute.html
-    checked: "2026-08-24"
 ---
 
 # 第 27 章：为 C# 设计 F# API {#overview}
@@ -67,8 +27,22 @@ F# 和 C# 共享 CLR、程序集与大部分基础类型，却不共享同一套
 
 先写最小 C# 契约客户端。它能暴露 API 是否要求调用者理解 F#，也能把命名参数、可空性、构造方式和返回形状变成编译证据：
 
-<<< @/../examples/chapters/ch27/CSharpClient/Program.cs#accepted-call{csharp:line-numbers} [Program.cs]
+```csharp:line-numbers [Program.cs]
+var accepted = BookingApi.Evaluate(
+    capacity: 5,
+    request: new BookingRequest(requestId: "REQ-27", attendee: "Lin", seats: 2));
 
+Require(accepted.Outcome == BookingOutcome.Accepted, "accepted outcome");
+Require(default(BookingOutcome) == BookingOutcome.None, "valid enum zero value");
+Require(accepted.IsAccepted, "accepted flag");
+Require(accepted.ConfirmationCode == "CONF-REQ-27", "confirmation code");
+Require(accepted.RemainingSeats == 3, "remaining seats");
+Require(accepted.ErrorMessage is null, "accepted error must be null");
+Require(accepted.SuggestedSeats is null, "accepted suggestion must be null");
+
+Console.WriteLine(
+    $"Accepted: outcome={accepted.Outcome} code={accepted.ConfirmationCode} remaining={accepted.RemainingSeats}");
+```
 这个调用只出现普通命名空间、枚举、密封类、构造函数、静态方法、属性、`string?` 与 `int?`。C# 调用者无需知道内部存在联合和 `option`。命名参数也说明 `capacity`、`request`、`requestId` 等参数名是可被源码依赖的契约，不只是实现注释。
 
 “C# 能调用”只是最低门槛。还应询问：IDE 是否给出自然补全？可空分析是否准确？错误是否能按预期分支？API 升级后，旧二进制能否继续运行？
@@ -89,8 +63,27 @@ F# 和 C# 共享 CLR、程序集与大部分基础类型，却不共享同一套
 
 样例用封闭联合精确表示两种领域结果；建议席位只在拒绝时存在：
 
-<<< @/../examples/chapters/ch27/FSharpApi/Library.fs#internal-model{fsharp:line-numbers} [Library.fs]
+```fsharp:line-numbers [Library.fs]
+type internal Decision =
+    | Accepted of confirmationCode: string * remainingSeats: int
+    | Rejected of message: string * suggestedSeats: int option
 
+module internal Decision =
+    let evaluate capacity (request: BookingRequest) =
+        if String.IsNullOrWhiteSpace request.RequestId then
+            Rejected("request id must not be blank", None)
+        elif String.IsNullOrWhiteSpace request.Attendee then
+            Rejected("attendee must not be blank", None)
+        elif request.Seats <= 0 then
+            Rejected("seat count must be positive", None)
+        elif request.Seats > capacity then
+            let suggestion = if capacity > 0 then Some capacity else None
+
+            Rejected($"requested {request.Seats} exceeds available {capacity}", suggestion)
+        else
+            let normalizedRequestId = request.RequestId.Trim().ToUpperInvariant()
+            Accepted($"CONF-{normalizedRequestId}", capacity - request.Seats)
+```
 这里的模式匹配仍然穷尽，非法组合不会进入核心。`internal` 防止 C# 或另一个程序集依赖案例的编译表示，也给库作者留下增加内部案例或改变载荷的空间。
 
 ### 在边界投影一次 {#boundary-projection}
@@ -109,24 +102,112 @@ F# 和 C# 共享 CLR、程序集与大部分基础类型，却不共享同一套
 
 公开请求使用普通构造函数和只读属性：
 
-<<< @/../examples/chapters/ch27/FSharpApi/Library.fs#public-request{fsharp:line-numbers} [Library.fs]
+```fsharp:line-numbers [Library.fs]
+/// <summary>Identifies whether a booking request was accepted or rejected.</summary>
+type BookingOutcome =
+    /// <summary>No booking outcome has been assigned.</summary>
+    | None = 0
+    /// <summary>The booking was accepted and has a confirmation code.</summary>
+    | Accepted = 1
+    /// <summary>The booking was rejected and has an error message.</summary>
+    | Rejected = 2
 
+/// <summary>Input supplied by a .NET caller when evaluating a booking.</summary>
+/// <param name="requestId">A non-null request identifier. Blank identifiers are rejected by <c>Evaluate</c>.</param>
+/// <param name="attendee">A non-null attendee name. Blank names are rejected by <c>Evaluate</c>.</param>
+/// <param name="seats">The number of seats requested.</param>
+/// <exception cref="System.ArgumentNullException"><paramref name="requestId"/> or <paramref name="attendee"/> is <see langword="null"/>.</exception>
+[<Sealed>]
+type BookingRequest(requestId: string, attendee: string, seats: int) =
+    do
+        ArgumentNullException.ThrowIfNull(requestId, nameof requestId)
+        ArgumentNullException.ThrowIfNull(attendee, nameof attendee)
+
+    /// <summary>Gets the request identifier exactly as supplied.</summary>
+    member _.RequestId = requestId
+
+    /// <summary>Gets the attendee name exactly as supplied.</summary>
+    member _.Attendee = attendee
+
+    /// <summary>Gets the requested seat count.</summary>
+    member _.Seats = seats
+```
 公开响应把引用缺失投影为可空 `string`，把值缺失投影为 `Nullable<int>`。构造函数是程序集内部的，因此调用者不能制造“接受但没有确认码”的响应：
 
-<<< @/../examples/chapters/ch27/FSharpApi/Library.fs#public-response{fsharp:line-numbers} [Library.fs]
+```fsharp:line-numbers [Library.fs]
+/// <summary>A C#-friendly projection of the internal F# booking decision.</summary>
+/// <remarks>
+/// Accepted responses have a confirmation code and remaining-seat count.
+/// Rejected responses have an error message and may have a suggested seat count.
+/// </remarks>
+[<Sealed>]
+type BookingResponse
+    internal
+    (
+        outcome: BookingOutcome,
+        confirmationCode: string | null,
+        remainingSeats: Nullable<int>,
+        errorMessage: string | null,
+        suggestedSeats: Nullable<int>
+    ) =
+    /// <summary>Gets the accepted or rejected outcome.</summary>
+    member _.Outcome = outcome
 
+    /// <summary>Gets whether this response represents an accepted booking.</summary>
+    member _.IsAccepted = outcome = BookingOutcome.Accepted
+
+    /// <summary>Gets the confirmation code, or <see langword="null"/> when rejected.</summary>
+    member _.ConfirmationCode = confirmationCode
+
+    /// <summary>Gets remaining capacity, or <see langword="null"/> when rejected.</summary>
+    member _.RemainingSeats = remainingSeats
+
+    /// <summary>Gets the rejection message, or <see langword="null"/> when accepted.</summary>
+    member _.ErrorMessage = errorMessage
+
+    /// <summary>Gets a capacity-based suggestion when available; otherwise <see langword="null"/>.</summary>
+    member _.SuggestedSeats = suggestedSeats
+```
 适配器是唯一了解两种表示的地方：
 
-<<< @/../examples/chapters/ch27/FSharpApi/Library.fs#boundary-adapter{fsharp:line-numbers} [Library.fs]
+```fsharp:line-numbers [Library.fs]
+module internal ResponseAdapter =
+    let fromDecision decision =
+        match decision with
+        | Accepted(confirmationCode, remainingSeats) ->
+            BookingResponse(BookingOutcome.Accepted, confirmationCode, Nullable remainingSeats, null, Nullable<int>())
+        | Rejected(message, suggestedSeats) ->
+            let suggestion =
+                match suggestedSeats with
+                | Some seats -> Nullable seats
+                | None -> Nullable<int>()
 
+            BookingResponse(BookingOutcome.Rejected, null, Nullable<int>(), message, suggestion)
+```
 即使公开签名不含 `Microsoft.FSharp.*`，F# 编译的程序集通常仍在运行时依赖 `FSharp.Core`。目标是消除调用方的 F# 表示知识，不是假装实现不由 F# 编写；正常的项目或 NuGet 依赖解析会传递运行时依赖。
 
 ## 把公共成员设计成 .NET API {#dotnet-shape}
 
 面向普通 .NET 语言的表面优先使用命名空间、类型和成员；实现函数可以留在非公开模块。样例用抽象且密封、构造函数私有的类型承载一组静态操作：
 
-<<< @/../examples/chapters/ch27/FSharpApi/Library.fs#public-api{fsharp:line-numbers} [Library.fs]
+```fsharp:line-numbers [Library.fs]
+/// <summary>Provides the stable .NET entry point for booking decisions.</summary>
+[<AbstractClass; Sealed>]
+type BookingApi private () =
+    /// <summary>Evaluates one request against the supplied available capacity.</summary>
+    /// <param name="capacity">Available seats. Negative capacity is invalid configuration.</param>
+    /// <param name="request">A non-null request to evaluate.</param>
+    /// <returns>A response projected into ordinary .NET enum, class, string, and nullable-value members.</returns>
+    /// <exception cref="System.ArgumentNullException"><paramref name="request"/> is <see langword="null"/>.</exception>
+    /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="capacity"/> is negative.</exception>
+    static member Evaluate(capacity: int, request: BookingRequest) =
+        ArgumentNullException.ThrowIfNull(request, nameof request)
 
+        if capacity < 0 then
+            raise (ArgumentOutOfRangeException(nameof capacity, capacity, "Capacity cannot be negative."))
+
+        request |> Decision.evaluate capacity |> ResponseAdapter.fromDecision
+```
 这不是要求每个 F# 模块都改成类。只有跨语言公共边界需要按调用方的词汇投影，F# 面向 F# 的 API 仍可自然地公开模块、函数和联合。
 
 ### 名称也是兼容性契约 {#names}
@@ -163,8 +244,46 @@ F# 9 及以上启用 nullable 检查后，`string` 与 `string | null` 表达不
 
 C# 契约客户端通过反射检查这些承诺，并检查公开签名没有泄露 F# 专用类型：
 
-<<< @/../examples/chapters/ch27/CSharpClient/Program.cs#public-surface-contract{csharp:line-numbers} [Program.cs]
+```csharp:line-numbers [Program.cs]
+var publicTypes = typeof(BookingApi).Assembly.GetExportedTypes();
 
+var publicTypeNames = publicTypes
+    .Select(type => type.Name)
+    .OrderBy(name => name, StringComparer.Ordinal)
+    .ToArray();
+
+var expectedPublicTypes = new[]
+{
+    nameof(BookingApi),
+    nameof(BookingOutcome),
+    nameof(BookingRequest),
+    nameof(BookingResponse)
+};
+
+Require(publicTypeNames.SequenceEqual(expectedPublicTypes), "minimal public type surface");
+Require(typeof(BookingResponse).GetConstructors().Length == 0, "response construction is controlled");
+Require(
+    !publicTypes.SelectMany(GetPublicSignatureTypes).Any(ContainsFSharpSpecificType),
+    "no F#-specific type leaks through public signatures");
+Console.WriteLine($"Public types: {string.Join(",", publicTypeNames)}");
+
+var nullability = new NullabilityInfoContext();
+var requestIdParameter = typeof(BookingRequest).GetConstructors().Single().GetParameters()[0];
+var confirmationProperty = typeof(BookingResponse).GetProperty(nameof(BookingResponse.ConfirmationCode))!;
+var requestIdState = nullability.Create(requestIdParameter).ReadState;
+var confirmationState = nullability.Create(confirmationProperty).ReadState;
+
+Require(requestIdState == NullabilityState.NotNull, "requestId nullable metadata");
+Require(confirmationState == NullabilityState.Nullable, "confirmation nullable metadata");
+Console.WriteLine(
+    $"Nullability: request-id={requestIdState} confirmation={confirmationState}");
+
+var documentationPath = Path.ChangeExtension(typeof(BookingApi).Assembly.Location, ".xml");
+Require(File.Exists(documentationPath), "XML documentation sidecar");
+var documentation = File.ReadAllText(documentationPath);
+Require(documentation.Contains("BookingApi.Evaluate", StringComparison.Ordinal), "Evaluate XML documentation");
+Console.WriteLine("XML docs: evaluate=true");
+```
 反射测试是元数据证据，不替代真实调用。样例同时编译并运行接受、拒绝、无效值、null 输入和范围错误路径。
 
 ### 枚举需要合法的零值和未知值策略 {#enum-contract}
@@ -185,8 +304,20 @@ CLR 枚举的默认值是零，任意底层整数也能被转换成枚举。`Boo
 
 样例打开 `GenerateDocumentationFile`，并把 F# 警告 3390 加入构建，用来发现 XML 格式和参数名错误：
 
-<<< @/../examples/chapters/ch27/FSharpApi/FSharpApi.fsproj{xml:line-numbers} [FSharpApi.fsproj]
+```xml:line-numbers [FSharpApi.fsproj]
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>ThinkingInFSharp.Ch27.FSharpApi</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <WarnOn>$(WarnOn);3390</WarnOn>
+  </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Include="Library.fs" />
+  </ItemGroup>
+</Project>
+```
 客户端还断言 XML 旁车存在并含 `BookingApi.Evaluate`。这不会判断文字是否清楚，却能防止“写了注释但没有随程序集交付”的假象。稳定后可再引入 `.fsi` 文件，把公共签名与文档集中成可审阅清单。
 
 ## 不要让 JSON 或数据库反向设计领域 {#wire-boundary}
@@ -216,11 +347,11 @@ C# 公共类型也不应自动成为 JSON 模式。进程内调用者、跨网�
 
 ## 运行共享契约样例 {#run-example}
 
-从仓库根目录构建并运行真实 C# 调用方：
+从示例所在目录构建并运行真实 C# 调用方：
 
 ```console
-dotnet build examples/chapters/ch27/CSharpClient/CSharpClient.csproj --configuration Release --no-restore
-dotnet run --project examples/chapters/ch27/CSharpClient/CSharpClient.csproj --configuration Release --no-build
+dotnet build CSharpClient.csproj --configuration Release --no-restore
+dotnet run --project CSharpClient.csproj --configuration Release --no-build
 ```
 
 客户端断言业务结果、参数防卫、四个导出类型、公开签名、可空元数据和 XML 文档，而不只打印演示输出。修改公开 API 后，先让这个消费者重新编译，再运行已有二进制兼容性与行为测试。

@@ -2,37 +2,6 @@
 title: "第 18 章：显式工作流组合与验证累积"
 description: "依赖步骤采用首错停止，独立检查采用显式错误累积；先用普通 F# 函数建立语义，再考虑构建器语法。"
 translationKey: part-03/ch-18-workflow-validation
-kind: chapter
-part: 3
-chapter: 18
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch18-workflow-validation
-  - capstone-booking-domain
-  - foundation-example-tests
-exerciseIds:
-  - ch18-exercise-01
-  - ch18-exercise-02
-  - ch18-exercise-03
-termIds:
-  - computation-expression
-  - validation-accumulation
-sources:
-  - id: microsoft-results
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/results
-    checked: "2026-08-24"
-  - id: fsharp-core-result
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-resultmodule.html
-    checked: "2026-08-24"
-  - id: microsoft-computation-expressions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/computation-expressions
-    checked: "2026-08-24"
-  - id: microsoft-component-design
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-24"
 ---
 
 # 第 18 章：显式工作流组合与验证累积 {#overview}
@@ -84,14 +53,51 @@ sources:
 
 共享脚本把原始文本与成功检查后的值分开：
 
-<<< @/../examples/scripts/ch18-workflow-validation.fsx#model{fsharp:line-numbers} [ch18-workflow-validation.fsx]
+```fsharp:line-numbers [ch18-workflow-validation.fsx]
+type ValidationError =
+    | MissingRequestId
+    | MissingAttendee
+    | SeatsNotInteger of raw: string
+    | NonPositiveSeats of actual: int
+    | ExceedsCapacity of requested: int * available: int
 
+type RequestId = RequestId of string
+type Attendee = Attendee of string
+type SeatCount = SeatCount of int
+
+type RawBooking =
+    { RequestId: string
+      Attendee: string
+      Seats: string }
+
+type ValidBooking =
+    { RequestId: RequestId
+      Attendee: Attendee
+      Seats: SeatCount }
+```
 `RawBooking` 可以包含空白或格式错误的文本。`ValidBooking` 需要 `RequestId`、`Attendee` 和 `SeatCount` 值，因此要等三个组件检查全都成功之后才构造它。
 
 错误联合类型保留事实，而不是格式化后的 UI 消息。每个字段验证器返回 `Result<'Value, ValidationError list>`：
 
-<<< @/../examples/scripts/ch18-workflow-validation.fsx#field-validation{fsharp:line-numbers} [ch18-workflow-validation.fsx]
+```fsharp:line-numbers [ch18-workflow-validation.fsx]
+let validateRequestId raw =
+    if String.IsNullOrWhiteSpace raw then
+        Error [ MissingRequestId ]
+    else
+        Ok(RequestId(raw.Trim()))
 
+let validateAttendee raw =
+    if String.IsNullOrWhiteSpace raw then
+        Error [ MissingAttendee ]
+    else
+        Ok(Attendee(raw.Trim()))
+
+let validateSeats (raw: string) =
+    match Int32.TryParse raw with
+    | true, value when value > 0 -> Ok(SeatCount value)
+    | true, value -> Error [ NonPositiveSeats value ]
+    | false, _ -> Error [ SeatsNotInteger raw ]
+```
 每个独立验证器目前要么产生一个值，要么产生只含一项的错误列表。列表给组合层提供统一的错误载体。从类型上说，它允许 `Error []`；本实现永远不产生该值。如果非空本身成为重要不变量，就用非空错误类型保护它，而不是依赖约定。
 
 在 `validateSeats` 内部，整数解析必须先于正数比较。这两个检查相互依赖：解析失败时，没有整数可以比较。跨字段累积并不要求假装一个字段内部的所有操作也都彼此独立。
@@ -110,8 +116,18 @@ match input with
 
 第一种策略嵌套了三个依赖的延续：
 
-<<< @/../examples/scripts/ch18-workflow-validation.fsx#first-error{fsharp:line-numbers} [ch18-workflow-validation.fsx]
-
+```fsharp:line-numbers [ch18-workflow-validation.fsx]
+let validateFirstError (raw: RawBooking) =
+    validateRequestId raw.RequestId
+    |> Result.bind (fun requestId ->
+        validateAttendee raw.Attendee
+        |> Result.bind (fun attendee ->
+            validateSeats raw.Seats
+            |> Result.map (fun seats ->
+                { RequestId = requestId
+                  Attendee = attendee
+                  Seats = seats })))
+```
 面对完全无效的请求，`validateRequestId` 返回 `Error [MissingRequestId]`。参与者和座位验证器位于成功延续内部，所以都不会运行，结果只含第一个错误。
 
 当每一步都使用前一步的受保护输出时，这种行为是正确的。当产品策略只返回一条消息时，它同样有效。但仅仅重排 `Result.bind` 调用不会让它累积错误，只会改变哪个失败排在第一。
@@ -126,8 +142,29 @@ match input with
 
 累积策略会先求值三个字段函数，然后才判断是否能构造结果：
 
-<<< @/../examples/scripts/ch18-workflow-validation.fsx#accumulation{fsharp:line-numbers} [ch18-workflow-validation.fsx]
+```fsharp:line-numbers [ch18-workflow-validation.fsx]
+let errorsOf result =
+    match result with
+    | Ok _ -> []
+    | Error errors -> errors
 
+let validateAccumulating (raw: RawBooking) =
+    let requestIdResult = validateRequestId raw.RequestId
+    let attendeeResult = validateAttendee raw.Attendee
+    let seatsResult = validateSeats raw.Seats
+
+    match requestIdResult, attendeeResult, seatsResult with
+    | Ok requestId, Ok attendee, Ok seats ->
+        Ok
+            { RequestId = requestId
+              Attendee = attendee
+              Seats = seats }
+    | _ ->
+        [ yield! errorsOf requestIdResult
+          yield! errorsOf attendeeResult
+          yield! errorsOf seatsResult ]
+        |> Error
+```
 如果所有结果都是 `Ok`，匹配就构造一个 `ValidBooking`。否则，`errorsOf` 按字段顺序贡献每份失败列表。因此，无效示例会产生：
 
 ```text
@@ -148,8 +185,25 @@ match input with
 
 显式三路匹配很容易审计。当这种模式重复出现时，只提取组合机制：
 
-<<< @/../examples/scripts/ch18-workflow-validation.fsx#reusable-accumulation{fsharp:line-numbers} [ch18-workflow-validation.fsx]
+```fsharp:line-numbers [ch18-workflow-validation.fsx]
+let applyValidation valueResult functionResult =
+    match functionResult, valueResult with
+    | Ok mapping, Ok value -> Ok(mapping value)
+    | Error functionErrors, Error valueErrors -> Error(functionErrors @ valueErrors)
+    | Error errors, Ok _
+    | Ok _, Error errors -> Error errors
 
+let createBooking requestId attendee seats : ValidBooking =
+    { RequestId = requestId
+      Attendee = attendee
+      Seats = seats }
+
+let validateAccumulatingWithApply (raw: RawBooking) =
+    Ok createBooking
+    |> applyValidation (validateRequestId raw.RequestId)
+    |> applyValidation (validateAttendee raw.Attendee)
+    |> applyValidation (validateSeats raw.Seats)
+```
 `applyValidation` 有四种情况：
 
 - 把成功函数应用于成功值；
@@ -166,8 +220,25 @@ match input with
 
 座位数一旦存在，与容量比较就是依赖性的业务检查：
 
-<<< @/../examples/scripts/ch18-workflow-validation.fsx#dependent-workflow{fsharp:line-numbers} [ch18-workflow-validation.fsx]
+```fsharp:line-numbers [ch18-workflow-validation.fsx]
+let ensureWithin capacity (SeatCount requested as seats) =
+    if requested <= capacity then
+        Ok seats
+    else
+        Error [ ExceedsCapacity(requested, capacity) ]
 
+let validateSeatsThenCapacity checkCapacity rawSeats =
+    validateSeats rawSeats |> Result.bind checkCapacity
+
+let observeDependentValidation rawSeats =
+    let mutable capacityChecks = 0
+
+    let observedCheck seats =
+        capacityChecks <- capacityChecks + 1
+        ensureWithin 4 seats
+
+    validateSeatsThenCapacity observedCheck rawSeats, capacityChecks
+```
 `validateSeatsThenCapacity` 使用 `Result.bind`。它注入的容量函数只会收到有效 `SeatCount`。带仪表的包装函数统计调用次数，却没有把可变性放进任一正式函数：
 
 | 输入 | 结果 | 容量检查次数 |
@@ -238,13 +309,13 @@ validation {
 
 ## 运行共享示例 {#run-example}
 
-在仓库根目录运行：
+在示例所在目录运行：
 
 ```console
-dotnet fsi --exec examples/scripts/ch18-workflow-validation.fsx
+dotnet fsi --exec ch18-workflow-validation.fsx
 ```
 
-七行确定性输出与断言证明首错结果、三项和两项错误累积、有效输入时两种策略一致，以及无效、超量和接受的座位文本各自对应的容量检查次数。manifest 会检查确切顺序。
+七行确定性输出与断言证明首错结果、三项和两项错误累积、有效输入时两种策略一致，以及无效、超量和接受的座位文本各自对应的容量检查次数。请比较确切顺序。
 
 ## 练习 {#exercises}
 
@@ -290,10 +361,10 @@ result {
 
 ## 第三部分检查点 {#part-checkpoint}
 
-从仓库根目录运行聚焦工作流测试：
+在示例所在目录运行聚焦工作流测试：
 
 ```console
-dotnet test tests/ExampleTests/ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~BookingWorkflowTests
+dotnet test ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~BookingWorkflowTests
 ```
 
 测试通过表明：独立命令错误按字段顺序累积，有效命令产生事件，已有状态会使后续容量工作短路。它们直接调用普通函数，因此证据不依赖未声明的计算表达式构建器。

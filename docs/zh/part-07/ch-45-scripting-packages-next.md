@@ -2,66 +2,6 @@
 title: "第 45 章：脚本、自动化、包生态与继续学习"
 description: "把 F# 脚本变成确定性的本地自动化，审慎选择并锁定包，再建立持续掌握 F# 的实用途径。"
 translationKey: part-07/ch-45-scripting-packages-next
-kind: chapter
-part: 7
-chapter: 45
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch45-scripting-packages-next
-exerciseIds:
-  - ch45-exercise-01
-  - ch45-exercise-02
-  - ch45-exercise-03
-termIds: []
-sources:
-  - id: microsoft-fsi
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/tools/fsharp-interactive/
-    checked: "2026-08-25"
-  - id: microsoft-fsi-options
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/fsharp-interactive-options
-    checked: "2026-08-25"
-  - id: microsoft-package-reference
-    url: https://learn.microsoft.com/en-us/nuget/consume-packages/package-references-in-project-files
-    checked: "2026-08-25"
-  - id: microsoft-package-evaluation
-    url: https://learn.microsoft.com/en-us/nuget/consume-packages/finding-and-choosing-packages
-    checked: "2026-08-25"
-  - id: microsoft-nuget-audit
-    url: https://learn.microsoft.com/en-us/nuget/concepts/auditing-packages
-    checked: "2026-08-25"
-  - id: microsoft-package-source-mapping
-    url: https://learn.microsoft.com/en-us/nuget/consume-packages/package-source-mapping
-    checked: "2026-08-25"
-  - id: microsoft-dotnet-tools
-    url: https://learn.microsoft.com/en-us/dotnet/core/tools/global-tools
-    checked: "2026-08-25"
-  - id: fake-build
-    url: https://fake.build/
-    checked: "2026-08-25"
-  - id: paket-docs
-    url: https://fsprojects.github.io/Paket/
-    checked: "2026-08-25"
-  - id: microsoft-quotations
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/code-quotations
-    checked: "2026-08-25"
-  - id: microsoft-srtp
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/statically-resolved-type-parameters
-    checked: "2026-08-25"
-  - id: microsoft-flexible-types
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/flexible-types
-    checked: "2026-08-25"
-  - id: microsoft-byrefs
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/byrefs
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-tour
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/tour
-    checked: "2026-08-25"
-  - id: fsharp-core-api
-    url: https://fsharp.github.io/fsharp-core-docs/
-    checked: "2026-08-25"
 ---
 
 # 第 45 章：脚本、自动化、包生态与继续学习 {#overview}
@@ -113,7 +53,7 @@ F# 脚本并不是较低等的 F# 程序。它使用与编译项目相同的语�
 
 ### 用脚本承载完整、可评审的操作 {#script-operation}
 
-脚本应像小型应用一样清楚说明输入、输出、失败行为和拥有的效果。它仍可很简洁。清单脚本只有一个文件，只使用 .NET 随附的库，不建立全局安装，并可从仓库根目录调用。
+脚本应像小型应用一样清楚说明输入、输出、失败行为和拥有的效果。它仍可很简洁。清单脚本只有一个文件，只使用 .NET 随附的库，不建立全局安装，并可从示例所在目录调用。
 
 有用的区分不是“一次性与生产”，而是“有界操作与增长中的产品”。一次数据修复对验证、备份和审计证据的要求，可能比长期开发便利工具更严格。
 
@@ -130,8 +70,8 @@ Microsoft 把命令形状记为 `dotnet fsi [options] [script-file [arguments]]`
 清单脚本接受以下形式：
 
 ```console
-dotnet fsi --exec examples/scripts/ch45-scripting-packages-next.fsx write ./artifacts ./artifacts.manifest.json
-dotnet fsi --exec examples/scripts/ch45-scripting-packages-next.fsx check ./artifacts ./artifacts.manifest.json
+dotnet fsi --exec ch45-scripting-packages-next.fsx write ./artifacts ./artifacts.manifest.json
+dotnet fsi --exec ch45-scripting-packages-next.fsx check ./artifacts ./artifacts.manifest.json
 ```
 
 `--exec` 会运行脚本后退出，而不是留在交互模式。`write` 让输出收敛到期望内容。`check` 不写入，并在输出缺失或过期时返回退出码 `2`。意外失败返回 `1`；成功返回 `0`。
@@ -171,14 +111,30 @@ FSI 按顺序处理脚本声明。其主要指令包括：
 - JSON 的 schema 版本为 `1`，采用无 BOM UTF-8，并恰有一个结尾换行；
 - 期望内容不变时，不触碰现有输出；
 - 替换先在输出目录创建唯一命名文件，再将其移动覆盖目标；
-- 无参数执行会拥有并删除一个唯一临时夹具，供仓库验证使用。
+- 无参数执行会拥有并删除一个唯一临时夹具，完成自检。
 
 ### 建模可观察结果，而非偶然步骤 {#manifest-model}
 
 脚本把规划数据与写入、检查结果区分开：
 
-<<< @/../examples/scripts/ch45-scripting-packages-next.fsx#manifest-model{fsharp:line-numbers} [ch45-scripting-packages-next.fsx]
+```fsharp:line-numbers [ch45-scripting-packages-next.fsx]
+type ManifestEntry =
+    { Path: string
+      Bytes: int64
+      Sha256: string }
 
+type ManifestPlan =
+    { Entries: ManifestEntry array
+      Json: string }
+
+type WriteOutcome =
+    | Updated of fileCount: int
+    | Unchanged of fileCount: int
+
+type CheckOutcome =
+    | Current of fileCount: int
+    | Stale of fileCount: int
+```
 `ManifestPlan` 同时包含结构化条目和边界所需的精确文本字节。`Updated` 与 `Unchanged` 不是含义未说明的布尔值。`Current` 与 `Stale` 则把只读 CI 行为同变更操作分成不同契约。
 
 模型保持很小，因为这是本地自动化。公开工具可能增加 schema 兼容性、结构化诊断、取消、日志与稳定序列化结果。那些需求就是升级信号。
@@ -187,8 +143,48 @@ FSI 按顺序处理脚本声明。其主要指令包括：
 
 文件系统适配器解析完整路径，用操作系统路径相等规则排除输出，递归跳过 reparse point，规范化所报告的分隔符，并对每个已打开流计算哈希：
 
-<<< @/../examples/scripts/ch45-scripting-packages-next.fsx#artifact-scan{fsharp:line-numbers} [ch45-scripting-packages-next.fsx]
+```fsharp:line-numbers [ch45-scripting-packages-next.fsx]
+let pathComparer =
+    if OperatingSystem.IsWindows() then
+        StringComparer.OrdinalIgnoreCase
+    else
+        StringComparer.Ordinal
 
+let samePath left right =
+    pathComparer.Equals(Path.GetFullPath left, Path.GetFullPath right)
+
+let isReparsePoint (attributes: FileAttributes) =
+    attributes.HasFlag FileAttributes.ReparsePoint
+
+let rec regularFilesUnder directory =
+    seq {
+        for path in Directory.EnumerateFileSystemEntries directory do
+            let attributes = File.GetAttributes path
+
+            if not (isReparsePoint attributes) then
+                if attributes.HasFlag FileAttributes.Directory then
+                    yield! regularFilesUnder path
+                else
+                    yield path
+    }
+
+let normalizedRelativePath root path =
+    Path
+        .GetRelativePath(root, path)
+        .Replace(Path.DirectorySeparatorChar, '/')
+        .Replace(Path.AltDirectorySeparatorChar, '/')
+
+let hashFile path =
+    use input = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read)
+    let length = input.Length
+
+    let digest =
+        SHA256.HashData input
+        |> Convert.ToHexString
+        |> fun text -> text.ToLowerInvariant()
+
+    length, digest
+```
 跳过链接能避免意外走出所选树或进入环。这是一项策略，而不是普遍规则：有意包含链接的部署格式需要安全记录链接目标。
 
 以 `FileShare.Read` 打开文件，可阻止配合该约定的 Windows 写入者在哈希期间修改文件。这不是事务式文件系统快照，在跨平台时尤其如此。若生产者可能并发修改文件树，应先发布不可变暂存目录，或使用具有快照语义的存储机制。
@@ -199,8 +195,54 @@ SHA-256 让后续消费者检测字节是否不同于记录值。它不能确认
 
 规划器用 `Utf8JsonWriter` 渲染 JSON，而不依赖未指定的反射顺序。它先排序条目，再固定属性顺序、大小写、缩进、编码与换行策略：
 
-<<< @/../examples/scripts/ch45-scripting-packages-next.fsx#manifest-plan{fsharp:line-numbers} [ch45-scripting-packages-next.fsx]
+```fsharp:line-numbers [ch45-scripting-packages-next.fsx]
+let renderManifest (entries: ManifestEntry array) =
+    use buffer = new MemoryStream()
 
+    use writer = new Utf8JsonWriter(buffer, JsonWriterOptions(Indented = true))
+
+    writer.WriteStartObject()
+    writer.WriteNumber("schemaVersion", 1)
+    writer.WriteStartArray("files")
+
+    for entry in entries do
+        writer.WriteStartObject()
+        writer.WriteString("path", entry.Path)
+        writer.WriteNumber("bytes", entry.Bytes)
+        writer.WriteString("sha256", entry.Sha256)
+        writer.WriteEndObject()
+
+    writer.WriteEndArray()
+    writer.WriteEndObject()
+    writer.Flush()
+
+    Encoding.UTF8.GetString(buffer.ToArray()) + "\n"
+
+let planManifest sourceDirectory outputFile =
+    let sourceRoot = Path.GetFullPath sourceDirectory
+    let outputPath = Path.GetFullPath outputFile
+
+    if not (Directory.Exists sourceRoot) then
+        invalidArg (nameof sourceDirectory) $"Source directory does not exist: {sourceRoot}"
+
+    if isReparsePoint (File.GetAttributes sourceRoot) then
+        invalidArg (nameof sourceDirectory) $"Source directory must not be a symbolic link: {sourceRoot}"
+
+    let entries =
+        regularFilesUnder sourceRoot
+        |> Seq.filter (fun path -> not (samePath path outputPath))
+        |> Seq.map (fun path ->
+            let length, digest = hashFile path
+
+            { Path = normalizedRelativePath sourceRoot path
+              Bytes = length
+              Sha256 = digest })
+        |> Seq.sortWith (fun left right -> StringComparer.Ordinal.Compare(left.Path, right.Path))
+        |> Seq.toArray
+
+    { Entries = entries
+      Json = renderManifest entries }
+```
 该边界仍会读取文件，因此 `planManifest` 并非纯函数。重要分离在于，它会在决定是否改变输出前计算一份完整期望结果。对相同条目数组而言，`renderManifest` 本身是确定性的。
 
 稳定输出能避免嘈杂 diff，并让相等比较具有意义。在枚举后排序可避免继承文件系统顺序。相对路径不会嵌入开发者的绝对目录。最终 JSON 不包含时间戳、机器名或随机标识符。
@@ -209,8 +251,39 @@ SHA-256 让后续消费者检测字节是否不同于记录值。它不能确认
 
 应用层会比较现有文本与期望文本。只有存在差异时，才创建临时文件并替换目标：
 
-<<< @/../examples/scripts/ch45-scripting-packages-next.fsx#idempotent-write{fsharp:line-numbers} [ch45-scripting-packages-next.fsx]
+```fsharp:line-numbers [ch45-scripting-packages-next.fsx]
+let replaceFromSameDirectory (outputPath: string) (content: string) =
+    let outputDirectory = Path.GetDirectoryName outputPath
+    Directory.CreateDirectory outputDirectory |> ignore
 
+    let temporaryPath =
+        Path.Combine(outputDirectory, $".{Path.GetFileName outputPath}.{Guid.NewGuid():N}.tmp")
+
+    try
+        File.WriteAllText(temporaryPath, content, UTF8Encoding(false))
+        File.Move(temporaryPath, outputPath, overwrite = true)
+    finally
+        if File.Exists temporaryPath then
+            File.Delete temporaryPath
+
+let writeManifest sourceDirectory outputFile =
+    let outputPath = Path.GetFullPath outputFile
+    let plan = planManifest sourceDirectory outputPath
+
+    match readExisting outputPath with
+    | Some existing when existing = plan.Json -> Unchanged plan.Entries.Length
+    | _ ->
+        replaceFromSameDirectory outputPath plan.Json
+        Updated plan.Entries.Length
+
+let checkManifest sourceDirectory outputFile =
+    let outputPath = Path.GetFullPath outputFile
+    let plan = planManifest sourceDirectory outputPath
+
+    match readExisting outputPath with
+    | Some existing when existing = plan.Json -> Current plan.Entries.Length
+    | _ -> Stale plan.Entries.Length
+```
 这给出了有用的幂等性质：一次成功 `write` 后，对未变化输入再次 `write` 会报告 `Unchanged`，且不改变输出时间戳。同目录临时文件让最终移动停留在一个文件系统内，并缩短可见不完整目标的窗口。
 
 不要夸大该保证。代码没有请求持久化 flush，没有协调并发写入者，没有保留此前所有权限或元数据位，也不会恢复中断的网络文件系统。“完整本地写入后再替换”是准确说法；“任何崩溃下都具有事务式持久性”则不是。
@@ -221,10 +294,10 @@ SHA-256 让后续消费者检测字节是否不同于记录值。它不能确认
 
 无参数时，清单脚本会在 `Path.GetTempPath()` 下的唯一目录创建两个文件。它写入一次，把输出时间戳设置成哨兵值，再次写入，执行无变更检查，验证 ordinal 规范化路径，最后在 `finally` 中只删除这个自己拥有的目录。
 
-从仓库根目录运行已验证切片：
+在示例所在目录运行已验证切片：
 
 ```console
-dotnet fsi --exec examples/scripts/ch45-scripting-packages-next.fsx
+dotnet fsi --exec ch45-scripting-packages-next.fsx
 ```
 
 登记的样例要求以下有序观察：
@@ -238,7 +311,7 @@ Manifest paths: nested/beta.bin, notes.txt
 Cleanup: removed=true
 ```
 
-仓库会在 .NET SDK `10.0.301` 与 F# 10 下，用全新 FSI 进程执行该脚本。证据覆盖临时夹具、精确输出顺序、幂等第二次写入、只读当前检查、路径规范化与清理。它不覆盖恶意目录、并发生产者、数百万文件、远程文件系统、签名，或每一种 Windows/Linux 文件系统。
+请用全新 FSI 进程运行该脚本。输出可供检查临时夹具、精确顺序、幂等第二次写入、只读当前检查、路径规范化与清理。它不覆盖恶意目录、并发生产者、数百万文件、远程文件系统、签名，或每一种 Windows/Linux 文件系统。
 
 ## 一旦另一调用者依赖自动化，就把它当作公开接口 {#automation-interface}
 
@@ -266,7 +339,7 @@ Cleanup: removed=true
 
 Shell 脚本很擅长调用命令和连接流。当数据解析、分支、转义、集合、错误模型或文件系统规则成为主体时，其可移植性会变差。F# 能给这些决策加上类型并使用普通 .NET API，同时仍可在适当时调用外部进程。
 
-不要只是为了宣称构建使用 F#，就把每个 `dotnet build` 包进 F#。仓库提供的短任务运行器可能更清楚。当 F# 拥有实质解析、规划、验证、并发或可复用策略时再引入它。
+不要只是为了宣称构建使用 F#，就把每个 `dotnet build` 包进 F#。简短任务文件可能更清楚。当 F# 拥有实质解析、规划、验证、并发或可复用策略时再引入它。
 
 调用进程时，应传入参数列表，而不是构造未转义 shell 字符串；捕获退出状态与有界输出，传播取消，并决定继承哪些环境变量。机密不能出现在命令行或普通日志中。
 
@@ -325,7 +398,7 @@ FSI 通常不会使用包构建目标。其文档化 `usepackagetargets=true` �
 
 锁文件回答解析问题，而不是信任或运行期正确性。它不证明包安全、许可证适用于产品、与目标兼容或行为正确。它也不会强迫消费应用的图使用库项目的私有解析；顶层消费者会解析自己的闭包。
 
-SDK 与工具版本也应显式。本仓库用 `global.json` 固定 SDK，用 `.config/dotnet-tools.json` 固定本地工具，用项目锁文件固定 NuGet 图，并用工作区锁文件固定 JavaScript 工具。每种机制覆盖不同的图。
+SDK 与工具版本也应显式。项目可以用 `global.json` 固定 SDK，用 `.config/dotnet-tools.json` 固定本地工具，用项目锁文件固定 NuGet 图，并用工作区锁文件固定 JavaScript 工具。每种机制覆盖不同的图；只使用项目确实需要的机制。
 
 有意更新：改变一个有界集合，重新生成锁，检查直接与传递差异，阅读相关发布说明，运行聚焦测试和完整测试，并保留回滚。“最新”是查询结果，不是评审策略。
 

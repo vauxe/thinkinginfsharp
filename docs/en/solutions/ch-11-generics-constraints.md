@@ -2,30 +2,6 @@
 title: "Chapter 11 Solutions"
 description: "Infer generic signatures, repair value restrictions by intent, and preserve measured dimensions at boundaries."
 translationKey: solutions/ch-11-generics-constraints
-kind: solution
-part: 2
-chapter: 11
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch11-generics-constraints
-exerciseIds:
-  - ch11-exercise-01
-  - ch11-exercise-02
-  - ch11-exercise-03
-termIds: []
-sources:
-  - id: microsoft-automatic-generalization
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/automatic-generalization
-    checked: "2026-08-24"
-  - id: microsoft-generic-constraints
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/constraints
-    checked: "2026-08-24"
-  - id: microsoft-units-of-measure
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/units-of-measure
-    checked: "2026-08-24"
 ---
 
 # Chapter 11 Solutions {#overview}

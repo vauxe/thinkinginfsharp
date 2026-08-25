@@ -2,28 +2,6 @@
 title: "Chapter 2 Solutions"
 description: "Reasoning about values, bindings, basic types, explicit conversion, and local shadowing."
 translationKey: solutions/ch-02-values-bindings-expressions
-kind: solution
-part: 1
-chapter: 2
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch02-values-bindings-expressions
-  - ch02-exercise-02-solution
-exerciseIds:
-  - ch02-exercise-01
-  - ch02-exercise-02
-  - ch02-exercise-03
-termIds: []
-sources:
-  - id: microsoft-values
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/values/
-    checked: "2026-08-24"
-  - id: microsoft-type-inference
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/type-inference
-    checked: "2026-08-24"
 ---
 
 # Chapter 2 Solutions {#overview}
@@ -54,8 +32,13 @@ The compiler still determines all these types at compile time without annotation
 
 One direct answer is in the separate solution script:
 
-<<< @/../examples/solutions/ch02-exercise-02.fsx#solution{fsharp:line-numbers} [ch02-exercise-02.fsx]
+```fsharp:line-numbers [ch02-exercise-02.fsx]
+let rawAttendeeCount = "24"
+let attendeeCount = int rawAttendeeCount
+let nextAttendeeCount = attendeeCount + 1
 
+printfn "Next attendee count: %d" nextAttendeeCount
+```
 `rawAttendeeCount` is a `string`, while the other side of integer addition is an `int`; F# will not implicitly interpret arbitrary text as an integer. `int rawAttendeeCount` explicitly produces an `int`, so both `attendeeCount` and `nextAttendeeCount` are `int`. The final output is `Next attendee count: 25`.
 
 One risk is deliberately left here: if the text is not a valid integer, the `int` conversion throws an exception. This exercise assumes a valid-input boundary. At a real input boundary, later chapters will express that branch with an explicit failure type or controlled exception conversion. Do not read this example as “all parsing should call `int` directly.”
@@ -64,8 +47,14 @@ One risk is deliberately left here: if the text is not a valid integer, the `int
 
 Look at the same region again:
 
-<<< @/../examples/scripts/ch02-values-bindings-expressions.fsx#local-shadowing{fsharp:line-numbers} [ch02-values-bindings-expressions.fsx]
+```fsharp:line-numbers [ch02-values-bindings-expressions.fsx]
+let normalizedCapacity =
+    let capacity = 20
+    let capacity = capacity + 4
+    capacity
 
+printfn "Normalized capacity: %d; outer capacity: %d" normalizedCapacity capacity
+```
 The first local right side directly produces `20`. While evaluating the second right side, `capacity + 4`, the name still denotes the first local binding, so the result is `24`; the new binding then shadows it. The final body sees the newest local binding, so `normalizedCapacity` is `24`.
 
 After leaving that local scope, the script-level `capacity` is visible again and remains `40`. The region establishes three bindings: two local bindings named `capacity` and the top-level `normalizedCapacity`. It mutates no existing value.

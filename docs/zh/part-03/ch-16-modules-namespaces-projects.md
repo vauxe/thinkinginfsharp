@@ -2,56 +2,6 @@
 title: "第 16 章：模块、命名空间、项目与编译设置"
 description: "把脚本转成按依赖排序的 F# 项目，区分命名空间与模块，并明确包括最小可空标注在内的编译器契约。"
 translationKey: part-03/ch-16-modules-namespaces-projects
-kind: chapter
-part: 3
-chapter: 16
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch16-multifile-project
-  - ch16-wrong-file-order
-exerciseIds:
-  - ch16-exercise-01
-  - ch16-exercise-02
-  - ch16-exercise-03
-termIds:
-  - assembly
-  - compilation-order
-  - module
-  - namespace
-  - nullable-reference-type
-  - open-declaration
-  - project-file
-sources:
-  - id: microsoft-modules
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/modules
-    checked: "2026-08-24"
-  - id: microsoft-namespaces
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/namespaces
-    checked: "2026-08-24"
-  - id: microsoft-open
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/import-declarations-the-open-keyword
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-file-order
-    url: https://learn.microsoft.com/en-us/odata/webapi-8/tutorials/basic-crud-in-fsharp
-    checked: "2026-08-24"
-  - id: microsoft-compiler-options
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/compiler-options
-    checked: "2026-08-24"
-  - id: microsoft-null-values
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/values/null-values
-    checked: "2026-08-24"
-  - id: microsoft-global-json
-    url: https://learn.microsoft.com/en-us/dotnet/core/tools/global-json
-    checked: "2026-08-24"
-  - id: microsoft-msbuild-items
-    url: https://learn.microsoft.com/en-us/visualstudio/msbuild/common-msbuild-project-items
-    checked: "2026-08-24"
-  - id: microsoft-component-design
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-24"
 ---
 
 # 第 16 章：模块、命名空间、项目与编译设置 {#overview}
@@ -81,7 +31,7 @@ sources:
 本章示例的物理布局如下：
 
 ```text
-examples/chapters/ch16/
+./
 ├── Ch16.fsproj
 ├── Domain.fs
 ├── Workflow.fs
@@ -119,8 +69,21 @@ namespace ThinkingInFSharp.Ch16
 
 项目文件按依赖顺序列出源代码输入：
 
-<<< @/../examples/chapters/ch16/Ch16.fsproj{xml:line-numbers} [Ch16.fsproj]
+```xml:line-numbers [Ch16.fsproj]
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Include="Domain.fs" />
+    <Compile Include="Workflow.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+</Project>
+```
 `<Compile Include="Domain.fs" />` 提供一个编译器输入。下一项可以使用它的定义，再下一项可以使用前面两个文件的定义。重新排列编辑器标签或移动目录中的文件不会改变这个契约；修改 `<Compile>` 顺序才会。
 
 同样的顺序规则也适用于一个源文件内部：定义通常使用更早的定义。F# 为真正的递归提供了显式构造，但普通程序分层应从基础读向组合。
@@ -129,10 +92,21 @@ namespace ThinkingInFSharp.Ch16
 
 ### 错误顺序会产生真实的编译错误 {#wrong-order}
 
-仓库中另有一个预期错误项目，故意把 `Workflow.fs` 列在最前：
+下面这个最小预期错误项目故意把 `Workflow.fs` 列在最前：
 
-<<< @/../examples/expected-errors/ch16-file-order/Ch16WrongOrder.fsproj{xml:line-numbers} [Ch16WrongOrder.fsproj]
+```xml:line-numbers [Ch16WrongOrder.fsproj]
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Include="Workflow.fs" />
+    <Compile Include="Domain.fs" />
+  </ItemGroup>
+</Project>
+```
 当编译器到达 `Workflow.fs` 中这一行时：
 
 ```fsharp
@@ -218,9 +192,9 @@ let requested = request |> Domain.BookingRequest.seats |> Domain.SeatCount.value
 | `<OutputType>Exe</OutputType>` | 项目是否打包为可执行程序，而不是默认的库？ |
 | `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` | 编译器警告是否必须使构建失败？ |
 
-这些控制项彼此相关，却不能互换。选择 SDK `10.0.301` 并不等于声明项目面向 `net10.0`，而面向 `net10.0` 本身也不会冻结每项 F# 语言特性。本仓库明确声明两类策略，不依赖机器上碰巧安装了什么。
+这些控制项彼此相关，却不能互换。选择 SDK `10.0.301` 并不等于声明项目面向 `net10.0`，而面向 `net10.0` 本身也不会冻结每项 F# 语言特性。可复现项目应明确声明两类策略，不依赖机器上碰巧安装了什么。
 
-共享策略可以放在 `Directory.Build.props` 中；MSBuild 会为其子目录中的项目导入它。本仓库集中设置了 `LangVersion`、空值检查、警告视为错误、确定性输出和锁定包还原。`Ch16.fsproj` 重复写出 `<Nullable>enable</Nullable>`，让独立教学示例自己展示关键的边界。在更大的代码库中，应集中稳定策略，只进行有意的覆盖。
+共享策略可以放在 `Directory.Build.props` 中；MSBuild 会为其子目录中的项目导入它。较大的代码库可以在那里集中设置 `LangVersion`、空值检查、警告视为错误、确定性输出和锁定包还原。小型独立教学项目应保持自包含；只有多个真实项目共享策略时才值得集中配置。
 
 应优先修复诊断，而不是全局抑制它。警告视为错误让这项纪律在本地构建和 CI 中可复现；这并不表示所有可能的可选警告都已经启用。
 
@@ -277,12 +251,12 @@ I/O 适配器与应用组合
 
 ## 构建、运行并测试项目 {#build-test}
 
-在仓库根目录运行：
+在示例所在目录运行：
 
 ```console
-dotnet build examples/chapters/ch16/Ch16.fsproj -c Release --locked-mode
-dotnet run --project examples/chapters/ch16/Ch16.fsproj -c Release --no-build
-dotnet test tests/ExampleTests/ExampleTests.fsproj -c Release --no-restore --filter FullyQualifiedName~Ch16ProjectTests
+dotnet build Ch16.fsproj -c Release --locked-mode
+dotnet run --project Ch16.fsproj -c Release --no-build
+dotnet test ExampleTests.fsproj -c Release --no-restore --filter FullyQualifiedName~Ch16ProjectTests
 ```
 
 可执行程序输出：

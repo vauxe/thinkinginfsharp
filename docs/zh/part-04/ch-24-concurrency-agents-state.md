@@ -2,42 +2,6 @@
 title: "第 24 章：并行、并发、代理与受控可变性"
 description: "区分重叠工作与 CPU 并行，确定性复现竞争，并根据不变量选择不可变数据、锁、原子操作、代理或并发缓存。"
 translationKey: part-04/ch-24-concurrency-agents-state
-kind: chapter
-part: 4
-chapter: 24
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch24-concurrency-agents-state
-  - capstone-booking-domain
-  - foundation-example-tests
-exerciseIds:
-  - ch24-exercise-01
-  - ch24-exercise-02
-  - ch24-exercise-03
-termIds:
-  - effect
-sources:
-  - id: dotnet-task-parallel-library
-    url: https://learn.microsoft.com/en-us/dotnet/standard/parallel-programming/task-parallel-library-tpl
-    checked: "2026-08-24"
-  - id: dotnet-data-parallelism
-    url: https://learn.microsoft.com/en-us/dotnet/standard/parallel-programming/data-parallelism-task-parallel-library
-    checked: "2026-08-24"
-  - id: fsharp-array-parallel
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-arraymodule-parallel.html
-    checked: "2026-08-24"
-  - id: dotnet-interlocked
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.threading.interlocked?view=net-10.0
-    checked: "2026-08-24"
-  - id: fsharp-mailbox-processor
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-control-fsharpmailboxprocessor-1.html
-    checked: "2026-08-24"
-  - id: dotnet-concurrent-get-or-add
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.collections.concurrent.concurrentdictionary-2.getoradd?view=net-10.0
-    checked: "2026-08-24"
 ---
 
 # 第 24 章：并行、并发、代理与受控可变性 {#overview}
@@ -78,8 +42,34 @@ F# 让不可变值很容易使用，从而消除许多意外竞争。但队列�
 
 共享示例启动两个任务表达式。每一个都会记录已经进入，然后等待同一个关闭的闩锁：
 
-<<< @/../examples/scripts/ch24-concurrency-agents-state.fsx#concurrent-waits{fsharp:line-numbers} [ch24-concurrency-agents-state.fsx]
+```fsharp:line-numbers [ch24-concurrency-agents-state.fsx]
+let releaseWaits = newGate<unit> ()
+let entered = [| 0 |]
 
+let waitingWork label =
+    task {
+        Interlocked.Increment(&entered[0]) |> ignore
+        do! releaseWaits.Task
+        return label
+    }
+
+let firstWait = waitingWork "first"
+let secondWait = waitingWork "second"
+let bothPending = not firstWait.IsCompleted && not secondWait.IsCompleted
+
+assert (entered[0] = 2)
+assert bothPending
+printfn "Concurrent waits: entered=%d pending=%b" entered[0] bothPending
+
+releaseWaits.SetResult()
+
+let waitResults =
+    let running = Task.WhenAll [| firstWait; secondWait |]
+    running.GetAwaiter().GetResult()
+
+assert (waitResults = [| "first"; "second" |])
+printfn "Concurrent results: %A" waitResults
+```
 两项操作都在进行中，而且都没有完成。这证明了并发生命周期，却没有说明 CPU 是否同时执行或线程身份是什么。释放同一个闩锁会让两者恢复，`Task.WhenAll` 按输入任务顺序返回结果，但测试不对完成调度顺序作断言。
 
 无限并发不是性能计划。每个外部依赖都有连接数、队列、内存与速率限制。应当在受限资源附近限制并发，并决定超额工作是等待、失败还是被拒绝。
@@ -88,8 +78,15 @@ F# 让不可变值很容易使用，从而消除许多意外竞争。但队列�
 
 `Array.Parallel.map` 通过 .NET 并行基础设施对数组变换进行分区：
 
-<<< @/../examples/scripts/ch24-concurrency-agents-state.fsx#parallel-map{fsharp:line-numbers} [ch24-concurrency-agents-state.fsx]
+```fsharp:line-numbers [ch24-concurrency-agents-state.fsx]
+let values = [| 1..8 |]
+let sequentialSquares = values |> Array.map (fun value -> value * value)
+let parallelSquares = values |> Array.Parallel.map (fun value -> value * value)
+let parallelAgrees = parallelSquares = sequentialSquares
 
+assert parallelAgrees
+printfn "Parallel map agrees: %b" parallelAgrees
+```
 映射是纯的，每个输出只依赖一个输入，因此调度顺序不会改变值。断言证明功能等价，而非速度。对于这个小数组，并行版本很可能没有必要；第 31 章会先测量再选择。
 
 审查并行映射时要考虑：
@@ -109,8 +106,34 @@ F# 让不可变值很容易使用，从而消除许多意外竞争。但队列�
 
 概率式压力测试有时会错过这项竞争。共享测试使用两个参与者的 `Barrier`：两个长时间运行的工作线程都在任一线程可以写入前完成读取。因此错误结果是被强制产生，而不是碰运气：
 
-<<< @/../examples/scripts/ch24-concurrency-agents-state.fsx#shared-state{fsharp:line-numbers} [ch24-concurrency-agents-state.fsx]
+```fsharp:line-numbers [ch24-concurrency-agents-state.fsx]
+let racyCounter = [| 0 |]
 
+runTwoWithBarrier (fun barrier ->
+    let snapshot = racyCounter[0]
+    barrier.SignalAndWait() |> ignore
+    racyCounter[0] <- snapshot + 1)
+
+let lockedCounter = [| 0 |]
+let counterLock = obj ()
+
+runTwoWithBarrier (fun barrier ->
+    barrier.SignalAndWait() |> ignore
+
+    lock counterLock (fun () -> lockedCounter[0] <- lockedCounter[0] + 1))
+
+let atomicCounter = [| 0 |]
+
+runTwoWithBarrier (fun barrier ->
+    barrier.SignalAndWait() |> ignore
+    Interlocked.Increment(&atomicCounter[0]) |> ignore)
+
+assert (racyCounter[0] = 1)
+assert (lockedCounter[0] = 2)
+assert (atomicCounter[0] = 2)
+
+printfn "Shared counter: race=%d lock=%d interlocked=%d" racyCounter[0] lockedCounter[0] atomicCounter[0]
+```
 同一屏障启动两个修正版。`lock` 使整个读取—修改—写入临界区互斥。`Interlocked.Increment` 原子地执行它所支持的更新。确定性结果分别是 `1`、`2`、`2`。
 
 仅有 `volatile` 可见性不会把多步骤递增变成原子操作。同样，线程安全集合只保护它自己的方法；它不会自动把跨多个调用的序列变成事务。
@@ -139,8 +162,43 @@ F# 让不可变值很容易使用，从而消除许多意外竞争。但队列�
 
 容量示例把 `Remaining` 与 `Accepted` 作为一项不变量更新：
 
-<<< @/../examples/scripts/ch24-concurrency-agents-state.fsx#compound-invariant{fsharp:line-numbers} [ch24-concurrency-agents-state.fsx]
+```fsharp:line-numbers [ch24-concurrency-agents-state.fsx]
+type CapacityState =
+    { mutable Remaining: int
+      mutable Accepted: int }
 
+let capacity = { Remaining = 3; Accepted = 0 }
+let capacityLock = obj ()
+
+let tryReserve seats =
+    lock capacityLock (fun () ->
+        if seats > 0 && seats <= capacity.Remaining then
+            capacity.Remaining <- capacity.Remaining - seats
+            capacity.Accepted <- capacity.Accepted + 1
+            true
+        else
+            false)
+
+let reservationResults = Array.zeroCreate<bool> 2
+let reservationIndex = [| -1 |]
+
+runTwoWithBarrier (fun barrier ->
+    let index = Interlocked.Increment(&reservationIndex[0])
+    barrier.SignalAndWait() |> ignore
+    reservationResults[index] <- tryReserve 2)
+
+let acceptedReservations = reservationResults |> Array.filter id |> Array.length
+let capacityInvariant = capacity.Remaining = 1 && capacity.Accepted = 1
+
+assert (acceptedReservations = 1)
+assert capacityInvariant
+
+printfn
+    "Locked capacity: accepted=%d remaining=%d invariant=%b"
+    acceptedReservations
+    capacity.Remaining
+    capacityInvariant
+```
 两个两座请求争抢容量三。恰好一个成功，两个字段描述同一个已提交转换。分别进行原子递减与递增，本身不能让这一对操作成为事务，也不能阻止容量变成负数。
 
 ### 原子操作保护特定操作 {#atomics}
@@ -155,8 +213,61 @@ F# 让不可变值很容易使用，从而消除许多意外竞争。但队列�
 
 共享预约代理拥有 `remaining` 与 `accepted`：
 
-<<< @/../examples/scripts/ch24-concurrency-agents-state.fsx#mailbox-agent{fsharp:line-numbers} [ch24-concurrency-agents-state.fsx]
+```fsharp:line-numbers [ch24-concurrency-agents-state.fsx]
+type ReservationReply =
+    | Accepted of remaining: int
+    | Rejected of remaining: int
 
+type ReservationMessage =
+    | Reserve of seats: int * reply: AsyncReplyChannel<ReservationReply>
+    | Stop of reply: AsyncReplyChannel<int * int>
+
+let reservationAgent =
+    MailboxProcessor.Start(fun inbox ->
+        let rec loop remaining accepted =
+            async {
+                let! message = inbox.Receive()
+
+                match message with
+                | Reserve(seats, reply) when seats > 0 && seats <= remaining ->
+                    let nextRemaining = remaining - seats
+                    reply.Reply(Accepted nextRemaining)
+                    return! loop nextRemaining (accepted + 1)
+                | Reserve(_, reply) ->
+                    reply.Reply(Rejected remaining)
+                    return! loop remaining accepted
+                | Stop reply -> reply.Reply(remaining, accepted)
+            }
+
+        loop 3 0)
+
+let agentReplies =
+    [| reservationAgent.PostAndAsyncReply(fun reply -> Reserve(2, reply))
+       reservationAgent.PostAndAsyncReply(fun reply -> Reserve(2, reply)) |]
+    |> Async.Parallel
+    |> Async.RunSynchronously
+
+let agentAccepted =
+    agentReplies
+    |> Array.filter (function
+        | Accepted _ -> true
+        | Rejected _ -> false)
+    |> Array.length
+
+let agentRemaining, agentAcceptedState = reservationAgent.PostAndReply Stop
+
+assert (agentAccepted = 1)
+assert (agentRemaining = 1)
+assert (agentAcceptedState = 1)
+
+printfn
+    "Agent capacity: accepted=%d remaining=%d invariant=%b"
+    agentAccepted
+    agentRemaining
+    (agentAcceptedState = agentAccepted)
+
+reservationAgent.Dispose()
+```
 两个调用方创建等待回复的计算，`Async.Parallel` 同时启动它们。到达顺序有意保持未指定，因此测试只断言不变量：一个请求被接受、剩余一个座位，而且代理状态与回复一致。`Stop` 返回最终状态并结束循环；随后释放处理器。
 
 回复通道是一种能力，必须恰好回复一次。应定义畸形消息、处理程序异常、取消、关闭，以及调用方停止等待时的行为。若生产者可能超过单一消费者，就监视队列或限制接纳。
@@ -187,8 +298,39 @@ F# 让不可变值很容易使用，从而消除许多意外竞争。但队列�
 
 示例存储 `Lazy<int>` 值：
 
-<<< @/../examples/scripts/ch24-concurrency-agents-state.fsx#cache{fsharp:line-numbers} [ch24-concurrency-agents-state.fsx]
+```fsharp:line-numbers [ch24-concurrency-agents-state.fsx]
+let cache = ConcurrentDictionary<string, Lazy<int>>()
+let computations = [| 0 |]
 
+let getCached key =
+    cache.GetOrAdd(
+        key,
+        fun _ ->
+            lazy
+                (Interlocked.Increment(&computations[0]) |> ignore
+                 23)
+    )
+    |> fun delayed -> delayed.Value
+
+let cacheBarrier = new Barrier(2)
+
+let cachedTasks =
+    [| startLongRunning (fun () ->
+           cacheBarrier.SignalAndWait() |> ignore
+           getCached "quote" |> ignore)
+       startLongRunning (fun () ->
+           cacheBarrier.SignalAndWait() |> ignore
+           getCached "quote" |> ignore) |]
+
+Task.WaitAll cachedTasks
+let cachedValues = [| getCached "quote"; getCached "quote" |]
+
+assert (cachedValues = [| 23; 23 |])
+assert (computations[0] = 1)
+assert (cache.Count = 1)
+printfn "Cache: values=%A computations=%d entries=%d" cachedValues computations[0] cache.Count
+cacheBarrier.Dispose()
+```
 竞争的字典工厂可能分配多个 `Lazy`，但调用方会求值字典实际返回的那一个实例。默认 `Lazy` 的执行并发布语义使演示中的计算只运行一次。这也会缓存值创建期间抛出的异常，而且字典会无限增长；这些是策略，而不是普遍理想的默认值。
 
 对于远程工作，共享进行中的 `Task<'T>` 可以合并同一项并发请求（single-flight），但第 23 章的所有权问题仍然成立。一个调用方不应意外取消所有人共享的工作。
@@ -207,10 +349,10 @@ F# 让不可变值很容易使用，从而消除许多意外竞争。但队列�
 
 ## 运行共享示例 {#run-example}
 
-在仓库根目录运行：
+在示例所在目录运行：
 
 ```console
-dotnet fsi --checknulls+ --exec examples/scripts/ch24-concurrency-agents-state.fsx
+dotnet fsi --checknulls+ --exec ch24-concurrency-agents-state.fsx
 ```
 
 七行确定性输出覆盖并发等待、数据并行等价、强制丢失更新、锁与原子修正、复合容量不变量、代理串行化，以及单次计算缓存。
@@ -253,7 +395,7 @@ dotnet fsi --checknulls+ --exec examples/scripts/ch24-concurrency-agents-state.f
 用确定性异步替身运行预约端口契约：
 
 ```console
-dotnet test tests/ExampleTests/ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~BookingAsyncPortTests
+dotnet test ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~BookingAsyncPortTests
 ```
 
 测试通过表明：调用方取消令牌会到达每个端口，受控操作在显式成功、失败或观察取消前会保持等待。它们不建立跨进程一致性或持久性保证。

@@ -2,36 +2,6 @@
 title: "Chapter 33 Solutions"
 description: "Classify booking values by role, design a seat-change command and fact without crossing boundaries, and choose persistence from stated guarantees."
 translationKey: solutions/ch-33-domain-language-model
-kind: solution
-part: 6
-chapter: 33
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - capstone-booking-domain
-exerciseIds:
-  - ch33-exercise-01
-  - ch33-exercise-02
-  - ch33-exercise-03
-termIds: []
-sources:
-  - id: microsoft-fsharp-records
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/records
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-discriminated-unions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions
-    checked: "2026-08-24"
-  - id: microsoft-domain-events
-    url: https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/domain-events-design-implementation
-    checked: "2026-08-24"
-  - id: microsoft-cqrs-pattern
-    url: https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs
-    checked: "2026-08-24"
-  - id: microsoft-event-sourcing-pattern
-    url: https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing
-    checked: "2026-08-24"
 ---
 
 # Chapter 33 Solutions {#overview}

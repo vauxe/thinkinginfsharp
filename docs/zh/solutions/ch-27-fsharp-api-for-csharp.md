@@ -2,31 +2,6 @@
 title: "第 27 章练习答案"
 description: "把泄露的 F# 结果投影为受控 .NET 响应，用重载演进查询，并用专用 DTO 隔离序列化要求。"
 translationKey: solutions/ch-27-fsharp-api-for-csharp
-kind: solution
-part: 5
-chapter: 27
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch27-fsharp-api
-  - ch27-csharp-client
-exerciseIds:
-  - ch27-exercise-01
-  - ch27-exercise-02
-  - ch27-exercise-03
-termIds: []
-sources:
-  - id: microsoft-fsharp-component-guidelines
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-24"
-  - id: dotnet-breaking-changes
-    url: https://learn.microsoft.com/en-us/dotnet/standard/library-guidance/breaking-changes
-    checked: "2026-08-24"
-  - id: fsharp-climutable
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-climutableattribute.html
-    checked: "2026-08-24"
 ---
 
 # 第 27 章练习答案 {#overview}
@@ -51,12 +26,40 @@ sources:
 
 核心仍返回联合；边界只做投影：
 
-<<< @/../examples/chapters/ch27/FSharpApi/Library.fs#boundary-adapter{fsharp:line-numbers} [Library.fs]
+```fsharp:line-numbers [Library.fs]
+module internal ResponseAdapter =
+    let fromDecision decision =
+        match decision with
+        | Accepted(confirmationCode, remainingSeats) ->
+            BookingResponse(BookingOutcome.Accepted, confirmationCode, Nullable remainingSeats, null, Nullable<int>())
+        | Rejected(message, suggestedSeats) ->
+            let suggestion =
+                match suggestedSeats with
+                | Some seats -> Nullable seats
+                | None -> Nullable<int>()
 
+            BookingResponse(BookingOutcome.Rejected, null, Nullable<int>(), message, suggestion)
+```
 公开入口验证跨边界参数，然后调用同一个核心：
 
-<<< @/../examples/chapters/ch27/FSharpApi/Library.fs#public-api{fsharp:line-numbers} [Library.fs]
+```fsharp:line-numbers [Library.fs]
+/// <summary>Provides the stable .NET entry point for booking decisions.</summary>
+[<AbstractClass; Sealed>]
+type BookingApi private () =
+    /// <summary>Evaluates one request against the supplied available capacity.</summary>
+    /// <param name="capacity">Available seats. Negative capacity is invalid configuration.</param>
+    /// <param name="request">A non-null request to evaluate.</param>
+    /// <returns>A response projected into ordinary .NET enum, class, string, and nullable-value members.</returns>
+    /// <exception cref="System.ArgumentNullException"><paramref name="request"/> is <see langword="null"/>.</exception>
+    /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="capacity"/> is negative.</exception>
+    static member Evaluate(capacity: int, request: BookingRequest) =
+        ArgumentNullException.ThrowIfNull(request, nameof request)
 
+        if capacity < 0 then
+            raise (ArgumentOutOfRangeException(nameof capacity, capacity, "Capacity cannot be negative."))
+
+        request |> Decision.evaluate capacity |> ResponseAdapter.fromDecision
+```
 可以另为 F# 调用者公开一个惯用表面，例如返回抽象的领域结果；不要让这个便利层成为 C# 契约的实现来源。两个表面都应转发到同一个内部函数。
 
 ## 练习 2：增加可选筛选而不破坏调用方 {#exercise-02}

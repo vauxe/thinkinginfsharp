@@ -2,85 +2,6 @@
 title: "Chapter 42: Cloud, Containers, Serverless, and .NET Aspire"
 description: "Choose a deployment model from process, state, scaling, operational, security, and evidence requirements while keeping F# application boundaries explicit."
 translationKey: part-07/ch-42-cloud-containers-aspire
-kind: chapter
-part: 7
-chapter: 42
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ecosystem-cloud-service
-  - ecosystem-cloud-apphost
-exerciseIds:
-  - ch42-exercise-01
-  - ch42-exercise-02
-  - ch42-exercise-03
-termIds: []
-sources:
-  - id: aspire-sdk
-    url: https://aspire.dev/get-started/aspire-sdk/
-    checked: "2026-08-25"
-  - id: aspire-architecture
-    url: https://aspire.dev/architecture/overview/
-    checked: "2026-08-25"
-  - id: aspire-existing-app
-    url: https://aspire.dev/get-started/add-aspire-existing-app/
-    checked: "2026-08-25"
-  - id: aspire-integrations
-    url: https://aspire.dev/integrations/overview/
-    checked: "2026-08-25"
-  - id: aspire-health-checks
-    url: https://aspire.dev/fundamentals/health-checks/
-    checked: "2026-08-25"
-  - id: aspire-service-defaults
-    url: https://aspire.dev/get-started/csharp-service-defaults/
-    checked: "2026-08-25"
-  - id: aspire-deployment
-    url: https://aspire.dev/deployment/
-    checked: "2026-08-25"
-  - id: aspire-deploy-model
-    url: https://aspire.dev/deployment/deploy-with-aspire/
-    checked: "2026-08-25"
-  - id: aspire-environments
-    url: https://aspire.dev/deployment/environments/
-    checked: "2026-08-25"
-  - id: aspire-cicd
-    url: https://aspire.dev/deployment/ci-cd/
-    checked: "2026-08-25"
-  - id: aspire-apphost-nuget
-    url: https://www.nuget.org/packages/Aspire.AppHost.Sdk/13.5.2
-    checked: "2026-08-25"
-  - id: dotnet-container-overview
-    url: https://learn.microsoft.com/dotnet/core/containers/overview
-    checked: "2026-08-25"
-  - id: dotnet-container-ubuntu
-    url: https://learn.microsoft.com/dotnet/core/compatibility/containers/10.0/default-images-use-ubuntu
-    checked: "2026-08-25"
-  - id: dotnet-10-overview
-    url: https://learn.microsoft.com/dotnet/core/whats-new/dotnet-10/overview
-    checked: "2026-08-25"
-  - id: aspnet-health-checks
-    url: https://learn.microsoft.com/aspnet/core/host-and-deploy/health-checks?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: dotnet-generic-host
-    url: https://learn.microsoft.com/aspnet/core/fundamentals/host/generic-host?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: kubernetes-probes
-    url: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes
-    checked: "2026-08-25"
-  - id: azure-functions-isolated
-    url: https://learn.microsoft.com/azure/azure-functions/dotnet-isolated-process-guide
-    checked: "2026-08-25"
-  - id: azure-functions-retries
-    url: https://learn.microsoft.com/azure/azure-functions/functions-bindings-error-pages
-    checked: "2026-08-25"
-  - id: aws-lambda-best-practices
-    url: https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html
-    checked: "2026-08-25"
-  - id: aws-lambda-dotnet-container
-    url: https://docs.aws.amazon.com/lambda/latest/dg/csharp-image.html
-    checked: "2026-08-25"
 ---
 
 # Chapter 42: Cloud, Containers, Serverless, and .NET Aspire {#overview}
@@ -156,26 +77,120 @@ The local cloud sample deliberately contains one F# HTTP service, one C# project
 
 ### The F# service and pinned image base {#fsharp-service}
 
-<<< @/../examples/ecosystem/cloud/CloudService.fsproj{xml:line-numbers} [CloudService.fsproj]
+```xml:line-numbers [CloudService.fsproj]
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ContainerRepository>thinking-in-fsharp-cloud-service</ContainerRepository>
+    <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0.11</ContainerBaseImage>
+  </PropertyGroup>
 
-The Web SDK targets `net10.0`. Repository policy locks FSharp.Core 10.1.301. The image base is explicitly `mcr.microsoft.com/dotnet/aspnet:10.0.11`; a floating `10.0` tag would silently move the runtime beneath an unchanged commit. .NET 10 unqualified Microsoft image tags use Ubuntu rather than the Debian base used by earlier releases, so OS assumptions need testing.
+  <ItemGroup>
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+</Project>
+```
+The Web SDK targets `net10.0`; a copied sample can pin FSharp.Core 10.1.301 in its project file. The image base is explicitly `mcr.microsoft.com/dotnet/aspnet:10.0.11`; a floating `10.0` tag would silently move the runtime beneath an unchanged commit. .NET 10 unqualified Microsoft image tags use Ubuntu rather than the Debian base used by earlier releases, so OS assumptions need testing.
 
-<<< @/../examples/ecosystem/cloud/Program.fs{fsharp:line-numbers} [Program.fs]
+```fsharp:line-numbers [Program.fs]
+namespace ThinkingInFSharp.Ecosystem.Cloud
 
+open System
+open System.Text.Json.Serialization
+open System.Threading.Tasks
+open Microsoft.AspNetCore.Builder
+open Microsoft.AspNetCore.Http
+
+[<CLIMutable>]
+type HealthResponse =
+    { [<JsonPropertyName("status")>]
+      Status: string }
+
+[<CLIMutable>]
+type RuntimeResponse =
+    { [<JsonPropertyName("service")>]
+      Service: string
+      [<JsonPropertyName("deploymentMode")>]
+      DeploymentMode: string }
+
+[<RequireQualifiedAccess>]
+module CloudService =
+    let private writeJson (context: HttpContext) (value: 'value) : Task =
+        context.Response.WriteAsJsonAsync<'value>(value, context.RequestAborted)
+
+    let private live context =
+        writeJson context { Status = "healthy" }
+
+    let private ready context =
+        // This sample has no required external dependency. A real readiness probe
+        // must test only dependencies that should stop this instance receiving traffic.
+        writeJson context { Status = "ready" }
+
+    let private runtime context =
+        let deploymentMode =
+            match Environment.GetEnvironmentVariable "DEPLOYMENT_MODE" with
+            | null -> "standalone"
+            | value when String.IsNullOrWhiteSpace value -> "standalone"
+            | value -> value
+
+        writeJson
+            context
+            { Service = "cloud-service"
+              DeploymentMode = deploymentMode }
+
+    let map (application: WebApplication) =
+        ArgumentNullException.ThrowIfNull(application, nameof application)
+
+        application.MapGet("/health/live", RequestDelegate live) |> ignore
+        application.MapGet("/health/ready", RequestDelegate ready) |> ignore
+        application.MapGet("/api/runtime", RequestDelegate runtime) |> ignore
+
+module Program =
+    [<EntryPoint>]
+    let main arguments =
+        let builder = WebApplication.CreateBuilder arguments
+        use application = builder.Build()
+        CloudService.map application
+        application.Run()
+        0
+```
 `CloudService.map` owns three narrow HTTP endpoints. `/health/live` says the process can respond. `/health/ready` says this dependency-free sample can accept traffic. `/api/runtime` exposes one controlled teaching value and defaults to `standalone`; it does not dump environment variables.
 
 The two probe paths are separate even though their current implementations are both immediate. That preserves the contract when a real readiness condition later appears. A database outage may justify removing an instance from traffic, but making the same transient outage fail liveness can restart every replica and amplify the incident.
 
 ### A C# infrastructure shell around an F# project {#csharp-apphost}
 
-<<< @/../examples/ecosystem/cloud/AppHost/AppHost.csproj{xml:line-numbers} [AppHost.csproj]
+```xml:line-numbers [AppHost.csproj]
+<Project Sdk="Aspire.AppHost.Sdk/13.5.2">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AspireUseCliBundle>true</AspireUseCliBundle>
+    <AspireCliInvocationMode>DnxPinned</AspireCliInvocationMode>
+  </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="../CloudService.fsproj" />
+  </ItemGroup>
+</Project>
+```
 The AppHost SDK is pinned to 13.5.2 and targets .NET 10. Its project reference points to the F# service. Aspire generates the `Projects.CloudService` metadata type from that reference; the service does not become C# and does not reference the AppHost.
 
 The project opts into the Aspire CLI bundle and selects `DnxPinned`. The SDK therefore resolves the matching `Aspire.Cli@13.5.2` instead of adding host-specific Dashboard and orchestration packages to the AppHost lock file. No global CLI install is required, but first use needs the package source or a populated cache. This is an optional ecosystem sample, not a dependency of the book site.
 
-<<< @/../examples/ecosystem/cloud/AppHost/Program.cs{csharp:line-numbers} [AppHost Program.cs]
+```csharp:line-numbers [AppHost Program.cs]
+using Aspire.Hosting;
 
+var builder = DistributedApplication.CreateBuilder(args);
+
+builder
+    .AddProject<Projects.CloudService>("cloud-service")
+    .WithHttpEndpoint(name: "http")
+    .WithEnvironment("DEPLOYMENT_MODE", "aspire-local")
+    .WithHttpHealthCheck("/health/ready");
+
+builder.Build().Run();
+```
 The AppHost names the resource, explicitly declares an `http` endpoint, injects `DEPLOYMENT_MODE=aspire-local`, and attaches an HTTP health check. The explicit endpoint matters: without launch-profile endpoint metadata, the first real run failed before orchestration because the health check had no `http` or `https` endpoint to select.
 
 This is a good inter-language boundary. F# owns the application and its typed behavior. C# owns a small infrastructure DSL whose current templates, generated metadata, and examples are C#-first. No domain type crosses the boundary, so replacing the orchestration tool does not rewrite the service.
@@ -409,16 +424,16 @@ Emulators and local orchestrators are useful but not authoritative. Provider con
 
 ## Date every compatibility claim {#version-evidence}
 
-| Surface | Checked version or statement | Repository evidence |
+| Surface | Checked version or statement | What an adopting application must verify |
 | --- | --- | --- |
-| .NET SDK | 10.0.301 | Locked restore, Release build, publish, full example matrix |
-| FSharp.Core | 10.1.301 | Cloud service lock and build |
-| Aspire.AppHost.Sdk | 13.5.2, published 2026-08-21 | AppHost lock, build, local run, dashboard health |
-| ASP.NET Core base image | 10.0.11 | Image archive generated and metadata inspected; container not run |
-| Aspire CLI bundle/deployment targets | CLI 13.5.2 via `DnxPinned` | Bundle used for local AppHost build/start; no deployment target configured or executed |
-| Azure Functions isolated worker | Docs list .NET 10 and F# binding caveats | Not packaged, emulated, or deployed |
-| AWS Lambda .NET 10 image/runtime path | Current official docs reviewed | Not packaged for Lambda, invoked, or deployed |
-| Kubernetes probes/deployment | Current official semantics reviewed | No manifest, cluster, or probe execution |
+| .NET SDK | 10.0.301 | Locked restore, Release build, tests, and publish |
+| FSharp.Core | 10.1.301 | Resolved graph and runtime compatibility |
+| Aspire.AppHost.Sdk | 13.5.2, published 2026-08-21 | Use only if local multi-service orchestration repays its cost; then test startup and health |
+| ASP.NET Core base image | 10.0.11 | Image metadata, operating system, architecture, vulnerabilities, and container startup |
+| Aspire CLI bundle/deployment targets | CLI 13.5.2 | Bundle output and the chosen deployment target, if used |
+| Azure Functions isolated worker | Docs list .NET 10 and F# binding caveats | Package, emulate, and deploy the actual trigger path |
+| AWS Lambda .NET 10 image/runtime path | Current official docs reviewed | Package, invoke, and deploy the actual handler |
+| Kubernetes probes/deployment | Current official semantics reviewed | Manifest, cluster behavior, and real probe execution |
 
 Versions answer “what was considered,” not “what your application supports.” Keep the provider plan, region, architecture, trigger, integration package, CLI, base digest, and test date with the evidence.
 
@@ -471,7 +486,7 @@ Choose a first candidate, rejected alternatives, evidence gap, and reversal cond
 
 ### Exercise 2: turn the local cloud sample into a release proposal {#exercise-02}
 
-Design the minimum work required to deploy the F# service from the local cloud sample to a managed container environment. Cover architecture, immutable image identity, registry, SBOM/signature/vulnerability policy, configuration and secret identity, Service Defaults or alternative telemetry, production probes, non-root/read-only execution, resource limits, shutdown, staging smoke, load, rollout, rollback, data compatibility, cost, and cleanup. Separate what the repository already proves from what requires target-environment evidence.
+Design the minimum work required to deploy the F# service from the local cloud sample to a managed container environment. Cover architecture, immutable image identity, registry, SBOM/signature/vulnerability policy, configuration and secret identity, Service Defaults or alternative telemetry, production probes, non-root/read-only execution, resource limits, shutdown, staging smoke, load, rollout, rollback, data compatibility, cost, and cleanup. Separate what the chapter illustrates from what requires target-environment evidence.
 
 ### Exercise 3: design an idempotent Serverless booking consumer {#exercise-03}
 

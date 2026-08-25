@@ -2,30 +2,6 @@
 title: "第 23 章练习答案"
 description: "验证令牌传播，用信号实现放弃等待与取消工作的超时策略，并测试编译代码中的异步释放。"
 translationKey: solutions/ch-23-cancellation-timeouts
-kind: solution
-part: 4
-chapter: 23
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch23-cancellation-timeouts
-exerciseIds:
-  - ch23-exercise-01
-  - ch23-exercise-02
-  - ch23-exercise-03
-termIds: []
-sources:
-  - id: microsoft-fsharp-task-expressions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/task-expressions
-    checked: "2026-08-24"
-  - id: dotnet-cooperative-cancellation
-    url: https://learn.microsoft.com/en-us/dotnet/standard/threading/cancellation-in-managed-threads
-    checked: "2026-08-24"
-  - id: dotnet-iasyncdisposable
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.iasyncdisposable?view=net-10.0
-    checked: "2026-08-24"
 ---
 
 # 第 23 章练习答案 {#overview}

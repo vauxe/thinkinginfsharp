@@ -2,49 +2,6 @@
 title: "第 26 章：深入 .NET 边界"
 description: "跨越运行时类型、委托、事件、集合、身份、相等与哈希边界，同时保留 F# 领域语义。"
 translationKey: part-05/ch-26-dotnet-runtime-boundaries
-kind: chapter
-part: 5
-chapter: 26
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch26-dotnet-runtime-boundaries
-exerciseIds:
-  - ch26-exercise-01
-  - ch26-exercise-02
-  - ch26-exercise-03
-termIds:
-  - deferred-evaluation
-  - enumeration
-  - reference-identity
-  - structural-equality
-sources:
-  - id: microsoft-fsharp-casting
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/casting-and-conversions
-    checked: "2026-08-24"
-  - id: dotnet-object-get-type
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.object.gettype?view=net-10.0
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-delegates
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/delegates
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-events
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/members/events
-    checked: "2026-08-24"
-  - id: dotnet-collections
-    url: https://learn.microsoft.com/en-us/dotnet/standard/collections/
-    checked: "2026-08-24"
-  - id: dotnet-dictionary-comparer
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2.comparer?view=net-10.0
-    checked: "2026-08-24"
-  - id: fsharp-hash-identity
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-hashidentity.html
-    checked: "2026-08-24"
-  - id: dotnet-reference-equals
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.object.referenceequals?view=net-10.0
-    checked: "2026-08-24"
 ---
 
 # 第 26 章：深入 .NET 边界 {#overview}
@@ -74,8 +31,20 @@ F# 值运行在 .NET 类型系统中。记录可以装箱为 `obj`，函数可�
 
 脚本比较了这两种形式：
 
-<<< @/../examples/scripts/ch26-dotnet-runtime-boundaries.fsx#runtime-types{fsharp:line-numbers} [ch26-dotnet-runtime-boundaries.fsx]
+```fsharp:line-numbers [ch26-dotnet-runtime-boundaries.fsx]
+let request = { RequestId = "R-26"; Seats = 3 }
 
+let declaredType = typeof<BookingRequest>
+let boxedRequest: objnull = box request
+
+let actualType =
+    match boxedRequest with
+    | null -> failwith "boxing a non-null record unexpectedly produced null"
+    | value -> value.GetType()
+
+ensureEqual "runtime type" declaredType actualType
+printfn "Runtime type: declared=%s actual=%s" declaredType.Name actualType.Name
+```
 `typeof<BookingRequest>` 获取编译期已知类型的元数据。`value.GetType()` 获取非空运行时实例的精确类型，即使引用的静态类型是基类或 `obj`。因为启用可空检查时，`obj` 形状的 .NET 输入可能为 null，示例先匹配 `null`，只在非空分支调用 `GetType`。
 
 反射适合框架发现、序列化基础设施、插件加载、诊断和真正的动态协议。当领域选项集合已知时，不应让它替代可辨识联合。联合在编译期保留用例；检查 `System.Type` 则把漏掉用例的错误推迟到运行时。
@@ -100,8 +69,31 @@ F# 值运行在 .NET 类型系统中。记录可以装箱为 `obj`，函数可�
 
 共享解码器使用类型测试模式：
 
-<<< @/../examples/scripts/ch26-dotnet-runtime-boundaries.fsx#type-tests{fsharp:line-numbers} [ch26-dotnet-runtime-boundaries.fsx]
+```fsharp:line-numbers [ch26-dotnet-runtime-boundaries.fsx]
+let describeObject (value: objnull) =
+    match value with
+    | null -> "null"
+    | :? string as text -> $"text:{text.ToUpperInvariant()}"
+    | :? BookingRequest as booking -> $"request:{booking.RequestId}/{booking.Seats}"
+    | :? int as number -> $"int:{number}"
+    | _ -> "other"
 
+let descriptions = [ box "lin"; box request; box 42 ] |> List.map describeObject
+
+ensureEqual "pattern casts" [ "text:LIN"; "request:R-26/3"; "int:42" ] descriptions
+
+printfn "Pattern casts: %A" descriptions
+
+let failedDowncast =
+    try
+        let _: string | null = (box 42 :?> (string | null))
+        "no-error"
+    with :? InvalidCastException as error ->
+        error.GetType().Name
+
+ensureEqual "failed downcast" "InvalidCastException" failedDowncast
+printfn "Failed downcast: %s" failedDowncast
+```
 尽管固定输入都非空，它仍先处理 null。每个成功的 `:?` 分支都会收窄该值并绑定类型化载荷。刻意错误的 `:?> string` 证明向下转换不是转换服务：装箱整数 `42` 不会变成文本，而会抛出 `InvalidCastException`。
 
 `int64`、`decimal` 或已检查运算符等数值转换函数会改变表示，也可能带来溢出/舍入策略。向上/向下转换则在兼容对象类型之间移动。解析文本又是另一种操作，应进入 `Result`/`TryParse` 风格的验证。
@@ -114,8 +106,16 @@ F# 函数值和 .NET 委托都表示可调用行为，但它们的运行时类�
 
 脚本显式构造 `Func<int,int,int>` 和 `Converter<int,string>`：
 
-<<< @/../examples/scripts/ch26-dotnet-runtime-boundaries.fsx#delegates{fsharp:line-numbers} [ch26-dotnet-runtime-boundaries.fsx]
+```fsharp:line-numbers [ch26-dotnet-runtime-boundaries.fsx]
+let add = Func<int, int, int>(fun left right -> left + right)
 
+let labels =
+    Array.ConvertAll([| 1; 2; 3 |], Converter<int, string>(fun number -> string (number * 2)))
+
+ensureEqual "delegate invocation" 7 (add.Invoke(3, 4))
+ensureEqual "delegate conversion" [| "2"; "4"; "6" |] labels
+printfn "Delegates: add=%d labels=%A" (add.Invoke(3, 4)) labels
+```
 委托的 `Invoke` 方法执行调用。当参数类型已知为委托时，F# 常能自动适配兼容 lambda；但在重载解析有歧义、稍后必须保存/移除委托，或公开类型本身很重要时，显式构造函数更有用。
 
 不要意外向期待 `Func<_,_>`/`Action<_>` 或具名委托的语言公开 `FSharpFunc<_,_>`；第 27 章会设计该公开表面。反过来，也不要只因应用运行在 .NET 上，就把所有内部函数换成委托。只在一个边缘适配。
@@ -124,8 +124,42 @@ F# 函数值和 .NET 委托都表示可调用行为，但它们的运行时类�
 
 事件把可能触发通知的发布者与订阅观察者分开。本章发布者保存私有的 `Event<EventHandler<SeatsChangedEventArgs>, SeatsChangedEventArgs>`，只通过带 `[<CLIEvent>]` 的成员暴露 `Publish`：
 
-<<< @/../examples/scripts/ch26-dotnet-runtime-boundaries.fsx#events{fsharp:line-numbers} [ch26-dotnet-runtime-boundaries.fsx]
+```fsharp:line-numbers [ch26-dotnet-runtime-boundaries.fsx]
+type SeatsChangedEventArgs(previous: int, current: int) =
+    inherit EventArgs()
 
+    member _.Previous = previous
+    member _.Current = current
+
+type CapacityPublisher(initial: int) =
+    let changed = Event<EventHandler<SeatsChangedEventArgs>, SeatsChangedEventArgs>()
+    let mutable current = initial
+
+    [<CLIEvent>]
+    member _.SeatsChanged = changed.Publish
+
+    member this.SetSeats(next: int) =
+        let previous = current
+        current <- next
+        changed.Trigger(this, SeatsChangedEventArgs(previous, next))
+
+let publisher = CapacityPublisher(4)
+let observations = ResizeArray<string>()
+
+let handler =
+    EventHandler<SeatsChangedEventArgs>(fun sender args ->
+        assert (obj.ReferenceEquals(sender, publisher))
+        observations.Add($"{args.Previous}->{args.Current}"))
+
+publisher.SeatsChanged.AddHandler handler
+publisher.SetSeats 2
+publisher.SeatsChanged.RemoveHandler handler
+publisher.SetSeats 1
+
+let observedChanges = observations |> Seq.toList
+ensureEqual "removed handler" [ "4->2" ] observedChanges
+printfn "Event: observed=%A after-remove=%d" observedChanges observations.Count
+```
 `AddHandler` 与 `RemoveHandler` 使用同一个已保存委托实例。第一次更新被观察到；移除后第二次不再被观察。这不仅断言事件值，也断言生命周期。
 
 对 F# 形状的事件，`.Subscribe` 返回 `IDisposable`；应以 `use` 绑定该订阅，或显式转移所有权。便捷的 `.Add` 会安装处理器但不返回移除令牌，所以当生命周期必须早于事件源结束时不要使用它。
@@ -149,8 +183,27 @@ F# 函数值和 .NET 委托都表示可调用行为，但它们的运行时类�
 
 脚本让实时视图与快照变得可观察：
 
-<<< @/../examples/scripts/ch26-dotnet-runtime-boundaries.fsx#dotnet-collections{fsharp:line-numbers} [ch26-dotnet-runtime-boundaries.fsx]
+```fsharp:line-numbers [ch26-dotnet-runtime-boundaries.fsx]
+let mutableNumbers = ResizeArray<int>([ 1; 2 ])
+let liveView: IEnumerable<int> = mutableNumbers
+let snapshot = liveView |> Seq.toList
+mutableNumbers.Add 3
+let liveValues = liveView |> Seq.toList
 
+ensureEqual "live enumerable" [ 1; 2; 3 ] liveValues
+ensureEqual "list snapshot" [ 1; 2 ] snapshot
+printfn ".NET list: live=%A snapshot=%A" liveValues snapshot
+
+let bookingByEmail = Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+bookingByEmail["lin@example.com"] <- "first"
+bookingByEmail["LIN@EXAMPLE.COM"] <- "second"
+let found, emailValue = bookingByEmail.TryGetValue "Lin@Example.com"
+
+ensureEqual "case-insensitive key count" 1 bookingByEmail.Count
+ensureEqual "case-insensitive lookup" (true, "second") (found, emailValue)
+
+printfn "String comparer: count=%d found=%b value=%s" bookingByEmail.Count found emailValue
+```
 `liveView` 是同一个可变 `List<T>` 的 `IEnumerable<T>` 视图；在 `Add` 后枚举会看到新元素。`Seq.toList` 在当时具体化一份独立 F# 列表。只读接口会限制可用操作，但另一别名对底层所做的后续修改仍可能透出。
 
 不要在枚举普通 `List<T>`/`Dictionary<TKey,TValue>` 时修改它们，也不要假定它们支持并发写入。在所有权边界只转换一次：如果核心需要稳定性，就复制外部可变输入；如果必须持续看到更新，就返回显式只读/实时契约。
@@ -178,8 +231,39 @@ F# 会把 .NET 的 `bool TryGetValue(key, out value)` 模式适配为元组形�
 
 脚本创建两个携带相同 ID 的 `Customer` 实例。该类没有覆盖相等，因此默认字典把两个引用视为不同键。第二个字典接收由 `HashIdentity.FromFunctions` 构建的显式比较器：
 
-<<< @/../examples/scripts/ch26-dotnet-runtime-boundaries.fsx#identity-hash-keys{fsharp:line-numbers} [ch26-dotnet-runtime-boundaries.fsx]
+```fsharp:line-numbers [ch26-dotnet-runtime-boundaries.fsx]
+type Customer(customerId: string) =
+    member _.CustomerId = customerId
 
+let customerIdComparer: IEqualityComparer<Customer> =
+    HashIdentity.FromFunctions
+        (fun customer -> StringComparer.Ordinal.GetHashCode(customer.CustomerId))
+        (fun left right -> StringComparer.Ordinal.Equals(left.CustomerId, right.CustomerId))
+
+let firstCustomer = Customer("C-26")
+let secondCustomer = Customer("C-26")
+let sameReference = obj.ReferenceEquals(firstCustomer, secondCustomer)
+
+let defaultKeys = Dictionary<Customer, string>()
+defaultKeys[firstCustomer] <- "first"
+defaultKeys[secondCustomer] <- "second"
+
+let domainKeys = Dictionary<Customer, string>(customerIdComparer)
+domainKeys[firstCustomer] <- "first"
+domainKeys[secondCustomer] <- "second"
+
+ensureEqual "separate references" false sameReference
+ensureEqual "default class keys" 2 defaultKeys.Count
+ensureEqual "domain class keys" 1 domainKeys.Count
+ensureEqual "domain lookup" "second" domainKeys[firstCustomer]
+
+printfn
+    "Class keys: same-reference=%b default=%d domain=%d value=%s"
+    sameReference
+    defaultKeys.Count
+    domainKeys.Count
+    domainKeys[firstCustomer]
+```
 两个比较器函数都投影同一个不可变 `CustomerId`。因此第二次插入会替换第一次，字典只有一个领域键。在构造时选择比较器，让集合含义可供评审，而不必改变每个 `Customer` 用途的相等语义。
 
 每个相等比较器都必须遵守这些规律：
@@ -208,13 +292,13 @@ F# 会把 .NET 的 `bool TryGetValue(key, out value)` 模式适配为元组形�
 
 ## 运行共享示例 {#run-example}
 
-在仓库根目录执行：
+在示例所在目录执行：
 
 ```console
-dotnet fsi --checknulls+ --warnaserror+ --exec examples/scripts/ch26-dotnet-runtime-boundaries.fsx
+dotnet fsi --checknulls+ --warnaserror+ --exec ch26-dotnet-runtime-boundaries.fsx
 ```
 
-八行确定性输出覆盖精确运行时类型、安全与失败转换、委托、事件移除、实时与复制集合、不区分大小写查找，以及默认引用键与领域键身份。脚本也能在未启用可空检查时运行，因为统一示例门会验证仓库的常规 FSI 调用。
+八行确定性输出覆盖精确运行时类型、安全与失败转换、委托、事件移除、实时与复制集合、不区分大小写查找，以及默认引用键与领域键身份。先用上面的参数运行一次；若想比较未启用可空检查时的编译器行为，再去掉 `--checknulls+`。
 
 ## 练习 {#exercises}
 

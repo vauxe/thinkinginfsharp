@@ -2,33 +2,6 @@
 title: "第 19 章答案"
 description: "分类可空边界，在不抹掉失败的前提下包装真实 .NET 可空返回，并证明 option 载荷为何仍可能为 null。"
 translationKey: solutions/ch-19-dotnet-null-boundaries
-kind: solution
-part: 4
-chapter: 19
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch19-null-boundaries
-exerciseIds:
-  - ch19-exercise-01
-  - ch19-exercise-02
-  - ch19-exercise-03
-termIds: []
-sources:
-  - id: microsoft-null-values
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/values/null-values
-    checked: "2026-08-24"
-  - id: microsoft-nullable-value-types
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/nullable-value-types
-    checked: "2026-08-24"
-  - id: fsharp-core-option
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-optionmodule.html
-    checked: "2026-08-24"
-  - id: dotnet-type-gettype
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.type.gettype?view=net-10.0
-    checked: "2026-08-24"
 ---
 
 # 第 19 章答案 {#overview}

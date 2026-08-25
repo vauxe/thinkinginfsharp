@@ -2,48 +2,6 @@
 title: "Chapter 2: Values, Bindings, and Expressions"
 description: "Distinguish values, let bindings, local shadowing, and expressions while learning to read F# basic types and inference results."
 translationKey: part-01/ch-02-values-bindings-expressions
-kind: chapter
-part: 1
-chapter: 2
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch02-values-bindings-expressions
-exerciseIds:
-  - ch02-exercise-01
-  - ch02-exercise-02
-  - ch02-exercise-03
-termIds:
-  - binding
-  - expression
-  - immutability
-  - literal
-  - numeric-conversion
-  - shadowing
-  - type-annotation
-  - type-inference
-  - value
-sources:
-  - id: microsoft-values
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/values/
-    checked: "2026-08-24"
-  - id: microsoft-let-bindings
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/let-bindings
-    checked: "2026-08-24"
-  - id: microsoft-type-inference
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/type-inference
-    checked: "2026-08-24"
-  - id: microsoft-basic-types
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/basic-types
-    checked: "2026-08-24"
-  - id: microsoft-literals
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/literals
-    checked: "2026-08-24"
-  - id: microsoft-tour
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/tour
-    checked: "2026-08-24"
 ---
 
 # Chapter 2: Values, Bindings, and Expressions {#overview}
@@ -73,8 +31,17 @@ An **expression** is code evaluated to produce a result, such as `20 + 4`. Evalu
 
 A **binding** is not another value. It is an association between a name and a value. Start with a group of bindings from the shared script:
 
-<<< @/../examples/scripts/ch02-values-bindings-expressions.fsx#basic-values{fsharp:line-numbers} [ch02-values-bindings-expressions.fsx]
+```fsharp:line-numbers [ch02-values-bindings-expressions.fsx]
+let eventName = "Functional Foundations"
+let capacity = 40
+let fillRatio = 0.45
+let ticketPrice = 19.50m
+let eventCode = 'F'
+let registrationOpen = true
+let noFurtherResult = ()
 
+printfn "%s (%c): capacity=%d, fill=%.2f, open=%b" eventName eventCode capacity fillRatio registrationOpen
+```
 ### How to read `let` {#read-let}
 
 Read `let capacity = 40` in three steps:
@@ -99,8 +66,14 @@ F# also supports `let mutable`, because local counters, array updates, and some 
 
 Scope determines where a name is visible. F# uses indentation for much of its local structure. The right side of `normalizedCapacity` below contains two local bindings:
 
-<<< @/../examples/scripts/ch02-values-bindings-expressions.fsx#local-shadowing{fsharp:line-numbers} [ch02-values-bindings-expressions.fsx]
+```fsharp:line-numbers [ch02-values-bindings-expressions.fsx]
+let normalizedCapacity =
+    let capacity = 20
+    let capacity = capacity + 4
+    capacity
 
+printfn "Normalized capacity: %d; outer capacity: %d" normalizedCapacity capacity
+```
 The second local `capacity` **shadows** the first local binding with that name. It uses the old value to compute `24`, then establishes a new binding. The old value was not rewritten; it can merely no longer be reached through the name `capacity` in the rest of that local scope.
 
 When the local expression ends, both local bindings leave scope, while the script-level `capacity` is still `40`. The output therefore demonstrates both that `normalizedCapacity` is `24` and that the outer `capacity` remains `40`.
@@ -146,8 +119,13 @@ For example, no other context selects a numeric type for `40` in the script, so 
 
 The next region shows both:
 
-<<< @/../examples/scripts/ch02-values-bindings-expressions.fsx#annotations-and-conversion{fsharp:line-numbers} [ch02-values-bindings-expressions.fsx]
+```fsharp:line-numbers [ch02-values-bindings-expressions.fsx]
+let requestedSeats: int = 3
+let pricePerSeat: decimal = 19.50m
+let totalPrice = decimal requestedSeats * pricePerSeat
 
+printfn "Ticket total: %M" totalPrice
+```
 `requestedSeats: int` and `pricePerSeat: decimal` are **type annotations**. They constrain existing expressions to have the written types; an annotation does not change a value at runtime.
 
 `decimal requestedSeats` is an **explicit conversion**: it produces a new `decimal` value from the `int` value. Both sides of the multiplication are then `decimal`. F# does not automatically widen these existing values in ordinary numeric arithmetic. An explicit boundary keeps sign, range, precision, and rounding decisions visible.
@@ -180,10 +158,10 @@ This rule also explains why “expressions have values” does not conflict with
 
 ## Run the shared example {#run-example}
 
-From the repository root, run:
+From the directory containing the example, run:
 
 ```console
-dotnet fsi --exec examples/scripts/ch02-values-bindings-expressions.fsx
+dotnet fsi --exec ch02-values-bindings-expressions.fsx
 ```
 
 You should see:
@@ -194,7 +172,7 @@ Ticket total: 58.50
 Normalized capacity: 24; outer capacity: 40
 ```
 
-The manifest asserts these deterministic outputs in this order. Formatting in the script changes only the display, not the types of `fillRatio` or `totalPrice`.
+Compare these deterministic outputs in this order. Formatting in the script changes only the display, not the types of `fillRatio` or `totalPrice`.
 
 ## Debugging: trace the first conflicting constraint {#debugging}
 

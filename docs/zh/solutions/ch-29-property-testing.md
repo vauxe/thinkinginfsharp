@@ -2,33 +2,6 @@
 title: "第 29 章练习答案"
 description: "推导独立的流式性质，设计合法标识符的生成器与缩减器，并把顺序敏感反例转成持久回归示例。"
 translationKey: solutions/ch-29-property-testing
-kind: solution
-part: 5
-chapter: 29
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - foundation-example-tests
-exerciseIds:
-  - ch29-exercise-01
-  - ch29-exercise-02
-  - ch29-exercise-03
-termIds: []
-sources:
-  - id: fscheck-properties
-    url: https://fscheck.github.io/FsCheck/Properties.html
-    checked: "2026-08-24"
-  - id: fscheck-test-data
-    url: https://fscheck.github.io/FsCheck/TestData.html
-    checked: "2026-08-24"
-  - id: fscheck-running-tests
-    url: https://fscheck.github.io/FsCheck/RunningTests.html
-    checked: "2026-08-24"
-  - id: nuget-fscheck-xunit
-    url: https://www.nuget.org/packages/FsCheck.Xunit/
-    checked: "2026-08-24"
 ---
 
 # 第 29 章练习答案 {#overview}

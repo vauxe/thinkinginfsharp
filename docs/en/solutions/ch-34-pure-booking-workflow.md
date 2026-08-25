@@ -2,33 +2,6 @@
 title: "Chapter 34 Solutions"
 description: "Trace booking error precedence, extend independent validation to three fields, and compare cancellation precedence policies."
 translationKey: solutions/ch-34-pure-booking-workflow
-kind: solution
-part: 6
-chapter: 34
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - capstone-booking-domain
-exerciseIds:
-  - ch34-exercise-01
-  - ch34-exercise-02
-  - ch34-exercise-03
-termIds: []
-sources:
-  - id: microsoft-fsharp-results
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/results
-    checked: "2026-08-25"
-  - id: fsharp-core-result-module
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-resultmodule.html
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-match-expressions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/match-expressions
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-discriminated-unions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions
-    checked: "2026-08-25"
 ---
 
 # Chapter 34 Solutions {#overview}

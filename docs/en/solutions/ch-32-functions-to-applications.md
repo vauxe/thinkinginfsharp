@@ -2,39 +2,6 @@
 title: "Chapter 32 Solutions"
 description: "Derive narrow dispatch ports and ownership, design bounded observable signals, and choose an application host from concrete lifecycle requirements."
 translationKey: solutions/ch-32-functions-to-applications
-kind: solution
-part: 5
-chapter: 32
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch32-functions-to-applications
-exerciseIds:
-  - ch32-exercise-01
-  - ch32-exercise-02
-  - ch32-exercise-03
-termIds: []
-sources:
-  - id: microsoft-dotnet-generic-host
-    url: https://learn.microsoft.com/en-us/dotnet/core/extensions/generic-host
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-logging
-    url: https://learn.microsoft.com/en-us/dotnet/core/extensions/logging
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-metrics
-    url: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/metrics-instrumentation
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-metric-collection
-    url: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/metrics-collection
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-tracing
-    url: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/distributed-tracing-instrumentation-walkthroughs
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-di-guidelines
-    url: https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection/guidelines
-    checked: "2026-08-24"
 ---
 
 # Chapter 32 Solutions {#overview}

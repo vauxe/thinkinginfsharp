@@ -2,38 +2,6 @@
 title: "Chapter 9: Absence and Expected Failure"
 description: "Derive option from meaningful absence and Result from expected failure, then compose both without losing error context."
 translationKey: part-02/ch-09-option-result
-kind: chapter
-part: 2
-chapter: 9
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch09-option-result
-exerciseIds:
-  - ch09-exercise-01
-  - ch09-exercise-02
-  - ch09-exercise-03
-termIds:
-  - discriminated-union
-  - option
-  - result
-  - short-circuit
-  - union-case
-sources:
-  - id: microsoft-options
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/options
-    checked: "2026-08-24"
-  - id: microsoft-results
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/results
-    checked: "2026-08-24"
-  - id: fsharp-core-option
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-optionmodule.html
-    checked: "2026-08-24"
-  - id: fsharp-core-result
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-resultmodule.html
-    checked: "2026-08-24"
 ---
 
 # Chapter 9: Absence and Expected Failure {#overview}
@@ -72,8 +40,18 @@ The definition shown is conceptual—the type already exists in FSharp.Core. `So
 
 The shared script uses the standard `try` naming convention for an operation that may not produce a value:
 
-<<< @/../examples/scripts/ch09-option-result.fsx#option-lookup{fsharp:line-numbers} [ch09-option-result.fsx]
+```fsharp:line-numbers [ch09-option-result.fsx]
+let attendees = [ "B-101", "Lin"; "B-102", "Ada" ]
 
+let tryFindAttendee bookingId =
+    attendees |> List.tryFind (fun (id, _) -> id = bookingId) |> Option.map snd
+
+let knownAttendee = tryFindAttendee "B-101" |> Option.defaultValue "none"
+
+let missingAttendee = tryFindAttendee "B-999" |> Option.defaultValue "none"
+
+printfn "Lookup: known=%s missing=%s" knownAttendee missingAttendee
+```
 `List.tryFind` returns an option. `Option.map snd` transforms the tuple only when it exists: `Some (id, name)` becomes `Some name`, while `None` remains `None`. The function never invents a placeholder attendee.
 
 ### Consume absence deliberately {#consuming-option}
@@ -102,8 +80,25 @@ rowOption |> Option.map tryPositiveSeats
 
 `Option.bind` joins those two absence-producing steps:
 
-<<< @/../examples/scripts/ch09-option-result.fsx#option-composition{fsharp:line-numbers} [ch09-option-result.fsx]
+```fsharp:line-numbers [ch09-option-result.fsx]
+let requestedSeats = [ "B-101", 3; "B-102", 0 ]
 
+let tryPositiveSeats seats = if seats > 0 then Some seats else None
+
+let tryRequestedSeats bookingId =
+    requestedSeats
+    |> List.tryFind (fun (id, _) -> id = bookingId)
+    |> Option.map snd
+    |> Option.bind tryPositiveSeats
+
+let positiveSeats =
+    tryRequestedSeats "B-101" |> Option.map string |> Option.defaultValue "none"
+
+let nonPositiveSeats =
+    tryRequestedSeats "B-102" |> Option.map string |> Option.defaultValue "none"
+
+printfn "Option bind: positive=%s nonPositive=%s" positiveSeats nonPositiveSeats
+```
 Read the choice from the next function's return type:
 
 | Next function | Operation | Result for `Some x` | Result for `None` |
@@ -128,8 +123,44 @@ type Result<'T, 'TError> =
 
 `Ok value` carries the successful value. `Error error` carries a reason chosen by the domain. A discriminated union is usually better than a bare error string because each failure shape remains machine-readable:
 
-<<< @/../examples/scripts/ch09-option-result.fsx#result-validation{fsharp:line-numbers} [ch09-option-result.fsx]
+```fsharp:line-numbers [ch09-option-result.fsx]
+let validateAttendee request =
+    if String.IsNullOrWhiteSpace request.Attendee then
+        Error EmptyAttendee
+    else
+        Ok request
 
+let validateSeats maximum request =
+    if request.Seats <= 0 then
+        Error(NonPositiveSeats request.Seats)
+    elif request.Seats > maximum then
+        Error(TooManySeats(request.Seats, maximum))
+    else
+        Ok request
+
+let validate maximum request =
+    request |> validateAttendee |> Result.bind (validateSeats maximum)
+
+let describeError error =
+    match error with
+    | EmptyAttendee -> "attendee is empty"
+    | NonPositiveSeats actual -> $"seat count {actual} is not positive"
+    | TooManySeats(requested, maximum) -> $"requested {requested} exceeds maximum {maximum}"
+
+let describeResult result =
+    match result with
+    | Ok request -> $"ok:{request.Attendee}:{request.Seats}"
+    | Error error -> $"error:{describeError error}"
+
+let validRequest = { Attendee = "Lin"; Seats = 2 }
+
+let emptyAttendeeRequest = { Attendee = ""; Seats = 2 }
+
+printfn
+    "Validation: success=%s failure=%s"
+    (validate 4 validRequest |> describeResult)
+    (validate 4 emptyAttendeeRequest |> describeResult)
+```
 `BookingError` distinguishes an empty attendee, a non-positive count with its actual value, and a request above a known maximum. Formatting is kept in `describeError`, so validation policy is not coupled to English UI text.
 
 `validateAttendee` and `validateSeats` return `Result<BookingRequest, BookingError>`. The `validate` pipeline uses `Result.bind` because the second validation itself returns a result. If attendee validation returns `Error`, seat validation is skipped and that same error is preserved.
@@ -149,8 +180,23 @@ As with option, choose `map` when the next function returns a plain value and `b
 
 A low-level validation error may not identify which request caused it. Replace a string concatenation convention with structured context:
 
-<<< @/../examples/scripts/ch09-option-result.fsx#error-context{fsharp:line-numbers} [ch09-option-result.fsx]
+```fsharp:line-numbers [ch09-option-result.fsx]
+type RequestFailure =
+    { RequestId: string
+      Cause: BookingError }
 
+let addRequestContext requestId result =
+    result
+    |> Result.mapError (fun error -> { RequestId = requestId; Cause = error })
+
+let oversizedRequest = { Attendee = "Ada"; Seats = 6 }
+
+let contextualFailure = oversizedRequest |> validate 4 |> addRequestContext "R-9"
+
+match contextualFailure with
+| Ok _ -> printfn "Context: unexpected success"
+| Error failure -> printfn "Context: %s -> %s" failure.RequestId (describeError failure.Cause)
+```
 `addRequestContext` changes only the error type. An `Ok request` passes through untouched; an `Error BookingError` becomes `Error RequestFailure`. Code farther out can log `RequestId`, translate `Cause`, or map the domain failure into an HTTP response without parsing text.
 
 Do not attach every possible detail at the deepest function. Give each layer the error facts it owns, then add request, file, or endpoint context as the value moves outward. This keeps core domain functions reusable and avoids losing diagnostic identity in strings.
@@ -159,8 +205,11 @@ Do not attach every possible detail at the deepest function. Give each layer the
 
 The shared request violates two rules, but the pipeline returns the attendee error:
 
-<<< @/../examples/scripts/ch09-option-result.fsx#result-short-circuit{fsharp:line-numbers} [ch09-option-result.fsx]
+```fsharp:line-numbers [ch09-option-result.fsx]
+let doublyInvalidRequest = { Attendee = ""; Seats = 0 }
 
+printfn "Short circuit: %s" (validate 4 doublyInvalidRequest |> describeResult)
+```
 That behavior is correct for dependent steps: seat validation may make sense only after earlier data is valid. It is not an accumulating validator. If a form should display all independent errors at once, collect those results explicitly or use an applicative validation design; Chapter 18 returns to that distinction.
 
 An `Error` should describe a failure the caller can reasonably inspect or handle. Do not catch every exception and turn it into a vague `Error "failed"`; that destroys stack and cause information. Bugs, cancellation, resource failure, and domain rejection have different boundaries. Chapter 21 develops that policy.
@@ -184,21 +233,29 @@ Nested shapes can be honest. `Result<'T option, 'Error>` can mean “the operati
 
 An option wraps a value; it does not sanitize that value. A nullable reference can therefore be wrapped in `Some`:
 
-<<< @/../examples/scripts/ch09-option-result.fsx#some-null{fsharp:line-numbers} [ch09-option-result.fsx]
+```fsharp:line-numbers [ch09-option-result.fsx]
+let riskyPayload: (string | null) option = Some null
 
+let payloadIsNull =
+    match riskyPayload with
+    | Some value -> isNull value
+    | None -> false
+
+printfn "Some null: isSome=%b payloadIsNull=%b" riskyPayload.IsSome payloadIsNull
+```
 This produces three representable states: `None`, `Some null`, and `Some "Lin"`. That is usually accidental complexity. At a .NET boundary, normalize a nullable result into `None` or reject it before core code receives the value.
 
 The annotation `(string | null) option` makes the nullable payload explicit under F# nullness checking. This chapter needs only the warning: `Some` does not prove a reference payload is non-null. Chapter 19 explains `T | null`, `Nullable<T>`, legacy .NET annotations, and boundary conversion in full.
 
 ## Run the shared example {#run-example}
 
-From the repository root:
+From the directory containing the example:
 
 ```console
-dotnet fsi --exec examples/scripts/ch09-option-result.fsx
+dotnet fsi --exec ch09-option-result.fsx
 ```
 
-The six deterministic lines cover a successful lookup, absence, option composition, validation success and failure, added error context, first-error short-circuiting, and the `Some null` edge case. The manifest checks the exact output.
+The six deterministic lines cover a successful lookup, absence, option composition, validation success and failure, added error context, first-error short-circuiting, and the `Some null` edge case. Compare the exact output.
 
 ## Exercises {#exercises}
 

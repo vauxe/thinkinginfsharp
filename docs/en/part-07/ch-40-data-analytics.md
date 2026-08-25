@@ -2,64 +2,6 @@
 title: "Chapter 40: Data, Type Providers, Analytics, and Machine Learning"
 description: "Choose data access, query, analytical, visualization, and machine-learning tools from schema ownership, execution semantics, scale, and evidence."
 translationKey: part-07/ch-40-data-analytics
-kind: chapter
-part: 7
-chapter: 40
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ecosystem-data-csv-provider
-  - foundation-example-tests
-exerciseIds:
-  - ch40-exercise-01
-  - ch40-exercise-02
-  - ch40-exercise-03
-termIds: []
-sources:
-  - id: microsoft-fsharp-query-expressions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/query-expressions
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-interactive
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/tools/fsharp-interactive/
-    checked: "2026-08-25"
-  - id: fsharp-data-csv-provider
-    url: https://fsprojects.github.io/FSharp.Data/library/CsvProvider.html
-    checked: "2026-08-25"
-  - id: fsharp-data-nuget
-    url: https://www.nuget.org/packages/FSharp.Data/8.2.0
-    checked: "2026-08-25"
-  - id: ef-core-10
-    url: https://learn.microsoft.com/en-us/ef/core/what-is-new/ef-core-10.0/whatsnew
-    checked: "2026-08-25"
-  - id: dapper-nuget
-    url: https://www.nuget.org/packages/Dapper/2.1.79
-    checked: "2026-08-25"
-  - id: sqlprovider-nuget
-    url: https://www.nuget.org/packages/SQLProvider/1.5.27
-    checked: "2026-08-25"
-  - id: deedle-nuget
-    url: https://www.nuget.org/packages/Deedle/8.0.0
-    checked: "2026-08-25"
-  - id: plotly-net-nuget
-    url: https://www.nuget.org/packages/Plotly.NET/5.1.0
-    checked: "2026-08-25"
-  - id: mlnet-overview
-    url: https://learn.microsoft.com/en-us/dotnet/machine-learning/mldotnet-api
-    checked: "2026-08-25"
-  - id: microsoft-ml-nuget
-    url: https://www.nuget.org/packages/Microsoft.ML/5.0.0
-    checked: "2026-08-25"
-  - id: torchsharp-nuget
-    url: https://www.nuget.org/packages/TorchSharp/0.107.0
-    checked: "2026-08-25"
-  - id: onnxruntime-csharp
-    url: https://onnxruntime.ai/docs/get-started/with-csharp.html
-    checked: "2026-08-25"
-  - id: dotnet-interactive-deprecation
-    url: https://github.com/dotnet/interactive/issues/4163
-    checked: "2026-08-25"
 ---
 
 # Chapter 40: Data, Type Providers, Analytics, and Machine Learning {#overview}
@@ -115,12 +57,19 @@ No row library removes the need to model domain meaning. A database `NULL`, an e
 
 ## Inspect the verified local CSV slice {#representative-sample}
 
-The data sample targets `net10.0` and pins [FSharp.Data 8.2.0](https://www.nuget.org/packages/FSharp.Data/8.2.0). Its package lock records the resolved transitive graph. The only compile-time data source is `tests/ContentFixtures/data/sample.csv`; no URL, database, account, or secret participates in compilation.
+The data sample targets `net10.0` and pins [FSharp.Data 8.2.0](https://www.nuget.org/packages/FSharp.Data/8.2.0). Its package lock records the resolved transitive graph. The only compile-time data source is `sample.csv`; no URL, database, account, or secret participates in compilation.
 
 The official [CSV provider guide](https://fsprojects.github.io/FSharp.Data/library/CsvProvider.html) explains the two distinct moments: a sample supplies column names and inferred types when code is checked, while `Load` or `Parse` supplies runtime data. The data sample makes the design-time location independent of the build working directory:
 
-<<< @/../examples/ecosystem/data/Program.fs#data-sample-provider{fsharp:line-numbers} [Program.fs]
-
+```fsharp:line-numbers [Program.fs]
+type private Orders =
+    CsvProvider<
+        "../../../sample.csv",
+        ResolutionFolder=ResolutionFolder,
+        Culture="en-US",
+        PreferDateOnly=true
+     >
+```
 The fixed sample makes `Units` an `int`, `UnitPrice` a `decimal`, and `OrderedAt` a `DateOnly`. `Culture="en-US"` and `PreferDateOnly=true` are part of the inference contract. Change those static parameters or the sample and the generated API may change at compile time.
 
 This is useful feedback, but it is not runtime proof. A later file can still be missing, unreadable, too large, differently encoded, malformed, or semantically invalid. The sample is a schema witness, not a validator for every future byte.
@@ -129,8 +78,19 @@ This is useful feedback, but it is not runtime proof. A later file can still be 
 
 The data sample does not return `Orders.Row`. It converts generated rows into ordinary records:
 
-<<< @/../examples/ecosystem/data/Program.fs#data-sample-results{fsharp:line-numbers} [Program.fs]
+```fsharp:line-numbers [Program.fs]
+type RegionSummary =
+    { Region: string
+      OrderCount: int
+      Units: int
+      Revenue: decimal }
 
+type HighValueOrder =
+    { OrderId: string
+      Region: string
+      OrderedAt: DateOnly
+      Revenue: decimal }
+```
 This boundary has three benefits:
 
 - callers do not inherit the provider package or a sample-derived public API;
@@ -143,16 +103,45 @@ The records here are analytical outputs, not booking-domain entities. A real ing
 
 The regional summary groups the generated rows, materializes each group once, calculates totals, sorts, and returns a list:
 
-<<< @/../examples/ecosystem/data/Program.fs#data-sample-sequence-query{fsharp:line-numbers} [Program.fs]
+```fsharp:line-numbers [Program.fs]
+let summarizeByRegion (path: string) : RegionSummary list =
+    Orders.Load(path).Rows
+    |> Seq.groupBy _.Region
+    |> Seq.map (fun (region, rows) ->
+        let rows = Seq.toArray rows
 
+        ({ Region = region
+           OrderCount = rows.Length
+           Units = rows |> Array.sumBy _.Units
+           Revenue = rows |> Array.sumBy revenue }
+        : RegionSummary))
+    |> Seq.sortByDescending _.Revenue
+    |> Seq.toList
+```
 The data set has six rows, so an in-memory sequence is the honest choice. The pipeline is readable because the evaluation budget is known. Applying the same code blindly to a 60 GB file would change the operational contract: `CsvProvider` caches rows by default, and even with caching disabled, `groupBy`, sorting, and final materialization can retain substantial data.
 
 ### Read query expressions by their source {#query-expression-sample}
 
 The second function uses F# query syntax:
 
-<<< @/../examples/ecosystem/data/Program.fs#data-sample-query-expression{fsharp:line-numbers} [Program.fs]
+```fsharp:line-numbers [Program.fs]
+let highValueOrders (minimumRevenue: decimal) (path: string) : HighValueOrder list =
+    query {
+        for row in Orders.Load(path).Rows do
+            let rowRevenue = revenue row
+            where (rowRevenue >= minimumRevenue)
+            sortByDescending rowRevenue
 
+            select (
+                { OrderId = row.OrderId
+                  Region = row.Region
+                  OrderedAt = row.OrderedAt
+                  Revenue = rowRevenue }
+                : HighValueOrder
+            )
+    }
+    |> Seq.toList
+```
 Here `Orders.Load(path).Rows` is an in-process sequence, so filtering, sorting, and projection execute locally. The syntax resembles a database query, but no SQL exists.
 
 Focused tests assert the exact six-row aggregation, `DateOnly` values, threshold, and descending order. A locked restore followed by Release `--no-restore` build and test passes with no network schema. The console resolves its user-supplied path to an absolute path and prints three deterministic summaries. This evidence covers only the fixed local shape and calculations; it does not cover arbitrary uploads, huge files, encoding attacks, or a database provider.
@@ -349,18 +338,18 @@ Do not train during web startup or construct a prediction engine per request unl
 
 These are dated observations, not a universal stack recommendation:
 
-| Choice | Stable surface checked on 2026-08-25 | Verified in this repository | Key adoption question |
+| Choice | Stable surface checked on 2026-08-25 | Status in this chapter | Key adoption question |
 |---|---|---|---|
-| FSharp.Data | 8.2.0; `net8.0` and `netstandard2.0` assets | yes, on `net10.0`, with local CSV and focused checks | is a fixed sample an honest schema witness? |
-| Dapper | 2.1.79 | no | does explicit SQL plus DTO mapping fit ownership? |
-| EF Core | 10 LTS on .NET 10 | no | do tracking, migrations, and LINQ translation repay entity friction? |
-| SQLProvider | 1.5.27 | no | can design-time schema and target driver be reproduced safely? |
-| Deedle | 8.0.0; `net10.0` asset | no | do labeled alignment and missing-data operations justify a frame? |
-| Plotly.NET | 5.1.0 stable; 6.0 preview exists | no | what rendering, accessibility, and data-export contract is required? |
-| Microsoft.ML | 5.0.0 stable; 6.0 preview exists | no | is in-process classical .NET ML the right product boundary? |
-| TorchSharp | 0.107.0 plus a native LibTorch package | no | can the team own native deployment and pre-1.0 evolution? |
+| FSharp.Data | 8.2.0; `net8.0` and `netstandard2.0` assets | illustrated | is a fixed sample an honest schema witness? |
+| Dapper | 2.1.79 | research only | does explicit SQL plus DTO mapping fit ownership? |
+| EF Core | 10 LTS on .NET 10 | research only | do tracking, migrations, and LINQ translation repay entity friction? |
+| SQLProvider | 1.5.27 | research only | can design-time schema and target driver be reproduced safely? |
+| Deedle | 8.0.0; `net10.0` asset | research only | do labeled alignment and missing-data operations justify a frame? |
+| Plotly.NET | 5.1.0 stable; 6.0 preview exists | research only | what rendering, accessibility, and data-export contract is required? |
+| Microsoft.ML | 5.0.0 stable; 6.0 preview exists | research only | is in-process classical .NET ML the right product boundary? |
+| TorchSharp | 0.107.0 plus a native LibTorch package | research only | can the team own native deployment and pre-1.0 evolution? |
 
-“No” means the primary package information was reviewed, but this repository did not restore, compile, execute, benchmark, or security-test that option. Computed target compatibility is not the same as an included target asset, and a stable package label is not proof of product suitability.
+“Illustrated” means this chapter contains a small use or configuration. “Research only” means the adopting application must restore, compile, execute, benchmark, and security-review the relevant option. Computed target compatibility is not the same as an included target asset, and a stable package label is not proof of product suitability.
 
 ## Run a bounded data-stack spike {#adoption-spike}
 
@@ -426,7 +415,7 @@ An `.fsx` script loads a local export, engineers features, trains a classifier, 
 - Test chart inputs and accessibility; visual plausibility is not correctness.
 - Separate training evidence, immutable model packaging, and inference operations.
 - ML.NET fits many in-process .NET tasks; ONNX is an inference contract; TorchSharp adds native tensor/runtime ownership.
-- Version tables are dated evidence, and unexecuted ecosystem options remain unverified here.
+- Version tables are dated observations; applications must verify the options they adopt.
 - Choose the smallest boundary that meets the real workload, then lock, test, measure, and rehearse change.
 
 Chapter 41 moves the same discipline into the browser: Fable compiles F# to JavaScript, where the runtime, API surface, package graph, and state model differ from server-side .NET.

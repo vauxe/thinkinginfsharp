@@ -2,37 +2,6 @@
 title: "第 13 章：组合、参数顺序与管道 API"
 description: "从嵌套调用推导管道与函数组合，再围绕真实调用形式设计参数顺序，而不强迫每个表达式都进入管道。"
 translationKey: part-03/ch-13-composition-pipeline-api
-kind: chapter
-part: 3
-chapter: 13
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch13-composition-pipeline-api
-exerciseIds:
-  - ch13-exercise-01
-  - ch13-exercise-02
-  - ch13-exercise-03
-termIds:
-  - function-composition
-  - parameter
-  - partial-application
-  - pipeline
-sources:
-  - id: microsoft-functions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/
-    checked: "2026-08-24"
-  - id: microsoft-parameters-arguments
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/parameters-and-arguments
-    checked: "2026-08-24"
-  - id: microsoft-formatting
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/formatting
-    checked: "2026-08-24"
-  - id: microsoft-component-design
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-24"
 ---
 
 # 第 13 章：组合、参数顺序与管道 API {#overview}
@@ -58,8 +27,11 @@ sources:
 
 共享脚本从普通应用开始：
 
-<<< @/../examples/scripts/ch13-composition-pipeline-api.fsx#repeated-nesting{fsharp:line-numbers} [ch13-composition-pipeline-api.fsx]
+```fsharp:line-numbers [ch13-composition-pipeline-api.fsx]
+let nestedLabel = toLabel (addChannel "web" (capSeats 4 (trimAttendee rawDraft)))
 
+printfn "Nested: %s" nestedLabel
+```
 由最内层括号向外阅读：
 
 1. 去除参与者两端空白；
@@ -83,8 +55,12 @@ functionValue value
 
 改写共享链会得到：
 
-<<< @/../examples/scripts/ch13-composition-pipeline-api.fsx#pipeline{fsharp:line-numbers} [ch13-composition-pipeline-api.fsx]
+```fsharp:line-numbers [ch13-composition-pipeline-api.fsx]
+let pipedLabel =
+    rawDraft |> trimAttendee |> capSeats 4 |> addChannel "web" |> toLabel
 
+printfn "Pipeline matches nested: %b" (pipedLabel = nestedLabel)
+```
 现在源码顺序跟随数据流。每一行都变换上一行产生的值，最终结果会立即计算出来。
 
 阶段之间的类型必须相容。若 `trimAttendee : BookingDraft -> BookingDraft`，`toLabel : BookingDraft -> string`，那么前者可以接在后者之前。一个需要无关输入的函数不会只因加上 `|>` 就能插入。
@@ -109,8 +85,14 @@ let result = composed input
 
 共享脚本组合全部四个阶段：
 
-<<< @/../examples/scripts/ch13-composition-pipeline-api.fsx#composition{fsharp:line-numbers} [ch13-composition-pipeline-api.fsx]
+```fsharp:line-numbers [ch13-composition-pipeline-api.fsx]
+let prepareLabel = trimAttendee >> capSeats 4 >> addChannel "web" >> toLabel
 
+let prepareLabelBackward = toLabel << addChannel "web" << capSeats 4 << trimAttendee
+
+printfn "Forward composition: %s" (prepareLabel rawDraft)
+printfn "Backward composition: %s" (prepareLabelBackward rawDraft)
+```
 `prepareLabel` 是函数值，可以保存、传递、测试，并应用于很多草稿。相比之下，前面的管道会立即从 `rawDraft` 计算一个标签。
 
 后向组合会反转函数的书写顺序：
@@ -135,8 +117,18 @@ addChannel : string -> BookingDraft -> BookingDraft
 
 配置在前，主要流动值在后。部分应用把 `capSeats 4` 和 `addChannel "desk"` 变成 `BookingDraft -> BookingDraft`，恰好是管道或组合需要的形状：
 
-<<< @/../examples/scripts/ch13-composition-pipeline-api.fsx#parameter-order{fsharp:line-numbers} [ch13-composition-pipeline-api.fsx]
+```fsharp:line-numbers [ch13-composition-pipeline-api.fsx]
+let deskLabel =
+    { Attendee = "  Mira "
+      RequestedSeats = 2
+      Channel = None }
+    |> trimAttendee
+    |> capSeats 4
+    |> addChannel "desk"
+    |> toLabel
 
+printfn "Configured pipeline: %s" deskLabel
+```
 面向 F# 的函数常按以下顺序排列：
 
 1. 会在多次调用中保持固定的依赖或策略值；
@@ -163,8 +155,15 @@ FSharp.Core 就有这类例子：`List.map mapping list`、`List.filter predicat
 
 最后一个共享示例让小谓词保持直接调用：
 
-<<< @/../examples/scripts/ch13-composition-pipeline-api.fsx#direct-call{fsharp:line-numbers} [ch13-composition-pipeline-api.fsx]
+```fsharp:line-numbers [ch13-composition-pipeline-api.fsx]
+let fitsWithin capacity requested = requested <= capacity
 
+let requested = 3
+let capacity = 4
+let fits = fitsWithin capacity requested
+
+printfn "Direct predicate: requested=%d capacity=%d fits=%b" requested capacity fits
+```
 `fitsWithin capacity requested` 把关系展示在一处。`requested |> fitsWithin capacity` 同样有效，却没有揭示更长的变换路径，还可能让简单比较显得像过程。
 
 以下情况优先直接调用：
@@ -191,10 +190,10 @@ FSharp.Core 就有这类例子：`List.map mapping list`、`List.filter predicat
 
 ## 运行共享示例 {#run-example}
 
-在仓库根目录执行：
+在示例所在目录执行：
 
 ```console
-dotnet fsi --exec examples/scripts/ch13-composition-pipeline-api.fsx
+dotnet fsi --exec ch13-composition-pipeline-api.fsx
 ```
 
 六行确定性输出展示嵌套应用、等价管道、前向与后向组合、配置式部分应用，以及有意保持直接调用的谓词。

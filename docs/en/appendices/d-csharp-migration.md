@@ -2,39 +2,6 @@
 title: "Appendix D: C# to F# Migration and Interop"
 description: "Move C# systems toward F# by redesigning values, domain models, failures, asynchronous work, collections, and public boundaries—not by transliterating syntax."
 translationKey: appendices/d-csharp-migration
-kind: appendix
-appendix: D
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch27-fsharp-api
-  - ch27-csharp-client
-exerciseIds: []
-termIds: []
-sources:
-  - id: microsoft-fsharp-component-guidelines
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-null
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/values/null-values
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-nullable-value
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/nullable-value-types
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-async
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/tutorials/async
-    checked: "2026-08-25"
-  - id: microsoft-fsharp-task-expressions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/task-expressions
-    checked: "2026-08-25"
-  - id: microsoft-dotnet-collection-guidelines
-    url: https://learn.microsoft.com/en-us/dotnet/standard/design-guidelines/guidelines-for-collections
-    checked: "2026-08-25"
-  - id: microsoft-dotnet-breaking-changes
-    url: https://learn.microsoft.com/en-us/dotnet/standard/library-guidance/breaking-changes
-    checked: "2026-08-25"
 ---
 
 # Appendix D: C# to F# Migration and Interop {#overview}
@@ -175,23 +142,68 @@ Binary, source, behavioral, and wire compatibility are separate. Renaming a para
 
 Chapter 27 keeps the domain choice inside F#:
 
-<<< @/../examples/chapters/ch27/FSharpApi/Library.fs#internal-model{fsharp:line-numbers} [Library.fs]
+```fsharp:line-numbers [Library.fs]
+type internal Decision =
+    | Accepted of confirmationCode: string * remainingSeats: int
+    | Rejected of message: string * suggestedSeats: int option
 
+module internal Decision =
+    let evaluate capacity (request: BookingRequest) =
+        if String.IsNullOrWhiteSpace request.RequestId then
+            Rejected("request id must not be blank", None)
+        elif String.IsNullOrWhiteSpace request.Attendee then
+            Rejected("attendee must not be blank", None)
+        elif request.Seats <= 0 then
+            Rejected("seat count must be positive", None)
+        elif request.Seats > capacity then
+            let suggestion = if capacity > 0 then Some capacity else None
+
+            Rejected($"requested {request.Seats} exceeds available {capacity}", suggestion)
+        else
+            let normalizedRequestId = request.RequestId.Trim().ToUpperInvariant()
+            Accepted($"CONF-{normalizedRequestId}", capacity - request.Seats)
+```
 One adapter converts that closed union and its `option` payload into four ordinary CLR public types:
 
-<<< @/../examples/chapters/ch27/FSharpApi/Library.fs#boundary-adapter{fsharp:line-numbers} [Library.fs]
+```fsharp:line-numbers [Library.fs]
+module internal ResponseAdapter =
+    let fromDecision decision =
+        match decision with
+        | Accepted(confirmationCode, remainingSeats) ->
+            BookingResponse(BookingOutcome.Accepted, confirmationCode, Nullable remainingSeats, null, Nullable<int>())
+        | Rejected(message, suggestedSeats) ->
+            let suggestion =
+                match suggestedSeats with
+                | Some seats -> Nullable seats
+                | None -> Nullable<int>()
 
+            BookingResponse(BookingOutcome.Rejected, null, Nullable<int>(), message, suggestion)
+```
 The C# consumer sees a normal static call, enum, properties, nullable reference, and nullable value:
 
-<<< @/../examples/chapters/ch27/CSharpClient/Program.cs#accepted-call{csharp:line-numbers} [Program.cs]
+```csharp:line-numbers [Program.cs]
+var accepted = BookingApi.Evaluate(
+    capacity: 5,
+    request: new BookingRequest(requestId: "REQ-27", attendee: "Lin", seats: 2));
 
+Require(accepted.Outcome == BookingOutcome.Accepted, "accepted outcome");
+Require(default(BookingOutcome) == BookingOutcome.None, "valid enum zero value");
+Require(accepted.IsAccepted, "accepted flag");
+Require(accepted.ConfirmationCode == "CONF-REQ-27", "confirmation code");
+Require(accepted.RemainingSeats == 3, "remaining seats");
+Require(accepted.ErrorMessage is null, "accepted error must be null");
+Require(accepted.SuggestedSeats is null, "accepted suggestion must be null");
+
+Console.WriteLine(
+    $"Accepted: outcome={accepted.Outcome} code={accepted.ConfirmationCode} remaining={accepted.RemainingSeats}");
+```
 The same client uses reflection to assert that exactly `BookingApi`, `BookingOutcome`, `BookingRequest`, and `BookingResponse` are exported; no public signature contains `Microsoft.FSharp.*`; nullability metadata is correct; and XML documentation ships beside the assembly. These assertions test the compiled contract, not an imagined source-level mapping.
 
-Run the pair from the repository root:
+Run the pair from the directory containing the example:
 
 ```console
-dotnet build examples/chapters/ch27/CSharpClient/CSharpClient.csproj --configuration Release --no-restore
-dotnet run --project examples/chapters/ch27/CSharpClient/CSharpClient.csproj --configuration Release --no-build
+dotnet build CSharpClient.csproj --configuration Release --no-restore
+dotnet run --project CSharpClient.csproj --configuration Release --no-build
 ```
 
 ## Migrate by seams, not by folders {#migration-workflow}

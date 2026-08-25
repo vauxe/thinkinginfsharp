@@ -2,88 +2,6 @@
 title: "第 44 章：Unity 6.3 LTS 与 F#"
 description: "通过明确的运行时、程序集、序列化、生命周期、性能、AOT、裁剪与 Player 构建边界，在 Unity 中使用 F#。"
 translationKey: part-07/ch-44-unity
-kind: chapter
-part: 7
-chapter: 44
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ecosystem-unity-fsharp-plugin
-  - ecosystem-unity-csharp-adapter
-exerciseIds:
-  - ch44-exercise-01
-  - ch44-exercise-02
-  - ch44-exercise-03
-termIds: []
-sources:
-  - id: unity-6-3-lts
-    url: https://unity.com/blog/unity-6-3-lts-is-now-available
-    checked: "2026-08-25"
-  - id: unity-6000-3-22
-    url: https://unity.com/releases/editor/whats-new/6000.3.22f1
-    checked: "2026-08-25"
-  - id: unity-dotnet-profile
-    url: https://docs.unity3d.com/Manual/dotnet-profile-support.html
-    checked: "2026-08-25"
-  - id: unity-plugins
-    url: https://docs.unity3d.com/Manual/plug-ins.html
-    checked: "2026-08-25"
-  - id: unity-plugin-inspector
-    url: https://docs.unity3d.com/Manual/plug-in-inspector.html
-    checked: "2026-08-25"
-  - id: unity-serialization
-    url: https://docs.unity3d.com/Manual/script-serialization-rules.html
-    checked: "2026-08-25"
-  - id: unity-il2cpp
-    url: https://docs.unity3d.com/Manual/il2cpp-introduction.html
-    checked: "2026-08-25"
-  - id: unity-scripting-restrictions
-    url: https://docs.unity3d.com/Manual/scripting-restrictions.html
-    checked: "2026-08-25"
-  - id: unity-stripping
-    url: https://docs.unity3d.com/Manual/managed-code-stripping.html
-    checked: "2026-08-25"
-  - id: unity-stripping-configure
-    url: https://docs.unity3d.com/Manual/managed-code-stripping-configure.html
-    checked: "2026-08-25"
-  - id: unity-link-xml
-    url: https://docs.unity3d.com/Manual/managed-code-stripping-xml-formatting.html
-    checked: "2026-08-25"
-  - id: unity-assembly-definitions
-    url: https://docs.unity3d.com/Manual/assembly-definitions-creating.html
-    checked: "2026-08-25"
-  - id: unity-assembly-references
-    url: https://docs.unity3d.com/Manual/assembly-definitions-referencing.html
-    checked: "2026-08-25"
-  - id: unity-testing
-    url: https://docs.unity3d.com/6000.0/Documentation/Manual/testing-editortestsrunner.html
-    checked: "2026-08-25"
-  - id: unity-command-line-build
-    url: https://docs.unity3d.com/Manual/build-command-line.html
-    checked: "2026-08-25"
-  - id: unity-gc-practices
-    url: https://docs.unity3d.com/Manual/performance-garbage-collection-best-practices.html
-    checked: "2026-08-25"
-  - id: unity-gc-tracking
-    url: https://docs.unity3d.com/Manual/performance-track-garbage-collection.html
-    checked: "2026-08-25"
-  - id: unity-il2cpp-stack-traces
-    url: https://docs.unity3d.com/Manual/il2cpp-managed-stack-traces.html
-    checked: "2026-08-25"
-  - id: unity-burst-language
-    url: https://docs.unity3d.com/Packages/com.unity.burst@1.8/manual/csharp-language-support.html
-    checked: "2026-08-25"
-  - id: fsharp-component-guidelines
-    url: https://learn.microsoft.com/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-25"
-  - id: fsharp-core-10-1-301
-    url: https://www.nuget.org/packages/FSharp.Core/10.1.301
-    checked: "2026-08-25"
-  - id: dotnet-standard
-    url: https://learn.microsoft.com/dotnet/standard/net-standard
-    checked: "2026-08-25"
 ---
 
 # 第 44 章：Unity 6.3 LTS 与 F# {#overview}
@@ -192,9 +110,34 @@ Unity 的托管插件模型基于 .NET 程序集，而非源码语言身份。�
 
 ### 项目契约与依赖产物 {#project-contract}
 
-<<< @/../examples/ecosystem/unity/FSharpGameplay/FSharpGameplay.fsproj{xml:line-numbers} [FSharpGameplay.fsproj]
+```xml:line-numbers [FSharpGameplay.fsproj]
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>FSharpGameplay</AssemblyName>
+    <RootNamespace>ThinkingInFSharp.UnitySample</RootNamespace>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
 
-项目目标为 `netstandard2.1`，程序集名为 `FSharpGameplay`，且只编译 `Gameplay.fs`。`FSharp.Core` 已经是 F# SDK 隐式包；`Update` 为本仓库固定这一个 10.1.301 引用，而不是增加重复项。
+  <ItemGroup>
+    <Compile Include="Gameplay.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="FSharp.Core" Version="10.1.301" />
+  </ItemGroup>
+
+  <Target Name="VerifyUnityPluginOutput" AfterTargets="Build">
+    <Error
+      Condition="!Exists('$(TargetPath)')"
+      Text="The Unity plug-in assembly was not produced at $(TargetPath)." />
+    <Error
+      Condition="!Exists('$(TargetDir)FSharp.Core.dll')"
+      Text="FSharp.Core.dll must be copied beside FSharpGameplay.dll for Unity import." />
+  </Target>
+</Project>
+```
+项目目标为 `netstandard2.1`，程序集名为 `FSharpGameplay`，且只编译 `Gameplay.fs`。`FSharp.Core` 已经是 F# SDK 隐式包；`Update` 为这个项目固定 10.1.301 引用，而不是增加重复项。
 
 `CopyLocalLockFileAssemblies` 很重要，因为 Unity 导入 DLL 时不会还原这个 `.fsproj`。后置构建目标把部署假设变成失败条件：输出目录必须同时存在 `FSharpGameplay.dll` 与 `FSharp.Core.dll`。
 
@@ -202,8 +145,53 @@ Unity 的托管插件模型基于 .NET 程序集，而非源码语言身份。�
 
 ### 普通 CLR API 表面背后的纯逻辑 {#pure-gameplay}
 
-<<< @/../examples/ecosystem/unity/FSharpGameplay/Gameplay.fs{fsharp:line-numbers} [Gameplay.fs]
+```fsharp:line-numbers [Gameplay.fs]
+namespace ThinkingInFSharp.UnitySample
 
+open System
+
+module private Guard =
+    let finite parameterName (value: single) =
+        if Single.IsNaN value || Single.IsInfinity value then
+            invalidArg parameterName "Value must be finite."
+
+    let nonNegative parameterName value =
+        finite parameterName value
+
+        if value < 0.0f then
+            invalidArg parameterName "Value must be non-negative."
+
+[<Struct; NoEquality; NoComparison>]
+type MotionState =
+    val private positionX: single
+    val private velocityX: single
+
+    internal new(positionX, velocityX) =
+        { positionX = positionX
+          velocityX = velocityX }
+
+    member this.PositionX = this.positionX
+    member this.VelocityX = this.velocityX
+
+[<AbstractClass; Sealed>]
+type Gameplay private () =
+    static member Create(positionX: single) =
+        Guard.finite (nameof positionX) positionX
+        MotionState(positionX, 0.0f)
+
+    static member Step(state: MotionState, horizontal: single, speed: single, deltaTime: single) =
+        Guard.finite (nameof horizontal) horizontal
+        Guard.nonNegative (nameof speed) speed
+        Guard.nonNegative (nameof deltaTime) deltaTime
+
+        let normalizedInput = max -1.0f (min 1.0f horizontal)
+        let velocityX = normalizedInput * speed
+        let positionX = state.PositionX + velocityX * deltaTime
+
+        Guard.finite "resultingVelocity" velocityX
+        Guard.finite "resultingPosition" positionX
+        MotionState(positionX, velocityX)
+```
 `Gameplay.Create` 与 `Gameplay.Step` 是元组式静态方法，因此 C# 看到的是普通方法调用，而不是柯里化的 `FSharpFunc` 值。`MotionState` 暴露只读 float 属性，并隐藏字段及非默认构造器。
 
 状态是 struct。较早实现使用 class，因而每次 `FixedUpdate` 都分配新的托管对象。回归测试现在检查 `IsValueType`，并解码 `Gameplay.Step` 的托管方法体以拒绝显式 `box` 指令。它消除了托管构建中的这项特定状态对象分配，但并不假装整个 Player 每帧分配零字节。大型 struct 会带来复制成本，所以应让状态保持小巧并分析真实目标。
@@ -212,20 +200,68 @@ Unity 的托管插件模型基于 .NET 程序集，而非源码语言身份。�
 
 ### 由 Unity 拥有的薄适配层 {#csharp-adapter}
 
-<<< @/../examples/ecosystem/unity/FSharpGameplay/UnityAdapter.cs{csharp:line-numbers} [UnityAdapter.cs]
+```csharp:line-numbers [UnityAdapter.cs]
+using ThinkingInFSharp.UnitySample;
+using UnityEngine;
 
+namespace ThinkingInFSharp.UnityHost
+{
+    public sealed class UnityAdapter : MonoBehaviour
+    {
+        [SerializeField, Min(0.0f)]
+        private float speed = 6.0f;
+
+        private MotionState state;
+        private float horizontal;
+
+        public void SetHorizontal(float value)
+        {
+            horizontal = Mathf.Clamp(value, -1.0f, 1.0f);
+        }
+
+        private void Awake()
+        {
+            state = Gameplay.Create(transform.position.x);
+        }
+
+        private void FixedUpdate()
+        {
+            state = Gameplay.Step(state, horizontal, speed, Time.fixedDeltaTime);
+
+            Vector3 position = transform.position;
+            transform.position = new Vector3(state.PositionX, position.y, position.z);
+        }
+
+        private void OnDisable()
+        {
+            horizontal = 0.0f;
+        }
+
+        private void OnValidate()
+        {
+            speed = Mathf.Max(0.0f, speed);
+        }
+    }
+}
+```
 文件与公开 `MonoBehaviour` 类同名为 `UnityAdapter`，保留 Unity 普通脚本/组件工作流。Inspector 只拥有一个基本类型 `speed` 字段。`OnValidate` 保护创作期配置，而 F# 边界仍验证运行期调用。
 
 `Awake` 从当前 transform 创建运行期状态。`FixedUpdate` 提供输入值、配置速度和 Unity 固定 delta time，再把返回位置映射回 `Vector3`。这是 transform 示例，而不是物理建议；由 Rigidbody 拥有的对象需要相应物理 API 与测试。
 
 `SetHorizontal(float)` 刻意不选择旧 Input Manager 或 Input System 包。独立输入适配器可以调用它。这让包选择与回调形状留在规则程序集之外。
 
-C# 文件被登记为说明性代码，因为本仓库没有 UnityEngine 程序集。它经过源码审阅，但没有在这里编译。发明假的引擎类型只能证明一个假的宿主。
+C# 文件是说明性代码，因为书站不包含 UnityEngine 程序集。请把它复制进真实 Unity 项目并在那里编译；发明假的引擎类型只能证明一个假的宿主。
 
 ### 最小化链接器保留根 {#linker-roots}
 
-<<< @/../examples/ecosystem/unity/FSharpGameplay/link.xml{xml:line-numbers} [link.xml]
-
+```xml:line-numbers [link.xml]
+<linker>
+  <assembly fullname="FSharpGameplay">
+    <type fullname="ThinkingInFSharp.UnitySample.Gameplay" preserve="all" />
+    <type fullname="ThinkingInFSharp.UnitySample.MotionState" preserve="all" />
+  </assembly>
+</linker>
+```
 C# 适配器的直接调用应对静态可达性分析可见。托管插件样例仍包含两个显式根，以展示预期跨程序集桥，并为本章提供具体裁剪产物。
 
 文件没有保留整个 `FSharp.Core`。宽泛保留会隐藏缺失的反射设计、增大 Player，并增加 IL2CPP 工作量。只有真实动态路径需要某个类型或成员时才添加，然后证明对应裁剪级别。
@@ -234,20 +270,19 @@ C# 适配器的直接调用应对静态可达性分析可见。托管插件样�
 
 ### 严格按证据账本陈述结论 {#evidence-ledger}
 
-截至 2026-08-25，托管插件样例记录了：
+本章提供设计；采用它的 Unity 项目必须补全以下证据账本：
 
-| 层 | 结果 | 它证明什么 |
+| 层 | 必需证据 | 它证明什么 |
 | --- | --- | --- |
-| 锁定 .NET 还原 | 通过 | `netstandard2.1` 图解析到 FSharp.Core 包 10.1.301 |
-| Release 插件构建 | 通过，0 警告/错误 | F# 源码能在 .NET SDK 10.0.301 上编译 |
-| 产物检查 | 通过 | 8,704 字节插件与 2,407,760 字节 FSharp.Core 相邻；程序集引用存在 |
-| 聚焦规则/API 测试 | 通过 | 夹紧/步进行为、struct 状态、`Step` 中无显式 `box`、FSharp.Core 引用，以及公开签名不含 F# 专属类型 |
-| 仓库示例矩阵 | 通过 | 完整 ExampleTests 套件、其他示例、Fable 构建与浏览器冒烟仍为绿色 |
-| Unity 6000.3.22f1 导入 | 未运行 | 此机器没有 Editor |
-| C# 编译与 Play Mode | 未运行 | UnityEngine 宿主与场景行为未验证 |
-| macOS ARM64 IL2CPP Player | 未运行 | 原生转换、裁剪、链接、启动与运行期行为未验证 |
+| 锁定 .NET 还原 | 在复制后的项目中运行 | `netstandard2.1` 图解析到选定 FSharp.Core 包 |
+| Release 插件构建 | 在复制后的项目中运行 | F# 源码能用选定 SDK 编译 |
+| 产物检查 | 检查两个 DLL 与程序集身份 | 插件及其精确 FSharp.Core 依赖可供导入 |
+| 聚焦规则/API 测试 | 在 Unity 外运行 | 夹紧/步进行为、struct 状态与 CLR 面向 API |
+| Unity 导入与 C# 编译 | 在选定 Editor 中运行 | UnityEngine 宿主集成可以编译 |
+| Play Mode | 用真实场景运行 | 生命周期、输入与场景行为成立 |
+| 目标 IL2CPP Player | 构建并启动 | 原生转换、裁剪、链接、启动与运行期行为成立 |
 
-最后三行是证据，不是难堪。可见缺口可以安排和估价；虚假绿色行不行。
+未运行的一行仍有价值，因为它限制了主张。可见缺口可以安排和估价；虚假绿色行不行。
 
 ## 面向兼容性配置文件，而非运行时名称 {#compatibility-target}
 
@@ -586,7 +621,7 @@ Unity 命令行构建支持显式 build target 或保存的 build profile。始�
 - Burst/Jobs 使用独立 HPC# 契约，且托管插件样例未验证它们。
 - 锁定确切 Unity 补丁、模块、包、build profile、后端、裁剪级别、工具与产物。
 - 保留日志、PDB、原生符号、哈希与启动结果，使失败仍可归因。
-- 托管插件样例证明了锁定 F# 插件构建、依赖产物、纯规则、CLR 面向 API 与仓库兼容性。
-- 因 Editor 不存在，它没有证明 Unity 6000.3.22f1 导入、Play Mode 或 macOS ARM64 IL2CPP Player。
+- 本章展示托管 F# 插件设计、依赖产物契约、纯规则与 CLR 面向 API。
+- 只有真实 Unity 项目才能证明 Editor 导入、Play Mode、裁剪与目标 IL2CPP Player。
 
 第 45 章回到普通 .NET 工具：脚本、自动化、包评估、锁定纪律，以及继续学习 F# 的实用地图。

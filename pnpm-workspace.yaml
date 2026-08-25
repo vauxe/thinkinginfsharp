@@ -1,9 +1,0 @@
-packages:
-  - examples/ecosystem/fable
-
-allowBuilds:
-  esbuild: true
-engineStrict: true
-overrides:
-  vite: 6.4.3
-saveExact: true

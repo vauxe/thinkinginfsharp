@@ -2,88 +2,6 @@
 title: "Chapter 44: Unity 6.3 LTS and F#"
 description: "Use F# inside Unity through explicit runtime, assembly, serialization, lifecycle, performance, AOT, stripping, and Player-build boundaries."
 translationKey: part-07/ch-44-unity
-kind: chapter
-part: 7
-chapter: 44
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ecosystem-unity-fsharp-plugin
-  - ecosystem-unity-csharp-adapter
-exerciseIds:
-  - ch44-exercise-01
-  - ch44-exercise-02
-  - ch44-exercise-03
-termIds: []
-sources:
-  - id: unity-6-3-lts
-    url: https://unity.com/blog/unity-6-3-lts-is-now-available
-    checked: "2026-08-25"
-  - id: unity-6000-3-22
-    url: https://unity.com/releases/editor/whats-new/6000.3.22f1
-    checked: "2026-08-25"
-  - id: unity-dotnet-profile
-    url: https://docs.unity3d.com/Manual/dotnet-profile-support.html
-    checked: "2026-08-25"
-  - id: unity-plugins
-    url: https://docs.unity3d.com/Manual/plug-ins.html
-    checked: "2026-08-25"
-  - id: unity-plugin-inspector
-    url: https://docs.unity3d.com/Manual/plug-in-inspector.html
-    checked: "2026-08-25"
-  - id: unity-serialization
-    url: https://docs.unity3d.com/Manual/script-serialization-rules.html
-    checked: "2026-08-25"
-  - id: unity-il2cpp
-    url: https://docs.unity3d.com/Manual/il2cpp-introduction.html
-    checked: "2026-08-25"
-  - id: unity-scripting-restrictions
-    url: https://docs.unity3d.com/Manual/scripting-restrictions.html
-    checked: "2026-08-25"
-  - id: unity-stripping
-    url: https://docs.unity3d.com/Manual/managed-code-stripping.html
-    checked: "2026-08-25"
-  - id: unity-stripping-configure
-    url: https://docs.unity3d.com/Manual/managed-code-stripping-configure.html
-    checked: "2026-08-25"
-  - id: unity-link-xml
-    url: https://docs.unity3d.com/Manual/managed-code-stripping-xml-formatting.html
-    checked: "2026-08-25"
-  - id: unity-assembly-definitions
-    url: https://docs.unity3d.com/Manual/assembly-definitions-creating.html
-    checked: "2026-08-25"
-  - id: unity-assembly-references
-    url: https://docs.unity3d.com/Manual/assembly-definitions-referencing.html
-    checked: "2026-08-25"
-  - id: unity-testing
-    url: https://docs.unity3d.com/6000.0/Documentation/Manual/testing-editortestsrunner.html
-    checked: "2026-08-25"
-  - id: unity-command-line-build
-    url: https://docs.unity3d.com/Manual/build-command-line.html
-    checked: "2026-08-25"
-  - id: unity-gc-practices
-    url: https://docs.unity3d.com/Manual/performance-garbage-collection-best-practices.html
-    checked: "2026-08-25"
-  - id: unity-gc-tracking
-    url: https://docs.unity3d.com/Manual/performance-track-garbage-collection.html
-    checked: "2026-08-25"
-  - id: unity-il2cpp-stack-traces
-    url: https://docs.unity3d.com/Manual/il2cpp-managed-stack-traces.html
-    checked: "2026-08-25"
-  - id: unity-burst-language
-    url: https://docs.unity3d.com/Packages/com.unity.burst@1.8/manual/csharp-language-support.html
-    checked: "2026-08-25"
-  - id: fsharp-component-guidelines
-    url: https://learn.microsoft.com/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-25"
-  - id: fsharp-core-10-1-301
-    url: https://www.nuget.org/packages/FSharp.Core/10.1.301
-    checked: "2026-08-25"
-  - id: dotnet-standard
-    url: https://learn.microsoft.com/dotnet/standard/net-standard
-    checked: "2026-08-25"
 ---
 
 # Chapter 44: Unity 6.3 LTS and F# {#overview}
@@ -192,9 +110,34 @@ The managed plug-in sample implements one horizontal-motion rule. The rule is in
 
 ### The project contract and dependency output {#project-contract}
 
-<<< @/../examples/ecosystem/unity/FSharpGameplay/FSharpGameplay.fsproj{xml:line-numbers} [FSharpGameplay.fsproj]
+```xml:line-numbers [FSharpGameplay.fsproj]
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>FSharpGameplay</AssemblyName>
+    <RootNamespace>ThinkingInFSharp.UnitySample</RootNamespace>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
 
-The project targets `netstandard2.1`, names the assembly `FSharpGameplay`, and compiles only `Gameplay.fs`. `FSharp.Core` is already an implicit F# SDK package; `Update` fixes that one reference at 10.1.301 for this repository instead of adding a duplicate.
+  <ItemGroup>
+    <Compile Include="Gameplay.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="FSharp.Core" Version="10.1.301" />
+  </ItemGroup>
+
+  <Target Name="VerifyUnityPluginOutput" AfterTargets="Build">
+    <Error
+      Condition="!Exists('$(TargetPath)')"
+      Text="The Unity plug-in assembly was not produced at $(TargetPath)." />
+    <Error
+      Condition="!Exists('$(TargetDir)FSharp.Core.dll')"
+      Text="FSharp.Core.dll must be copied beside FSharpGameplay.dll for Unity import." />
+  </Target>
+</Project>
+```
+The project targets `netstandard2.1`, names the assembly `FSharpGameplay`, and compiles only `Gameplay.fs`. `FSharp.Core` is already an implicit F# SDK package; `Update` fixes that one reference at 10.1.301 for this project instead of adding a duplicate.
 
 `CopyLocalLockFileAssemblies` matters because Unity is not restoring this `.fsproj` when it imports the DLL. The post-build target turns a deployment assumption into a failure: both `FSharpGameplay.dll` and `FSharp.Core.dll` must exist in the output directory.
 
@@ -202,8 +145,53 @@ Package version and assembly version are not the same identifier. The locked NuG
 
 ### Pure logic behind a CLR-shaped surface {#pure-gameplay}
 
-<<< @/../examples/ecosystem/unity/FSharpGameplay/Gameplay.fs{fsharp:line-numbers} [Gameplay.fs]
+```fsharp:line-numbers [Gameplay.fs]
+namespace ThinkingInFSharp.UnitySample
 
+open System
+
+module private Guard =
+    let finite parameterName (value: single) =
+        if Single.IsNaN value || Single.IsInfinity value then
+            invalidArg parameterName "Value must be finite."
+
+    let nonNegative parameterName value =
+        finite parameterName value
+
+        if value < 0.0f then
+            invalidArg parameterName "Value must be non-negative."
+
+[<Struct; NoEquality; NoComparison>]
+type MotionState =
+    val private positionX: single
+    val private velocityX: single
+
+    internal new(positionX, velocityX) =
+        { positionX = positionX
+          velocityX = velocityX }
+
+    member this.PositionX = this.positionX
+    member this.VelocityX = this.velocityX
+
+[<AbstractClass; Sealed>]
+type Gameplay private () =
+    static member Create(positionX: single) =
+        Guard.finite (nameof positionX) positionX
+        MotionState(positionX, 0.0f)
+
+    static member Step(state: MotionState, horizontal: single, speed: single, deltaTime: single) =
+        Guard.finite (nameof horizontal) horizontal
+        Guard.nonNegative (nameof speed) speed
+        Guard.nonNegative (nameof deltaTime) deltaTime
+
+        let normalizedInput = max -1.0f (min 1.0f horizontal)
+        let velocityX = normalizedInput * speed
+        let positionX = state.PositionX + velocityX * deltaTime
+
+        Guard.finite "resultingVelocity" velocityX
+        Guard.finite "resultingPosition" positionX
+        MotionState(positionX, velocityX)
+```
 `Gameplay.Create` and `Gameplay.Step` are tupled static methods, so C# sees ordinary method calls instead of curried `FSharpFunc` values. `MotionState` exposes read-only float properties and hides its fields and non-default constructor.
 
 The state is a struct. An earlier implementation used a class and therefore allocated a new managed object on every `FixedUpdate`. A regression test now checks `IsValueType` and decodes the managed body of `Gameplay.Step` to reject an explicit `box` instruction. This removes that specific state-object allocation in the managed build without pretending the whole Player allocates zero bytes. A large struct would introduce copying costs, so keep state small and profile the real target.
@@ -212,20 +200,68 @@ The transition clamps directional input, rejects non-finite values and negative 
 
 ### A thin Unity-owned adapter {#csharp-adapter}
 
-<<< @/../examples/ecosystem/unity/FSharpGameplay/UnityAdapter.cs{csharp:line-numbers} [UnityAdapter.cs]
+```csharp:line-numbers [UnityAdapter.cs]
+using ThinkingInFSharp.UnitySample;
+using UnityEngine;
 
+namespace ThinkingInFSharp.UnityHost
+{
+    public sealed class UnityAdapter : MonoBehaviour
+    {
+        [SerializeField, Min(0.0f)]
+        private float speed = 6.0f;
+
+        private MotionState state;
+        private float horizontal;
+
+        public void SetHorizontal(float value)
+        {
+            horizontal = Mathf.Clamp(value, -1.0f, 1.0f);
+        }
+
+        private void Awake()
+        {
+            state = Gameplay.Create(transform.position.x);
+        }
+
+        private void FixedUpdate()
+        {
+            state = Gameplay.Step(state, horizontal, speed, Time.fixedDeltaTime);
+
+            Vector3 position = transform.position;
+            transform.position = new Vector3(state.PositionX, position.y, position.z);
+        }
+
+        private void OnDisable()
+        {
+            horizontal = 0.0f;
+        }
+
+        private void OnValidate()
+        {
+            speed = Mathf.Max(0.0f, speed);
+        }
+    }
+}
+```
 The file and public `MonoBehaviour` class share the name `UnityAdapter`, preserving Unity's ordinary script/component workflow. The Inspector owns one primitive `speed` field. `OnValidate` protects authoring-time configuration, while the F# boundary still validates runtime calls.
 
 `Awake` creates runtime state from the current transform. `FixedUpdate` supplies the input value, configured speed, and Unity's fixed delta time, then maps the returned position back to a `Vector3`. This is a transform sample, not a physics recommendation; a Rigidbody-owned object needs the corresponding physics API and tests.
 
 `SetHorizontal(float)` deliberately avoids choosing the legacy Input Manager or the Input System package. A separate input adapter can call it. This keeps package choice and callback shape out of the rule assembly.
 
-The C# file is registered as illustrative because this repository has no UnityEngine assemblies. It has been source-reviewed but not compiled here. Inventing fake engine types would only prove a fake host.
+The C# file is illustrative because the book site does not include UnityEngine assemblies. Copy it into a real Unity project and compile it there; inventing fake engine types would only prove a fake host.
 
 ### Narrow linker roots {#linker-roots}
 
-<<< @/../examples/ecosystem/unity/FSharpGameplay/link.xml{xml:line-numbers} [link.xml]
-
+```xml:line-numbers [link.xml]
+<linker>
+  <assembly fullname="FSharpGameplay">
+    <type fullname="ThinkingInFSharp.UnitySample.Gameplay" preserve="all" />
+    <type fullname="ThinkingInFSharp.UnitySample.MotionState" preserve="all" />
+  </assembly>
+</linker>
+```
 Direct calls from the C# adapter should be visible to static reachability analysis. The managed plug-in sample still includes two explicit roots to make the intended cross-assembly bridge visible and to provide a concrete stripping artifact for the chapter.
 
 The file does not preserve all of `FSharp.Core`. Broad preservation can hide missing reflection design, enlarge the Player, and increase IL2CPP work. Add a type or member only because an actual dynamic path needs it, then prove the relevant stripping level.
@@ -234,20 +270,19 @@ Copy `link.xml` under the Unity project's `Assets` tree. A source file next to t
 
 ### Read the evidence ledger literally {#evidence-ledger}
 
-As of 2026-08-25, the managed plug-in sample records:
+The chapter provides the design; an adopting Unity project must fill in this evidence ledger:
 
-| Layer | Result | What it proves |
+| Layer | Required evidence | What it proves |
 | --- | --- | --- |
-| Locked .NET restore | Pass | `netstandard2.1` graph resolves to FSharp.Core package 10.1.301 |
-| Release plug-in build | Pass, 0 warnings/errors | F# source compiles on .NET SDK 10.0.301 |
-| Output inspection | Pass | 8,704-byte plug-in and 2,407,760-byte FSharp.Core are adjacent; assembly reference is present |
-| Focused rule/API test | Pass | Clamp/step behavior, struct state, no explicit `box` in `Step`, FSharp.Core reference, and no F#-specific public signature types |
-| Repository example matrix | Pass | The complete ExampleTests suite, other examples, Fable build, and browser smoke remain green |
-| Unity 6000.3.22f1 import | Not run | Editor is absent from this machine |
-| C# compilation and Play Mode | Not run | UnityEngine host and scene behavior are unverified |
-| macOS ARM64 IL2CPP Player | Not run | Native conversion, stripping, link, launch, and runtime behavior are unverified |
+| Locked .NET restore | Run in the copied project | The `netstandard2.1` graph resolves to the chosen FSharp.Core package |
+| Release plug-in build | Run in the copied project | F# source compiles with the selected SDK |
+| Output inspection | Check both DLLs and assembly identity | The plug-in and its exact FSharp.Core dependency are ready for import |
+| Focused rule/API test | Run outside Unity | Clamp/step behavior, struct state, and the CLR-facing API |
+| Unity import and C# compilation | Run in the selected Editor | UnityEngine host integration compiles |
+| Play Mode | Run with the real scene | Lifecycle, input, and scene behavior work |
+| Target IL2CPP Player | Build and launch | Native conversion, stripping, link, startup, and runtime behavior work |
 
-The final three rows are evidence, not embarrassment. A visible gap can be scheduled and priced; a false green row cannot.
+An unrun row is useful because it keeps the claim bounded. A visible gap can be scheduled and priced; a false green row cannot.
 
 ## Target the compatibility profile, not a runtime name {#compatibility-target}
 
@@ -586,7 +621,7 @@ Extend the architecture for a quest system whose rules are F#, configuration is 
 - Burst/Jobs use a separate HPC# contract and are not verified by the managed plug-in sample.
 - Pin the exact Unity patch, modules, packages, build profile, backend, stripping level, tools, and artifacts.
 - Keep logs, PDBs, native symbols, hashes, and launch results so failures remain attributable.
-- The managed plug-in sample proves a locked F# plug-in build, dependency output, pure rule, CLR-facing API, and repository compatibility.
-- It does not prove Unity 6000.3.22f1 import, Play Mode, or a macOS ARM64 IL2CPP Player because the Editor is absent.
+- The chapter shows a managed F# plug-in design, dependency output contract, pure rule, and CLR-facing API.
+- Only a real Unity project can prove Editor import, Play Mode, stripping, and a target IL2CPP Player.
 
 Chapter 45 returns to ordinary .NET tooling: scripts, automation, package evaluation, lock discipline, and a practical map for continuing to learn F#.

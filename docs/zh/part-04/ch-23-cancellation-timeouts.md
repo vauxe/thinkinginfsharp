@@ -2,42 +2,6 @@
 title: "第 23 章：取消、超时、故障与释放"
 description: "传播协作式取消，区分停止工作与放弃等待，保留故障，并在每条异步退出路径上释放资源。"
 translationKey: part-04/ch-23-cancellation-timeouts
-kind: chapter
-part: 4
-chapter: 23
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch23-cancellation-timeouts
-exerciseIds:
-  - ch23-exercise-01
-  - ch23-exercise-02
-  - ch23-exercise-03
-termIds:
-  - computation-expression
-  - effect
-  - result
-sources:
-  - id: microsoft-fsharp-task-expressions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/task-expressions
-    checked: "2026-08-24"
-  - id: dotnet-cooperative-cancellation
-    url: https://learn.microsoft.com/en-us/dotnet/standard/threading/cancellation-in-managed-threads
-    checked: "2026-08-24"
-  - id: dotnet-task-cancellation
-    url: https://learn.microsoft.com/en-us/dotnet/standard/parallel-programming/task-cancellation
-    checked: "2026-08-24"
-  - id: dotnet-task-wait-async
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.threading.tasks.task-1.waitasync?view=net-10.0
-    checked: "2026-08-24"
-  - id: dotnet-iasyncdisposable
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.iasyncdisposable?view=net-10.0
-    checked: "2026-08-24"
-  - id: fsharp-fsi-async-disposable-issue
-    url: https://github.com/dotnet/fsharp/issues/14454
-    checked: "2026-08-24"
 ---
 
 # 第 23 章：取消、超时、故障与释放 {#overview}
@@ -89,8 +53,36 @@ let reserve load save request cancellationToken =
 
 共享示例注册一个回调，用相同令牌把受控任务完成为已取消：
 
-<<< @/../examples/scripts/ch23-cancellation-timeouts.fsx#cancellation-operation{fsharp:line-numbers} [ch23-cancellation-timeouts.fsx]
+```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
+let cancellableTask (cancellationToken: CancellationToken) =
+    let completion = newGate<string> ()
 
+    task {
+        use _registration =
+            cancellationToken.Register(fun () -> completion.TrySetCanceled(cancellationToken) |> ignore)
+
+        return! completion.Task
+    }
+
+let operationCancellation = new CancellationTokenSource()
+let canceledOperation = cancellableTask operationCancellation.Token
+assert (not canceledOperation.IsCompleted)
+
+operationCancellation.Cancel()
+
+let operationCanceled, matchingToken =
+    try
+        canceledOperation.GetAwaiter().GetResult() |> ignore
+        false, false
+    with :? OperationCanceledException as cause ->
+        true, cause.CancellationToken = operationCancellation.Token
+
+assert operationCanceled
+assert matchingToken
+assert canceledOperation.IsCanceled
+printfn "Operation cancellation: canceled=%b token=%b" operationCanceled matchingToken
+operationCancellation.Dispose()
+```
 任务在 `Cancel` 之前处于挂起状态。请求之后，等待它会抛出 `OperationCanceledException`，异常携带预期令牌，且任务的 `IsCanceled = true`。注册由 `use` 持有，所以任务离开作用域时会移除它。操作被观察后，令牌源由其所有者释放。
 
 取消令牌是单向的：一旦请求，令牌就会一直保持取消状态。为逻辑上的新操作创建新令牌源；不要试图重置并复用旧请求。
@@ -106,8 +98,31 @@ let reserve load save request cancellationToken =
 
 `Task<'T>.WaitAsync(cancellationToken)` 展示第二种策略。它返回另一个任务，在原任务完成或等待令牌取消时完成。取消该令牌不会修改原任务：
 
-<<< @/../examples/scripts/ch23-cancellation-timeouts.fsx#abandon-wait{fsharp:line-numbers} [ch23-cancellation-timeouts.fsx]
+```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
+let underlyingCompletion = newGate<string> ()
+let waitCancellation = new CancellationTokenSource()
+let abandonedWait = underlyingCompletion.Task.WaitAsync(waitCancellation.Token)
 
+waitCancellation.Cancel()
+
+let waitCanceled =
+    try
+        abandonedWait.GetAwaiter().GetResult() |> ignore
+        false
+    with :? OperationCanceledException ->
+        true
+
+assert waitCanceled
+assert abandonedWait.IsCanceled
+assert (not underlyingCompletion.Task.IsCompleted)
+printfn "Abandoned wait: waiter-canceled=%b operation-pending=%b" waitCanceled true
+
+underlyingCompletion.SetResult("late-result")
+let underlyingResult = underlyingCompletion.Task.GetAwaiter().GetResult()
+assert (underlyingResult = "late-result")
+printfn "Underlying after abandon: result=%s" underlyingResult
+waitCancellation.Dispose()
+```
 测试取消等待者，证明底层操作仍在挂起，然后完成底层任务并观察其结果。每次状态转换都由显式调用引发，所以证明与机器速度无关。
 
 工作另有所有者——例如共享缓存刷新——或不能安全中断时，放弃等待很有用。若已无人负责观察故障、限制资源用量或阻止后续重复效果，它就很危险。应当明确写出该所有者。
@@ -126,8 +141,39 @@ let reserve load save request cancellationToken =
 
 共享测试完全移除了墙上时钟。注入的任务表示“截止时间已到”：
 
-<<< @/../examples/scripts/ch23-cancellation-timeouts.fsx#controlled-timeout{fsharp:line-numbers} [ch23-cancellation-timeouts.fsx]
+```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
+type WaitOutcome<'T> =
+    | Completed of 'T
+    | TimedOut
 
+let awaitUntilSignal (operation: Task<'T>) (timeoutSignal: Task) =
+    task {
+        let! winner = Task.WhenAny [| operation :> Task; timeoutSignal |]
+
+        if obj.ReferenceEquals(winner, operation) then
+            let! value = operation
+            return Completed value
+        else
+            return TimedOut
+    }
+
+let timedOperation = newGate<string> ()
+let timeoutSignal = newGate<unit> ()
+let timeoutObservation = awaitUntilSignal timedOperation.Task timeoutSignal.Task
+
+assert (not timeoutObservation.IsCompleted)
+timeoutSignal.SetResult()
+
+let timedOut =
+    match timeoutObservation.GetAwaiter().GetResult() with
+    | TimedOut -> true
+    | Completed _ -> false
+
+assert timedOut
+assert (not timedOperation.Task.IsCompleted)
+printfn "Timeout signal: timed-out=%b operation-pending=%b" timedOut true
+timedOperation.SetResult("finished-after-timeout")
+```
 `Task.WhenAny` 识别最先完成的信号。完成 `timeoutSignal` 会确定性地产生 `TimedOut`；原操作仍然挂起。生产计时器只是完成这种信号的一种适配器。纯策略不应依赖特定时钟。
 
 超时并不能证明远端没有做任何事。在重试超时的写操作之前，应当定义幂等或对账策略。第 37 章会回到这个分布式边界。
@@ -138,8 +184,24 @@ let reserve load save request cancellationToken =
 
 在 `task {}` 中抛出的意外异常会使返回任务发生故障。用 `let!` 等待，或只在顶层测试边界使用 `GetAwaiter().GetResult()`，会暴露原始异常：
 
-<<< @/../examples/scripts/ch23-cancellation-timeouts.fsx#fault-propagation{fsharp:line-numbers} [ch23-cancellation-timeouts.fsx]
+```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
+let faultingTask () : Task<string> =
+    task { return raise (InvalidOperationException "quote-failed") }
 
+let faultedTask = faultingTask ()
+
+let faultType, faultMessage =
+    try
+        faultedTask.GetAwaiter().GetResult() |> ignore
+        "none", "none"
+    with :? InvalidOperationException as cause ->
+        cause.GetType().Name, cause.Message
+
+assert faultedTask.IsFaulted
+assert (faultType = "InvalidOperationException")
+assert (faultMessage = "quote-failed")
+printfn "Fault: type=%s message=%s" faultType faultMessage
+```
 相比之下，`.Wait()` 与 `.Result` 是阻塞 API，通常会用 `AggregateException` 包装任务故障。应用工作流应使用 `let!`；测试和进程入口点只有在有意桥接同步代码时才使用 awaiter 形式。
 
 只在存在策略的地方捕获。若调用方能处理，就把有文档保证的远程拒绝转换为类型化错误。保留未知基础设施异常、内部原因和堆栈跟踪。不要把取消变成 `Error "failed"`；在没有考虑令牌和契约时，也不要把任意 `OperationCanceledException` 都分类为这项操作的取消。
@@ -152,13 +214,55 @@ let reserve load save request cancellationToken =
 
 探针让两种协议都可观察：
 
-<<< @/../examples/scripts/ch23-cancellation-timeouts.fsx#disposal-types{fsharp:line-numbers} [ch23-cancellation-timeouts.fsx]
+```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
+type SyncProbe(label: string, disposed: ResizeArray<string>) =
+    interface IDisposable with
+        member _.Dispose() = disposed.Add label
 
+type AsyncProbe
+    (
+        label: string,
+        started: TaskCompletionSource<unit>,
+        release: TaskCompletionSource<unit>,
+        disposed: ResizeArray<string>
+    ) =
+    interface IAsyncDisposable with
+        member _.DisposeAsync() =
+            let disposal =
+                task {
+                    disposed.Add $"{label}:start"
+                    started.TrySetResult() |> ignore
+                    do! release.Task
+                    disposed.Add $"{label}:done"
+                }
+
+            ValueTask(disposal)
+
+let usingAsync (resource: IAsyncDisposable) (body: unit -> Task<'T>) =
+    task {
+        let! outcome =
+            task {
+                try
+                    let! value = body ()
+                    return Ok value
+                with error ->
+                    return Error(ExceptionDispatchInfo.Capture error)
+            }
+
+        do! resource.DisposeAsync()
+
+        match outcome with
+        | Ok value -> return value
+        | Error failure ->
+            failure.Throw()
+            return Unchecked.defaultof<'T>
+    }
+```
 在编译的 `.fs` 文件中，任务表达式可以用 `use` 绑定 `IAsyncDisposable`；任务构建器会等待 `DisposeAsync`。`use!` 会先等待获取，再拥有获取到的资源。任务表达式的 `with` 和 `finally` 处理程序是同步的，所以应使用资源绑定，而不是在 `finally` 中放异步清理。
 
 ### 诚实面对 FSI 边界 {#fsi-async-disposal}
 
-锁定的 F# 10 编译器在编译项目中支持 task `use` 与 `IAsyncDisposable`，本仓库也用临时编译探针验证了这条路径。F# Interactive 仍有一个开放的编译器问题：`.fsx` 文件中的相同绑定可能错误地要求 `IDisposable`。
+F# 10 在编译项目中支持 task `use` 与 `IAsyncDisposable`。F# Interactive 仍有一个开放的编译器问题：`.fsx` 文件中的相同绑定可能错误地要求 `IDisposable`。
 
 由于本章登记的产物是 FSI 脚本，其异步探针使用一个小型 `usingAsync` 适配器。适配器捕获主体结果，只等待一次释放，然后返回值或通过 `ExceptionDispatchInfo` 重抛原始故障。这是生命周期行为的可执行证据，不是在普通编译代码中替换内置 `use` 的建议。
 
@@ -166,14 +270,143 @@ let reserve load save request cancellationToken =
 
 首先测试同步清理：
 
-<<< @/../examples/scripts/ch23-cancellation-timeouts.fsx#sync-disposal{fsharp:line-numbers} [ch23-cancellation-timeouts.fsx]
+```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
+let syncDisposed = ResizeArray<string>()
 
+let runWithSyncResource path (cancellationToken: CancellationToken) =
+    task {
+        use _resource = new SyncProbe(pathLabel path, syncDisposed)
+
+        match path with
+        | Success -> return "ok"
+        | Failure -> return raise (InvalidDataException "sync-failure")
+        | Cancellation ->
+            cancellationToken.ThrowIfCancellationRequested()
+            return "unreachable"
+    }
+
+let syncSuccess =
+    runWithSyncResource Success CancellationToken.None
+    |> fun running -> running.GetAwaiter().GetResult() = "ok"
+
+let syncFault =
+    try
+        let running = runWithSyncResource Failure CancellationToken.None
+        running.GetAwaiter().GetResult() |> ignore
+
+        false
+    with :? InvalidDataException ->
+        true
+
+let syncCancellation = new CancellationTokenSource()
+syncCancellation.Cancel()
+let syncCanceledTask = runWithSyncResource Cancellation syncCancellation.Token
+
+let syncCanceled =
+    try
+        syncCanceledTask.GetAwaiter().GetResult() |> ignore
+        false
+    with :? OperationCanceledException ->
+        true
+
+assert syncSuccess
+assert syncFault
+assert syncCanceled
+assert syncCanceledTask.IsCanceled
+assert (Seq.toList syncDisposed = [ "success"; "failure"; "cancel" ])
+printfn "Sync dispose: success=%b fault=%b cancel=%b" syncSuccess syncFault syncCanceled
+syncCancellation.Dispose()
+```
 精确释放日志是 `success`、`failure`、`cancel`。预先取消的令牌只在资源获取后检查，这证明取消仍会经过已拥有的作用域。
 
 异步测试启动三个操作，分别对应三种主体结果。每个 `DisposeAsync` 都会报告已经进入，并等待独立释放的闩锁：
 
-<<< @/../examples/scripts/ch23-cancellation-timeouts.fsx#async-disposal{fsharp:line-numbers} [ch23-cancellation-timeouts.fsx]
+```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
+let asyncDisposed = ResizeArray<string>()
 
+let runWithAsyncResource label path (cancellationToken: CancellationToken) started release =
+    let resource =
+        new AsyncProbe(label, started, release, asyncDisposed) :> IAsyncDisposable
+
+    usingAsync resource (fun () ->
+        task {
+            match path with
+            | Success -> return "ok"
+            | Failure -> return raise (InvalidDataException "async-failure")
+            | Cancellation ->
+                cancellationToken.ThrowIfCancellationRequested()
+                return "unreachable"
+        })
+
+let successStarted, successRelease = newGate<unit> (), newGate<unit> ()
+let failureStarted, failureRelease = newGate<unit> (), newGate<unit> ()
+let cancelStarted, cancelRelease = newGate<unit> (), newGate<unit> ()
+let asyncCancellation = new CancellationTokenSource()
+asyncCancellation.Cancel()
+
+let asyncSuccessTask =
+    runWithAsyncResource "success" Success CancellationToken.None successStarted successRelease
+
+let asyncFaultTask =
+    runWithAsyncResource "failure" Failure CancellationToken.None failureStarted failureRelease
+
+let asyncCanceledTask =
+    runWithAsyncResource "cancel" Cancellation asyncCancellation.Token cancelStarted cancelRelease
+
+successStarted.Task.GetAwaiter().GetResult()
+failureStarted.Task.GetAwaiter().GetResult()
+cancelStarted.Task.GetAwaiter().GetResult()
+
+let allPendingBeforeRelease =
+    not asyncSuccessTask.IsCompleted
+    && not asyncFaultTask.IsCompleted
+    && not asyncCanceledTask.IsCompleted
+
+assert allPendingBeforeRelease
+
+successRelease.SetResult()
+let asyncSuccess = asyncSuccessTask.GetAwaiter().GetResult() = "ok"
+
+failureRelease.SetResult()
+
+let asyncFault =
+    try
+        asyncFaultTask.GetAwaiter().GetResult() |> ignore
+        false
+    with :? InvalidDataException ->
+        true
+
+cancelRelease.SetResult()
+
+let asyncCanceled =
+    try
+        asyncCanceledTask.GetAwaiter().GetResult() |> ignore
+        false
+    with :? OperationCanceledException ->
+        true
+
+assert asyncSuccess
+assert asyncFault
+assert asyncCanceled
+assert asyncCanceledTask.IsCanceled
+
+assert
+    (Seq.toList asyncDisposed = [ "success:start"
+                                  "failure:start"
+                                  "cancel:start"
+                                  "success:done"
+                                  "failure:done"
+                                  "cancel:done" ])
+
+printfn
+    "Async dispose: pending=%b success=%b fault=%b cancel=%b"
+    allPendingBeforeRelease
+    asyncSuccess
+    asyncFault
+    asyncCanceled
+
+asyncCancellation.Dispose()
+```
 释放开始后，三个外围任务都保持未完成。只有相应闩锁释放后，每个任务才暴露成功、原始故障或取消。这证明释放是被等待，而不是仅被调用。
 
 如果主体故障正在传播时清理本身也失败，就要决定诊断如何保留两者。普通语言清理可能暴露清理异常而遮蔽第一个异常。在基础设施边界，应按显式策略记录或聚合；绝不能静默丢弃释放失败。
@@ -207,10 +440,10 @@ let reserve load save request cancellationToken =
 
 ## 运行共享示例 {#run-example}
 
-在仓库根目录运行：
+在示例所在目录运行：
 
 ```console
-dotnet fsi --checknulls+ --exec examples/scripts/ch23-cancellation-timeouts.fsx
+dotnet fsi --checknulls+ --exec ch23-cancellation-timeouts.fsx
 ```
 
 七行确定性输出证明操作取消、放弃等待、受控超时、原始故障传播，以及全部主体结果上的同步与异步清理。

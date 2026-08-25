@@ -2,53 +2,13 @@
 title: "Chapter 30: Diagnostics, Debugging, Formatting, and Builds"
 description: "Read the first relevant compiler diagnostic, choose FSI or a debugger by evidence needed, enforce formatting without mutation, and reproduce locked Release builds."
 translationKey: part-05/ch-30-diagnostics-tooling-builds
-kind: chapter
-part: 5
-chapter: 30
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch11-value-restriction
-  - ch16-wrong-file-order
-exerciseIds:
-  - ch30-exercise-01
-  - ch30-exercise-02
-  - ch30-exercise-03
-termIds: []
-sources:
-  - id: microsoft-fsharp-compiler-options
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/compiler-options
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-interactive
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/tools/fsharp-interactive/
-    checked: "2026-08-24"
-  - id: microsoft-managed-debuggers
-    url: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/managed-debuggers
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-build
-    url: https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-build
-    checked: "2026-08-24"
-  - id: microsoft-nuget-lock-files
-    url: https://learn.microsoft.com/en-us/nuget/consume-packages/package-references-in-project-files#locking-dependencies
-    checked: "2026-08-24"
-  - id: microsoft-local-tools
-    url: https://learn.microsoft.com/en-us/dotnet/core/tools/local-tools-how-to-use
-    checked: "2026-08-24"
-  - id: fantomas-getting-started
-    url: https://fsprojects.github.io/fantomas/docs/end-users/GettingStarted.html
-    checked: "2026-08-24"
-  - id: fantomas-format-check
-    url: https://fsprojects.github.io/fantomas/docs/end-users/FormattingCheck.html
-    checked: "2026-08-24"
 ---
 
 # Chapter 30: Diagnostics, Debugging, Formatting, and Builds {#overview}
 
 Tooling is useful when it shortens the path from symptom to evidence. A compiler diagnostic answers a static question, FSI tests a small expression, a debugger exposes one runtime execution, a formatter removes stylistic variation, and a locked build reconstructs an agreed dependency graph. Confusing these jobs creates rituals without diagnosis.
 
-This chapter uses repository commands rather than one editor or CI vendor. An IDE may put buttons around them, but the project, lock files, tool manifest, and repeatable command remain the shared contract.
+This chapter uses project commands rather than one editor or CI vendor. An IDE may put buttons around them, but project files, lock files, tool manifests, and repeatable commands remain the shared contract.
 
 ## What you will be able to do {#outcomes}
 
@@ -100,12 +60,13 @@ Expected-error examples turn documentation claims into executable evidence. The 
 
 The complete Chapter 11 fixture is one binding:
 
-<<< @/../examples/expected-errors/ch11-value-restriction.fsx{fsharp:line-numbers} [ch11-value-restriction.fsx]
-
+```fsharp:line-numbers [ch11-value-restriction.fsx]
+let ambiguousBuckets = Array.create 2 []
+```
 Run it directly:
 
 ```console
-dotnet fsi --exec examples/expected-errors/ch11-value-restriction.fsx
+dotnet fsi --exec value-restriction.fsx
 ```
 
 F# 10 reports FS0030 and the weak type `'_a list array`. `Array.create` constructs one mutable array value whose element type remains unresolved; that single storage location cannot safely be generalized for unrelated element types. The diagnostic itself suggests the three intentional repairs: choose a concrete annotation, expose a data argument for a generic function, or add `()` when each call should construct a fresh value.
@@ -116,8 +77,19 @@ The smallest fixture removes unrelated uses, so the first diagnostic is the less
 
 The invalid Chapter 16 project compiles `Workflow.fs` before `Domain.fs`:
 
-<<< @/../examples/expected-errors/ch16-file-order/Ch16WrongOrder.fsproj{xml:line-numbers} [Ch16WrongOrder.fsproj]
+```xml:line-numbers [Ch16WrongOrder.fsproj]
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Include="../../chapters/ch16/Workflow.fs" Link="Workflow.fs" />
+    <Compile Include="../../chapters/ch16/Domain.fs" Link="Domain.fs" />
+  </ItemGroup>
+</Project>
+```
 F# files in a project have explicit order. A file may use definitions from earlier files, not later ones. `Workflow.fs` opens `ThinkingInFSharp.Ch16.Domain`, so this order produces FS0039 even though both files exist and each is syntactically valid.
 
 The repair is to place `Domain.fs` before `Workflow.fs` in the valid project. Duplicating domain types in `Workflow.fs`, adding arbitrary `open` declarations, or cleaning caches does not repair the dependency direction. The first missing namespace is stronger evidence than the later missing `Capacity`, `BookingRequest`, and union cases.
@@ -125,7 +97,7 @@ The repair is to place `Domain.fs` before `Workflow.fs` in the valid project. Du
 Run only the invalid project while investigating:
 
 ```console
-dotnet build examples/expected-errors/ch16-file-order/Ch16WrongOrder.fsproj \
+dotnet build Ch16WrongOrder.fsproj \
   --configuration Release
 ```
 
@@ -189,7 +161,7 @@ A debugger session is not a regression test. After finding the cause, write the 
 
 ## Format with a pinned, non-mutating check {#formatting}
 
-Fantomas is a source formatter, not a type checker or linter. This repository declares it as a local .NET tool:
+Fantomas is a source formatter, not a type checker or linter. A project can declare it as a local .NET tool:
 
 ```json
 {
@@ -246,9 +218,9 @@ Use explicit stages when reproducibility matters:
 ```console
 dotnet tool restore
 dotnet fantomas . --check
-dotnet restore ThinkingInFSharp.slnx --locked-mode
-dotnet build ThinkingInFSharp.slnx --configuration Release --no-restore
-dotnet test ThinkingInFSharp.slnx --configuration Release --no-build
+dotnet restore Sample.slnx --locked-mode
+dotnet build Sample.slnx --configuration Release --no-restore
+dotnet test Sample.slnx --configuration Release --no-build
 ```
 
 `dotnet build` normally performs an implicit restore. `--no-restore` proves the build consumes the graph from the preceding locked restore. `--no-build` similarly prevents tests from hiding a build step. These flags clarify stage ownership; they are not performance decorations.

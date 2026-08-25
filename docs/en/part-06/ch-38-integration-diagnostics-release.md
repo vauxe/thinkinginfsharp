@@ -2,41 +2,6 @@
 title: "Chapter 38: Integration, Diagnostics, C# Client, and Release Evidence"
 description: "Close the booking-system loop with a real composition root, HTTP integration tests, a C# contract client, bounded diagnostics, and reproducible release evidence."
 translationKey: part-06/ch-38-integration-diagnostics-release
-kind: chapter
-part: 6
-chapter: 38
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - capstone-booking-domain
-  - capstone-booking-contracts
-  - capstone-booking-infrastructure
-  - capstone-booking-api
-  - capstone-booking-csharp-client
-  - foundation-contract-tests
-exerciseIds:
-  - ch38-exercise-01
-  - ch38-exercise-02
-  - ch38-exercise-03
-termIds: []
-sources:
-  - id: microsoft-aspnet-integration-tests
-    url: https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: microsoft-tracing-instrumentation
-    url: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/distributed-tracing-instrumentation-walkthroughs
-    checked: "2026-08-25"
-  - id: microsoft-metrics-instrumentation
-    url: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/metrics-instrumentation
-    checked: "2026-08-25"
-  - id: microsoft-aspnet-logging
-    url: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/logging/?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: microsoft-dotnet-publishing
-    url: https://learn.microsoft.com/en-us/dotnet/core/deploying/
-    checked: "2026-08-25"
 ---
 
 # Chapter 38: Integration, Diagnostics, C# Client, and Release Evidence {#overview}
@@ -66,8 +31,45 @@ A composition root answers a concrete question: which implementations will the r
 
 Chapter 37 deliberately left that gap visible. The earlier `BookingEndpoints.map` path accepted `AsyncPorts`; it could not provide aggregate idempotency and capacity guarantees. The final entry point instead constructs `AtomicBookingStore`, the controlled payment and notification adapters, and `IdempotentBookingService`, then exposes only two operations to the HTTP layer.
 
-<<< @/../examples/capstone/src/Booking.Api/Program.fs#api-host{fsharp:line-numbers} [Program.fs]
+```fsharp:line-numbers [Program.fs]
+[<EntryPoint>]
+let main arguments =
+    match StartupConfiguration.load () with
+    | Error error ->
+        eprintfn "Booking API startup configuration is invalid (%s)." (errorCode error)
+        2
+    | Ok configuration ->
+        let builder = WebApplication.CreateBuilder arguments
 
+        builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning) |> ignore
+        BookingDiagnostics.add builder.Services
+
+        builder.WebHost.ConfigureKestrel(
+            Action<KestrelServerOptions>(fun options ->
+                options.AddServerHeader <- false
+                options.Limits.MaxRequestBodySize <- int64 BookingEndpoints.MaxRequestBodyBytes)
+        )
+        |> ignore
+
+        let store = AtomicBookingStore configuration.Store
+        use payment = new PaymentStub(PaymentStubBehavior.Authorize "TX-LOCAL-STUB")
+        use notification = new NotificationStub(NotificationStubBehavior.Deliver)
+
+        let service =
+            IdempotentBookingService(configuration.Activity, store, payment.Invoke, notification.Invoke)
+
+        use application = builder.Build()
+
+        BookingDiagnostics.useMiddleware application
+
+        BookingEndpoints.mapConsistent
+            application
+            { Execute = fun command token -> service.Execute(command, token)
+              Load = fun requestId token -> service.Load(requestId, token) }
+
+        application.Run()
+        0
+```
 Read this code from the outside inward:
 
 1. Startup configuration is parsed before a listener starts.
@@ -83,8 +85,41 @@ The local stubs are conspicuous. `PaymentStubBehavior.Authorize` does not become
 
 The final integration does not duplicate four endpoints. `map` and `mapConsistent` share body limits, strict deserialization, DTO mapping, validation, success serialization, route extraction, and the safe error boundary. Only command execution and loading differ.
 
-<<< @/../examples/capstone/src/Booking.Api/Endpoints.fs#endpoint-map{fsharp:line-numbers} [Endpoints.fs]
+```fsharp:line-numbers [Endpoints.fs]
+let private mapHandlers (application: WebApplication) place confirm cancel load =
+    ArgumentNullException.ThrowIfNull(application, nameof application)
 
+    let protectedHandler handler =
+        RequestDelegate(fun context -> safely handler context)
+
+    application.MapPost("/api/bookings/place", protectedHandler place) |> ignore
+
+    application.MapPost("/api/bookings/confirm", protectedHandler confirm) |> ignore
+
+    application.MapPost("/api/bookings/cancel", protectedHandler cancel) |> ignore
+
+    application.MapGet("/api/bookings/{requestId}", protectedHandler load) |> ignore
+
+let map (application: WebApplication) (dependencies: BookingApiDependencies) =
+    let execute = executeCommand dependencies
+
+    mapHandlers
+        application
+        (handlePlaceWith execute)
+        (handleConfirmWith execute)
+        (handleCancelWith execute)
+        (handleGet dependencies)
+
+let mapConsistent (application: WebApplication) (dependencies: ConsistentBookingApiDependencies) =
+    let execute = executeConsistent dependencies
+
+    mapHandlers
+        application
+        (handlePlaceWith execute)
+        (handleConfirmWith execute)
+        (handleCancelWith execute)
+        (handleConsistentGet dependencies)
+```
 `ConsistentBookingApiDependencies` is a narrow adapter-facing interface expressed as a record of functions. The endpoint layer knows that execution returns `Result<Booking, BookingConsistencyError>`; it does not know how the snapshot is locked or replaced. Exhaustive matching translates each declared error to a stable status and `ApiErrorDto` code.
 
 That boundary also explains a useful testing seam. An HTTP contract test can provide controlled functions. The executable can provide the real local service. Neither path requires a service locator or mutable global dependency.
@@ -131,8 +166,42 @@ F# and C# share the CLR, but they do not share identical ergonomics. A public F#
 
 The client directly references only `Booking.Contracts`. It never references `Booking.Domain` or `Booking.Infrastructure`, and it communicates with the service only through `HttpClient` and JSON.
 
-<<< @/../examples/capstone/clients/Booking.CSharpClient/Program.cs#csharp-http-contract-client{csharp:line-numbers} [Program.cs]
+```csharp:line-numbers [Program.cs]
+var place = new PlaceBookingDto
+{
+    RequestId = requestId,
+    Seats = 2
+};
 
+using var placedResponse = await client.PostAsJsonAsync("api/bookings/place", place, json);
+var placed = await ReadBooking(placedResponse, json);
+Require(placed.Status == HttpStatusCode.Created, "Place must return 201 Created.");
+Require(placed.Booking.RequestId == requestId, "Place request ID round-trip.");
+Require(placed.Booking.Seats == 2, "Place seat count round-trip.");
+Require(placed.Booking.Status == "pending", "Placed booking must be pending.");
+
+using var replayedResponse = await client.PostAsJsonAsync("api/bookings/place", place, json);
+var replayed = await ReadBooking(replayedResponse, json);
+Require(replayed.Status == HttpStatusCode.Created, "Exact replay must return the acknowledged status.");
+Require(replayed.Body == placed.Body, "Exact replay must return the acknowledged booking.");
+
+var confirm = new ConfirmBookingDto
+{
+    RequestId = requestId,
+    ConfirmationCode = "CONF-CSHARP"
+};
+
+using var confirmedResponse = await client.PostAsJsonAsync("api/bookings/confirm", confirm, json);
+var confirmed = await ReadBooking(confirmedResponse, json);
+Require(confirmed.Status == HttpStatusCode.OK, "Confirm must return 200 OK.");
+Require(confirmed.Booking.Status == "confirmed", "Confirmed booking status.");
+Require(confirmed.Booking.ConfirmationCode == "CONF-CSHARP", "Confirmation code round-trip.");
+
+var escapedRequestId = Uri.EscapeDataString(requestId);
+using var loadedResponse = await client.GetAsync($"api/bookings/{escapedRequestId}");
+var loaded = await ReadBooking(loadedResponse, json);
+Require(loaded.Body == confirmed.Body, "GET must return the current confirmed booking.");
+```
 This one flow checks four contract properties:
 
 | Step | Contract evidence |
@@ -193,15 +262,15 @@ Most importantly, `Meter`, `ActivitySource`, and log calls are producers. They d
 
 ## Turn the proof into one command {#release-check}
 
-With Node.js 22+, pnpm 11.7, and the workspace installed by `pnpm install --frozen-lockfile`, the capstone acceptance command is:
+A real application should expose its acceptance path as one documented command. For a .NET solution, the baseline can be:
 
 ```console
-pnpm check:capstone
+dotnet test Sample.slnx --configuration Release
 ```
 
-The script uses argument arrays rather than shell command construction. It creates a uniquely named temporary directory, starts the API on `127.0.0.1` with port `0`, reads the actual listening address, and cleans up the exact child process and directory in `finally`.
+If acceptance also needs a separate API process and client, an application-specific script should create a uniquely named temporary directory, listen on `127.0.0.1` with an available port, and clean up the exact child process and directory in `finally`. That orchestration belongs to the application, not to this book site.
 
-Its stages are ordered deliberately:
+A robust acceptance command orders its stages deliberately:
 
 1. restore the solution in locked mode;
 2. build the whole solution in `Release` without another restore;
@@ -213,7 +282,7 @@ Its stages are ordered deliberately:
 8. require at least one success log and reject known secret-bearing text;
 9. stop the server and remove the temporary snapshot even on failure.
 
-A passing ending looks like:
+A concise final report might look like:
 
 ```text
 Capstone check passed.
@@ -228,11 +297,11 @@ This output is a compact witness, not the complete test report. A failure includ
 
 ### Reproduce it from a clean state {#clean-state}
 
-`examples/capstone/README.md` names exact prerequisites, the frozen package install, the one-command check, and manual Bash/zsh and PowerShell flows. The manual path is valuable when inspecting logs or stepping through a request; the automated path is valuable because it controls names, ports, timeouts, assertions, and cleanup.
+The application's README should name exact prerequisites, the one-command check, and any manual debugging flow. The manual path is valuable when inspecting logs or stepping through a request; the automated path is valuable because it controls names, ports, timeouts, assertions, and cleanup.
 
 “No external service” means the workflow needs no cloud account, private feed, payment provider, broker, or telemetry backend. A locked restore may still download public NuGet packages when the local cache is empty. Reproducible inputs do not imply an offline cache exists.
 
-Do not make the manual command safer by telling readers to delete a broad directory. The README creates one unique disposable directory and removes exactly that path after the API stops. Production data is never a cleanup target.
+Do not make the manual command appear simpler by telling readers to delete a broad directory. Create one unique disposable directory and remove exactly that path after the API stops. Production data is never a cleanup target.
 
 ## Do not call a build a deployment {#build-publish-deploy}
 
@@ -347,7 +416,7 @@ Choose one explicit target, such as a framework-dependent Linux container or a s
 - Correlation IDs join evidence; they are not caller identity or authorization.
 - Metrics need bounded dimensions, while high-cardinality detail belongs in controlled traces or logs.
 - Instrumentation sources do nothing operational until collection, storage, policy, and ownership exist.
-- `pnpm check:capstone` is a reproducible local acceptance gate with bounded cleanup.
+- One documented acceptance command should own cleanup and fail when any required stage breaks.
 - Build, publish, deploy, and operate are distinct stages with distinct evidence.
 - A guarantee ledger must preserve both proved behavior and explicit limitations.
 - F# makes the policy and boundaries precise; production guarantees still come from real infrastructure and operations.

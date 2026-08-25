@@ -2,66 +2,6 @@
 title: "Chapter 41: Fable, Elmish, and Browser Applications"
 description: "Choose a browser architecture from runtime boundaries, state complexity, rendering needs, interoperability, and deployable evidence."
 translationKey: part-07/ch-41-fable-elmish
-kind: chapter
-part: 7
-chapter: 41
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ecosystem-fable-browser
-exerciseIds:
-  - ch41-exercise-01
-  - ch41-exercise-02
-  - ch41-exercise-03
-termIds: []
-sources:
-  - id: fable-first-project
-    url: https://fable.io/docs/getting-started/your-first-fable-project.html
-    checked: "2026-08-25"
-  - id: fable-build-run
-    url: https://fable.io/docs/javascript/build-and-run.html
-    checked: "2026-08-25"
-  - id: fable-dotnet-users
-    url: https://fable.io/docs/introduction/dotnet-users-read-this.html
-    checked: "2026-08-25"
-  - id: fable-javascript-compatibility
-    url: https://fable.io/docs/javascript/compatibility.html
-    checked: "2026-08-25"
-  - id: fable-javascript-features
-    url: https://fable.io/docs/javascript/features.html
-    checked: "2026-08-25"
-  - id: fable-library-guidance
-    url: https://fable.io/docs/your-fable-project/use-a-fable-library.html
-    checked: "2026-08-25"
-  - id: fable-tool-nuget
-    url: https://www.nuget.org/packages/Fable/5.13.0
-    checked: "2026-08-25"
-  - id: fable-core-nuget
-    url: https://www.nuget.org/packages/Fable.Core/5.2.0
-    checked: "2026-08-25"
-  - id: fable-browser-dom-nuget
-    url: https://www.nuget.org/packages/Fable.Browser.Dom/2.20.0
-    checked: "2026-08-25"
-  - id: elmish-overview
-    url: https://elmish.github.io/elmish/
-    checked: "2026-08-25"
-  - id: elmish-subscriptions
-    url: https://elmish.github.io/elmish/docs/subscription.html
-    checked: "2026-08-25"
-  - id: fable-elmish-nuget
-    url: https://www.nuget.org/packages/Fable.Elmish/5.0.2
-    checked: "2026-08-25"
-  - id: fable-elmish-react-nuget
-    url: https://www.nuget.org/packages/Fable.Elmish.React/5.6.0
-    checked: "2026-08-25"
-  - id: feliz-nuget
-    url: https://www.nuget.org/packages/Feliz/3.3.3
-    checked: "2026-08-25"
-  - id: fable-react-nuget
-    url: https://www.nuget.org/packages/Fable.React/9.4.0
-    checked: "2026-08-25"
 ---
 
 # Chapter 41: Fable, Elmish, and Browser Applications {#overview}
@@ -114,28 +54,86 @@ For every dependency or API, ask:
 
 A `netstandard2.0` asset answers neither the second nor the third question by itself. Conversely, a JavaScript library can work well through a typed Fable binding even though it has no .NET implementation.
 
-## The browser sample: one verified browser boundary {#verified-slice}
+## The browser sample: one minimal browser boundary {#verified-slice}
 
-The browser sample intentionally avoids React and Elmish packages. It isolates the smallest end-to-end claim: locked F# source can become a production JavaScript bundle, attach accessible DOM events, update visible state, and pass a real Chrome smoke test.
+The browser sample intentionally avoids React and Elmish packages. It isolates the smallest useful path: F# source becomes a production JavaScript bundle, attaches accessible DOM events, and updates visible state. A real application must still test that bundle in its supported browsers.
 
 ### The locked project surface {#locked-project}
 
-<<< @/../examples/ecosystem/fable/FableSample.fsproj{xml:line-numbers} [FableSample.fsproj]
+```xml:line-numbers [FableSample.fsproj]
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
 
-The repository separately locks:
+  <ItemGroup>
+    <Compile Include="App.fs" />
+  </ItemGroup>
 
-- .NET SDK 10.0.301 and F# language version 10;
-- the local Fable tool at 5.13.0;
-- Fable.Core 5.2.0 and Fable.Browser.Dom 2.20.0 in `packages.lock.json`;
-- pnpm 11.7.0 and Vite 6.4.3 in the workspace lock;
-- `playwright-core` 1.62.1 as the automation client, while explicitly using an installed system Chrome rather than claiming a pinned browser binary.
+  <ItemGroup>
+    <PackageReference Include="Fable.Browser.Dom" Version="2.20.0" />
+    <PackageReference Include="Fable.Core" Version="5.2.0" />
+  </ItemGroup>
+</Project>
+```
+To reproduce this sample in an application, record these independently moving inputs:
+
+- the .NET SDK and F# language versions;
+- the local Fable tool version;
+- Fable.Core and Fable.Browser.Dom in `packages.lock.json`;
+- the JavaScript package manager and Vite versions in the JavaScript lock file;
+- the browser versions used by automated and manual acceptance tests.
 
 The compiler, Fable.Core, and browser bindings have separate release cadences. Matching their major or minor numbers by appearance is not a compatibility strategy; restore their declared graph, compile it, and run the target.
 
 ### Read the F# before the generated JavaScript {#sample-code}
 
-<<< @/../examples/ecosystem/fable/App.fs{fsharp:line-numbers} [App.fs]
+```fsharp:line-numbers [App.fs]
+module FableSample.App
 
+open Browser.Dom
+
+type Model = { Count: int }
+
+type Message =
+    | Increment
+    | Reset
+
+let initialModel = { Count = 0 }
+
+let update message model =
+    match message with
+    | Increment -> { model with Count = model.Count + 1 }
+    | Reset -> initialModel
+
+let private elementById id =
+    match document.getElementById id with
+    | null -> failwith $"Required element #{id} was not found."
+    | element -> element
+
+let private countOutput = elementById "count"
+let private incrementButton = elementById "increment"
+let private resetButton = elementById "reset"
+let mutable private model = initialModel
+
+let private render () =
+    countOutput.textContent <- $"Count: {model.Count}"
+
+    if model.Count = 0 then
+        resetButton.setAttribute ("disabled", "")
+    else
+        resetButton.removeAttribute "disabled"
+
+let private dispatch message =
+    model <- update message model
+    render ()
+
+incrementButton.addEventListener ("click", fun _ -> dispatch Increment)
+resetButton.addEventListener ("click", fun _ -> dispatch Reset)
+
+render ()
+document.documentElement.setAttribute ("data-fable-ready", "true")
+```
 `Model`, `Message`, `initialModel`, and `update` are ordinary F#. The `update` function is deterministic: the same message and model produce the same next model. It does not know about elements, clicks, or rendering.
 
 `elementById`, event registration, the mutable current model, and `render` form the effectful browser shell. Mutation here is deliberate local runtime state, not an invitation to make domain transitions implicit. Missing required markup fails during startup instead of producing a partly wired page.
@@ -381,13 +379,13 @@ The browser sample's production sequence is conceptually:
 
 ```sh
 dotnet tool restore
-dotnet restore examples/ecosystem/fable/FableSample.fsproj --locked-mode
+dotnet restore FableSample.fsproj --locked-mode
 dotnet fable --outDir generated --noRestore --noCache
 vite build
-node tests/site-fable-smoke.mjs
+vite preview
 ```
 
-The actual package scripts run from the workspace package so relative paths remain stable. The root `pnpm check:examples` invokes this sequence after the .NET example matrix.
+After starting the preview server, inspect the production bundle in a real browser and automate that check when the risk justifies it. A development-server path is not evidence for the production bundle.
 
 ### Deploy the artifact, not the development topology {#static-deployment}
 
@@ -395,7 +393,7 @@ Deploy `dist` to static hosting with correct MIME types, cache rules, compressio
 
 Choose MPA, SPA fallback, or server routing deliberately. Define how old HTML behaves with new assets during rollout, how a service worker updates if one exists, and how to roll back both assets and API compatibility.
 
-No application server is required for the browser sample's artifact. The local Node server exists only in the test harness; it is not a production dependency or a claim about hosting choice.
+No application server is required for the browser sample's artifact. A local preview server is a development tool, not a production dependency or a hosting choice.
 
 ### Measure bundle and runtime cost {#browser-performance}
 
@@ -407,18 +405,18 @@ Use code splitting for proven route or feature boundaries, not as automatic frag
 
 These are dated observations, not a preapproved stack:
 
-| Choice | Stable surface checked on 2026-08-25 | Verified in this repository | Adoption question |
+| Choice | Stable surface checked on 2026-08-25 | Status in this chapter | Adoption question |
 |---|---|---|---|
-| Fable tool | 5.13.0; tool targets .NET 10 | yes | does the generated JavaScript preserve the semantics this app needs? |
-| Fable.Core | 5.2.0; `netstandard2.0` asset | yes | is every used helper supported on the JavaScript target? |
-| Fable.Browser.Dom | 2.20.0; browser binding graph | yes | are the required Web APIs and target browsers covered? |
-| Vite | 6.4.3, repository-wide override | yes | are base path, assets, production mode, and hosting behavior verified? |
-| Fable.Elmish | 5.0.2 | no | does coordinated state/effect complexity justify the loop? |
-| Fable.Elmish.React | 5.6.0 stable; 6.0 beta exists | no | is the F# binding compatible with the chosen React/npm matrix? |
-| Feliz | 3.3.3 | no | does its typed React surface fit component and upgrade needs? |
-| Fable.React | 9.4.0 stable; package recommends Feliz for new work | no | is this an existing-stack maintenance case rather than a new default? |
+| Fable tool | 5.13.0; tool targets .NET 10 | illustrated | does the generated JavaScript preserve the semantics this app needs? |
+| Fable.Core | 5.2.0; `netstandard2.0` asset | illustrated | is every used helper supported on the JavaScript target? |
+| Fable.Browser.Dom | 2.20.0; browser binding graph | illustrated | are the required Web APIs and target browsers covered? |
+| Vite | 6.4.3 | illustrated | are base path, assets, production mode, and hosting behavior verified? |
+| Fable.Elmish | 5.0.2 | research only | does coordinated state/effect complexity justify the loop? |
+| Fable.Elmish.React | 5.6.0 stable; 6.0 beta exists | research only | is the F# binding compatible with the chosen React/npm matrix? |
+| Feliz | 3.3.3 | research only | does its typed React surface fit component and upgrade needs? |
+| Fable.React | 9.4.0 stable; package recommends Feliz for new work | research only | is this an existing-stack maintenance case rather than a new default? |
 
-“Yes” covers only the browser sample's exact locked compile, bundle, and interaction. It does not generalize to every API in those packages. “No” means official docs or metadata were reviewed; this repository did not restore, compile, execute, benchmark, accessibility-test, or security-test that candidate.
+“Illustrated” means the chapter includes a minimal configuration or use; it does not mean this book repository contains an executable browser project. “Research only” means the option must be evaluated in the adopting application before use.
 
 ## Run a reversible browser-stack spike {#adoption-spike}
 

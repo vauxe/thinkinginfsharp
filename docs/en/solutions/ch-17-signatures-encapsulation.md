@@ -2,31 +2,6 @@
 title: "Chapter 17 Solutions"
 description: "Specify an abstract email type, narrow an inconsistent allocation surface, and align function arity and helper accessibility across a signature pair."
 translationKey: solutions/ch-17-signatures-encapsulation
-kind: solution
-part: 3
-chapter: 17
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch17-signature-library
-  - ch17-hidden-representation
-exerciseIds:
-  - ch17-exercise-01
-  - ch17-exercise-02
-  - ch17-exercise-03
-termIds: []
-sources:
-  - id: microsoft-signature-files
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/signature-files
-    checked: "2026-08-24"
-  - id: microsoft-access-control
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/access-control
-    checked: "2026-08-24"
-  - id: microsoft-component-design
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/component-design-guidelines
-    checked: "2026-08-24"
 ---
 
 # Chapter 17 Solutions {#overview}

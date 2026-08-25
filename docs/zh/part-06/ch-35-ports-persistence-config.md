@@ -2,44 +2,6 @@
 title: "第 35 章：端口、持久化、配置与替身"
 description: "用显式 DTO 映射隔离 F# 领域值，安全持久化一个有界本地快照，并以清晰所有权装配确定性适配器。"
 translationKey: part-06/ch-35-ports-persistence-config
-kind: chapter
-part: 6
-chapter: 35
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - capstone-booking-domain
-  - capstone-booking-contracts
-  - capstone-booking-infrastructure
-exerciseIds:
-  - ch35-exercise-01
-  - ch35-exercise-02
-  - ch35-exercise-03
-termIds: []
-sources:
-  - id: microsoft-json-property-names
-    url: https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/customize-properties
-    checked: "2026-08-25"
-  - id: microsoft-json-unmapped-members
-    url: https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/missing-members
-    checked: "2026-08-25"
-  - id: fsharp-core-climutable
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-climutableattribute.html
-    checked: "2026-08-25"
-  - id: microsoft-file-move
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.io.file.move?view=net-10.0
-    checked: "2026-08-25"
-  - id: microsoft-filestream-flush
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.io.filestream.flush?view=net-10.0
-    checked: "2026-08-25"
-  - id: microsoft-configuration-providers
-    url: https://learn.microsoft.com/en-us/dotnet/core/extensions/configuration-providers
-    checked: "2026-08-25"
-  - id: microsoft-cancellation-token
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.threading.cancellationtoken?view=net-10.0
-    checked: "2026-08-25"
 ---
 
 # 第 35 章：端口、持久化、配置与替身 {#overview}
@@ -86,8 +48,24 @@ Booking.Infrastructure ---> Booking.Contracts ---> Booking.Domain
 
 快照 DTO 有意采用普通 .NET 数据形状：
 
-<<< @/../examples/capstone/src/Booking.Contracts/Dtos.fs#booking-dto{fsharp:line-numbers} [Dtos.fs]
-
+```fsharp:line-numbers [Dtos.fs]
+[<CLIMutable>]
+type BookingDto =
+    { [<JsonPropertyName("schemaVersion")>]
+      SchemaVersion: int
+      [<JsonPropertyName("requestId")>]
+      RequestId: string | null
+      [<JsonPropertyName("eventId")>]
+      EventId: string | null
+      [<JsonPropertyName("seats")>]
+      Seats: Nullable<int>
+      [<JsonPropertyName("status")>]
+      Status: string | null
+      [<JsonPropertyName("confirmationCode")>]
+      ConfirmationCode: string | null
+      [<JsonPropertyName("cancellationReason")>]
+      CancellationReason: string | null }
+```
 `[<CLIMutable>]` 为面向 CLI 的使用方添加无参构造函数和属性设置器；它不会让这个记录变成领域实体。`[<JsonPropertyName>]` 在两个序列化方向固定传输格式名称，不受未来 F# 字段重命名影响。
 
 DTO 允许领域禁止的状态：空标识、缺失的座位数、未知状态字符串，或两个状态载荷同时出现。这在不可信边界上是正确的。如果其类型假装这些值不可能出现，反序列化失败只会转移到反射或异常中，却没有给应用一项显式映射策略。
@@ -112,12 +90,65 @@ DTO 允许领域禁止的状态：空标识、缺失的座位数、未知状态�
 
 映射错误联合会命名表示失败，而不是把它们压扁成文本：
 
-<<< @/../examples/capstone/src/Booking.Contracts/Mapping.fs#mapping-errors{fsharp:line-numbers} [Mapping.fs]
-
+```fsharp:line-numbers [Mapping.fs]
+[<RequireQualifiedAccess>]
+type DtoMappingError =
+    | MissingBody
+    | UnsupportedSchemaVersion of actual: int
+    | MissingRequestId
+    | MissingEventId
+    | MissingSeats
+    | MissingStatus
+    | MissingConfirmationCode
+    | MissingCancellationReason
+    | InvalidRequestId of RequestIdError
+    | InvalidEventId of EventIdError
+    | InvalidSeatCount of SeatCountError
+    | InvalidConfirmationCode of ConfirmationCodeError
+    | InvalidCancellationReason of CancellationReasonError
+    | UnknownStatus of actual: string
+    | UnexpectedConfirmationCode of status: string
+    | UnexpectedCancellationReason of status: string
+```
 反向快照映射按已声明顺序进行：
 
-<<< @/../examples/capstone/src/Booking.Contracts/Mapping.fs#snapshot-mapping{fsharp:line-numbers} [Mapping.fs]
+```fsharp:line-numbers [Mapping.fs]
+module BookingMapping =
+    let ofDomain (booking: Booking) : BookingDto =
+        let nullableText (value: string) : string | null = value
+        let noText: string | null = null
 
+        let status, confirmationCode, cancellationReason =
+            match Booking.status booking with
+            | Pending -> "pending", noText, noText
+            | Confirmed code -> "confirmed", code |> ConfirmationCode.value |> nullableText, noText
+            | Cancelled reason -> "cancelled", noText, reason |> CancellationReason.value |> nullableText
+
+        { SchemaVersion = BookingContract.CurrentSchemaVersion
+          RequestId = booking |> Booking.requestId |> RequestId.value
+          EventId = booking |> Booking.eventId |> EventId.value
+          Seats = booking |> Booking.seats |> SeatCount.value |> int |> Nullable
+          Status = status
+          ConfirmationCode = confirmationCode
+          CancellationReason = cancellationReason }
+
+    let toDomain (dto: BookingDto | null) =
+        match dto with
+        | null -> Error DtoMappingError.MissingBody
+        | value when value.SchemaVersion <> BookingContract.CurrentSchemaVersion ->
+            Error(DtoMappingError.UnsupportedSchemaVersion value.SchemaVersion)
+        | value ->
+            MappingInternals.requestId value.RequestId
+            |> Result.bind (fun requestId ->
+                MappingInternals.eventId value.EventId
+                |> Result.map (fun eventId -> requestId, eventId))
+            |> Result.bind (fun (requestId, eventId) ->
+                MappingInternals.seats value.Seats
+                |> Result.map (fun seats -> requestId, eventId, seats))
+            |> Result.bind (fun (requestId, eventId, seats) ->
+                MappingInternals.status value
+                |> Result.map (Booking.restore requestId eventId seats))
+```
 首先检查模式版本。版本 2 文档即使其余字段碰巧类似版本 1，也并不兼容；因此映射器会在解释载荷前返回 `UnsupportedSchemaVersion 2`。
 
 随后，标识与座位数原语经过已有智能构造函数。状态映射再检查精确标签和合法载荷组合。只有每个值都受保护之后，`Booking.restore` 才重建私有记录。这个函数接收受保护值，不接收原始 JSON 字符串或整数。
@@ -128,8 +159,48 @@ DTO 允许领域禁止的状态：空标识、缺失的座位数、未知状态�
 
 命令 DTO 做一项更窄的工作：
 
-<<< @/../examples/capstone/src/Booking.Contracts/Mapping.fs#command-mapping{fsharp:line-numbers} [Mapping.fs]
+```fsharp:line-numbers [Mapping.fs]
+module PlaceBookingMapping =
+    let ofDomain (command: PlaceBooking) : PlaceBookingDto =
+        { RequestId = command.RequestId
+          Seats = Nullable command.Seats }
 
+    let toDomain (dto: PlaceBookingDto | null) =
+        match dto with
+        | null -> Error DtoMappingError.MissingBody
+        | value ->
+            match value.RequestId with
+            | null -> Error DtoMappingError.MissingRequestId
+            | requestId -> MappingInternals.rawSeats value.Seats |> Result.map (Commands.place requestId)
+
+module ConfirmBookingMapping =
+    let ofDomain (command: ConfirmBooking) : ConfirmBookingDto =
+        { RequestId = command.RequestId
+          ConfirmationCode = command.ConfirmationCode }
+
+    let toDomain (dto: ConfirmBookingDto | null) =
+        match dto with
+        | null -> Error DtoMappingError.MissingBody
+        | value ->
+            match value.RequestId, value.ConfirmationCode with
+            | null, _ -> Error DtoMappingError.MissingRequestId
+            | _, null -> Error DtoMappingError.MissingConfirmationCode
+            | requestId, confirmationCode -> Ok(Commands.confirm requestId confirmationCode)
+
+module CancelBookingMapping =
+    let ofDomain (command: CancelBooking) : CancelBookingDto =
+        { RequestId = command.RequestId
+          Reason = command.Reason }
+
+    let toDomain (dto: CancelBookingDto | null) =
+        match dto with
+        | null -> Error DtoMappingError.MissingBody
+        | value ->
+            match value.RequestId, value.Reason with
+            | null, _ -> Error DtoMappingError.MissingRequestId
+            | _, null -> Error DtoMappingError.MissingCancellationReason
+            | requestId, reason -> Ok(Commands.cancel requestId reason)
+```
 它们拒绝缺少请求体、请求标识、座位属性、确认码或原因等传输缺失。它们有意在原始领域命令中保留空白字符串与零座位。第 34 章验证器拥有这些规则，并能累积错误；在 DTO 映射中重复规则会制造互相竞争的权威和不同优先级。
 
 所以“映射成功”只表示传输层提供了表达一项意图所需的字段。它不表示意图已经通过领域验证或业务决策。
@@ -138,8 +209,43 @@ DTO 允许领域禁止的状态：空标识、缺失的座位数、未知状态�
 
 JSON 辅助模块在使用前配置一个私有选项对象：
 
-<<< @/../examples/capstone/src/Booking.Contracts/Dtos.fs#json-options{fsharp:line-numbers} [Dtos.fs]
+```fsharp:line-numbers [Dtos.fs]
+module BookingJson =
+    // Wire names: https://learn.microsoft.com/dotnet/standard/serialization/system-text-json/customize-properties
+    // Unmapped data: https://learn.microsoft.com/dotnet/standard/serialization/system-text-json/missing-members
+    let configure (options: JsonSerializerOptions) =
+        ArgumentNullException.ThrowIfNull(options, nameof options)
+        options.PropertyNamingPolicy <- JsonNamingPolicy.CamelCase
+        options.PropertyNameCaseInsensitive <- false
+        options.UnmappedMemberHandling <- JsonUnmappedMemberHandling.Disallow
+        options.DefaultIgnoreCondition <- JsonIgnoreCondition.WhenWritingNull
+        options.MaxDepth <- 8
 
+    let private options =
+        let settings = JsonSerializerOptions()
+        configure settings
+        settings
+
+    let serializeBooking (dto: BookingDto) =
+        ArgumentNullException.ThrowIfNull(dto, nameof dto)
+        JsonSerializer.Serialize(dto, options)
+
+    let deserializeBooking (json: string) : BookingDto | null =
+        ArgumentNullException.ThrowIfNull(json, nameof json)
+        JsonSerializer.Deserialize<BookingDto>(json, options)
+
+    let deserializePlaceBooking (json: string) : PlaceBookingDto | null =
+        ArgumentNullException.ThrowIfNull(json, nameof json)
+        JsonSerializer.Deserialize<PlaceBookingDto>(json, options)
+
+    let deserializeConfirmBooking (json: string) : ConfirmBookingDto | null =
+        ArgumentNullException.ThrowIfNull(json, nameof json)
+        JsonSerializer.Deserialize<ConfirmBookingDto>(json, options)
+
+    let deserializeCancelBooking (json: string) : CancelBookingDto | null =
+        ArgumentNullException.ThrowIfNull(json, nameof json)
+        JsonSerializer.Deserialize<CancelBookingDto>(json, options)
+```
 这些选择属于边界契约：
 
 - 属性名称使用 camel case，并由特性显式指定；
@@ -157,8 +263,44 @@ JSON 契约测试固定标签、属性集合、大小写、未知字段、版本
 
 文件适配器接收一个受保护配置值：
 
-<<< @/../examples/capstone/src/Booking.Infrastructure/Configuration.fs#store-configuration{fsharp:line-numbers} [Configuration.fs]
+```fsharp:line-numbers [Configuration.fs]
+[<RequireQualifiedAccess>]
+module BookingStoreConfiguration =
+    [<Literal>]
+    let PathEnvironmentVariable = "BOOKING_STORE_PATH"
 
+    let create (configuredPath: string | null) =
+        match configuredPath with
+        | null -> Error BookingStoreConfigurationError.MissingSnapshotPath
+        | raw when String.IsNullOrWhiteSpace raw -> Error BookingStoreConfigurationError.MissingSnapshotPath
+        | raw ->
+            try
+                let fullPath = raw.Trim() |> Path.GetFullPath
+                let fileName = Path.GetFileName fullPath
+                let directory = Path.GetDirectoryName fullPath
+
+                match directory with
+                | null -> Error BookingStoreConfigurationError.InvalidSnapshotPath
+                | value when String.IsNullOrWhiteSpace fileName || Directory.Exists fullPath ->
+                    Error BookingStoreConfigurationError.InvalidSnapshotPath
+                | value ->
+                    Ok
+                        { SnapshotPath = fullPath
+                          DirectoryPath = value }
+            with
+            | :? ArgumentException
+            | :? NotSupportedException
+            | :? PathTooLongException -> Error BookingStoreConfigurationError.InvalidSnapshotPath
+
+    // Environment variables override file settings in the default .NET configuration stack:
+    // https://learn.microsoft.com/dotnet/core/extensions/configuration-providers#environment-variable-configuration-provider
+    let fromEnvironment () =
+        Environment.GetEnvironmentVariable PathEnvironmentVariable |> create
+
+    let snapshotPath configuration = configuration.SnapshotPath
+
+    let internal directoryPath configuration = configuration.DirectoryPath
+```
 `create` 区分缺失值与无效文件路径，规范化成绝对路径，并拒绝已经指向目录的路径。因此适配器不会反复重新解释原始配置。
 
 `BOOKING_STORE_PATH` 可以来自环境变量提供程序，而测试调用 `create` 时只传入操作系统临时目录下的路径。存储路径是配置，不是机密。凭据、API 密钥与证书需要机密提供程序，不能仅因环境变量也承载配置就把它们提交进仓库。
@@ -169,8 +311,81 @@ JSON 契约测试固定标签、属性集合、大小写、未知字段、版本
 
 `FileBookingStore` 对受保护 `Booking` 暴露异步 `Load` 与 `Save` 操作：
 
-<<< @/../examples/capstone/src/Booking.Infrastructure/FileStore.fs#file-booking-store{fsharp:line-numbers} [FileStore.fs]
+```fsharp:line-numbers [FileStore.fs]
+type FileBookingStore(configuration: BookingStoreConfiguration) =
+    let snapshotPath = BookingStoreConfiguration.snapshotPath configuration
+    let directoryPath = BookingStoreConfiguration.directoryPath configuration
 
+    static member MaxSnapshotBytes = FileStoreImplementation.MaxSnapshotBytes
+
+    member _.Load(cancellationToken: CancellationToken) : Task<Result<Booking option, BookingStoreError>> =
+        task {
+            cancellationToken.ThrowIfCancellationRequested()
+
+            let! bytesResult =
+                FileStoreImplementation.readBounded
+                    FileStoreImplementation.MaxSnapshotBytes
+                    snapshotPath
+                    cancellationToken
+
+            match bytesResult with
+            | Error error -> return Error error
+            | Ok None -> return Ok None
+            | Ok(Some bytes) ->
+                match FileStoreImplementation.decode bytes with
+                | Error error -> return Error error
+                | Ok json ->
+                    try
+                        return
+                            BookingJson.deserializeBooking json
+                            |> BookingMapping.toDomain
+                            |> Result.map Some
+                            |> Result.mapError (
+                                SnapshotCorruption.InvalidDomainData >> BookingStoreError.CorruptSnapshot
+                            )
+                    with :? JsonException ->
+                        return Error(BookingStoreError.CorruptSnapshot SnapshotCorruption.InvalidJson)
+        }
+
+    member _.Save(booking: Booking, cancellationToken: CancellationToken) : Task<Result<unit, BookingStoreError>> =
+        task {
+            cancellationToken.ThrowIfCancellationRequested()
+
+            let bytes =
+                booking
+                |> BookingMapping.ofDomain
+                |> BookingJson.serializeBooking
+                |> Encoding.UTF8.GetBytes
+
+            if bytes.Length > FileStoreImplementation.MaxSnapshotBytes then
+                return Error(BookingStoreError.SnapshotTooLarge FileStoreImplementation.MaxSnapshotBytes)
+            else
+                let temporaryPath =
+                    Path.Combine(directoryPath, $".{Path.GetFileName(snapshotPath)}.{Guid.NewGuid():N}.tmp")
+
+                try
+                    let directoryResult =
+                        try
+                            Directory.CreateDirectory directoryPath |> ignore
+                            Ok()
+                        with
+                        | :? IOException
+                        | :? UnauthorizedAccessException -> Error BookingStoreError.CannotWriteTemporarySnapshot
+
+                    match directoryResult with
+                    | Error error -> return Error error
+                    | Ok() ->
+                        let! writeResult = FileStoreImplementation.writeTemporary temporaryPath bytes cancellationToken
+
+                        match writeResult with
+                        | Error error -> return Error error
+                        | Ok() ->
+                            cancellationToken.ThrowIfCancellationRequested()
+                            return FileStoreImplementation.replace temporaryPath snapshotPath
+                finally
+                    FileStoreImplementation.cleanup temporaryPath
+        }
+```
 内部保存过程把预约映射为 `BookingDto`，序列化为无字节顺序标记的 UTF-8，并拒绝大于 64 KiB 的输出。加载过程最多读取 64 KiB 加一个哨兵字节，再决定是否允许解析。它接受可选 UTF-8 BOM，但拒绝无效字节序列。
 
 固定上限会阻止损坏或被替换的本地文件导致无界分配。64 KiB 是针对一个小快照的样例上限，不是通用 JSON 限制。集合存储需要根据真实基数与流式策略推导上限。
@@ -199,8 +414,97 @@ JSON 契约测试固定标签、属性集合、大小写、未知字段、版本
 
 基础设施组合对象提供领域的 `AsyncPorts` 记录：
 
-<<< @/../examples/capstone/src/Booking.Infrastructure/Composition.fs#infrastructure-composition{fsharp:line-numbers} [Composition.fs]
+```fsharp:line-numbers [Composition.fs]
+type InfrastructureComposition
+    internal
+    (
+        configuration: BookingStoreConfiguration,
+        paymentBehavior: PaymentStubBehavior,
+        notificationBehavior: NotificationStubBehavior,
+        getUtcNow: CancellationToken -> Task<DateTimeOffset>
+    ) =
 
+    let syncRoot = obj ()
+    let store = FileBookingStore configuration
+    let payment = new PaymentStub(paymentBehavior)
+    let notification = new NotificationStub(notificationBehavior)
+    let mutable disposed = false
+
+    let ensureActive (cancellationToken: CancellationToken) =
+        cancellationToken.ThrowIfCancellationRequested()
+
+        lock syncRoot (fun () ->
+            if disposed then
+                raise (ObjectDisposedException(nameof InfrastructureComposition)))
+
+    let unwrapStoreResult result =
+        match result with
+        | Ok value -> value
+        | Error error -> raise (BookingStoreAdapterException error)
+
+    let ports: AsyncPorts =
+        { LoadBooking =
+            fun requestId cancellationToken ->
+                task {
+                    ensureActive cancellationToken
+                    let! stored = store.Load cancellationToken
+
+                    return
+                        match unwrapStoreResult stored with
+                        | Some booking when Booking.requestId booking = requestId -> Booked booking
+                        | Some _
+                        | None -> NotBooked
+                }
+          AppendEvent =
+            fun requestId bookingEvent cancellationToken ->
+                task {
+                    ensureActive cancellationToken
+                    let booking = BookingEvent.booking bookingEvent
+
+                    if Booking.requestId booking <> requestId then
+                        invalidArg (nameof requestId) "The event request ID must match the storage key."
+
+                    let! saved = store.Save(booking, cancellationToken)
+                    return unwrapStoreResult saved
+                }
+          Charge =
+            fun request cancellationToken ->
+                ensureActive cancellationToken
+                payment.Invoke request cancellationToken
+          Notify =
+            fun request cancellationToken ->
+                ensureActive cancellationToken
+                notification.Invoke request cancellationToken
+          GetUtcNow =
+            fun cancellationToken ->
+                ensureActive cancellationToken
+                getUtcNow cancellationToken }
+
+    member _.Ports = ports
+    member _.PaymentStub = payment
+    member _.NotificationStub = notification
+    member _.IsDisposed = lock syncRoot (fun () -> disposed)
+
+    interface IDisposable with
+        member _.Dispose() =
+            let shouldDispose =
+                lock syncRoot (fun () ->
+                    if disposed then
+                        false
+                    else
+                        disposed <- true
+                        true)
+
+            if shouldDispose then
+                (notification :> IDisposable).Dispose()
+                (payment :> IDisposable).Dispose()
+
+[<RequireQualifiedAccess>]
+module Composition =
+    // The returned composition creates and owns both stubs; dispose it at the application boundary.
+    let start configuration paymentBehavior notificationBehavior getUtcNow =
+        new InfrastructureComposition(configuration, paymentBehavior, notificationBehavior, getUtcNow)
+```
 每个函数都保留调用方的 `CancellationToken`。存储错误变成 `BookingStoreAdapterException`，既保留类型化内部类别，也让后续 HTTP 层只有一个位置映射安全响应。异常消息既不含文件内容，也不含已配置路径。
 
 `LoadBooking` 尊重请求键，对不同的已存请求返回 `NotBooked`。`AppendEvent` 在保存事件结果预约之前，会拒绝参数键与事件受保护请求 ID 不一致。
@@ -211,12 +515,87 @@ JSON 契约测试固定标签、属性集合、大小写、未知字段、版本
 
 支付替身在构造时固定行为：
 
-<<< @/../examples/capstone/src/Booking.Infrastructure/PaymentStub.fs#payment-stub{fsharp:line-numbers} [PaymentStub.fs]
+```fsharp:line-numbers [PaymentStub.fs]
+type PaymentStub(behavior: PaymentStubBehavior) =
+    let syncRoot = obj ()
+    let calls = ResizeArray<PaymentRequest>()
+    let mutable disposed = false
 
+    let ensureActive () =
+        if disposed then
+            raise (ObjectDisposedException(nameof PaymentStub))
+
+    member _.Calls: IReadOnlyList<PaymentRequest> =
+        lock syncRoot (fun () -> calls.ToArray())
+
+    member _.IsDisposed = lock syncRoot (fun () -> disposed)
+
+    member _.Invoke (request: PaymentRequest) (cancellationToken: CancellationToken) : Task<PaymentOutcome> =
+        task {
+            cancellationToken.ThrowIfCancellationRequested()
+
+            lock syncRoot (fun () ->
+                ensureActive ()
+                calls.Add request)
+
+            match behavior with
+            | PaymentStubBehavior.Authorize transactionId -> return Authorized transactionId
+            | PaymentStubBehavior.Decline reason -> return Declined reason
+            | PaymentStubBehavior.Fail message ->
+                return
+                    raise (
+                        DependencyUnavailableException(
+                            "Payment dependency is unavailable.",
+                            InvalidOperationException message
+                        )
+                    )
+        }
+
+    interface IDisposable with
+        member _.Dispose() =
+            lock syncRoot (fun () -> disposed <- true)
+```
 它使用给定交易 ID 授权，返回给定拒绝原因，或抛出 `DependencyUnavailableException`，其 `InnerException` 携带给定故障详情。通知替身同样会交付，或抛出相同的类型化可用性信号：
 
-<<< @/../examples/capstone/src/Booking.Infrastructure/NotificationStub.fs#notification-stub{fsharp:line-numbers} [NotificationStub.fs]
+```fsharp:line-numbers [NotificationStub.fs]
+type NotificationStub(behavior: NotificationStubBehavior) =
+    let syncRoot = obj ()
+    let calls = ResizeArray<NotificationRequest>()
+    let mutable disposed = false
 
+    let ensureActive () =
+        if disposed then
+            raise (ObjectDisposedException(nameof NotificationStub))
+
+    member _.Calls: IReadOnlyList<NotificationRequest> =
+        lock syncRoot (fun () -> calls.ToArray())
+
+    member _.IsDisposed = lock syncRoot (fun () -> disposed)
+
+    member _.Invoke (request: NotificationRequest) (cancellationToken: CancellationToken) : Task<unit> =
+        task {
+            cancellationToken.ThrowIfCancellationRequested()
+
+            lock syncRoot (fun () ->
+                ensureActive ()
+                calls.Add request)
+
+            match behavior with
+            | NotificationStubBehavior.Deliver -> return ()
+            | NotificationStubBehavior.Fail message ->
+                return
+                    raise (
+                        DependencyUnavailableException(
+                            "Notification dependency is unavailable.",
+                            InvalidOperationException message
+                        )
+                    )
+        }
+
+    interface IDisposable with
+        member _.Dispose() =
+            lock syncRoot (fun () -> disposed <- true)
+```
 两者都在记录调用前检查取消。它们不使用 HTTP、时钟、随机数、休眠、凭据或环境状态。调用列表是同步快照，因此无需模拟框架也能确定地断言。
 
 这些替身用于学习和控制集成。它们不模拟支付授权协议、重试、Webhook 交付、消息持久性、欺诈检查或提供商幂等性。以 `Stub` 命名，可防止读者误把确定性行为当成生产集成。

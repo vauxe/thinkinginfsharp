@@ -2,33 +2,6 @@
 title: "Chapter 37 Solutions"
 description: "Move capacity control across processes, reconcile ambiguous payments, and design an outbox without claiming exactly-once delivery."
 translationKey: solutions/ch-37-consistency-idempotency
-kind: solution
-part: 6
-chapter: 37
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - capstone-booking-domain
-  - capstone-booking-contracts
-  - capstone-booking-infrastructure
-  - foundation-contract-tests
-exerciseIds:
-  - ch37-exercise-01
-  - ch37-exercise-02
-  - ch37-exercise-03
-termIds: []
-sources:
-  - id: microsoft-retry-pattern
-    url: https://learn.microsoft.com/en-us/azure/architecture/patterns/retry
-    checked: "2026-08-25"
-  - id: microsoft-transactional-outbox
-    url: https://learn.microsoft.com/en-us/azure/architecture/databases/guide/transactional-out-box-cosmos
-    checked: "2026-08-25"
-  - id: microsoft-minimize-coordination
-    url: https://learn.microsoft.com/en-us/azure/architecture/guide/design-principles/minimize-coordination
-    checked: "2026-08-25"
 ---
 
 # Chapter 37 Solutions {#overview}

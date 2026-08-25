@@ -2,45 +2,6 @@
 title: "第 41 章练习答案"
 description: "选择与问题成比例的浏览器架构，拒绝陈旧异步结果，并按诚实的运行时边界拆分共享定价库。"
 translationKey: solutions/ch-41-fable-elmish
-kind: solution
-part: 7
-chapter: 41
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ecosystem-fable-browser
-exerciseIds:
-  - ch41-exercise-01
-  - ch41-exercise-02
-  - ch41-exercise-03
-termIds: []
-sources:
-  - id: fable-build-run
-    url: https://fable.io/docs/javascript/build-and-run.html
-    checked: "2026-08-25"
-  - id: fable-javascript-compatibility
-    url: https://fable.io/docs/javascript/compatibility.html
-    checked: "2026-08-25"
-  - id: fable-javascript-features
-    url: https://fable.io/docs/javascript/features.html
-    checked: "2026-08-25"
-  - id: elmish-overview
-    url: https://elmish.github.io/elmish/
-    checked: "2026-08-25"
-  - id: elmish-subscriptions
-    url: https://elmish.github.io/elmish/docs/subscription.html
-    checked: "2026-08-25"
-  - id: fable-elmish-nuget
-    url: https://www.nuget.org/packages/Fable.Elmish/5.0.2
-    checked: "2026-08-25"
-  - id: fable-elmish-react-nuget
-    url: https://www.nuget.org/packages/Fable.Elmish.React/5.6.0
-    checked: "2026-08-25"
-  - id: feliz-nuget
-    url: https://www.nuget.org/packages/Feliz/3.3.3
-    checked: "2026-08-25"
 ---
 
 # 第 41 章练习答案 {#overview}
@@ -53,7 +14,7 @@ sources:
 
 ### 情况 A：服务端渲染文档上的一个偏好开关 {#exercise-01-case-a}
 
-从一个微小的隔离增强开始。如果偏好只靠原生 HTML 与 CSS 就能表示，就使用它们。如果它需要存储状态与事件处理，而且本仓库已经拥有 Fable 管道，那么普通 Fable 加 Browser.Dom 是第一个 F# 候选。
+从一个微小的隔离增强开始。如果偏好只靠原生 HTML 与 CSS 就能表示，就使用它们。如果它需要存储状态与事件处理，而且应用已经拥有 Fable 管道，那么普通 Fable 加 Browser.Dom 是第一个 F# 候选。
 
 使用一个模型和一个类型化边界：
 
@@ -240,7 +201,7 @@ val price: PricingInput -> Result<PricedBasket, PricingError list>
 
 发布管道执行：
 
-1. 锁定的 SDK、工具、NuGet 与 pnpm 还原；
+1. 锁定的 SDK、工具、NuGet 与 JavaScript 依赖还原；
 2. .NET 单元/性质测试和服务端序列化器契约；
 3. Fable 编译，以及生成 JavaScript 对共享黄金向量的执行；
 4. Vite 生产构建和包体/许可证/安全公告审阅；

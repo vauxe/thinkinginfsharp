@@ -2,40 +2,6 @@
 title: "Chapter 21: Exceptions, Resources, and I/O"
 description: "Use try/with for specific exception policy, use for prompt disposal, and translate file-system failures without erasing causes or confusing them with domain absence."
 translationKey: part-04/ch-21-exceptions-resources-io
-kind: chapter
-part: 4
-chapter: 21
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch21-exceptions-resources-io
-exerciseIds:
-  - ch21-exercise-01
-  - ch21-exercise-02
-  - ch21-exercise-03
-termIds:
-  - effect
-  - option
-  - result
-  - validation-accumulation
-sources:
-  - id: microsoft-try-with
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/exception-handling/the-try-with-expression
-    checked: "2026-08-24"
-  - id: microsoft-raise-reraise
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/exception-handling/the-raise-function
-    checked: "2026-08-24"
-  - id: microsoft-try-finally
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/exception-handling/the-try-finally-expression
-    checked: "2026-08-24"
-  - id: microsoft-use
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/resource-management-the-use-keyword
-    checked: "2026-08-24"
-  - id: dotnet-stream-reader
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.io.streamreader?view=net-10.0
-    checked: "2026-08-24"
 ---
 
 # Chapter 21: Exceptions, Resources, and I/O {#overview}
@@ -112,8 +78,11 @@ For asynchronous resources, the applicable computation-expression builder contro
 
 The shared helper accepts acquisition and an operation:
 
-<<< @/../examples/scripts/ch21-exceptions-resources-io.fsx#resource-scope{fsharp:line-numbers} [ch21-exceptions-resources-io.fsx]
-
+```fsharp:line-numbers [ch21-exceptions-resources-io.fsx]
+let withReader (openReader: string -> StreamReader) path operation =
+    use reader = openReader path
+    operation reader
+```
 The contract is approximately:
 
 ```text
@@ -130,12 +99,24 @@ Avoid accepting a reader that somebody else owns and then silently disposing it.
 
 The error union separates known outcomes and retains exception objects for failures whose diagnostic details matter:
 
-<<< @/../examples/scripts/ch21-exceptions-resources-io.fsx#error-model{fsharp:line-numbers} [ch21-exceptions-resources-io.fsx]
-
+```fsharp:line-numbers [ch21-exceptions-resources-io.fsx]
+type ReadTextError =
+    | PathNotFound of path: string
+    | AccessDenied of path: string * cause: UnauthorizedAccessException
+    | IoFailure of path: string * cause: IOException
+```
 The adapter performs the translation:
 
-<<< @/../examples/scripts/ch21-exceptions-resources-io.fsx#translate-errors{fsharp:line-numbers} [ch21-exceptions-resources-io.fsx]
-
+```fsharp:line-numbers [ch21-exceptions-resources-io.fsx]
+let readText path =
+    try
+        withReader File.OpenText path (fun reader -> reader.ReadToEnd()) |> Ok
+    with
+    | :? FileNotFoundException
+    | :? DirectoryNotFoundException -> Error(PathNotFound path)
+    | :? UnauthorizedAccessException as cause -> Error(AccessDenied(path, cause))
+    | :? IOException as cause -> Error(IoFailure(path, cause))
+```
 Several choices are deliberate:
 
 - missing file and missing directory become one `PathNotFound path` because this caller handles them the same way;
@@ -158,8 +139,74 @@ Do not log the same exception at every layer. A common policy is either handle i
 
 The shared script creates a unique directory beneath `Path.GetTempPath()`, writes one file, and opens actual `StreamReader` instances:
 
-<<< @/../examples/scripts/ch21-exceptions-resources-io.fsx#temp-tests{fsharp:line-numbers} [ch21-exceptions-resources-io.fsx]
+```fsharp:line-numbers [ch21-exceptions-resources-io.fsx]
+let tempName = Guid.NewGuid().ToString("N")
 
+let tempDirectory =
+    Path.Combine(Path.GetTempPath(), $"thinkinginfsharp-ch21-{tempName}")
+
+let filePath = Path.Combine(tempDirectory, "seats.txt")
+let missingPath = Path.Combine(tempDirectory, "missing.txt")
+let mutable cleanupRemoved = false
+
+Directory.CreateDirectory tempDirectory |> ignore
+
+try
+    File.WriteAllText(filePath, "42")
+
+    let mutable successReader = None
+
+    let openSuccess path =
+        let reader = File.OpenText path
+        successReader <- Some reader
+        reader
+
+    let text = withReader openSuccess filePath (fun reader -> reader.ReadToEnd())
+
+    let successDisposed = readerIsDisposed successReader
+
+    let mutable failureReader = None
+
+    let openFailure path =
+        let reader = File.OpenText path
+        failureReader <- Some reader
+        reader
+
+    let failureCaught =
+        try
+            withReader openFailure filePath (fun reader ->
+                reader.ReadToEnd() |> ignore
+                raise (InvalidDataException "invalid-data"))
+
+            false
+        with :? InvalidDataException as cause ->
+            assert (cause.Message = "invalid-data")
+            true
+
+    let failureDisposed = readerIsDisposed failureReader
+    let readResult = readText filePath
+    let missingResult = readText missingPath
+
+    assert (text = "42")
+    assert successDisposed
+    assert failureCaught
+    assert failureDisposed
+    assert (readResult = Ok "42")
+
+    match missingResult with
+    | Error(PathNotFound path) -> assert (path = missingPath)
+    | other -> failwithf "Expected PathNotFound, received %A" other
+
+    printfn "Success: text=%s disposed=%b" text successDisposed
+    printfn "Failure: caught=%b disposed=%b" failureCaught failureDisposed
+    printfn "Read result: %s" (renderReadResult readResult)
+    printfn "Missing result: %s" (renderReadResult missingResult)
+finally
+    if Directory.Exists tempDirectory then
+        Directory.Delete(tempDirectory, recursive = true)
+
+    cleanupRemoved <- not (Directory.Exists tempDirectory)
+```
 Two opener functions retain reader references solely for test observation. After the success operation returns, calling `Peek` on the retained reader raises `ObjectDisposedException`. A second operation reads the file and then raises `InvalidDataException`; after the exception is caught outside `withReader`, that reader is disposed too.
 
 This is direct evidence for both control paths. It is stronger than asserting that a `use` keyword appears in source, and more portable than attempting to delete an open file—Unix-like systems and Windows have different open-file deletion behavior.
@@ -220,13 +267,13 @@ Map errors at the workflow boundary rather than flattening both into “invalid 
 
 ## Run the shared example {#run-example}
 
-From the repository root:
+From the directory containing the example:
 
 ```console
-dotnet fsi --exec examples/scripts/ch21-exceptions-resources-io.fsx
+dotnet fsi --exec ch21-exceptions-resources-io.fsx
 ```
 
-Five deterministic lines prove success-path disposal, exception-path disposal, successful reading, missing-path translation, and final temporary-directory cleanup. The manifest checks the exact output.
+Five deterministic lines prove success-path disposal, exception-path disposal, successful reading, missing-path translation, and final temporary-directory cleanup. Compare the exact output.
 
 ## Exercises {#exercises}
 

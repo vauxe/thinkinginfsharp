@@ -1,6 +1,0 @@
-<linker>
-  <assembly fullname="FSharpGameplay">
-    <type fullname="ThinkingInFSharp.UnitySample.Gameplay" preserve="all" />
-    <type fullname="ThinkingInFSharp.UnitySample.MotionState" preserve="all" />
-  </assembly>
-</linker>

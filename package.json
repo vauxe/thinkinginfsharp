@@ -3,35 +3,20 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.7.0",
   "scripts": {
     "dev": "vitepress dev docs",
     "build": "vitepress build docs",
     "preview": "vitepress preview docs",
-    "generate:glossary": "node scripts/generate-glossary.mjs",
-    "check:glossary": "node scripts/generate-glossary.mjs --check",
-    "generate:solutions-guide": "node scripts/generate-solutions-guide.mjs",
-    "check:solutions-guide": "node scripts/generate-solutions-guide.mjs --check",
-    "generate:navigation": "node scripts/generate-navigation.mjs",
-    "check:navigation": "node scripts/generate-navigation.mjs --check",
-    "check:parity": "node scripts/check-parity.mjs",
-    "check:content": "pnpm check:glossary && pnpm check:solutions-guide && pnpm check:navigation && node scripts/check-content.mjs",
-    "check:examples": "node --test scripts/example-checks.test.mjs && node scripts/check-examples.mjs && pnpm check:fable",
-    "check:fable": "pnpm --filter @thinking-in-fsharp/fable-sample build && pnpm --filter @thinking-in-fsharp/fable-sample smoke",
-    "check:capstone": "node scripts/check-capstone.mjs",
-    "check:site": "node scripts/site-smoke.mjs",
-    "check:browser": "node --test tests/site-browser.test.mjs",
-    "test:content": "node --test scripts/content-contract.test.mjs scripts/markdown.test.mjs scripts/content-checks.test.mjs scripts/glossary.test.mjs scripts/solutions-guide.test.mjs scripts/navigation.test.mjs scripts/site-base.test.mjs scripts/site-smoke.test.mjs",
-    "test": "pnpm test:content && pnpm check:parity && pnpm check:content && pnpm build && pnpm check:site && pnpm check:browser"
+    "check:book": "node scripts/check-book.mjs",
+    "check": "npm run check:book && npm run build"
   },
   "engines": {
-    "node": ">=22.0.0",
-    "pnpm": "11.7.0"
+    "node": ">=22.0.0"
+  },
+  "overrides": {
+    "vite": "6.4.3"
   },
   "devDependencies": {
-    "markdown-it": "15.0.0",
-    "playwright-core": "1.62.1",
-    "vitepress": "1.6.4",
-    "yaml": "2.9.0"
+    "vitepress": "1.6.4"
   }
 }

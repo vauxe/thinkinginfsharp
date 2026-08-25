@@ -2,49 +2,6 @@
 title: "Chapter 3: Functions Are Values"
 description: "Start from function values to master application, arrow types, lambdas, higher-order functions, currying, tupled parameters, partial application, and automatic generalization."
 translationKey: part-01/ch-03-functions-as-values
-kind: chapter
-part: 1
-chapter: 3
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch03-functions-as-values
-exerciseIds:
-  - ch03-exercise-01
-  - ch03-exercise-02
-  - ch03-exercise-03
-termIds:
-  - anonymous-function
-  - argument
-  - automatic-generalization
-  - closure
-  - currying
-  - function
-  - function-application
-  - higher-order-function
-  - parameter
-  - partial-application
-  - tuple
-  - type-inference
-  - value
-sources:
-  - id: microsoft-functions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/
-    checked: "2026-08-24"
-  - id: microsoft-lambda
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/lambda-expressions-the-fun-keyword
-    checked: "2026-08-24"
-  - id: microsoft-parameters
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/parameters-and-arguments
-    checked: "2026-08-24"
-  - id: microsoft-type-inference
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/type-inference
-    checked: "2026-08-24"
-  - id: microsoft-automatic-generalization
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/automatic-generalization
-    checked: "2026-08-24"
 ---
 
 # Chapter 3: Functions Are Values {#overview}
@@ -71,8 +28,13 @@ This chapter uses only simple arithmetic, strings, and minimal tuples. Collectio
 
 Start with a function that calculates the amount for a booking line:
 
-<<< @/../examples/scripts/ch03-functions-as-values.fsx#curried-function{fsharp:line-numbers} [ch03-functions-as-values.fsx]
+```fsharp:line-numbers [ch03-functions-as-values.fsx]
+let lineTotal unitPrice seats = unitPrice * decimal seats
+let standardLineTotal = lineTotal 19.50m
+let totalForThree = standardLineTotal 3
 
+printfn "Curried total: %M" totalForThree
+```
 `let lineTotal unitPrice seats = ...` establishes a binding between the name `lineTotal` and a function value. `unitPrice` and `seats` are **parameters**: they stand for inputs the function will later receive. In the call `lineTotal 19.50m 3`, `19.50m` and `3` are **arguments**: the values actually supplied by the caller.
 
 Defining a function does not immediately evaluate its body. Only after the function receives enough arguments does the body `unitPrice * decimal seats` run. The value of the body's final expression is the function result; an ordinary F# function needs no `return` here.
@@ -130,8 +92,12 @@ This is not a promise that an expensive intermediate object is allocated every t
 
 The same calculation can be written as a function receiving one pair:
 
-<<< @/../examples/scripts/ch03-functions-as-values.fsx#tupled-function{fsharp:line-numbers} [ch03-functions-as-values.fsx]
+```fsharp:line-numbers [ch03-functions-as-values.fsx]
+let lineTotalTupled (unitPrice, seats) = unitPrice * decimal seats
+let tupledTotal = lineTotalTupled (19.50m, 3)
 
+printfn "Tupled total: %M" tupledTotal
+```
 Here `(unitPrice, seats)` is a tuple pattern that separates two positions from one argument. The signature is:
 
 ```text
@@ -148,8 +114,13 @@ Supplying fewer than all arguments to a curried function produces a new function
 
 In the first example, `lineTotal 19.50m` produces an `int -> decimal` function bound as `standardLineTotal`. The unit price is fixed, so future callers provide only a seat count. The service-fee example uses the same idea:
 
-<<< @/../examples/scripts/ch03-functions-as-values.fsx#returned-function{fsharp:line-numbers} [ch03-functions-as-values.fsx]
+```fsharp:line-numbers [ch03-functions-as-values.fsx]
+let addFee fee subtotal = subtotal + fee
+let addServiceFee = addFee 2.00m
+let finalTotal = addServiceFee totalForThree
 
+printfn "With service fee: %M" finalTotal
+```
 `addFee` has type `decimal -> decimal -> decimal`. `addFee 2.00m` returns a `decimal -> decimal` function that can still use the supplied `2.00m` later. A function value together with surrounding values it retains forms the semantics of a **closure**. The runtime may optimize its representation, but the captured-value behavior remains.
 
 Parameter order is therefore part of API design. Stable configuration that callers may fix in advance often belongs first, while frequently changing data that flows through a computation often belongs last. Chapter 13 treats pipeline-oriented argument order systematically; partial application gives the first evidence here.
@@ -158,8 +129,12 @@ Parameter order is therefore part of API design. Stable configuration that calle
 
 A short function used only nearby may not need a name first. A `fun` expression creates an anonymous function directly:
 
-<<< @/../examples/scripts/ch03-functions-as-values.fsx#named-and-anonymous{fsharp:line-numbers} [ch03-functions-as-values.fsx]
+```fsharp:line-numbers [ch03-functions-as-values.fsx]
+let increment seats = seats + 1
+let incrementAnonymous = fun seats -> seats + 1
 
+printfn "Named and anonymous: %d, %d" (increment 3) (incrementAnonymous 3)
+```
 Read `fun seats -> seats + 1` as “receive seats and produce seats plus one.” The parameter pattern is left of the arrow, and the body expression is right of it. Both `increment` and `incrementAnonymous` infer the type `int -> int` and produce the same call result.
 
 A name records intent and improves diagnostics, so brevity is not a reason to turn every function into an anonymous one. Anonymous functions fit local behavior, especially as an argument to another function. When the same logic appears in several places or names a domain concept, a named function is usually clearer.
@@ -168,8 +143,12 @@ A name records intent and improves diagnostics, so brevity is not a reason to tu
 
 A **higher-order function** does at least one of two things: it accepts a function value or returns one. Partial application already returned functions; this example accepts one:
 
-<<< @/../examples/scripts/ch03-functions-as-values.fsx#higher-order{fsharp:line-numbers} [ch03-functions-as-values.fsx]
+```fsharp:line-numbers [ch03-functions-as-values.fsx]
+let applyTwice transform value = transform (transform value)
+let incrementedTwice = applyTwice increment 3
 
+printfn "Applied twice: %d" incrementedTwice
+```
 `applyTwice` does not know the business meaning of `transform`. It requires only that the first transformation's output can be supplied to the same transformation again, so FSI infers:
 
 ```text
@@ -184,8 +163,13 @@ Higher-order does not automatically mean better abstraction. If behavior does no
 
 Consider a function that neither inspects, changes, nor constructs its input:
 
-<<< @/../examples/scripts/ch03-functions-as-values.fsx#generic-identity{fsharp:line-numbers} [ch03-functions-as-values.fsx]
+```fsharp:line-numbers [ch03-functions-as-values.fsx]
+let identity value = value
+let unchangedNumber = identity 42
+let unchangedText = identity "F#"
 
+printfn "Identity values: %d, %s" unchangedNumber unchangedText
+```
 `identity` simply returns the value it receives, and its body imposes no concrete type. The compiler **automatically generalizes** its type to:
 
 ```text
@@ -200,10 +184,10 @@ Complete function definitions with explicit parameters can usually be generalize
 
 ## Run the shared example {#run-example}
 
-From the repository root, run:
+From the directory containing the example, run:
 
 ```console
-dotnet fsi --exec examples/scripts/ch03-functions-as-values.fsx
+dotnet fsi --exec ch03-functions-as-values.fsx
 ```
 
 You should see:

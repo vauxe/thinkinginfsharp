@@ -2,33 +2,6 @@
 title: "Chapter 19 Solutions"
 description: "Classify nullable boundaries, wrap a real nullable .NET return without erasing failures, and prove why an option payload can still be null."
 translationKey: solutions/ch-19-dotnet-null-boundaries
-kind: solution
-part: 4
-chapter: 19
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch19-null-boundaries
-exerciseIds:
-  - ch19-exercise-01
-  - ch19-exercise-02
-  - ch19-exercise-03
-termIds: []
-sources:
-  - id: microsoft-null-values
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/values/null-values
-    checked: "2026-08-24"
-  - id: microsoft-nullable-value-types
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/nullable-value-types
-    checked: "2026-08-24"
-  - id: fsharp-core-option
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-optionmodule.html
-    checked: "2026-08-24"
-  - id: dotnet-type-gettype
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.type.gettype?view=net-10.0
-    checked: "2026-08-24"
 ---
 
 # Chapter 19 Solutions {#overview}

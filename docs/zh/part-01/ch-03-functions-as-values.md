@@ -2,49 +2,6 @@
 title: "第 3 章：函数也是值"
 description: "从函数值出发掌握应用、箭头类型、匿名函数、高阶函数、柯里化、元组参数、部分应用与自动泛化。"
 translationKey: part-01/ch-03-functions-as-values
-kind: chapter
-part: 1
-chapter: 3
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch03-functions-as-values
-exerciseIds:
-  - ch03-exercise-01
-  - ch03-exercise-02
-  - ch03-exercise-03
-termIds:
-  - anonymous-function
-  - argument
-  - automatic-generalization
-  - closure
-  - currying
-  - function
-  - function-application
-  - higher-order-function
-  - parameter
-  - partial-application
-  - tuple
-  - type-inference
-  - value
-sources:
-  - id: microsoft-functions
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/
-    checked: "2026-08-24"
-  - id: microsoft-lambda
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/lambda-expressions-the-fun-keyword
-    checked: "2026-08-24"
-  - id: microsoft-parameters
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/parameters-and-arguments
-    checked: "2026-08-24"
-  - id: microsoft-type-inference
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/type-inference
-    checked: "2026-08-24"
-  - id: microsoft-automatic-generalization
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/automatic-generalization
-    checked: "2026-08-24"
 ---
 
 # 第 3 章：函数也是值 {#overview}
@@ -71,8 +28,13 @@ F# 不把函数限制在“声明后才能调用的特殊代码区”。函数�
 
 先看一个计算预约行金额的函数：
 
-<<< @/../examples/scripts/ch03-functions-as-values.fsx#curried-function{fsharp:line-numbers} [ch03-functions-as-values.fsx]
+```fsharp:line-numbers [ch03-functions-as-values.fsx]
+let lineTotal unitPrice seats = unitPrice * decimal seats
+let standardLineTotal = lineTotal 19.50m
+let totalForThree = standardLineTotal 3
 
+printfn "Curried total: %M" totalForThree
+```
 `let lineTotal unitPrice seats = ...` 建立名称 `lineTotal` 与一个函数值之间的绑定。`unitPrice` 和 `seats` 是**形参**：它们代表函数以后接收的输入。调用 `lineTotal 19.50m 3` 时，`19.50m` 与 `3` 是**实参**：调用方实际提供的值。
 
 定义函数时不会立刻执行主体。只有函数被应用到足够实参后，主体 `unitPrice * decimal seats` 才求值。主体最后一个表达式的值就是函数结果；普通 F# 函数不需要在这里写 `return`。
@@ -130,8 +92,12 @@ F# 中 `let` 绑定函数通常使用**柯里化**形式：表面上写多个形
 
 同一计算也能写成接收一个二元组的函数：
 
-<<< @/../examples/scripts/ch03-functions-as-values.fsx#tupled-function{fsharp:line-numbers} [ch03-functions-as-values.fsx]
+```fsharp:line-numbers [ch03-functions-as-values.fsx]
+let lineTotalTupled (unitPrice, seats) = unitPrice * decimal seats
+let tupledTotal = lineTotalTupled (19.50m, 3)
 
+printfn "Tupled total: %M" tupledTotal
+```
 这里 `(unitPrice, seats)` 是一个元组模式，拆开单个实参中的两个位置。签名是：
 
 ```text
@@ -148,8 +114,13 @@ decimal * int -> decimal
 
 在第一个示例中，`lineTotal 19.50m` 得到 `int -> decimal`，并绑定为 `standardLineTotal`。单价被固定，调用方以后只需提供座位数。相同思路也用于服务费：
 
-<<< @/../examples/scripts/ch03-functions-as-values.fsx#returned-function{fsharp:line-numbers} [ch03-functions-as-values.fsx]
+```fsharp:line-numbers [ch03-functions-as-values.fsx]
+let addFee fee subtotal = subtotal + fee
+let addServiceFee = addFee 2.00m
+let finalTotal = addServiceFee totalForThree
 
+printfn "With service fee: %M" finalTotal
+```
 `addFee` 的类型是 `decimal -> decimal -> decimal`。`addFee 2.00m` 返回 `decimal -> decimal`，新函数在以后调用时仍能使用已经提供的 `2.00m`。函数值连同其保留的周围值形成**闭包**的语义；运行时可能优化具体表示，但捕获值的行为保持不变。
 
 参数顺序因此是 API 设计的一部分。较稳定、适合预先固定的配置通常放在前面；频繁变化、最终流经计算的数据通常放在后面。第 13 章会系统讨论面向管道的参数顺序，现在先从部分应用观察这一后果。
@@ -158,8 +129,12 @@ decimal * int -> decimal
 
 有时一个短函数只在附近使用一次，无需先命名。`fun` 表达式直接产生匿名函数：
 
-<<< @/../examples/scripts/ch03-functions-as-values.fsx#named-and-anonymous{fsharp:line-numbers} [ch03-functions-as-values.fsx]
+```fsharp:line-numbers [ch03-functions-as-values.fsx]
+let increment seats = seats + 1
+let incrementAnonymous = fun seats -> seats + 1
 
+printfn "Named and anonymous: %d, %d" (increment 3) (incrementAnonymous 3)
+```
 `fun seats -> seats + 1` 可以读作“接收 seats，产生 seats 加一”。箭头左侧是形参模式，右侧是主体表达式。`increment` 与 `incrementAnonymous` 都推断为 `int -> int`，调用结果也相同。
 
 名称能记录意图并改善诊断，所以不要为了短而把所有函数改成匿名形式。匿名函数最适合局部行为，尤其是作为另一个函数的实参；相同逻辑被多处使用或本身代表领域概念时，命名通常更清楚。
@@ -168,8 +143,12 @@ decimal * int -> decimal
 
 **高阶函数**至少做一件事：接收函数值，或返回函数值。部分应用已经展示了返回函数；下面展示接收函数：
 
-<<< @/../examples/scripts/ch03-functions-as-values.fsx#higher-order{fsharp:line-numbers} [ch03-functions-as-values.fsx]
+```fsharp:line-numbers [ch03-functions-as-values.fsx]
+let applyTwice transform value = transform (transform value)
+let incrementedTwice = applyTwice increment 3
 
+printfn "Applied twice: %d" incrementedTwice
+```
 `applyTwice` 不知道 `transform` 的具体业务含义。它只要求第一次变换的输出能再次作为同一变换的输入，因此 FSI 推断：
 
 ```text
@@ -184,8 +163,13 @@ val applyTwice: ('a -> 'a) -> 'a -> 'a
 
 观察一个不检查、修改或构造输入的函数：
 
-<<< @/../examples/scripts/ch03-functions-as-values.fsx#generic-identity{fsharp:line-numbers} [ch03-functions-as-values.fsx]
+```fsharp:line-numbers [ch03-functions-as-values.fsx]
+let identity value = value
+let unchangedNumber = identity 42
+let unchangedText = identity "F#"
 
+printfn "Identity values: %d, %s" unchangedNumber unchangedText
+```
 `identity` 只返回它收到的值，主体没有要求具体类型。编译器把其类型**自动泛化**为：
 
 ```text
@@ -200,10 +184,10 @@ val identity: 'a -> 'a
 
 ## 运行共享示例 {#run-example}
 
-从仓库根目录执行：
+在示例所在目录执行：
 
 ```console
-dotnet fsi --exec examples/scripts/ch03-functions-as-values.fsx
+dotnet fsi --exec ch03-functions-as-values.fsx
 ```
 
 应得到：

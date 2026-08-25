@@ -2,28 +2,6 @@
 title: "Chapter 1 Solutions"
 description: "Reasoning, a migration example, and execution-entry choices for the first F# session."
 translationKey: solutions/ch-01-first-session
-kind: solution
-part: 1
-chapter: 1
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch01-first-session
-  - ch01-exercise-02-solution
-exerciseIds:
-  - ch01-exercise-01
-  - ch01-exercise-02
-  - ch01-exercise-03
-termIds: []
-sources:
-  - id: microsoft-fsi
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/tools/fsharp-interactive/
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-unit
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/unit-type
-    checked: "2026-08-24"
 ---
 
 # Chapter 1 Solutions {#overview}
@@ -53,8 +31,13 @@ The point is not the subtraction. It is to reason in the direction of dependency
 
 One direct answer is in the separate solution script:
 
-<<< @/../examples/solutions/ch01-exercise-02.fsx#solution{fsharp:line-numbers} [ch01-exercise-02.fsx]
+```fsharp:line-numbers [ch01-exercise-02.fsx]
+let guest = "Lin"
+let requestedSeats = 3
+let confirmation = $"{guest} booked {requestedSeats} seats."
 
+printfn "%s" confirmation
+```
 The three `let` bindings state data dependencies rather than declaring three storage slots that must later be rewritten. `confirmation` depends only on the two values already named. The final `printfn` writes the text to standard output and returns `()`.
 
 Type annotations add no value here: the string literal, integer `3`, interpolation, and `printfn` already give the compiler enough constraints. Nor is there a reason to invent an operator or abstraction to make the answer look “more functional.” Clear intermediate values are the purpose of the exercise.

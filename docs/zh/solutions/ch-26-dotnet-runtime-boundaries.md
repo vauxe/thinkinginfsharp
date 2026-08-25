@@ -2,33 +2,6 @@
 title: "第 26 章答案"
 description: "只解码一次对象输入、拥有事件订阅，并证明自定义字典比较器遵守相等与哈希契约。"
 translationKey: solutions/ch-26-dotnet-runtime-boundaries
-kind: solution
-part: 5
-chapter: 26
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch26-dotnet-runtime-boundaries
-exerciseIds:
-  - ch26-exercise-01
-  - ch26-exercise-02
-  - ch26-exercise-03
-termIds: []
-sources:
-  - id: microsoft-fsharp-casting
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/casting-and-conversions
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-events
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/members/events
-    checked: "2026-08-24"
-  - id: dotnet-dictionary-comparer
-    url: https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2.comparer?view=net-10.0
-    checked: "2026-08-24"
-  - id: fsharp-hash-identity
-    url: https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-hashidentity.html
-    checked: "2026-08-24"
 ---
 
 # 第 26 章答案 {#overview}

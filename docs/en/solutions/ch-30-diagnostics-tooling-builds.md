@@ -2,46 +2,6 @@
 title: "Chapter 30 Solutions"
 description: "Repair an F# file-order cascade, assign distinct questions to FSI, tests, and a debugger, and audit an intentionally changed locked dependency graph."
 translationKey: solutions/ch-30-diagnostics-tooling-builds
-kind: solution
-part: 5
-chapter: 30
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ch11-value-restriction
-  - ch16-wrong-file-order
-exerciseIds:
-  - ch30-exercise-01
-  - ch30-exercise-02
-  - ch30-exercise-03
-termIds: []
-sources:
-  - id: microsoft-fsharp-compiler-options
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/compiler-options
-    checked: "2026-08-24"
-  - id: microsoft-fsharp-interactive
-    url: https://learn.microsoft.com/en-us/dotnet/fsharp/tools/fsharp-interactive/
-    checked: "2026-08-24"
-  - id: microsoft-managed-debuggers
-    url: https://learn.microsoft.com/en-us/dotnet/core/diagnostics/managed-debuggers
-    checked: "2026-08-24"
-  - id: microsoft-dotnet-build
-    url: https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-build
-    checked: "2026-08-24"
-  - id: microsoft-nuget-lock-files
-    url: https://learn.microsoft.com/en-us/nuget/consume-packages/package-references-in-project-files#locking-dependencies
-    checked: "2026-08-24"
-  - id: microsoft-local-tools
-    url: https://learn.microsoft.com/en-us/dotnet/core/tools/local-tools-how-to-use
-    checked: "2026-08-24"
-  - id: fantomas-getting-started
-    url: https://fsprojects.github.io/fantomas/docs/end-users/GettingStarted.html
-    checked: "2026-08-24"
-  - id: fantomas-format-check
-    url: https://fsprojects.github.io/fantomas/docs/end-users/FormattingCheck.html
-    checked: "2026-08-24"
 ---
 
 # Chapter 30 Solutions {#overview}
@@ -120,14 +80,14 @@ The debugger explains one real execution and its provenance. FSI answers a small
 
 ### Make each mismatch fail in its owning stage {#exercise-03-audit}
 
-Start from the repository root and record the selected SDK:
+Start from the directory containing the example and record the selected SDK:
 
 ```console
 dotnet --info
 dotnet tool restore
 dotnet fantomas . --check
-dotnet clean ThinkingInFSharp.slnx --configuration Release
-dotnet restore ThinkingInFSharp.slnx --locked-mode
+dotnet clean Sample.slnx --configuration Release
+dotnet restore Sample.slnx --locked-mode
 ```
 
 The local tool manifest makes `dotnet fantomas` use the declared 7.0.5 command; the teammate's global installation is not the repository contract. If formatting differs, run the pinned formatter deliberately and review its source-only diff.
@@ -135,9 +95,9 @@ The local tool manifest makes `dotnet fantomas` use the declared 7.0.5 command; 
 Locked restore should fail because the project dependency changed without the corresponding lock graph. That failure is desired evidence. Confirm the package change is intentional, review its compatibility and sources, then regenerate deliberately:
 
 ```console
-dotnet restore ThinkingInFSharp.slnx --force-evaluate
+dotnet restore Sample.slnx --force-evaluate
 git diff -- "*.fsproj" "*.csproj" "packages.lock.json"
-dotnet restore ThinkingInFSharp.slnx --locked-mode
+dotnet restore Sample.slnx --locked-mode
 ```
 
 The shell's wildcard behavior varies, so use your version-control client or explicit project paths if that review command does not expand recursively. The required review is the project reference together with every affected `packages.lock.json`, not a particular shell spelling.
@@ -145,9 +105,9 @@ The shell's wildcard behavior varies, so use your version-control client or expl
 After the locked graph agrees, prove Release compilation and tests without implicit stages:
 
 ```console
-dotnet build ThinkingInFSharp.slnx --configuration Release --no-restore
-dotnet test ThinkingInFSharp.slnx --configuration Release --no-build
-pnpm check:examples
+dotnet build Sample.slnx --configuration Release --no-restore
+dotnet test Sample.slnx --configuration Release --no-build
+dotnet test Sample.slnx --configuration Release --no-build
 ```
 
 Update the PackageReference and affected lock files in one deliberate dependency change. Update `.config/dotnet-tools.json` only if the formatter upgrade is also intentional; preferably keep its baseline diff separate. `.editorconfig` changes only for a style-policy decision, and `global.json` changes only for an SDK-policy decision.

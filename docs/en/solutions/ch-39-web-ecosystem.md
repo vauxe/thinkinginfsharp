@@ -2,40 +2,6 @@
 title: "Chapter 39 Solutions"
 description: "Choose web surfaces for concrete teams, design a contract-preserving Falco spike, and migrate framework-bound endpoints reversibly."
 translationKey: solutions/ch-39-web-ecosystem
-kind: solution
-part: 7
-chapter: 39
-status: complete
-verifiedWith:
-  fsharp: "10"
-  dotnetSdk: "10.0.301"
-exampleIds:
-  - ecosystem-web-minimal-api
-  - foundation-contract-tests
-exerciseIds:
-  - ch39-exercise-01
-  - ch39-exercise-02
-  - ch39-exercise-03
-termIds: []
-sources:
-  - id: microsoft-aspnet-api-overview
-    url: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/apis?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: microsoft-aspnet-integration-tests
-    url: https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests?view=aspnetcore-10.0
-    checked: "2026-08-25"
-  - id: giraffe-nuget
-    url: https://www.nuget.org/packages/Giraffe/8.3.0
-    checked: "2026-08-25"
-  - id: falco-nuget
-    url: https://www.nuget.org/packages/Falco/5.2.0
-    checked: "2026-08-25"
-  - id: oxpecker-nuget
-    url: https://www.nuget.org/packages/Oxpecker/2.0.1
-    checked: "2026-08-25"
-  - id: saturn-nuget
-    url: https://www.nuget.org/packages/Saturn/0.17.0
-    checked: "2026-08-25"
 ---
 
 # Chapter 39 Solutions {#overview}
@@ -143,7 +109,7 @@ Compare:
 
 Delete the spike if it changes the contract without a product reason, needs custom bridges for required middleware, obscures cancellation or diagnostics, fails publish policy, or saves too little recurring code to repay a second API lifecycle. If it wins, replace the old route once, document the conventions, and keep framework types out of the validation/application modules.
 
-This design intentionally does not claim the spike passes: this repository verifies only the direct Minimal API implementation.
+This design intentionally does not claim the spike passes. The chapter illustrates the direct Minimal API approach; either implementation must be verified in the adopting application.
 
 ## Exercise 3: design a reversible migration {#exercise-03}
 
