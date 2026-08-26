@@ -8,7 +8,7 @@ translationKey: part-02/ch-09-option-result
 
 一次查找可能合理地找不到预约。另一个预约请求可能已被找到，却因为索要过多座位而失败。两种计算都没有得到正常值，但它们传达的含义不同：前者中，“没有”就是完整答案；后者中，调用方还需要知道原因。
 
-F# 用不同类型表达这两种含义。`'T option` 表示“可能有一个 `'T`”。`Result<'T, 'TError>` 表示“要么有成功的 `'T`，要么有已建模的 `'TError`”。二者都是可辨识联合，因此调用方必须处理其案例，而不必依赖哨兵值或未写明的异常约定。
+F# 用不同类型表达这两种含义。`'T option` 表示“可能有一个 `'T`”。`Result<'T, 'TError>` 表示“要么有成功的 `'T`，要么有已建模的 `'TError`”。二者都是可辨识联合，因此调用方必须处理其案例，而不必依赖 `-1`、空字符串等特殊值，也不必猜测未写明的异常约定。
 
 ## 学完本章后你能做什么 {#outcomes}
 
@@ -167,16 +167,16 @@ printfn
 
 ### 分别变换成功与错误 {#result-transformations}
 
-模块中的操作让两条轨道保持明确：
+`Result` 模块为成功和失败两种情况分别提供操作：
 
 - `Result.map` 只变换 `Ok` 内的值；
 - `Result.mapError` 只变换 `Error` 内的值；
 - `Result.bind` 只在 `Ok` 时运行后续的 result 生产函数；
 - `Result.defaultValue` 有意识地用后备值替代错误。
 
-与 option 一样，后续函数返回普通值时选择 `map`，它已返回相同上下文时选择 `bind`。例如，`Result.map bookingLabel` 会保留错误，而 `Result.bind reserveSeats` 可以产生新错误。
+与 option 一样，后续函数返回普通值时选择 `map`；后续函数本身已经返回 `Result` 时选择 `bind`。例如，`Result.map bookingLabel` 会保留错误，而 `Result.bind reserveSeats` 可以产生新的错误。
 
-## 错误上下文应朝边界逐层增加 {#error-context}
+## 在错误向外传递时逐层补充上下文 {#error-context}
 
 底层验证错误可能没有指出是哪个请求导致了它。不要依赖拼接字符串的约定，而要使用结构化上下文：
 
@@ -199,7 +199,7 @@ match contextualFailure with
 ```
 `addRequestContext` 只改变错误类型。`Ok request` 原样通过；`Error BookingError` 变成 `Error RequestFailure`。外层代码可以记录 `RequestId`、翻译 `Cause`，或把领域失败映射为 HTTP 响应，而无需解析文本。
 
-不要在最深层函数里附上所有可能的细节。每一层提供自己拥有的错误事实，再在值向外移动时加入请求、文件或端点上下文。这样既能复用核心领域函数，也不会把诊断身份丢进字符串。
+不要在最深层函数里附上所有可能的细节。每一层只提供自己知道的错误事实；错误向外传递时，再加入请求、文件或端点等上下文。这样既能复用核心领域函数，也能把诊断信息保留为可检查的字段，而不是拼进字符串。
 
 ## `bind` 保留第一个失败，而非所有失败 {#short-circuiting}
 
@@ -210,11 +210,11 @@ let doublyInvalidRequest = { Attendee = ""; Seats = 0 }
 
 printfn "Short circuit: %s" (validate 4 doublyInvalidRequest |> describeResult)
 ```
-对相互依赖的步骤而言，这种行为正确：只有前面的数据有效后，座位验证才可能有意义。它不是累积式验证器。如果表单应一次展示所有相互独立的错误，就要显式收集这些结果，或采用适用型验证设计；第 18 章会回到这个区别。
+对相互依赖的步骤而言，这种行为正确：只有前面的数据有效后，座位验证才可能有意义。它不会累积所有错误。如果表单应一次展示所有相互独立的问题，就要显式收集这些结果，或采用累积式验证；第 18 章会回到这个区别。
 
 `Error` 应描述调用方能够合理检查或处理的失败。不要捕获所有异常并将它们变成模糊的 `Error "failed"`；这会破坏堆栈和原因信息。程序缺陷、取消、资源失败和领域拒绝各有不同边界，第 21 章会建立这项策略。
 
-## 选择最小且诚实的类型 {#choosing-a-type}
+## 选择能准确表达含义的最小类型 {#choosing-a-type}
 
 从调用方必须回答的问题出发：
 
@@ -227,11 +227,11 @@ printfn "Short circuit: %s" (validate 4 doublyInvalidRequest |> describeResult)
 
 不要仅仅为了模仿 option 而返回 `Result<'T, unit>`；错误不携带信息时就使用 option。反过来，也不要只为缩短签名而把有意义的错误压缩成 `None`。
 
-嵌套形状可能是诚实的。`Result<'T option, 'Error>` 可以表示“操作本身可能失败；成功后仍可能找不到值”。只有当领域表明两个维度是同一事实时，才应该把它们压平。
+嵌套类型可能准确表达含义。`Result<'T option, 'Error>` 可以表示“操作本身可能失败；成功后仍可能找不到值”。只有当领域表明两个维度是同一事实时，才应该把它们合并。
 
 ## `Some null` 仍有可能 {#some-null}
 
-option 包装一个值，却不会清洗该值。因此，可空引用仍能被包装进 `Some`：
+option 只表示值是否存在，不会检查值本身。因此，可空引用仍能被放进 `Some`：
 
 ```fsharp:line-numbers [ch09-option-result.fsx]
 let riskyPayload: (string | null) option = Some null
@@ -245,7 +245,7 @@ printfn "Some null: isSome=%b payloadIsNull=%b" riskyPayload.IsSome payloadIsNul
 ```
 这样会产生三种可表示状态：`None`、`Some null` 和 `Some "Lin"`。这通常是意外复杂度。在 .NET 边界处，应先把可空结果规范化为 `None`，或拒绝它，再让核心代码接收该值。
 
-在启用 F# nullness 检查时，标注 `(string | null) option` 会明确表示负载可以为 null。本章只需记住这一警告：`Some` 并不能证明其中的引用负载非 null。第 19 章会完整解释 `T | null`、`Nullable<T>`、旧式 .NET 标注与边界转换。
+启用 F# 空值检查后，标注 `(string | null) option` 会明确表示其中的值可以为 null。本章只需记住：`Some` 本身不能证明内部引用一定非 null。第 19 章会完整解释 `T | null`、`Nullable<T>`、旧式 .NET 标注与边界转换。
 
 ## 运行共享示例 {#run-example}
 
@@ -255,7 +255,7 @@ printfn "Some null: isSome=%b payloadIsNull=%b" riskyPayload.IsSome payloadIsNul
 dotnet fsi --exec ch09-option-result.fsx
 ```
 
-六行确定性输出覆盖成功查找、缺失、option 组合、验证成功与失败、附加错误上下文、第一个错误短路，以及 `Some null` 边界情况。请比较精确输出。
+六行输出覆盖成功查找、缺失、option 组合、验证成功与失败、附加错误信息、遇到第一个错误后停止，以及 `Some null` 边界情况。请逐行核对。
 
 ## 练习 {#exercises}
 

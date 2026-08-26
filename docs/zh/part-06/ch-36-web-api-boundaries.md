@@ -27,7 +27,7 @@ translationKey: part-06/ch-36-web-api-boundaries
 - 用 `TestServer` 验证应用管线，并用真实 Kestrel 冒烟验证传输行为；
 - 说明这个教学宿主有意省略了哪些生产关注点。
 
-## 把 HTTP 看作外层解释器 {#outer-interpreter}
+## HTTP 负责解释外部请求 {#outer-interpreter}
 
 请求在产生效果之前会穿过多种表示：
 
@@ -42,7 +42,7 @@ HTTP 字节
   -> 响应 DTO 或安全错误 DTO
 ```
 
-箭头比方框更重要。没有一个箭头是未经检查的转换；每个箭头要么产生下一种表示，要么以该边界拥有的结果停止。
+关键在于每次转换都经过检查：它要么产生下一种表示，要么返回当前边界负责的失败结果并停止。
 
 ASP.NET Core 把通过 `MapGet`、`MapPost` 等方法映射的函数称为路由处理程序。处理程序可以返回框架结果、字符串，或由框架序列化的值。本例改用显式 `RequestDelegate` 处理程序，让字节上限、JSON 错误体与取消行为在一个适合教学的文件中保持可见。
 
@@ -83,7 +83,7 @@ let mapConsistent (application: WebApplication) (dependencies: ConsistentBooking
 ```
 直接使用委托能让本章的边界策略可执行，并由契约测试固定。Minimal API 自动绑定也可以承载同一契约；练习 1 会要求你证明这条替代路径。
 
-## 发布四条狭窄路由 {#route-contract}
+## 只发布四条职责明确的路由 {#route-contract}
 
 API 暴露命令，而不是用一个通用端点接收可辨识联合的序列化结果：
 
@@ -133,7 +133,7 @@ type ApiErrorDto =
 
 ## 在理解输入的层拒绝它 {#validation-layers}
 
-“错误请求”并不是一种失败。实现把三个权威层级分开。
+“错误请求”可能由不同原因造成。实现把三个负责不同检查的层级分开。
 
 ### 传输与语法 {#transport-syntax}
 
@@ -218,13 +218,13 @@ let private deserialize<'dto when 'dto: not struct and 'dto: not null>
 ```
 发送方提供 `Content-Length` 时，检查它可以尽早拒绝，但仅靠该头部并不构成上限。分块请求和自定义测试流可能没有声明长度。因此循环最多多读一个字节就停止，并且绝不按攻击者控制的输入大小分配内存。
 
-这里缓冲请求体，是因为最大值刻意很小，而严格反序列化需要完整命令。文件上传端点需要不同的流式设计和自己的上限；把这份 16 KiB 策略复制到每个端点只会成为照搬仪式。
+这里缓冲请求体，是因为最大值刻意很小，而严格反序列化需要完整命令。文件上传端点需要不同的流式设计和自己的上限；不能不看端点需求就照搬这份 16 KiB 策略。
 
 同一个 `BookingJson.configure` 调用固定大小写敏感性、未知成员拒绝、空值省略与深度。复用它可防止 HTTP 与持久化给同一个 DTO 赋予两个细微不同的含义。
 
 ## 协调工作流而不把规则移到外层 {#workflow}
 
-完成映射与验证后，端点拥有原始命令、受保护的请求 ID、可选的受保护支付请求和成功状态码。此时才可以协调效果：
+完成映射与验证后，端点拥有原始命令、受保护的请求 ID、可选的受保护支付请求和成功状态码。此时才可以协调外部操作：
 
 ```fsharp:line-numbers [Endpoints.fs]
 let private executeCommand dependencies prepared (context: HttpContext) =
@@ -296,7 +296,7 @@ let private executeConsistent (dependencies: ConsistentBookingApiDependencies) p
 
 API 不会查看私有预约字段来重新实现状态转换。它使用 `Decider.decide`、`BookingEvent.booking`、受保护访问器和端口函数。HTTP 拥有排序与翻译，领域模块仍然拥有合法事实。
 
-## 映射结果，而不是映射字符串 {#error-map}
+## 根据结果类型映射响应，不要解析字符串 {#error-map}
 
 响应表是 API 契约的一部分：
 
@@ -567,7 +567,7 @@ curl -i \
 
 ## 模型回顾 {#model-review}
 
-- HTTP 是外层解释器，不是领域规则的拥有者。
+- HTTP 负责解释外部请求，不负责决定领域规则。
 - 四条显式路由只接收和返回边界表示。
 - 媒体类型、大小、语法、DTO 存在性与领域有效性是不同检查。
 - 真正的上限即使没有 `Content-Length` 也会计数字节。

@@ -79,7 +79,7 @@ Before proposing a release, a copied sample must first prove:
 - the direct service and Aspire-orchestrated service answer the three tested endpoints;
 - AppHost's local resource check becomes healthy;
 - the SDK produces and exposes metadata for one `linux/arm64` image archive;
-- the base tag is 10.0.11, the image user is 1654, the port is 8080, and the entry point is known;
+- the base tag is 10.0.10, the image user is 1654, the port is 8080, and the entry point is known;
 - the ordinary package lock remains unchanged after the final container command.
 
 Those local checks still do not prove a running target platform, cloud identity, registry, production probe, telemetry export, load, security policy, rollout, or rollback. The release proposal starts at that line instead of rebranding local evidence.

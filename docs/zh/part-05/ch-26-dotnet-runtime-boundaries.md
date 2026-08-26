@@ -6,7 +6,7 @@ translationKey: part-05/ch-26-dotnet-runtime-boundaries
 
 # 第 26 章：深入 .NET 边界 {#overview}
 
-F# 值运行在 .NET 类型系统中。记录可以装箱为 `obj`，函数可以适配为委托，F# 事件可以发布为 CLI 事件，而 `seq<'T>` 正是 `IEnumerable<'T>` 的 F# 名称。因此互操作距离很近——但“同一运行时”并不等于“相同语义”。
+F# 值运行在 .NET 类型系统中。记录可以装箱为 `obj`，函数可以适配为委托，F# 事件可以发布为 CLI 事件，而 `seq<'T>` 正是 `IEnumerable<'T>` 的 F# 名称。因此互操作很直接，但“同一运行时”并不等于“相同语义”。
 
 边界必须回答：哪些静态信息被擦除了，谁拥有订阅与可变集合，以及哈希表使用哪种相等关系。本章让这些选择显式化，然后尽早转回普通 F# 值。
 
@@ -19,7 +19,7 @@ F# 值运行在 .NET 类型系统中。记录可以装箱为 `obj`，函数可�
 - 把不确定的运行时值和可空性当作待解码输入；
 - 在边界把 F# 函数适配为 .NET 委托；
 - 以显式订阅生命周期公开和消费 CLI 事件；
-- 区分实时 `IEnumerable<'T>` 视图与已具体化快照；
+- 区分实时 `IEnumerable<'T>` 视图与已经保存的快照；
 - 只有确实需要其协议时才选择可变 .NET 集合；
 - 有意指定字典的相等比较器；
 - 区分引用身份、值相等、排序与哈希；
@@ -49,7 +49,7 @@ printfn "Runtime type: declared=%s actual=%s" declaredType.Name actualType.Name
 
 反射适合框架发现、序列化基础设施、插件加载、诊断和真正的动态协议。当领域选项集合已知时，不应让它替代可辨识联合。联合在编译期保留用例；检查 `System.Type` 则把漏掉用例的错误推迟到运行时。
 
-### 装箱会擦除静态视图 {#boxing}
+### 装箱会丢失原来的静态类型信息 {#boxing}
 
 `box value` 把值转换为 `objnull`。引用值经 `System.Object` 查看；值类型则被装箱进一个含副本的新对象。`unbox<'T>` 或向下转换必须恢复兼容的运行时类型。
 
@@ -94,7 +94,7 @@ let failedDowncast =
 ensureEqual "failed downcast" "InvalidCastException" failedDowncast
 printfn "Failed downcast: %s" failedDowncast
 ```
-尽管固定输入都非空，它仍先处理 null。每个成功的 `:?` 分支都会收窄该值并绑定类型化载荷。刻意错误的 `:?> string` 证明向下转换不是转换服务：装箱整数 `42` 不会变成文本，而会抛出 `InvalidCastException`。
+尽管固定输入都非空，它仍先处理 null。每个成功的 `:?` 分支都会收窄该值并绑定类型化载荷。刻意错误的 `:?> string` 证明向下转换不会改变值的内容：装箱整数 `42` 不会变成文本，而会抛出 `InvalidCastException`。
 
 `int64`、`decimal` 或已检查运算符等数值转换函数会改变表示，也可能带来溢出/舍入策略。向上/向下转换则在兼容对象类型之间移动。解析文本又是另一种操作，应进入 `Result`/`TryParse` 风格的验证。
 
@@ -118,7 +118,7 @@ printfn "Delegates: add=%d labels=%A" (add.Invoke(3, 4)) labels
 ```
 委托的 `Invoke` 方法执行调用。当参数类型已知为委托时，F# 常能自动适配兼容 lambda；但在重载解析有歧义、稍后必须保存/移除委托，或公开类型本身很重要时，显式构造函数更有用。
 
-不要意外向期待 `Func<_,_>`/`Action<_>` 或具名委托的语言公开 `FSharpFunc<_,_>`；第 27 章会设计该公开表面。反过来，也不要只因应用运行在 .NET 上，就把所有内部函数换成委托。只在一个边缘适配。
+不要意外向期待 `Func<_,_>`/`Action<_>` 或具名委托的语言公开 `FSharpFunc<_,_>`；第 27 章会设计该公共 API。反过来，也不要只因应用运行在 .NET 上，就把所有内部函数换成委托。只在系统边界转换一次。
 
 ## 事件是一种订阅协议 {#events}
 
@@ -204,7 +204,7 @@ ensureEqual "case-insensitive lookup" (true, "second") (found, emailValue)
 
 printfn "String comparer: count=%d found=%b value=%s" bookingByEmail.Count found emailValue
 ```
-`liveView` 是同一个可变 `List<T>` 的 `IEnumerable<T>` 视图；在 `Add` 后枚举会看到新元素。`Seq.toList` 在当时具体化一份独立 F# 列表。只读接口会限制可用操作，但另一别名对底层所做的后续修改仍可能透出。
+`liveView` 是同一个可变 `List<T>` 的 `IEnumerable<T>` 视图；在 `Add` 后枚举会看到新元素。`Seq.toList` 会在调用时保存一份独立的 F# 列表。只读接口会限制可用操作，但其他引用对底层所做的后续修改仍可能从该视图看到。
 
 不要在枚举普通 `List<T>`/`Dictionary<TKey,TValue>` 时修改它们，也不要假定它们支持并发写入。在所有权边界只转换一次：如果核心需要稳定性，就复制外部可变输入；如果必须持续看到更新，就返回显式只读/实时契约。
 
@@ -288,7 +288,7 @@ printfn
 6. 向 F# 核心返回记录、联合、`option`、`Result` 和函数。
 7. 同时测试值结果与边界生命周期：处理器移除、枚举时机、比较器行为和失败类型。
 
-这不是反对 .NET 的隔离，而是语义压缩：适配器把宽泛运行时协议翻译成领域真正需要的更小词汇。
+这不是隔离 .NET，而是明确转换：适配器把宽泛的运行时协议翻译成领域真正需要的少量类型和操作。
 
 ## 运行共享示例 {#run-example}
 
@@ -298,7 +298,7 @@ printfn
 dotnet fsi --checknulls+ --warnaserror+ --exec ch26-dotnet-runtime-boundaries.fsx
 ```
 
-八行确定性输出覆盖精确运行时类型、安全与失败转换、委托、事件移除、实时与复制集合、不区分大小写查找，以及默认引用键与领域键身份。先用上面的参数运行一次；若想比较未启用可空检查时的编译器行为，再去掉 `--checknulls+`。
+八行输出覆盖精确运行时类型、安全与失败转换、委托、事件移除、实时与复制集合、不区分大小写查找，以及默认引用键与领域键身份。先用上面的参数运行一次；若想比较未启用可空检查时的编译器行为，再去掉 `--checknulls+`。
 
 ## 练习 {#exercises}
 
@@ -324,7 +324,7 @@ dotnet fsi --checknulls+ --warnaserror+ --exec ch26-dotnet-runtime-boundaries.fs
 - 运行时转换不是数值转换或解析。
 - 函数是 F# 默认选择；委托是显式 .NET 适配器。
 - 事件正确性包括订阅生命周期，而不只有交付值。
-- `IEnumerable<T>` 可以是实时/延迟视图；具体化会创建快照。
+- `IEnumerable<T>` 可以是实时或延迟视图；立即枚举并保存结果会创建快照。
 - 只读视图不能证明底层存储不可变。
 - 字典语义来自比较器，而不是键字段名称。
 - 身份、相等、哈希与排序是四项不同契约。

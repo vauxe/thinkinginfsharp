@@ -32,7 +32,7 @@ Do not select controllers merely because C# engineers know them. Select them if 
 
 ### Team B: F#, server HTML, and HTMX {#exercise-01-team-b}
 
-Start a comparison between Giraffe 8.3.0 and Oxpecker 2.0.1; provisionally choose Oxpecker only after its `net10.0` target and newer lifecycle pass the team's support gate.
+Start a comparison between Giraffe 8.3.0 and Oxpecker 2.1.1; provisionally choose Oxpecker only after its `net10.0` target and newer lifecycle pass the team's support gate.
 
 Oxpecker aligns with endpoint routing, exposes an `HttpContext -> Task` terminal handler, and offers related view/HTMX packages. Those facts fit the desired shape. Giraffe remains the lower-adoption-risk countercandidate because of its longer-lived handler ecosystem and the team's ability to use separate view/HTMX integrations.
 
@@ -173,5 +173,5 @@ If migration stalls, keep ownership explicit. A documented mixed boundary is saf
 - [Microsoft Learn: Integration tests in ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests?view=aspnetcore-10.0)
 - [NuGet: Giraffe 8.3.0](https://www.nuget.org/packages/Giraffe/8.3.0)
 - [NuGet: Falco 5.2.0](https://www.nuget.org/packages/Falco/5.2.0)
-- [NuGet: Oxpecker 2.0.1](https://www.nuget.org/packages/Oxpecker/2.0.1)
+- [NuGet: Oxpecker 2.1.1](https://www.nuget.org/packages/Oxpecker/2.1.1)
 - [NuGet: Saturn 0.17.0](https://www.nuget.org/packages/Saturn/0.17.0)

@@ -20,10 +20,10 @@ translationKey: part-03/ch-13-composition-pipeline-api
 - 在中间类型对齐时推导前向与后向组合；
 - 调整配置与变换参数的顺序以支持部分应用；
 - 识别那些只因流动值位置错误而需要 lambda 的 API；
-- 在管道只增加动势、不增加清晰度时选择直接调用；
+- 在管道只增加形式、不增加清晰度时选择直接调用；
 - 避免隐藏领域意图的自定义运算符与无参数风格表达式。
 
-## 重复嵌套揭示数据路径 {#repeated-nesting}
+## 从嵌套调用中找出数据路径 {#repeated-nesting}
 
 共享脚本从普通应用开始：
 
@@ -67,7 +67,7 @@ printfn "Pipeline matches nested: %b" (pipedLabel = nestedLabel)
 
 管道只是普通应用，不是效果系统，也不会自动传播错误。把 `Result` 管道传给 `Result.bind next` 能工作，是因为该函数的最后一个参数是 result；`|>` 自己并不知道 `Ok` 或 `Error`。
 
-### 多行形状应暴露各阶段 {#pipeline-formatting}
+### 用多行清楚展示各阶段 {#pipeline-formatting}
 
 只要表达式不是非常短，就像共享脚本一样从值开始，并让每行对齐一个 `|>` 阶段。当 lambda 变长或调试器需要有意义的边界时，应给阶段命名。管道可读是因为变换可见，而不是因为字符最少。
 
@@ -196,7 +196,7 @@ printfn "Direct predicate: requested=%d capacity=%d fits=%b" requested capacity 
 dotnet fsi --exec ch13-composition-pipeline-api.fsx
 ```
 
-六行确定性输出展示嵌套应用、等价管道、前向与后向组合、配置式部分应用，以及有意保持直接调用的谓词。
+六行输出展示嵌套调用、等价管道、前向与后向组合、固定配置后的部分应用，以及有意保持直接调用的谓词。
 
 ## 练习 {#exercises}
 

@@ -70,14 +70,14 @@ List.choose : ('a -> 'b option) -> 'a list -> 'b list
 
 当筛选与映射共享同一判断、且中间列表没有独立意义时，`choose` 能更直接地写出“一次输入最多产生一项输出”。若两个阶段各有领域名称或需要单独观察，保留 `filter` 与 `map` 反而更清楚。
 
-## 管道把最后实参放回数据流 {#pipelines}
+## 管道把数据传给函数的最后一个参数 {#pipelines}
 
 管道操作符的核心等价关系很小：
 
 ```text
 value |> functionValue
 
-等价于 / is equivalent to
+等价于
 
 functionValue value
 ```
@@ -102,7 +102,7 @@ printfn "Pipeline labels: %A" pipelineLabels
 | `List.filter isValidRequest` 后 | `(string * int) list` | Lin 与 Sam 两项 |
 | `List.map formatRequest` 后 | `string list` | `"Lin:3"` 与 `"Sam:2"` |
 
-管道把前一阶段的值作为后一函数的最后实参，控制流仍是普通函数应用。每行左对齐让变换顺序可扫描，也减少多层调用括号。
+管道把前一阶段的值作为后一个函数的最后一个实参，执行方式仍是普通函数调用。各阶段按数据流顺序排列，更容易从左到右阅读，也减少了多层嵌套的括号。
 
 ### 列表管道是立即求值 {#eager-pipelines}
 
@@ -197,7 +197,7 @@ let labelsWithWhile source =
 ```
 `while` 在条件为 `true` 时反复执行 `unit` 主体。这里代码必须手工维护 `remaining`，并在每次非空匹配后更新为 `tail`；漏掉这一步会产生无限循环。空列表规则仍然存在，因为编译器不会根据外部循环条件删除类型上的可能形状。
 
-这个版本能工作，也只在局部修改两个绑定，但比 `for` 或 `choose` 暴露更多机械状态。`while` 更适合下一步是否继续真正取决于变化状态、且没有现成集合遍历抽象的问题，例如与某些底层 API 对接。
+这个版本能工作，也只在局部修改两个绑定，但需要手工维护的状态比 `for` 或 `choose` 更多。`while` 更适合下一步是否继续确实取决于变化状态、且没有现成集合遍历函数的问题，例如与某些底层 API 对接。
 
 ## 三种实现怎样选择 {#choosing-style}
 
@@ -233,11 +233,11 @@ Iteration order: Lin:3 Sam:2
 
 ## 调试：在每个管道边界停一下 {#debugging}
 
-管道报错时不要一次读完整链：
+管道报错时，不要试图一次读懂整条链：
 
 1. 写出当前阶段输入类型；
 2. 查看右侧函数已部分应用后的剩余参数类型；
-3. 确认管道值正好适合最后一个参数；
+3. 确认管道值的类型与最后一个参数的类型一致；
 4. 在 FSI 中临时绑定中间结果；
 5. 检查下一阶段是否需要值、列表还是 `option`。
 

@@ -76,7 +76,7 @@ The local cloud sample deliberately contains one F# HTTP service, one C# project
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ContainerRepository>thinking-in-fsharp-cloud-service</ContainerRepository>
-    <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0.11</ContainerBaseImage>
+    <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0.10</ContainerBaseImage>
   </PropertyGroup>
 
   <ItemGroup>
@@ -84,7 +84,7 @@ The local cloud sample deliberately contains one F# HTTP service, one C# project
   </ItemGroup>
 </Project>
 ```
-The Web SDK targets `net10.0`; a copied sample can pin FSharp.Core 10.1.301 in its project file. The image base is explicitly `mcr.microsoft.com/dotnet/aspnet:10.0.11`; a floating `10.0` tag would silently move the runtime beneath an unchanged commit. .NET 10 unqualified Microsoft image tags use Ubuntu rather than the Debian base used by earlier releases, so OS assumptions need testing.
+The Web SDK targets `net10.0`; a copied sample can pin FSharp.Core 10.1.301 in its project file. The image base is explicitly `mcr.microsoft.com/dotnet/aspnet:10.0.10`; a floating `10.0` tag would silently move the runtime beneath an unchanged commit. .NET 10 unqualified Microsoft image tags use Ubuntu rather than the Debian base used by earlier releases, so OS assumptions need testing.
 
 ```fsharp:line-numbers [Program.fs]
 namespace ThinkingInFSharp.Ecosystem.Cloud
@@ -199,7 +199,7 @@ The verified sequence established the following:
 - Aspire 13.5.2 started the F# child process and injected `aspire-local`;
 - a loopback-only HTTP dashboard showed the resource as `Running`, health state `Healthy`, and the `/health/ready` check as `Healthy`;
 - the service reached through the Aspire-assigned port returned `aspire-local`;
-- the .NET container target produced an approximately 89 MB `linux/arm64` archive from the pinned ASP.NET Core 10.0.11 base;
+- the .NET container target produced an approximately 89 MB `linux/arm64` archive from the pinned ASP.NET Core 10.0.10 base;
 - archive metadata showed non-root UID 1654, port 8080, and entry point `dotnet /app/CloudService.dll`;
 - the final publish command left the ordinary `net10.0` lock-file hash unchanged;
 - the full locked solution build, tests, Fable production build, and browser smoke still passed.
@@ -423,7 +423,7 @@ Emulators and local orchestrators are useful but not authoritative. Provider con
 | .NET SDK | 10.0.301 | Locked restore, Release build, tests, and publish |
 | FSharp.Core | 10.1.301 | Resolved graph and runtime compatibility |
 | Aspire.AppHost.Sdk | 13.5.2, published 2026-08-21 | Use only if local multi-service orchestration repays its cost; then test startup and health |
-| ASP.NET Core base image | 10.0.11 | Image metadata, operating system, architecture, vulnerabilities, and container startup |
+| ASP.NET Core base image | 10.0.10 | Image metadata, operating system, architecture, vulnerabilities, and container startup |
 | Aspire CLI bundle/deployment targets | CLI 13.5.2 | Bundle output and the chosen deployment target, if used |
 | Azure Functions isolated worker | Docs list .NET 10 and F# binding caveats | Package, emulate, and deploy the actual trigger path |
 | AWS Lambda .NET 10 image/runtime path | Current official docs reviewed | Package, invoke, and deploy the actual handler |

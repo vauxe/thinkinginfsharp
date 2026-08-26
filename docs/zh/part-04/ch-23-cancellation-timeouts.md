@@ -8,7 +8,7 @@ translationKey: part-04/ch-23-cancellation-timeouts
 
 异步预约操作的结束方式不只是“值已到达”。调用方可能请求取消，等待预算可能耗尽，操作可能发生故障，而资源可能必须在任何结果可观察之前完成清理。混淆这些路径会造成句柄泄漏、误导性的错误，以及所有者已经离开后仍在继续的工作。
 
-本章把完成视为一项协议。取消是协作式通信，超时是一项策略，故障不等于取消，而清理也是完成的一部分。所有论断都用显式信号测试；没有测试要求调度器与 `sleep` 竞速并获胜。
+本章把结束过程拆开处理：取消依赖操作主动配合，超时需要明确策略，故障不等于取消，清理也必须在操作结束前完成。所有行为都用显式信号测试，不依赖 `sleep` 与调度速度。
 
 ## 学完本章后你将能够 {#outcomes}
 
@@ -139,7 +139,7 @@ waitCancellation.Dispose()
 
 `WaitAsync(TimeSpan)` 会让其包装任务以 `TimeoutException` 发生故障；它不会取消源任务。现代 .NET 中接受 `TimeProvider` 的重载使测试可以控制时间。如果超时应请求取消操作，就创建并释放链接令牌源，为它安排截止时间，并把其令牌传入操作。
 
-共享测试完全移除了墙上时钟。注入的任务表示“截止时间已到”：
+共享测试完全不使用真实时钟。注入的任务表示“截止时间已到”：
 
 ```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
 type WaitOutcome<'T> =
@@ -210,9 +210,9 @@ printfn "Fault: type=%s message=%s" faultType faultMessage
 
 第 21 章对 `IDisposable` 使用了 `use`。同一规则也适用于任务：一旦成功获取资源，主体无论成功、故障还是观察到取消，都必须经过清理。
 
-有些资源可以同步释放。另一些实现 `IAsyncDisposable`；它们的 `DisposeAsync()` 返回 `ValueTask`，因为刷新或关闭本身可能需要异步 I/O。外围任务必须等到清理完成后才能报告完成。
+有些资源可以同步释放。另一些实现 `IAsyncDisposable`；它们的 `DisposeAsync()` 返回 `ValueTask`，因为刷新或关闭本身可能需要异步 I/O。外层任务必须等到清理完成后才能报告完成。
 
-探针让两种协议都可观察：
+测试对象让两种释放方式都可以被观察：
 
 ```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
 type SyncProbe(label: string, disposed: ResizeArray<string>) =
@@ -260,11 +260,11 @@ let usingAsync (resource: IAsyncDisposable) (body: unit -> Task<'T>) =
 ```
 在编译的 `.fs` 文件中，任务表达式可以用 `use` 绑定 `IAsyncDisposable`；任务构建器会等待 `DisposeAsync`。`use!` 会先等待获取，再拥有获取到的资源。任务表达式的 `with` 和 `finally` 处理程序是同步的，所以应使用资源绑定，而不是在 `finally` 中放异步清理。
 
-### 诚实面对 FSI 边界 {#fsi-async-disposal}
+### 说明 FSI 的限制 {#fsi-async-disposal}
 
 F# 10 在编译项目中支持 task `use` 与 `IAsyncDisposable`。F# Interactive 仍有一个开放的编译器问题：`.fsx` 文件中的相同绑定可能错误地要求 `IDisposable`。
 
-由于本章登记的产物是 FSI 脚本，其异步探针使用一个小型 `usingAsync` 适配器。适配器捕获主体结果，只等待一次释放，然后返回值或通过 `ExceptionDispatchInfo` 重抛原始故障。这是生命周期行为的可执行证据，不是在普通编译代码中替换内置 `use` 的建议。
+由于本章示例是 FSI 脚本，异步测试对象使用一个小型 `usingAsync` 适配器。它保存主体结果，等待释放完成，再返回值或通过 `ExceptionDispatchInfo` 重抛原始故障。这用于验证生命周期行为，不建议在普通编译代码中替换内置 `use`。
 
 ### 证明全部六条清理路径 {#all-cleanup-paths}
 
@@ -319,7 +319,7 @@ syncCancellation.Dispose()
 ```
 精确释放日志是 `success`、`failure`、`cancel`。预先取消的令牌只在资源获取后检查，这证明取消仍会经过已拥有的作用域。
 
-异步测试启动三个操作，分别对应三种主体结果。每个 `DisposeAsync` 都会报告已经进入，并等待独立释放的闩锁：
+异步测试启动三个操作，分别对应三种主体结果。每个 `DisposeAsync` 都会报告已经进入，并等待各自的释放信号：
 
 ```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
 let asyncDisposed = ResizeArray<string>()
@@ -407,11 +407,11 @@ printfn
 
 asyncCancellation.Dispose()
 ```
-释放开始后，三个外围任务都保持未完成。只有相应闩锁释放后，每个任务才暴露成功、原始故障或取消。这证明释放是被等待，而不是仅被调用。
+释放开始后，三个外层任务都保持未完成。只有相应信号触发后，每个任务才返回成功、原始故障或取消。这证明外层任务会等待释放完成，而不只是调用释放方法。
 
 如果主体故障正在传播时清理本身也失败，就要决定诊断如何保留两者。普通语言清理可能暴露清理异常而遮蔽第一个异常。在基础设施边界，应按显式策略记录或聚合；绝不能静默丢弃释放失败。
 
-## 辅助资源也需要所有者 {#helper-lifetimes}
+## 取消相关对象也需要明确所有者 {#helper-lifetimes}
 
 取消机制本身也有生命周期：
 
@@ -446,7 +446,7 @@ asyncCancellation.Dispose()
 dotnet fsi --checknulls+ --exec ch23-cancellation-timeouts.fsx
 ```
 
-七行确定性输出证明操作取消、放弃等待、受控超时、原始故障传播，以及全部主体结果上的同步与异步清理。
+七行输出验证操作取消、放弃等待、受控超时、原始故障传播，以及成功、故障和取消时的同步与异步清理。
 
 ## 练习 {#exercises}
 
@@ -464,7 +464,7 @@ dotnet fsi --checknulls+ --exec ch23-cancellation-timeouts.fsx
 
 ### 练习 3：审计异步清理 {#exercise-03}
 
-在编译的任务表达式中使用实现 `IAsyncDisposable` 的探针和 `use`。让释放等待闩锁。证明外围任务在成功、故障与取消后的清理期间保持挂起。
+在编译的任务表达式中使用实现 `IAsyncDisposable` 的测试对象和 `use`。让释放等待信号。证明外层任务在成功、故障与取消后的清理期间保持挂起。
 
 然后让释放发生故障。记录调用方收到哪个异常，并提出同时保留主体故障与清理故障的诊断策略。
 
@@ -478,7 +478,7 @@ dotnet fsi --checknulls+ --exec ch23-cancellation-timeouts.fsx
 - 预期领域错误、故障任务与取消任务是不同契约。
 - 在异步工作流中应等待任务故障，而不是使用阻塞包装器。
 - 一旦获取资源，成功、故障与取消都必须经过清理。
-- 异步释放完成之前，外围任务尚未完成。
+- 异步释放完成之前，外层任务尚未完成。
 - 信号与可控时间无需猜测调度器即可证明状态转换。
 
 下一章会区分并发与并行，并比较不可变协调、代理、锁、原子操作和有意受控的可变性。

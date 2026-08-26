@@ -8,7 +8,7 @@ translationKey: part-03/ch-16-modules-namespaces-projects
 
 脚本可能掩盖一个有用事实：程序存在依赖方向。当领域定义、工作流和启动代码分处不同文件时，F# 要求你用编译顺序声明这个方向。后面的文件可以使用编译器已经见过的定义；前面的文件不能向前引用后面的定义。
 
-这条规则不是编辑器附加的仪式，而是让项目架构可以被检查。本章的可执行项目中，`Domain.fs` 不知道工作流，`Workflow.fs` 依赖领域，而 `Program.fs` 组合二者。项目文件准确记录了这个顺序。
+这条规则不是编辑器要求的形式，而是可由编译器检查的项目结构。本章的可执行项目中，`Domain.fs` 不知道工作流，`Workflow.fs` 依赖领域，而 `Program.fs` 组合二者。项目文件准确记录了这个顺序。
 
 ## 学完后你能够做什么 {#outcomes}
 
@@ -40,7 +40,7 @@ translationKey: part-03/ch-16-modules-namespaces-projects
 
 目录对人很有用，却不会声明 F# 命名空间。源文件中的首个声明负责这一点，而 `Ch16.fsproj` 决定哪些文件参与编译以及它们的顺序。
 
-## 走读三个源文件 {#project-tour}
+## 查看三个源文件 {#project-tour}
 
 每个源文件都以同一个命名空间开头：
 
@@ -115,7 +115,7 @@ open ThinkingInFSharp.Ch16.Domain
 
 它还没有处理 `Domain.fs`，所以不知道 `Domain`，编译会报告 `FS0039`。这不是应该抑制的警告。应当把提供者放在消费者之前。
 
-如果两个文件看起来必须互相依赖，先检查设计。通常，共享类型应进入更早的领域文件，而协调两边的操作应进入更晚的工作流文件。环是有价值的架构反馈。递归模块和 `namespace rec` 确实为真正的相互递归而存在，但不应成为抹去普通分层的捷径。
+如果两个文件看起来必须互相依赖，先检查设计。通常，共享类型应进入更早的领域文件，而协调两边的操作应进入更晚的工作流文件。循环依赖通常说明分层可能有问题。递归模块和 `namespace rec` 确实为真正的相互递归而存在，但不应成为绕过普通分层的捷径。
 
 ## 命名空间与模块解决不同问题 {#namespace-vs-module}
 
@@ -179,7 +179,7 @@ let requested = request |> Domain.BookingRequest.seats |> Domain.SeatCount.value
 
 测试项目通过 `ProjectReference` 使用本章项目。它自己的测试文件仍有自己的 `<Compile>` 顺序。相同名称的命名空间可以出现在两个程序集中，但让外部定义变得可用的是引用，而不是命名空间的拼写。
 
-## 编译器设置是可执行的契约 {#settings}
+## 编译器设置会改变构建结果 {#settings}
 
 按照每项设置回答的问题来理解它：
 
@@ -194,11 +194,11 @@ let requested = request |> Domain.BookingRequest.seats |> Domain.SeatCount.value
 
 这些控制项分别负责不同决策：SDK 选择构建工具集，`TargetFramework` 选择 API 与运行时契约，`LangVersion` 选择编译器接受的 F# 语言特性。可复现项目应显式声明每项策略。
 
-共享策略可以放在 `Directory.Build.props` 中；MSBuild 会为其子目录中的项目导入它。较大的代码库可以在那里集中设置 `LangVersion`、空值检查、警告视为错误、确定性输出和锁定包还原。小型独立教学项目应保持自包含；只有多个真实项目共享策略时才值得集中配置。
+共享策略可以放在 `Directory.Build.props` 中；MSBuild 会为其子目录中的项目导入它。较大的代码库可以在那里集中设置 `LangVersion`、空值检查、警告视为错误、可复现构建和锁定包还原。小型独立教学项目应保持自包含；只有多个真实项目共享策略时才值得集中配置。
 
 应优先修复诊断，而不是全局抑制它。警告视为错误让这项纪律在本地构建和 CI 中可复现；这并不表示所有可能的可选警告都已经启用。
 
-## 最小的可空引用模型 {#nullable-minimum}
+## 可空引用的基本规则 {#nullable-minimum}
 
 启用 F# 空值检查后，`string` 表达非空引用契约，`string | null` 则显式允许 null。该标注指导编译期分析，运行时仍使用普通 .NET 引用表示。来自外部或未检查代码的值仍需在边界验证。
 
@@ -233,7 +233,7 @@ let create (rawId: string | null) rawSeats =
 
 不要“以防万一”而把每个引用都标成可空。这会削弱契约并把检查向内部推移。只在调用方确实可能提供 null 的地方允许它，在那里完成验证，并让核心模型通过构造保持非空。
 
-## 让依赖形状引导架构 {#dependency-shape}
+## 用依赖方向引导架构 {#dependency-shape}
 
 编译器只会强制“先前再后来”，不会替你选择好的分层。应利用顺序，让架构意图可以被评审：
 
@@ -265,7 +265,7 @@ dotnet test ExampleTests.fsproj -c Release --no-restore --filter FullyQualifiedN
 accepted:REQ-16 remaining=1
 ```
 
-聚焦测试覆盖可空和空白标识符、组件验证错误、跨文件工作流与最终程序组合。反过来，构建顺序颠倒的预期错误项目必须以 `FS0039` 失败；这项负向检查保护了编译顺序的解释。
+聚焦测试覆盖可空和空白标识符、组件验证错误、跨文件工作流与最终程序组合。另一个故意颠倒构建顺序的项目必须以 `FS0039` 失败，用来确认编译顺序确实具有上述作用。
 
 ## 练习 {#exercises}
 

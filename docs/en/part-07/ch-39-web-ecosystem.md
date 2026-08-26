@@ -245,7 +245,7 @@ Friction to evaluate:
 - the broad full-stack family can tempt a team to adopt features it does not need;
 - migration similarity does not mean every Giraffe behavior is identical.
 
-The checked stable package is [Oxpecker 2.0.1](https://www.nuget.org/packages/Oxpecker/2.0.1), whose package asset targets `net10.0`. That is a fact to include in runtime planning, not evidence that it is inherently better or worse.
+The checked stable package is [Oxpecker 2.1.1](https://www.nuget.org/packages/Oxpecker/2.1.1), whose package asset targets `net10.0`. That is a fact to include in runtime planning, not evidence that it is inherently better or worse.
 
 ## Saturn: convention-rich functional MVC {#saturn}
 
@@ -261,11 +261,11 @@ The following is a dated observation, not an evergreen ranking:
 
 | Choice | Stable surface checked on 2026-08-25 | Status in this chapter | Key adoption question |
 |---|---|---:|---|
-| ASP.NET Core Minimal API | .NET SDK/runtime 10.0.301 | illustrated | can the team contain C#-shaped API friction? |
+| ASP.NET Core Minimal API | .NET SDK 10.0.301; ASP.NET Core runtime 10.0.9 | illustrated | can the team contain C#-shaped API friction? |
 | controller API | ASP.NET Core 10 platform docs | research only | do required controller extension points justify the ceremony? |
 | Giraffe | NuGet 8.3.0 | research only | does continuation-style handler composition fit the team? |
 | Falco | NuGet 5.2.0 stable | research only | do its focused endpoints and related packages cover required integrations? |
-| Oxpecker | NuGet 2.0.1, `net10.0` asset | research only | is its newer endpoint/full-stack surface acceptable to operate and upgrade? |
+| Oxpecker | NuGet 2.1.1, `net10.0` asset | research only | is its newer endpoint/full-stack surface acceptable to operate and upgrade? |
 | Saturn | NuGet 0.17.0, `net6.0` asset | research only | do its conventions outweigh the required .NET 10 compatibility proof? |
 
 “Illustrated” means this chapter shows the approach, not that the book site ships an executable service. “Research only” is not a negative quality judgment; evaluate the option in the adopting application.

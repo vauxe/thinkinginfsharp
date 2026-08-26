@@ -1,14 +1,14 @@
 ---
 title: "第 19 章：.NET API 与空值边界"
-description: "在 F# 中调用普通 .NET 构造函数、成员、重载与接口，再在单一边界把可空引用和值转换成诚实的领域类型。"
+description: "在 F# 中调用普通 .NET 构造函数、成员、重载与接口，再在单一边界把可空引用和值转换成能准确表达含义的领域类型。"
 translationKey: part-04/ch-19-dotnet-null-boundaries
 ---
 
 # 第 19 章：.NET API 与空值边界 {#overview}
 
-F# 并不位于 .NET 旁边；它本身就是一门 .NET 语言。调用 `Uri`、`String.Join` 或 `IReadOnlyCollection<'T>` 都是普通的、有类型的 F# 代码。真正重要的问题不是如何逃离函数式编程，而是外部 API 的构造规则、重载、异常与缺失值约定应在哪里停止影响程序的其余部分。
+F# 本身就是一门 .NET 语言。调用 `Uri`、`String.Join` 或 `IReadOnlyCollection<'T>` 都是普通的、有类型的 F# 代码。真正需要决定的是：外部 API 的构造规则、重载、异常与缺失值约定，应该在哪个边界转换成程序自己的模型。
 
-本章会在执行实质 I/O 之前建立这道边界。我们先调用构造函数、成员、重载方法与接口，再区分常被“可空”一词混在一起的三种表示：可空引用 `T | null`、可空值 `Nullable<T>`，以及 F# 领域选择 `T option`。
+本章会在真正执行 I/O 之前建立这道边界。我们先调用构造函数、成员、重载方法与接口，再区分常被“可空”一词混在一起的三种表示：可空引用 `T | null`、可空值 `Nullable<T>`，以及 F# 领域中的 `T option`。
 
 ## 学完后你能够做什么 {#outcomes}
 
@@ -52,7 +52,7 @@ let countItems (items: IReadOnlyCollection<'T>) : int = items.Count
 
 `String.Join` 有多个重载。在 `joinLabels` 中，标注 `labels: string array` 和字符串分隔符共同选中接收字符串分隔符与字符串数组的重载。编译器不会依据你希望得到的返回类型选择重载；它使用静态可知的实参类型与上下文。
 
-选择不清楚时，在边界加入最小且诚实的标注：
+选择不清楚时，在边界加入能准确表达情况的最少标注：
 
 ```fsharp
 let joinLabels (labels: string array) : string =
@@ -61,7 +61,7 @@ let joinLabels (labels: string array) : string =
 
 不要为了让代码编译而随意添加转换。转换可能改变所选 API，并掩盖建模错误。应先检查重载签名，再说明调用方实际拥有哪一种实参表示。
 
-### 针对所需接口编程 {#interfaces}
+### 只要求实际需要的接口 {#interfaces}
 
 `countItems` 只需要 `IReadOnlyCollection<'T>.Count`，所以它的形参声明该接口，而不是数组或具体列表：
 
@@ -70,7 +70,7 @@ let countItems (items: IReadOnlyCollection<'T>) : int =
     items.Count
 ```
 
-数组可以作为该接口提供。若上下文没有自动执行向上转换，应显式写出：
+数组实现了该接口。若上下文没有自动执行向上转换，应显式写出：
 
 ```fsharp
 let items = [| 1; 2; 3 |] :> IReadOnlyCollection<int>
@@ -103,7 +103,7 @@ F# 可空引用检查需要选择启用。本章项目写明：
 
 启用检查后，`string` 表示编译器期待非空字符串，而 `string | null` 则显式允许 null。该标注不会在运行时包装值，也无法证明反射、旧版元数据、未检查代码、反序列化或其他语言一定遵守其标注。
 
-应使用最窄而诚实的契约。只有当生产者确实可能提供 null 时，才把输入标为 `T | null`；不要“以防万一”而让每个内部引用都可空。转换之后，应让核心通过构造保持非空。
+应使用范围最窄且含义准确的契约。只有当生产者确实可能提供 null 时，才把输入标为 `T | null`；不要“以防万一”而让每个内部引用都可空。转换之后，应让核心通过构造保持非空。
 
 ### 用 `Null` 与 `NonNull` 收窄一次 {#null-narrowing}
 
@@ -167,7 +167,7 @@ let optionToNullableInt (value: int option) : Nullable<int> = Option.toNullable 
 
 当外部成员明确要求或返回 `Nullable<T>` 时，应在该处保留它。进入核心后，若缺失属于 F# 模型，则优先使用 `option`。若核心内部反复转换，说明边界还没有放清楚。
 
-## `option` 是领域选择，不是绝对防空包装器 {#option-boundary}
+## `option` 不保证内部值绝不为 null {#option-boundary}
 
 ### 引用转换使用另一组函数 {#reference-conversion}
 
@@ -188,18 +188,18 @@ let optionToNullableText (value: string option) : string | null = Option.toObj v
 
 ### `Some null` 是真实反例 {#some-null}
 
-option 只说明其用例是 `None` 还是 `Some`；它不会独立验证载荷。如果载荷类型显式允许 null，下面的值合法：
+option 只说明值是 `None` 还是 `Some`；它不会验证内部值。如果内部类型显式允许 null，下面的值合法：
 
 ```fsharp:line-numbers [NullBoundaries.fs]
 let someNullText: (string | null) option = Some null
 ```
-该值是 `Some`，其载荷却为 null。旧版或未检查的 .NET 代码同样可能违反假设。因此，准确规则是：
+该值是 `Some`，内部值却为 null。旧版或未检查的 .NET 代码同样可能违反假设。因此，准确规则是：
 
 > 用 `None` 表示领域缺失，让普通 option 载荷类型保持非空，并在边界规范化外部 null。
 
-不要宣称 `option` 的运行时表示让 null 不可能出现。启用空值检查后，`string option` 提供有用的非空载荷契约；`(string | null) option` 则有意允许这个反例。类型让意图区分可供评审，而边界测试会抵御外部输入对它的破坏。
+不要宣称 `option` 的运行时表示让 null 不可能出现。启用空值检查后，`string option` 要求内部字符串非空；`(string | null) option` 则有意允许这个反例。类型让两种意图可以区分，边界测试则检查外部输入是否遵守契约。
 
-## 在核心周围只放一层转换膜 {#boundary-placement}
+## 只在核心外设置一层转换边界 {#boundary-placement}
 
 一种实用流程是：
 
@@ -229,7 +229,7 @@ let someNullText: (string | null) option = Some null
 
 应先依据生产者的真实契约，再依据消费者的领域含义来选择。习惯不是类型设计规则。
 
-### 保留原因，而不是把它们压平 {#failure-causes}
+### 保留原因，不要合并成同一种结果 {#failure-causes}
 
 空值检查会在编译期阻止一部分意外解引用。空白验证、文本解析、URI 接受规则和服务可用性属于不同契约，应各自设计检查与表示。
 
@@ -291,10 +291,10 @@ let suspicious : (string | null) option = Some null
 - 可空引用分析是选择启用的编译期契约，不是运行时验证，也不能证明所有外部代码行为。
 - 只收窄可空引用一次，再让核心通过构造保持非空。
 - 使用与边界相符的转换对：对象/null、可空值或领域 option。
-- 当载荷类型允许 null 时，`Some null` 可以出现，因此不能把 `option` 宣传成绝对防空机制。
+- 当内部类型允许 null 时，`Some null` 可以出现，因此不能把 `option` 宣传成绝对防空机制。
 - `option` 描述普通缺失；`Result` 保留原因；异常需要自己的边界策略。
 
-下一章会保留这层转换膜，并把时间、随机数和环境访问变成显式效果，而不是隐藏输入。
+下一章会保留这层转换边界，并把时间、随机数和环境访问变成显式效果，而不是隐藏输入。
 
 ## 资料来源 {#sources}
 

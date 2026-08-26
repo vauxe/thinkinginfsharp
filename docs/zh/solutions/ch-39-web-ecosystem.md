@@ -32,7 +32,7 @@ translationKey: solutions/ch-39-web-ecosystem
 
 ### 团队 B：F#、服务器 HTML 与 HTMX {#exercise-01-team-b}
 
-从 Giraffe 8.3.0 与 Oxpecker 2.0.1 的比较开始；只有其 `net10.0` 目标和较新生命周期通过团队支持门后，才暂定选择 Oxpecker。
+从 Giraffe 8.3.0 与 Oxpecker 2.1.1 的比较开始；只有其 `net10.0` 目标和较新生命周期通过团队支持检查后，才暂定选择 Oxpecker。
 
 Oxpecker 对齐端点路由，暴露 `HttpContext -> Task` 终止处理器，并提供相关视图/HTMX 包。这些事实契合所需形状。Giraffe 仍是采用风险更低的对照候选，因为其处理器生态更长久，团队也可以使用独立的视图/HTMX 集成。
 
@@ -173,5 +173,5 @@ OpenAPI 比较应先规范化顺序和已知生成器元数据，再检测被删
 - [Microsoft Learn：ASP.NET Core 中的集成测试](https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests?view=aspnetcore-10.0)
 - [NuGet：Giraffe 8.3.0](https://www.nuget.org/packages/Giraffe/8.3.0)
 - [NuGet：Falco 5.2.0](https://www.nuget.org/packages/Falco/5.2.0)
-- [NuGet：Oxpecker 2.0.1](https://www.nuget.org/packages/Oxpecker/2.0.1)
+- [NuGet：Oxpecker 2.1.1](https://www.nuget.org/packages/Oxpecker/2.1.1)
 - [NuGet：Saturn 0.17.0](https://www.nuget.org/packages/Saturn/0.17.0)
