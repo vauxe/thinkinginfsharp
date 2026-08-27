@@ -147,10 +147,10 @@ This rule also explains why “expressions have values” does not conflict with
 
 ## Run the shared example {#run-example}
 
-From the directory containing the example, run:
+From the repository root, run:
 
 ```console
-dotnet fsi --exec ch02-values-bindings-expressions.fsx
+dotnet fsi --exec examples/scripts/ch02-values-bindings-expressions.fsx
 ```
 
 You should see:
@@ -213,15 +213,6 @@ Explain the `local-shadowing` region one line at a time:
 4. how many bindings does the region create, and how many existing values does it mutate?
 
 [Read the chapter solutions](../solutions/ch-02-values-bindings-expressions).
-
-## Key takeaways {#summary}
-
-- An expression produces a value; `let` uses a pattern to bind names to the value of its right-side expression.
-- Ordinary bindings retain their established values; referenced objects have a separate mutability contract.
-- Shadowing creates a same-named new binding without changing the old value; the outer binding remains after the local scope ends.
-- F# static inference solves constraints from literals, operations, known uses, and annotations.
-- A type annotation constrains an expression; an explicit conversion creates a value in another representation.
-- Read an FSI signature `val name: type = value` as separate name, type, and displayed value.
 
 The next chapter brings functions into this model. Functions are values, application is an expression, and arrow types extend data dependencies into composable behavior.
 

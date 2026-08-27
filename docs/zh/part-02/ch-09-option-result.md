@@ -237,10 +237,10 @@ printfn "Some null: isSome=%b payloadIsNull=%b" riskyPayload.IsSome payloadIsNul
 
 ## 运行共享示例 {#run-example}
 
-在示例所在目录执行：
+在仓库根目录执行：
 
 ```console
-dotnet fsi --exec ch09-option-result.fsx
+dotnet fsi --exec examples/scripts/ch09-option-result.fsx
 ```
 
 六行输出覆盖成功查找、缺失、option 组合、验证成功与失败、补充错误信息、遇到第一个错误后停止，以及 `Some null` 特殊情况。请逐行核对。
@@ -279,15 +279,6 @@ tryConfirmedCode : Booking -> string option
 最后说明一个有两处无效的请求会返回哪个错误，并解释这项优先级。
 
 [查看本章练习答案](../solutions/ch-09-option-result)。
-
-## 模型复盘 {#model-review}
-
-- `option` 建模有意义的缺失，而不是无法解释的失败。
-- `Result` 保留成功值或带类型的预期失败。
-- `map` 变换已包装值；`bind` 使用一个已经返回同种包装的函数继续计算。
-- `Option.bind` 和 `Result.bind` 会在第一个 `None` 或 `Error` 处停止。
-- `Result.mapError` 丰富失败上下文，而不打扰成功值。
-- option 可以包含 `null`；应在明确的 .NET 互操作入口规范化可空值。
 
 第 10 章会把同样由案例驱动的推理从两个案例的容器推广到递归树。
 

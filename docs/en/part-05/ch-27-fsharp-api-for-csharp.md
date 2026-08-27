@@ -305,6 +305,7 @@ The sample enables `GenerateDocumentationFile` and adds F# warning 3390 to the b
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
     <AssemblyName>ThinkingInFSharp.Ch27.FSharpApi</AssemblyName>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <WarnOn>$(WarnOn);3390</WarnOn>
@@ -344,11 +345,11 @@ Put the C# test client in CI and retain a released assembly or package as an API
 
 ## Run the shared API sample {#run-example}
 
-Build and run the real C# caller from the directory containing the example:
+Build and run the real C# caller from the repository root:
 
 ```console
-dotnet build CSharpClient.csproj --configuration Release --no-restore
-dotnet run --project CSharpClient.csproj --configuration Release --no-build
+dotnet build examples/chapters/ch27/CSharpClient/CSharpClient.csproj --configuration Release
+dotnet run --project examples/chapters/ch27/CSharpClient/CSharpClient.csproj --configuration Release --no-build
 ```
 
 The client asserts business outcomes, argument checks, four exported types, public signatures, nullable metadata, and XML documentation instead of merely printing a demonstration. After changing a public API, recompile this consumer first, then run existing-binary compatibility and behavioral tests.
@@ -368,17 +369,6 @@ You have `BookingSearch.Find(string requestId)`. Add filtering by attendee witho
 Assume the serializer requires parameterless construction and writable properties. Design a DTO that can hold unvalidated input, a domain conversion returning structured errors, and the location of reverse projection. Classify the compatibility affected by renaming a JSON field and explain why DTO rules must not enter the domain type.
 
 [Read the chapter solutions](../solutions/ch-27-fsharp-api-for-csharp).
-
-## Model review {#model-review}
-
-- Sharing the CLR does not imply sharing an idiomatic API; review the final public API at call sites and in metadata.
-- The F# core should retain the expressive power of unions, `option`, `Result`, functions, and pure composition.
-- Translate once in the public API; signatures should not leak F# representations callers do not need to understand.
-- Types, members, parameter names, nullability, exceptions, and documentation are all API promises.
-- Nullable annotations assist static analysis; public entry points still need runtime guards.
-- Business rejections, caller mistakes, and system failures should enable different caller actions.
-- Domain models, .NET public models, and wire DTOs can share meaning without sharing representation.
-- Compatibility includes source, binary, behavioral, and wire dimensions; baseline tools cover only part of them.
 
 ## Sources {#sources}
 

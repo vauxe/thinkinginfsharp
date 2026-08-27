@@ -523,24 +523,11 @@ Avalonia 内置控件通过自动化对等体向平台无障碍 API 暴露语义
 
 [阅读本章练习答案](../solutions/ch-43-avalonia-desktop-mobile)。
 
-## 本章回顾 {#chapter-review}
+## 资料来源 {#sources}
 
-- 客户端是一组领域、呈现、工具包、宿主和分发契约。
-- 分别衡量共享逻辑、共享 UI 和已验证的平台范围。
-- 从用户、设备、原生能力、团队技能和发布渠道选择 UI 边界。
-- Avalonia 提供官方 F# 模板、编译 AXAML、共享控件和多个平台宿主，但不会消除平台行为。
-- 桌面样例固定 Avalonia 12.1.1，并把纯 `Counter.update` 与命令式桌面视图分离。
-- 本章展示项目、纯测试与启动代码；采用它的应用必须自行运行还原、构建、测试与原生启动。
-- 手写 MVU、MVVM 适配器、code-behind 和纯代码 UI 各自适合不同情况，也会带来不同问题。
-- Avalonia 12 默认使用编译绑定并要求显式数据类型；反射绑定是有意的例外。
-- 在 UI 边界适配不可变记录、联合、option、集合和命令，而不是削弱领域模型。
-- 控件属于调度器；把异步结果和取消建模成消息，并拒绝过期结果。
-- 桌面窗口、iOS/浏览器单视图和 Android Activity 工厂具有不同生命周期。
-- 把原生能力放在端口之后，不让平台对象进入可复用核心。
-- 一个桌面项目仍需要独立 Windows、macOS 和 Linux 运行与安装包证据。
-- 移动端需要平台项目、.NET 10 工作负载、SDK、权限、签名、设备和商店。
-- 无障碍、响应式布局、本地化、键盘、触摸和生命周期都是必须验证的行为，不是最后才做的修饰。
-- 从纯测试逐步走向无头控件、原生冒烟、安装包、设备和商店证据。
-- 发布、打包、签名、分发、更新、观察和恢复是不同的发布阶段。
+- [Avalonia 文档与 Avalonia 12 指南](https://docs.avaloniaui.net/)
+- [Avalonia 支持平台矩阵](https://docs.avaloniaui.net/docs/supported-platforms)
+- [Avalonia 应用生命周期](https://docs.avaloniaui.net/docs/fundamentals/application-lifetimes)
+- [NuGet：Avalonia 包版本](https://www.nuget.org/packages/Avalonia)
 
 第 44 章转向另一种宿主：在 Unity 中使用 F# 领域代码。Unity 序列化、组件生命周期、IL2CPP 与 Player 构建仍留在专用适配层中。

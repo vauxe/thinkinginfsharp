@@ -307,17 +307,16 @@ module Consumer =
 
 ## 构建并验证示例 {#build-test}
 
-在示例所在目录运行：
+在仓库根目录运行：
 
 ```console
-dotnet build Ch17.fsproj -c Release --locked-mode
-dotnet test ExampleTests.fsproj -c Release --no-restore --filter FullyQualifiedName~Ch17SignatureTests
+dotnet build examples/chapters/ch17/Ch17.fsproj -c Release
 ```
 
-聚焦测试集会通过。下面这条命令被有意设计为失败，并由独立检查验证：
+下面这条命令被有意设计为失败，并由独立检查验证：
 
 ```console
-dotnet build Ch17HiddenRepresentation.fsproj -c Release
+dotnet build examples/expected-errors/ch17-hidden-representation/Ch17HiddenRepresentation.fsproj -c Release
 ```
 
 它必须产生 `FS0800`，以验证表示确实被隐藏。如果这个无效调用方构建成功，那是回归，不是示例通过。
@@ -356,18 +355,6 @@ val apply: policy: Policy -> request: Request -> Result<Decision, DecisionError>
 实现却定义了 `let apply (policy, request) = ...`，另有一个 `traceDecision` 辅助函数。解释 `apply` 为何不匹配，然后修复它。展示如何让 `traceDecision` 仅在实现文件内部可用，以及当同一程序集的另一个后续文件确实需要该辅助函数时，两份声明必须怎样改变。
 
 [阅读本章答案](../solutions/ch-17-signatures-encapsulation)。
-
-## 模型回顾 {#model-review}
-
-- `.fsi` 文件是与之匹配的 `.fs` 实现经过编译器检查的消费者视图。
-- 签名位于实现之前，发布声明而不是函数体。
-- 抽象类型名称让消费者可以使用值，却不能构造或解构表示。
-- 当调用方应该匹配可行动的分支时，透明错误联合类型很有用。
-- 签名/实现的类型、元数、约束、修饰符和公开顺序必须一致。
-- `private`、`internal`、签名省略与抽象表示分别保护不同范围。
-- 好的面向 F# API 小而完整：安全构造、有意义的操作、必要的观察方式和有类型的结果。
-- 成功用例证明外部代码可以使用 API；编译失败的用例证明实现确实被隐藏。
-- 签名修改就是 API 修改，因此只应在稳定收益值得维护成本时添加签名文件。
 
 第 18 章将用这些公共类型与操作组合更大的工作流，对比首错停止的 `Result` 串联与独立验证错误累积。
 

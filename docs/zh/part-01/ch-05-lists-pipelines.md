@@ -212,10 +212,10 @@ let labelsWithWhile source =
 
 ## 运行共享示例 {#run-example}
 
-在示例所在目录执行：
+在仓库根目录执行：
 
 ```console
-dotnet fsi --exec ch05-lists-pipelines.fsx
+dotnet fsi --exec examples/scripts/ch05-lists-pipelines.fsx
 ```
 
 应得到：
@@ -272,16 +272,6 @@ Iteration order: Lin:3 Sam:2
 4. 为“打印每个标签”和“产生新标签列表”分别选择首选形式并说明原因。
 
 [查看本章练习答案](../solutions/ch-05-lists-pipelines)。
-
-## 核心结论 {#summary}
-
-- F# 列表是有序不可变单向链；`::` 前插通常为常数时间，追加必须遍历左侧。
-- `map` 每项产生一项，`filter` 保留原项，`choose` 用 `Some`/`None` 表达零项或一项输出。
-- `x |> f` 只是 `f x` 的数据流写法；它依赖适合部分应用的参数顺序。
-- `List` 管道立即求值，多阶段可能产生中间列表；需要延迟或合并求值时，应选择相应操作或数据结构。
-- 只有副作用时使用 `iter` 或 `for`，避免用 `map` 制造被忽略的列表。
-- `let mutable` 与 `<-` 明确表示可变存储；限制在小范围内更容易追踪。
-- `while` 要手工维护进度，适合真正状态驱动的问题；标准遍历可由集合函数直接表达。
 
 下一章会把“向头部累积再反转”推广为递归与累加器，再用 `fold` 把一类显式递归重写成可复用集合操作，并说明递归调用在什么条件下位于尾位置。
 

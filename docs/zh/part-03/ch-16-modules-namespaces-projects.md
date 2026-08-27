@@ -240,14 +240,13 @@ I/O 适配器与应用组合
 
 让每个项目小到只有一个变化理由，但不要只为制造更多程序集而拆分。新项目会引入真实的引用与部署边界；仅为组织代码时，新模块或新文件可能已经足够。只有独立复用、构建策略、维护归属或依赖方向需要该边界时，才拆成项目。
 
-## 构建、运行并测试项目 {#build-test}
+## 构建并运行项目 {#build-test}
 
-在示例所在目录运行：
+在仓库根目录运行：
 
 ```console
-dotnet build Ch16.fsproj -c Release --locked-mode
-dotnet run --project Ch16.fsproj -c Release --no-build
-dotnet test ExampleTests.fsproj -c Release --no-restore --filter FullyQualifiedName~Ch16ProjectTests
+dotnet build examples/chapters/ch16/Ch16.fsproj -c Release
+dotnet run --project examples/chapters/ch16/Ch16.fsproj -c Release --no-build
 ```
 
 可执行程序输出：
@@ -256,7 +255,7 @@ dotnet test ExampleTests.fsproj -c Release --no-restore --filter FullyQualifiedN
 accepted:REQ-16 remaining=1
 ```
 
-聚焦测试覆盖可空和空白标识符、组件验证错误、跨文件工作流与最终程序组合。另一个故意颠倒构建顺序的项目必须以 `FS0039` 失败，用来确认编译顺序确实具有上述作用。
+仓库检查还会构建 `examples/expected-errors/ch16-file-order/Ch16WrongOrder.fsproj`，并要求它报告 `FS0039`。成功的可执行项目与预期失败夹具共同验证编译顺序规则。
 
 ## 练习 {#exercises}
 
@@ -285,17 +284,6 @@ let normalize (raw: string) = raw.Trim()
 分别测试 `null` 和非空标识符。解释参数标注为何必须出现在包装函数上，以及为什么这种输入类型不能替代领域模型中的 `option`。
 
 [阅读本章答案](../solutions/ch-16-modules-namespaces-projects)。
-
-## 模型回顾 {#model-review}
-
-- F# 按依赖顺序编译普通源文件：提供者先于消费者。
-- `<Compile>` 顺序是程序语义；目录顺序和编辑器顺序不是。
-- 命名空间组织类型和模块；模块容纳 F# 值和函数。
-- `open` 允许后续引用使用短名称，但既不加载代码，也不改变可访问性。
-- 项目定义一次编译；解决方案组合项目；普通构建产出程序集。
-- SDK、目标框架、语言版本、空值分析、输出种类与警告策略分别回答不同问题。
-- 启用空值检查后，用 `T | null` 表示可空引用，并让包装函数继续保留该标注。
-- 应用文件顺序揭示单向架构，而不是只把文件重排到构建通过为止。
 
 第 17 章会用签名文件限制公共 API：调用方只能看到组件有意公开的类型和操作。
 

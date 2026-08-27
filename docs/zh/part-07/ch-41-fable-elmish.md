@@ -367,7 +367,7 @@ type BookingPage =
 
 ```sh
 dotnet tool restore
-dotnet restore FableSample.fsproj --locked-mode
+dotnet restore path/to/FableSample.fsproj --locked-mode
 dotnet fable --outDir generated --noRestore --noCache
 vite build
 vite preview
@@ -466,22 +466,13 @@ vite preview
 
 [阅读本章练习答案](../solutions/ch-41-fable-elmish)。
 
-## 本章回顾 {#chapter-review}
+## 资料来源 {#sources}
 
-- Fable 保留 F# 源语言，同时把目标运行时改为 JavaScript。
-- 分开普通 F# 类型检查、Fable 兼容性与目标浏览器行为。
-- 浏览器运行打包后的 JavaScript，而不是项目 DLL 或 CLR。
-- 共享依赖很少的契约与决策；把服务端和浏览器副作用隔离到适配器后。
-- 分别锁定并审阅 NuGet 与 npm 图，包括绑定/原生包配对。
-- 浏览器 HTTP 仍不可信，要建模每种有意义的远程状态。
-- 客户端代码、存储、配置和 source map 无法向用户或注入脚本隐藏机密。
-- 直接 DOM 是有效的小型选择；只有协调状态、副作用、订阅和组合的收益足够大时，才值得引入 Elmish 循环。
-- Elmish 组织状态转换；React 负责渲染；Feliz 提供类型化 React API；Elmish.React 连接循环与渲染器。
-- 命令明确副作用责任，但不会消除失败、取消或竞态语义。
-- 即使存在取消，也要按身份拒绝陈旧完成。
-- 渲染器选择不会自动实现语义 HTML、焦点、键盘行为或响应式布局。
-- 在不同层测试纯逻辑、绑定、传输契约、生产资源和真实浏览器行为。
-- 静态托管仍需处理基础路径、路由回退、MIME、缓存、安全头、更新和回滚。
-- 版本元数据只代表核对当天；这里只有浏览器的普通 DOM 样例实际运行过。
+- [Fable：支持目标与稳定性级别](https://fable.io/docs/index.html)
+- [Fable：创建项目并安装工具](https://fable.io/docs/getting-started/your-first-fable-project.html)
+- [Fable：配合 Vite 的开发与生产构建](https://fable.io/docs/javascript/build-and-run.html)
+- [Fable CLI 选项与目标行为](https://fable.io/docs/getting-started/cli.html)
+- [NuGet：Fable 工具版本](https://www.nuget.org/packages/Fable)
+- [Vite：生产构建指南](https://vite.dev/guide/build)
 
 第 42 章从静态浏览器产物转向已部署的服务拓扑：容器、云边界、Serverless 约束与 .NET Aspire 编排。

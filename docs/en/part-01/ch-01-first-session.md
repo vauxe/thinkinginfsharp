@@ -177,14 +177,6 @@ Choose FSI, a script, or a project for each job, and give one reason:
 
 [Read the chapter solutions](../solutions/ch-01-first-session).
 
-## Key takeaways {#summary}
-
-- FSI gives the shortest feedback loop and displays both values and inferred types.
-- An `.fsx` file preserves an experiment as a repeatable script; `--exec` exits when it finishes.
-- A project organizes multi-file compilation, dependencies, tests, and publishing.
-- The basic reading unit in F# is an expression; an expression that completes normally produces a value.
-- Output is an effect, while the return value of `printfn` is the sole `unit` value, `()`.
-
 The next chapter tightens the temporary language used here: what `let` binds, how immutable names work by default, and how the compiler infers types from constraints.
 
 ## Sources {#sources}

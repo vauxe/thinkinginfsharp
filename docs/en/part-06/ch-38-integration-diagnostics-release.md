@@ -250,7 +250,7 @@ Most importantly, `Meter`, `ActivitySource`, and log calls are producers. They d
 A real application should expose its acceptance path as one documented command. For a .NET solution, the baseline can be:
 
 ```console
-dotnet test Sample.slnx --configuration Release
+dotnet test path/to/YourSolution.slnx --configuration Release
 ```
 
 If acceptance also needs a separate API process and client, use an application-specific script. It should create a unique temporary directory, listen on an available loopback port, and clean up the exact child process and directory in `finally`. That orchestration belongs to the application, not to this book site.
@@ -390,20 +390,5 @@ The service will use an OpenTelemetry-compatible collector. Design the configura
 Choose one explicit target, such as a framework-dependent Linux container or a self-contained `linux-x64` service. Extend the acceptance gate into a publish, promotion, deployment, and rollback plan. Name the immutable artifact, runtime/configuration contract, storage migration strategy, health gates, security checks, smoke tests, telemetry checks, rollout policy, and rollback trigger. State which steps can remain local and which require a production-like environment.
 
 [Read the chapter solutions](../solutions/ch-38-integration-diagnostics-release).
-
-## Chapter review {#chapter-review}
-
-- The composition root confirms which implementations the executable selects.
-- A shared endpoint surface prevents transport policy from drifting between orchestration versions.
-- Pure, adapter, consistency, in-process HTTP, and separate-process tests support different claims.
-- Effect counters make “no duplicate side effect” observable rather than inferred from a response.
-- A C# HTTP client verifies the current public DTO path without exposing F# domain internals.
-- Correlation IDs join diagnostic signals; they are not caller identity or authorization.
-- Metrics need bounded dimensions, while high-cardinality detail belongs in controlled traces or logs.
-- Instrumentation sources do nothing operational until collection, storage, policy, and ownership exist.
-- One documented acceptance command should own cleanup and fail when any required stage breaks.
-- Build, publish, deploy, and operate are distinct stages that require different checks.
-- A guarantee ledger must preserve both verified behavior and explicit limitations.
-- F# makes the policy and boundaries precise; production guarantees still come from real infrastructure and operations.
 
 Part VI is complete. Part VII maps this foundation onto the wider F# and .NET ecosystem without pretending that every useful library belongs in one application.

@@ -647,22 +647,6 @@ Release 解决方案构建在 F# 10 空值检查和警告即错误下通过。�
 
 [阅读本章答案](../solutions/ch-35-ports-persistence-config)。
 
-## 模型回顾 {#model-review}
-
-- 端口陈述所需能力；适配器选择机制。
-- DTO 是宽松表示，不是领域实体。
-- 标签、载荷、字段名称、大小写、空值省略与版本共同形成 JSON 契约。
-- 反向映射检查版本、存在性、智能构造函数与合法联合案例。
-- 原始命令映射后，领域层仍负责最终验证。
-- 已配置绝对路径不同于机密，也不同于请求输入。
-- 有界严格解码会把损坏文件变成显式结果。
-- 同目录临时写入、刷新与移动可避免暴露原地写入的部分目标。
-- 这种替换不是原子的多操作业务事务。
-- 结果固定的测试替身可控制结果，但不能代替真实网络集成。
-- 取消会在记录替身副作用前传播。
-- 组合根构造、暴露并释放由它负责管理的值。
-- JSON、文件存储与适配器测试覆盖本层；后续章节仍需验证 HTTP 与一致性。
-
 ## 资料来源 {#sources}
 
 - [Microsoft Learn：自定义 `System.Text.Json` 属性名称与枚举表示](https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/customize-properties)

@@ -237,10 +237,10 @@ Under F# nullness checking, `(string | null) option` states that the payload may
 
 ## Run the shared example {#run-example}
 
-From the directory containing the example:
+From the repository root:
 
 ```console
-dotnet fsi --exec ch09-option-result.fsx
+dotnet fsi --exec examples/scripts/ch09-option-result.fsx
 ```
 
 The six deterministic lines cover a successful lookup, absence, option composition, validation success and failure, added error context, first-error short-circuiting, and the `Some null` edge case. Compare the exact output.
@@ -279,15 +279,6 @@ Complete four steps:
 Finally, state which error a doubly invalid request returns and explain the precedence.
 
 [Read the chapter solutions](../solutions/ch-09-option-result).
-
-## Model review {#model-review}
-
-- `option` models meaningful absence, not unexplained failure.
-- `Result` preserves a successful value or a typed expected failure.
-- `map` transforms a wrapped value; `bind` continues with a function that already returns the wrapper.
-- `Option.bind` and `Result.bind` stop at the first `None` or `Error`.
-- `Result.mapError` enriches failure context without disturbing success.
-- An option can contain `null`; normalize nullable .NET values at a deliberate boundary.
 
 Chapter 10 generalizes the same case-driven reasoning from two-case containers to recursive trees.
 

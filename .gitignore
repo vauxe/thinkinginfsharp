@@ -5,6 +5,14 @@ docs/.vitepress/cache/
 docs/.vitepress/dist/
 dist/
 
+# .NET build outputs
+bin/
+obj/
+
+# Local example outputs
+/artifacts/
+/artifacts.manifest.json
+
 # Local configuration and secrets
 .env
 .env.*
@@ -20,3 +28,6 @@ dist/
 .vscode/
 *.user
 *.suo
+
+# Local planning notes
+/tasks/

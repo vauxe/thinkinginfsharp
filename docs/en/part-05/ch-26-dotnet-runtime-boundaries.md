@@ -277,10 +277,10 @@ This does not isolate F# from .NET. The adapter narrows a broad runtime protocol
 
 ## Run the shared example {#run-example}
 
-From the directory containing the example:
+From the repository root:
 
 ```console
-dotnet fsi --checknulls+ --warnaserror+ --exec ch26-dotnet-runtime-boundaries.fsx
+dotnet fsi --checknulls+ --warnaserror+ --exec examples/scripts/ch26-dotnet-runtime-boundaries.fsx
 ```
 
 Eight deterministic lines cover exact runtime type, safe and failing casts, delegates, event removal, live versus copied collections, case-insensitive lookup, and default reference versus domain key identity. Run it once with the flags shown above, then remove `--checknulls+` if you want to compare the compiler's behavior without nullable checking.
@@ -300,19 +300,6 @@ Create a capacity publisher with a CLI event. Subscribe, trigger one change, dis
 Store two customer objects whose IDs differ only by case. Build an ordinal case-insensitive comparer with `HashIdentity.FromFunctions`. Verify the equality and hash laws on three representative objects, then show that the second insertion replaces the first. Explain why a mutable customer ID would break dictionary lookup.
 
 [Read the chapter solutions](../solutions/ch-26-dotnet-runtime-boundaries).
-
-## Model review {#model-review}
-
-- Static types prevent mistakes before execution; runtime types support genuinely dynamic protocols.
-- Boxing erases a typed view and can allocate for value types.
-- Upcasts are statically valid; uncertain downcasts belong in type-test branches.
-- A runtime cast is not numeric conversion or parsing.
-- Functions are the F# default; delegates adapt them to .NET APIs.
-- Event correctness includes subscription lifetime, not only delivered values.
-- `IEnumerable<T>` can be a live/deferred view; materialization creates a snapshot.
-- A read-only view is not proof of immutable backing storage.
-- Dictionary semantics come from its comparer, not from the key's field names.
-- Identity, equality, hashing, and ordering follow four separate sets of rules.
 
 ## Sources {#sources}
 

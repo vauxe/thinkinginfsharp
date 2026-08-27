@@ -376,31 +376,16 @@ Justify each choice and identify the architectural boundaries that should remain
 
 [Read the chapter solutions](../solutions/ch-32-functions-to-applications).
 
-## Model review {#model-review}
-
-- A functional core decides; the application shell obtains facts and performs side effects.
-- Ports describe required capabilities and domain-relevant data, not framework objects.
-- Configuration remains untrusted until parsing and domain validation succeed.
-- Manual construction is dependency injection; a container is optional automation.
-- One composition root makes implementations and resource responsibilities visible.
-- Cancellation passes unchanged through every cancellable effect.
-- Business rejection, cancellation, and fault carry different operational meanings.
-- Every disposable has one owner; shutdown must drain work before disposal.
-- Logs, metrics, and traces answer different questions.
-- Instrumentation produces signals; listeners, collectors, exporters, storage, and alerts are separate concerns.
-- Metric dimensions must be bounded; per-request identifiers belong in controlled logs or traces, not metric tags.
-- The fixed demo demonstrates wiring, not durability, atomicity, recovery, or backend delivery.
-- Real configuration, scope, worker, and shutdown needs justify a stronger host.
-
 ## Part V checkpoint {#part-checkpoint}
 
-Run the focused composition tests from the directory containing the example:
+From the repository root, build and run the self-contained composition example:
 
 ```console
-dotnet test ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~Ch32CompositionTests
+dotnet build examples/chapters/ch32/Ch32.App.fsproj --configuration Release
+dotnet run --project examples/chapters/ch32/Ch32.App.fsproj --configuration Release --no-build -- --demo
 ```
 
-Passing tests show that configuration errors accumulate, cancellation is observed before a dependency call, resources are disposed, and the sample emits its structured log, metric, and completed activity. They cover only in-process wiring, not production export or durable delivery.
+The deterministic output confirms an accepted request, one structured log, one metric, one completed activity, and disposal of the owned store. It checks executable in-process wiring, not every failure path, production telemetry export, or durable delivery.
 
 [Continue to Chapter 33](../part-06/ch-33-domain-language-model), where the capstone is rebuilt as one coherent application path.
 

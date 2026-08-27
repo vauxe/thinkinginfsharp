@@ -190,10 +190,10 @@ Do not optimize only for line count. Record and field names are model vocabulary
 
 ## Run the shared example {#run-example}
 
-From the directory containing the example, run:
+From the repository root, run:
 
 ```console
-dotnet fsi --exec ch07-records-equality.fsx
+dotnet fsi --exec examples/scripts/ch07-records-equality.fsx
 ```
 
 You should see:
@@ -237,16 +237,6 @@ Create a record from `original` that changes only `Seats`, then separately const
 Choose structural equality, reference identity, a domain ID, or an explicit ordering key for each need: remove content-equal drafts, confirm whether two variables denote one cache object, and display bookings by descending seat count. Explain why `hash x = hash y` cannot decide equality for the first two, and write the `List.sortByDescending` key for the third.
 
 [Read the chapter solutions](../solutions/ch-07-records-equality).
-
-## Key takeaways {#summary}
-
-- Tuples combine local values by position; named records bring field vocabulary and type identity into the model.
-- An ordinary record is a reference type with immutable fields by default; it also gains structural equality and comparison when its components support them.
-- Copy-and-update creates a new record but does not recursively clone referenced objects in unchanged fields.
-- An anonymous record's complete field set determines its type; it suits local projection and does not support record patterns.
-- Structural equality compares contents; reference identity asks whether two references denote the same runtime object; domain identity may be separate data again.
-- Equal values must have equal hash codes, but equal hash codes prove neither equality nor a permanent identity.
-- Default structural comparison provides deterministic order; important business order should state an explicit key.
 
 A record alone cannot express the next requirement: a booking must have exactly one of a few mutually exclusive statuses, not an arbitrary combination of Boolean flags.
 

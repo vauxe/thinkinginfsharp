@@ -261,10 +261,10 @@ Readable pattern syntax is the result, not the goal. If the recognizer's name hi
 
 ## Run the shared example {#run-example}
 
-From the directory containing the example:
+From the repository root:
 
 ```console
-dotnet fsi --exec ch15-active-patterns.fsx
+dotnet fsi --exec examples/scripts/ch15-active-patterns.fsx
 ```
 
 Six deterministic lines cover every complete partition, successful and failed partial recognition, preserved error details, and parameterized recognizer call counts.
@@ -298,16 +298,6 @@ let (|ExistingBooking|_|) bookingId =
 Assume `tryLoad` queries a database and returns `Booking option`. Explain the cost and failure problems hidden by the pattern. Rewrite the workflow so loading is explicit and a pure active pattern is applied only after a booking has been obtained. State how parameterized pattern clauses can multiply work.
 
 [Read the chapter solutions](../solutions/ch-15-active-patterns).
-
-## Model review {#model-review}
-
-- Active patterns are recognizer functions used through pattern syntax.
-- Complete patterns classify every input; partial patterns may continue to later clauses.
-- Only single-case active patterns can take specialization parameters.
-- A partial non-match carries less information than a modeled error.
-- Each pattern occurrence can execute recognizer work, so clause order and repeated attempts matter.
-- Keep I/O, changing external state, expensive setup, and exception handling explicit outside the match.
-- Public case names and payload types are part of the API, even when the underlying representation stays private.
 
 Chapter 16 moves from expression-level views to program structure: modules, namespaces, file order, projects, and compiler settings determine which definitions are available at all.
 

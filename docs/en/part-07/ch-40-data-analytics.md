@@ -390,21 +390,4 @@ An `.fsx` script loads a local export, engineers features, trains a classifier, 
 
 [Read the chapter solutions](../solutions/ch-40-data-analytics).
 
-## Chapter review {#chapter-review}
-
-- Start with schema responsibility, execution location, scale, side effects, sensitivity, and reproducibility.
-- A type provider turns a sample into compile-time feedback; it does not validate all runtime data.
-- Keep generated rows and database entities inside adapters, then return ordinary trusted types.
-- `Seq` and `query {}` describe syntax; the source determines local enumeration or provider translation.
-- ADO.NET, Dapper, EF Core, and SQLProvider handle different amounts of SQL, mapping, tracking, and schema discovery.
-- Transactions protect invariants only when the application puts the whole decision inside the real atomic boundary.
-- Use ordinary collections for bounded typed work; use frames when labels, alignment, and missing data justify them.
-- Make exploration headless and repeatable before using it to make a decision.
-- .NET Interactive and Polyglot Notebooks are deprecated; evaluate maintained notebook tooling explicitly.
-- Test chart inputs and accessibility; visual plausibility is not correctness.
-- Separate training evaluation, immutable model packaging, and inference operations.
-- ML.NET fits many in-process .NET tasks; ONNX is an inference contract; TorchSharp adds native tensor/runtime ownership.
-- Version tables are dated observations; applications must verify the options they adopt.
-- Choose the smallest boundary that meets the real workload, then lock, test, measure, and rehearse change.
-
 Chapter 41 moves the same discipline into the browser: Fable compiles F# to JavaScript, where the runtime, API surface, package graph, and state model differ from server-side .NET.

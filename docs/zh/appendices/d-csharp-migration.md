@@ -200,11 +200,11 @@ Console.WriteLine(
 ```
 同一客户端还用反射断言：只导出 `BookingApi`、`BookingOutcome`、`BookingRequest` 和 `BookingResponse`；任何公共签名都不含 `Microsoft.FSharp.*`；可空元数据正确；XML 文档随程序集一同发布。这些断言直接测试编译后的 API，而不是猜测 F# 源码在 C# 中会是什么样子。
 
-在示例所在目录运行这对项目：
+在仓库根目录运行这组已校验项目：
 
 ```console
-dotnet build CSharpClient.csproj --configuration Release --no-restore
-dotnet run --project CSharpClient.csproj --configuration Release --no-build
+dotnet build examples/chapters/ch27/CSharpClient/CSharpClient.csproj --configuration Release
+dotnet run --project examples/chapters/ch27/CSharpClient/CSharpClient.csproj --configuration Release --no-build
 ```
 
 ## 按可独立替换的接口迁移，而不是按文件夹迁移 {#migration-workflow}

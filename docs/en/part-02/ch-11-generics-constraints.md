@@ -250,10 +250,10 @@ Do not confuse the `unit` type, whose sole value is `()`, with a unit **of measu
 
 ## Run the shared example {#run-example}
 
-From the directory containing the example:
+From the repository root:
 
 ```console
-dotnet fsi --exec ch11-generics-constraints.fsx
+dotnet fsi --exec examples/scripts/ch11-generics-constraints.fsx
 ```
 
 The five deterministic lines demonstrate a generalized function at two types and a safe generic value. They also cover a fresh-value factory, inferred equality and comparison constraints, and dimension-checked arithmetic.
@@ -297,15 +297,6 @@ Define `seat` and `minute`, then write:
 Explain what measure information remains after serialization and name one booking invariant that measures alone cannot enforce.
 
 [Read the chapter solutions](../solutions/ch-11-generics-constraints).
-
-## Model review {#model-review}
-
-- Automatic generalization quantifies type variables only when the definition safely ignores a concrete type.
-- The value restriction prevents one nongeneralizable value from being used as incompatible constructed types.
-- An annotation specializes one value; an explicit parameter exposes a generic function; `()` can make a fresh-value factory.
-- Equality and comparison constraints arise from operations and compose through structural fields.
-- Ordinary generics do not require SRTP; recognize SRTP by `inline` plus member constraints, not by `'T` versus `^T` punctuation alone.
-- Units of measure reject dimensional mistakes at compile time, are erased at runtime, and do not enforce value-range invariants.
 
 Chapter 12 now uses these type capabilities deliberately: private representations and smart constructors will prevent callers from constructing invalid domain values.
 

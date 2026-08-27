@@ -411,12 +411,14 @@ Emulators and local orchestrators are useful but not authoritative. Provider con
 | --- | --- | --- |
 | .NET SDK | 10.0.301 | Locked restore, Release build, tests, and publish |
 | FSharp.Core | 10.1.301 | Resolved graph and runtime compatibility |
-| Aspire.AppHost.Sdk | 13.5.2, published 2026-08-21 | Use only if local multi-service orchestration repays its cost; then test startup and health |
+| Aspire.AppHost.Sdk | 13.5.2 locally verified; 13.5.3 current on 2026-08-28 | Use only if local multi-service orchestration repays its cost; then test startup and health |
 | ASP.NET Core base image | 10.0.10 | Image metadata, operating system, architecture, vulnerabilities, and container startup |
 | Aspire CLI bundle/deployment targets | CLI 13.5.2 | Bundle output and the chosen deployment target, if used |
 | Azure Functions isolated worker | Docs list .NET 10 and F# binding caveats | Package, emulate, and deploy the actual trigger path |
 | AWS Lambda .NET 10 image/runtime path | Current official docs reviewed | Package, invoke, and deploy the actual handler |
 | Kubernetes probes/deployment | Current official semantics reviewed | Manifest, cluster behavior, and real probe execution |
+
+The sample remains pinned to 13.5.2 because that is the version actually run. NuGet now lists 13.5.3; adopting it requires updating the SDK and matching CLI together, then repeating restore, startup, health, and deployment checks.
 
 Versions answer “what was considered,” not “what your application supports.” Keep the provider plan, region, architecture, trigger, integration package, CLI, base digest, and test date with the evidence.
 
@@ -499,23 +501,13 @@ Finish by naming the guarantee that requires cooperation from the email provider
 
 [Read the chapter solutions](../solutions/ch-42-cloud-containers-aspire).
 
-## Chapter review {#chapter-review}
+## Sources {#sources}
 
-- F# cloud code remains ordinary .NET application code; deployment changes external contracts, not the value of types and functions.
-- Separate compilation, publish layout, image, platform configuration, running instance, and observable release checks.
-- Choose compute from trigger, lifetime, state, scale, control, and operational responsibility.
-- A container packages a process; a platform runs it; Serverless defines an invocation model; Aspire declares an application model.
-- Keep configuration external, secrets out of artifacts, identity narrow, and durable state outside ephemeral instances.
-- Treat shutdown as best effort and propagate cancellation; durable work needs idempotency and recovery.
-- Liveness, readiness, startup, resource readiness, synthetic journeys, and business health have different consumers and reactions.
-- Pin and inspect the base image, architecture, user, port, entry point, supply-chain records, and immutable digest.
-- Serverless handlers need thin provider adapters, explicit retry semantics, duplicate handling, concurrency bounds, and measured cold paths.
-- Provider “.NET support” does not guarantee F# templates, bindings, code generation, or tooling.
-- A C# AppHost can be an honest narrow infrastructure adapter around an F# service.
-- AppHost is a development orchestrator, not the production runtime; local resource health is not production probe configuration.
-- Service Defaults are optional source code that the team must maintain; environment injection alone does not instrument a service.
-- `aspire publish` emits a handoff, `aspire deploy` applies a target pipeline, and CI/CD still owns governance.
-- Promote one immutable artifact, design compatible data changes, observe progressive rollout, and rehearse rollback or forward fix.
-- The local cloud sample verifies a local F# service, C# AppHost, dashboard health, and image archive only; all provider paths remain unexecuted.
+- [Microsoft Learn: Aspire architecture and development-time orchestration](https://learn.microsoft.com/en-us/dotnet/aspire/architecture/overview)
+- [Microsoft Learn: AppHost configuration](https://learn.microsoft.com/en-us/dotnet/aspire/app-host/configuration)
+- [NuGet: Aspire.AppHost.Sdk versions](https://www.nuget.org/packages/Aspire.AppHost.Sdk)
+- [Microsoft Learn: .NET container fundamentals](https://learn.microsoft.com/en-us/dotnet/core/containers/overview)
+- [Microsoft Learn: .NET isolated worker guide for Azure Functions](https://learn.microsoft.com/en-us/azure/azure-functions/dotnet-isolated-process-guide)
+- [Kubernetes: liveness, readiness, and startup probes](https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes/)
 
 Chapter 43 returns from cloud topology to a user-facing .NET runtime: Avalonia desktop applications, platform packaging, and the honest boundary of mobile support.

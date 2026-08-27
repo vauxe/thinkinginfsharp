@@ -415,12 +415,14 @@ Aspire 可以定义应用专用的构建、发布、推送与部署步骤。CI/C
 | --- | --- | --- |
 | .NET SDK | 10.0.301 | 锁定还原、Release 构建、测试与发布 |
 | FSharp.Core | 10.1.301 | 解析后的依赖图与运行时兼容性 |
-| Aspire.AppHost.Sdk | 13.5.2，发布于 2026-08-21 | 只有本地多服务编排确实值得时才采用，再测试启动与健康状态 |
+| Aspire.AppHost.Sdk | 本地验证 13.5.2；2026-08-28 当前版本为 13.5.3 | 只有本地多服务编排确实值得时才采用，再测试启动与健康状态 |
 | ASP.NET Core 基础镜像 | 10.0.10 | 镜像元数据、操作系统、架构、漏洞与容器启动 |
 | Aspire CLI bundle/部署目标 | CLI 13.5.2 | 若采用，验证 bundle 输出与选定部署目标 |
 | Azure Functions 隔离工作进程 | 文档列出 .NET 10 与 F# 绑定注意项 | 打包、模拟并部署真实触发路径 |
 | AWS Lambda .NET 10 镜像/运行时路径 | 已审阅当前官方文档 | 打包、调用并部署真实处理器 |
 | Kubernetes 探针/部署 | 已审阅当前官方语义 | 清单、集群行为与真实探针执行 |
+
+样例仍固定 13.5.2，因为实际运行的是这个版本。NuGet 目前列出 13.5.3；采用新版时应同时更新 SDK 与匹配的 CLI，再重复还原、启动、健康状态与部署检查。
 
 版本回答“考虑了什么”，而不是“你的应用支持什么”。让提供方计划、区域、架构、触发器、集成包、CLI、基础层摘要与测试日期和证据放在一起。
 
@@ -503,23 +505,13 @@ Aspire 可以定义应用专用的构建、发布、推送与部署步骤。CI/C
 
 [阅读本章练习答案](../solutions/ch-42-cloud-containers-aspire)。
 
-## 本章回顾 {#chapter-review}
+## 资料来源 {#sources}
 
-- F# 云端代码仍是普通 .NET 应用代码；部署改变外部契约，而不改变类型与函数的价值。
-- 区分编译、发布布局、镜像、平台配置、运行实例与可观察的发布检查。
-- 根据触发、生命周期、状态、伸缩、控制与运维责任选择计算模型。
-- 容器打包进程；平台运行它；Serverless 定义调用模型；Aspire 声明应用模型。
-- 保持配置外置、秘密不进制品、只为身份授予必要权限，并把持久状态放在临时实例之外。
-- 把关闭视为尽力而为并传播取消；持久工作需要幂等性与恢复。
-- 存活、就绪、启动、资源就绪、合成旅程与业务健康面向不同消费者和反应。
-- 固定并检查基础镜像、架构、用户、端口、入口点、供应链记录与不可变摘要。
-- Serverless 处理器需要薄提供方适配器、显式重试语义、重复处理、并发限制与经过测量的冷路径。
-- 提供方“.NET 支持”不代表具备 F# 模板、绑定、代码生成或工具链。
-- C# AppHost 可以成为围绕 F# 服务的职责明确的小型基础设施适配器。
-- AppHost 是开发期编排器，不是生产运行时；本地资源健康不是生产探针配置。
-- Service Defaults 是可选源码，但团队必须自行维护；仅注入环境变量不会为服务插桩。
-- `aspire publish` 输出供后续步骤使用的制品，`aspire deploy` 应用目标流水线，CI/CD 仍负责治理。
-- 晋升同一个不可变制品，设计兼容数据变更，观察渐进发布，并演练回滚或向前修复。
-- 本地云样例只验证本地 F# 服务、C# AppHost、仪表板健康与镜像归档；所有提供方路径都未执行。
+- [Microsoft Learn：Aspire 架构与开发期编排](https://learn.microsoft.com/en-us/dotnet/aspire/architecture/overview)
+- [Microsoft Learn：AppHost 配置](https://learn.microsoft.com/en-us/dotnet/aspire/app-host/configuration)
+- [NuGet：Aspire.AppHost.Sdk 版本](https://www.nuget.org/packages/Aspire.AppHost.Sdk)
+- [Microsoft Learn：.NET 容器基础](https://learn.microsoft.com/en-us/dotnet/core/containers/overview)
+- [Microsoft Learn：Azure Functions .NET 隔离工作进程指南](https://learn.microsoft.com/en-us/azure/azure-functions/dotnet-isolated-process-guide)
+- [Kubernetes：存活、就绪与启动探针](https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes/)
 
 第 43 章从云端系统结构回到面向用户的 .NET 运行时：Avalonia 桌面应用、平台打包与移动支持的明确边界。

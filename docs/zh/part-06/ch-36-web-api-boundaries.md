@@ -450,7 +450,7 @@ Kestrel 的 `Server` 头已关闭，以减少无必要的实现披露。这是�
 
 ## 在本地运行 API {#local-run}
 
-以下命令使用临时快照，并且只绑定到回环地址。请在示例所在目录运行。
+把本章文件组装进 ASP.NET Core 项目后，请替换下方模板项目路径。命令使用临时快照，并且只绑定到回环地址。
 
 ### 启动宿主 {#local-start}
 
@@ -461,7 +461,7 @@ BOOKING_STORE_PATH="${TMPDIR:-/tmp}/thinking-in-fsharp-booking.json" \
 BOOKING_EVENT_ID="EVT-LOCAL" \
 BOOKING_CAPACITY="4" \
 ASPNETCORE_URLS="http://127.0.0.1:5086" \
-dotnet run --project Booking.Api.fsproj -c Release
+dotnet run --project path/to/Booking.Api.fsproj -c Release
 ```
 
 在 PowerShell 中：
@@ -471,7 +471,7 @@ $env:BOOKING_STORE_PATH = Join-Path ([IO.Path]::GetTempPath()) "thinking-in-fsha
 $env:BOOKING_EVENT_ID = "EVT-LOCAL"
 $env:BOOKING_CAPACITY = "4"
 $env:ASPNETCORE_URLS = "http://127.0.0.1:5086"
-dotnet run --project Booking.Api.fsproj -c Release
+dotnet run --project path/to/Booking.Api.fsproj -c Release
 ```
 
 ### 发送成功请求 {#local-success}
@@ -547,24 +547,6 @@ curl -i \
 比较直接暴露 Kestrel 与把它放在反向代理之后。为 TLS、转发头、主机过滤、请求上限、速率限制、身份验证、机密获取与日志脱敏制作一张简短责任表。标出哪些控制是这个预约 API 必需的，哪些取决于部署需求。
 
 [阅读本章答案](../solutions/ch-36-web-api-boundaries)。
-
-## 模型回顾 {#model-review}
-
-- HTTP 负责解释外部请求，不负责决定领域规则。
-- 四条独立路由只接收和返回外部表示。
-- 媒体类型、大小、语法、DTO 存在性与领域有效性是不同检查。
-- 真正的上限即使没有 `Content-Length` 也会计数字节。
-- 一份严格 JSON 策略可防止传输与持久化漂移。
-- 稳定错误代码是公共数据；异常与提供商消息不是。
-- `RequestAborted` 贯穿每个异步副作用与响应写入。
-- 取消不会回滚已经可见的副作用。
-- 支付先于追加、通知晚于追加，造成不同的重试风险。
-- `TestServer` 验证管线；回环 Kestrel 验证选定的传输行为。
-- 配置拒绝从不需要打印被拒绝值。
-- 环境变量避免提交，但不是加密的机密存储。
-- 请求体日志需要事先分类与脱敏。
-- 关闭服务器头部是加固，不是授权系统。
-- 当前宿主可运行、可测试，但还不具备一致性安全或生产完整性。
 
 ## 来源 {#sources}
 

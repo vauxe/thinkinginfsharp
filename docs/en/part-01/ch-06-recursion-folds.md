@@ -186,10 +186,10 @@ Each implementation still needs separate checks for `int` overflow and the busin
 
 ## Run the shared example {#run-example}
 
-From the directory containing the example, run:
+From the repository root, run:
 
 ```console
-dotnet fsi --warnaserror+ --exec ch06-recursion-folds.fsx
+dotnet fsi --warnaserror+ --exec examples/scripts/ch06-recursion-folds.fsx
 ```
 
 You should see:
@@ -246,22 +246,12 @@ Then imagine changing the recursive branch to recurse first and add `head` after
 
 [Read the chapter solutions](../solutions/ch-06-recursion-folds).
 
-## Key takeaways {#summary}
-
-- `let rec` makes a function name visible in its own body; the programmer supplies the base case and termination argument.
-- Structural recursion aligns patterns with data constructors and gives a structurally smaller component to the recursive call.
-- A tail call returns its result directly; pending work after a recursive call makes the call non-tail-recursive.
-- An accumulator carries completed work so a simple linear self-call can move into tail position.
-- `[<TailCall>]` checks tail-call intent; verify termination and stack behavior separately for each execution model.
-- `List.fold` threads state from the left; `foldBack` combines from the right and reverses folder argument order.
-- Tail recursion, time complexity, arithmetic safety, and domain correctness require separate verification.
-
 ## Part I checkpoint {#part-checkpoint}
 
-Run the integrated booking script from the directory containing the example:
+From the repository root, run the integrated booking script:
 
 ```console
-dotnet fsi --warnaserror+ --exec booking-basics.fsx
+dotnet fsi --warnaserror+ --exec examples/capstone/part-01/BookingBasics.fsx
 ```
 
 Its output must distinguish valid from invalid input rows, accept requests that fit, reject the over-capacity request, and finish with the correct booked and remaining capacity. This closes the Part I language path; persistence and concurrency guarantees arrive in later parts.

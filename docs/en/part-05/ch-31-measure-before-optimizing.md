@@ -108,7 +108,7 @@ The reference implementation and candidate use different structures, which makes
 Run only the semantic gate while editing:
 
 ```console
-dotnet run --project Ch31.Benchmarks.fsproj \
+dotnet run --project path/to/Ch31.Benchmarks.fsproj \
   --configuration Release --no-restore -- --verify-only
 ```
 
@@ -148,12 +148,12 @@ Each choice closes a common loophole:
 - `Baseline = true` gives ratios within each parameter group;
 - `MemoryDiagnoser` reports managed allocation per operation and GC frequency.
 
-The project locks BenchmarkDotNet 0.15.8 and all resolved dependencies. Run it from the command line in Release without an attached debugger. BenchmarkDotNet builds benchmark executables, performs warmup and measurement iterations, and reports the runtime environment; a hand-written `Stopwatch` loop would need to reimplement those controls.
+A project using this sample should lock BenchmarkDotNet 0.15.8 and its resolved dependencies. Run it from the command line in Release without an attached debugger. BenchmarkDotNet builds benchmark executables, performs warmup and measurement iterations, and reports the runtime environment; a hand-written `Stopwatch` loop would need to reimplement those controls.
 
 The quick mode is only an execution check:
 
 ```console
-dotnet run --project Ch31.Benchmarks.fsproj \
+dotnet run --project path/to/Ch31.Benchmarks.fsproj \
   --configuration Release --no-restore -- --smoke
 ```
 
@@ -161,7 +161,7 @@ It uses a Dry job with one cold-start measurement, so its means and ratios are n
 
 ## Read the captured result without overclaiming {#read-results}
 
-The committed baseline records the tool version, job, OS, runtime, architecture, GC, configuration, seed, workload, and limitations. On that one developer workstation, the ShortRun summary was:
+The captured baseline below records the tool version, job, OS, runtime, architecture, GC, configuration, seed, workload, and limitations. On that one developer workstation, the ShortRun summary was:
 
 | Method | Count | Mean | Error (99.9% CI half-width) | StdDev | Ratio | Allocated |
 |---|---:|---:|---:|---:|---:|---:|
@@ -263,20 +263,6 @@ A profiler attributes substantial allocation to a lookup returning `Some smallSt
 For each symptom—high p95 API latency, high allocation rate in a known aggregation call stack, and slow command-line startup—choose the next end-to-end, profiler, counter, or microbenchmark observation. State what result would justify an implementation experiment and what must be remeasured afterward.
 
 [Read the chapter solutions](../solutions/ch-31-measure-before-optimizing).
-
-## Model review {#model-review}
-
-- Performance statements require a workload, environment, observable, and target.
-- Profile a representative system before isolating a suspected function.
-- Preserve semantic equivalence before comparing performance.
-- Release, no debugger, controlled setup, consumed results, and recorded context make a microbenchmark interpretable.
-- Dry is an execution smoke, not a measurement baseline.
-- Ratios and allocations support only the tested methods, inputs, runtime, and environment.
-- Local mutation can remove a measured allocation without making the public model mutable.
-- Collection choice begins with semantics; measurement follows representative operations.
-- `inline`, `voption`, and Span/byref are hypotheses with representation and maintenance costs.
-- Trimming and Native AOT optimize deployment dimensions and require published-artifact tests.
-- A microbenchmark improvement matters only when the end-to-end requirement also improves.
 
 ## Sources {#sources}
 

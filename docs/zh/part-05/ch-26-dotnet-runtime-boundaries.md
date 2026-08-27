@@ -277,10 +277,10 @@ printfn
 
 ## 运行共享示例 {#run-example}
 
-在示例所在目录执行：
+在仓库根目录执行：
 
 ```console
-dotnet fsi --checknulls+ --warnaserror+ --exec ch26-dotnet-runtime-boundaries.fsx
+dotnet fsi --checknulls+ --warnaserror+ --exec examples/scripts/ch26-dotnet-runtime-boundaries.fsx
 ```
 
 八行输出覆盖具体运行时类型、安全与失败转换、委托、事件移除、实时与复制集合、不区分大小写查找，以及默认引用键与领域键身份。先用上面的参数运行一次；若想比较未启用可空检查时的编译器行为，再去掉 `--checknulls+`。
@@ -300,19 +300,6 @@ dotnet fsi --checknulls+ --warnaserror+ --exec ch26-dotnet-runtime-boundaries.fs
 存储两个 ID 仅大小写不同的客户对象。用 `HashIdentity.FromFunctions` 构建序号不区分大小写比较器。先在三个代表性对象上验证相等与哈希规律，再确认第二次插入会替换第一次。解释可变客户 ID 为什么会破坏字典查找。
 
 [阅读本章答案](../solutions/ch-26-dotnet-runtime-boundaries)。
-
-## 模型复盘 {#model-review}
-
-- 静态类型在执行前防止错误；运行时类型支持真正的动态协议。
-- 装箱擦除类型化视图，并可能为值类型产生分配。
-- 向上转换静态有效；不确定的向下转换应进入类型测试分支。
-- 运行时类型转换不同于数值转换和文本解析。
-- 函数是 F# 默认选择；委托用于接入 .NET API。
-- 事件正确性包括订阅生命周期，而不只有交付值。
-- `IEnumerable<T>` 可以是实时或延迟视图；立即枚举并保存结果会创建快照。
-- 只读视图不能证明底层存储不可变。
-- 字典语义来自比较器，而不是键字段名称。
-- 身份、相等、哈希与排序遵循四套不同规则。
 
 ## 资料来源 {#sources}
 

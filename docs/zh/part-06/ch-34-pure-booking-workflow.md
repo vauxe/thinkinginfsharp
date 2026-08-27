@@ -385,20 +385,6 @@ match Decider.decide activity state command with
 
 [阅读本章练习答案](../solutions/ch-34-pure-booking-workflow)。
 
-## 模型回顾 {#model-review}
-
-- 工作流签名暴露受保护上下文、原始意图、已接受事实与预期拒绝。
-- 彼此独立的纯字段检查累积；依赖前置条件的业务决策短路。
-- 私有已验证记录标出明确的阶段边界。
-- 稳定错误顺序来自验证器顺序，而非偶然的映射表迭代。
-- `Result.bind` 只对 `Ok` 调用下一规则；`map` 与 `mapError` 保留另一侧。
-- 穷尽匹配路由每一种命令案例。
-- 专用决策与受保护转换继续定义规则。
-- 错误转换保留结构，不简化成文本。
-- `decide` 接受或拒绝；`evolve` 只投影已接受事实。
-- 纯函数让决策确定且易于测试，但不会让提交具备原子性。
-- 聚焦测试覆盖单预约工作流；聚合容量与持久化仍是后续工作。
-
 ## 资料来源 {#sources}
 
 - [Microsoft Learn：F# `Result` 类型](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/results)

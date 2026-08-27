@@ -212,10 +212,10 @@ Either style can carry avoidable costs: a functional version may allocate too ma
 
 ## Run the shared example {#run-example}
 
-From the directory containing the example, run:
+From the repository root, run:
 
 ```console
-dotnet fsi --exec ch05-lists-pipelines.fsx
+dotnet fsi --exec examples/scripts/ch05-lists-pipelines.fsx
 ```
 
 You should see:
@@ -272,16 +272,6 @@ For `labelsWithFor` and `labelsWithWhile`:
 4. choose a preferred form for “print every label” and for “produce a new label list,” explaining each choice.
 
 [Read the chapter solutions](../solutions/ch-05-lists-pipelines).
-
-## Key takeaways {#summary}
-
-- An F# list is an ordered immutable singly linked structure. Front cons with `::` is normally constant time; append traverses the left side.
-- `map` yields one item per input, `filter` retains original items, and `choose` uses `Some`/`None` for zero-or-one output.
-- `x |> f` is data-flow notation for `f x`, relying on parameter order suited to partial application.
-- `List` pipelines evaluate eagerly, and multiple stages may create intermediate lists; lazy or fused evaluation requires a suitable alternative abstraction.
-- Use `iter` or `for` for effects; reserve `map` for producing a result collection.
-- `let mutable` and `<-` explicitly denote changing storage; tight local containment controls reasoning cost.
-- A `while` loop requires manual progress and fits truly state-driven problems; collection functions express standard traversal directly.
 
 The next chapter generalizes “accumulate at the front and reverse” into recursion and accumulators, then rewrites a class of explicit recursion with `fold` while describing tail-call boundaries accurately.
 

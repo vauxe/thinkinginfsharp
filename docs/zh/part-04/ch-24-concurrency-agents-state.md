@@ -333,10 +333,10 @@ cacheBarrier.Dispose()
 
 ## 运行共享示例 {#run-example}
 
-在示例所在目录运行：
+在仓库根目录运行：
 
 ```console
-dotnet fsi --checknulls+ --exec ch24-concurrency-agents-state.fsx
+dotnet fsi --checknulls+ --exec examples/scripts/ch24-concurrency-agents-state.fsx
 ```
 
 七行输出覆盖并发等待、数据并行等价、强制丢失更新、锁与原子修正、复合容量不变量、代理串行化，以及单次计算缓存。
@@ -363,26 +363,15 @@ dotnet fsi --checknulls+ --exec ch24-concurrency-agents-state.fsx
 
 [阅读本章练习答案](../solutions/ch-24-concurrency-agents-state)。
 
-## 模型复盘 {#model-review}
-
-- 异步、并发与并行回答不同问题。
-- 不可变数据消除共享写入；它不会让外部资源自动一致。
-- 屏障可以强制产生丢失更新，把概率性的竞争变成确定性测试。
-- `lock` 保护短小的复合不变量；`Interlocked` 保护受支持的单位置操作。
-- 绝不要持有监视器等待无界工作。
-- 邮箱只串行化一个进程内循环，无法协调周围的其他系统。
-- 并发集合具有方法级保证；应阅读工厂和组合语义。
-- 缓存正确性还包括新鲜度、生命周期、失败与资源策略。
-
 ## 第四部分检查点 {#part-checkpoint}
 
-用行为确定的异步替身运行预约 API 测试：
+在仓库根目录运行行为确定的并发示例：
 
 ```console
-dotnet test ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~BookingAsyncPortTests
+dotnet fsi --warnaserror+ --exec examples/scripts/ch24-concurrency-agents-state.fsx
 ```
 
-测试通过表明：调用方的取消令牌会传给每个依赖，受控操作在成功、失败或响应取消前会保持等待。这些测试不能证明跨进程一致性或持久性。
+七行输出会稳定暴露一次丢失更新，并验证锁与原子修正、复合容量不变量、代理串行化，以及竞争下只计算一次的缓存。这些进程内检查不能证明跨进程一致性或持久性。
 
 [继续阅读第 25 章](../part-05/ch-25-objects-interfaces)，考察更广泛 .NET 生态中的面向对象接口。
 

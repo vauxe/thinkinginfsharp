@@ -53,8 +53,8 @@ Microsoft 把命令格式记为 `dotnet fsi [options] [script-file [arguments]]`
 清单脚本接受以下形式：
 
 ```console
-dotnet fsi --exec ch45-scripting-packages-next.fsx write ./artifacts ./artifacts.manifest.json
-dotnet fsi --exec ch45-scripting-packages-next.fsx check ./artifacts ./artifacts.manifest.json
+dotnet fsi --exec examples/scripts/ch45-scripting-packages-next.fsx write ./artifacts ./artifacts.manifest.json
+dotnet fsi --exec examples/scripts/ch45-scripting-packages-next.fsx check ./artifacts ./artifacts.manifest.json
 ```
 
 `--exec` 会运行脚本后退出，而不是留在交互模式。`write` 让输出收敛到期望内容。`check` 不写入，并在输出缺失或过期时返回退出码 `2`。意外失败返回 `1`；成功返回 `0`。
@@ -236,7 +236,11 @@ let planManifest sourceDirectory outputFile =
 
 ```fsharp:line-numbers [ch45-scripting-packages-next.fsx]
 let replaceFromSameDirectory (outputPath: string) (content: string) =
-    let outputDirectory = Path.GetDirectoryName outputPath
+    let outputDirectory =
+        match Path.GetDirectoryName outputPath with
+        | null -> invalidArg (nameof outputPath) "Output path must include a directory."
+        | directory -> directory
+
     Directory.CreateDirectory outputDirectory |> ignore
 
     let temporaryPath =
@@ -277,10 +281,10 @@ let checkManifest sourceDirectory outputFile =
 
 无参数时，清单脚本会在 `Path.GetTempPath()` 下的唯一目录创建两个文件。它先写入一次，再把输出时间戳设为哨兵值，然后再次写入、执行只读检查并验证 ordinal 规范化路径。最后，`finally` 只删除脚本自己创建的目录。
 
-在示例所在目录运行已验证样例：
+在仓库根目录运行已验证样例：
 
 ```console
-dotnet fsi --exec ch45-scripting-packages-next.fsx
+dotnet fsi --exec examples/scripts/ch45-scripting-packages-next.fsx
 ```
 
 登记的样例要求以下有序观察：
@@ -524,22 +528,6 @@ Quotations 表示表达式；它们不会自行执行。SRTP 在编译期特化�
 从本章选择一条项目路线。定义三个为期四周的增量，每个都要交付可运行结果，不能只完成阅读。写明要重读的 F# 概念、一个真实 .NET 或平台边界、测试与诊断、包预算、部署或分发目标、评审问题，以及简化或改用其他设计的标准。只有测量结果提出明确需求时才引入高级特性。
 
 [阅读本章练习答案](../solutions/ch-45-scripting-packages-next)。
-
-## 本章回顾 {#model-review}
-
-- REPL 回答一个问题；脚本保存一个范围明确的操作；项目管理不断增长的构建与分发契约。
-- FSI 按顺序执行声明，暴露显式脚本参数，并区分调用者工作目录与源码目录。
-- 指令影响编译与还原；被加载脚本不应隐藏顶层副作用。
-- 可靠自动化具有明确输入、确定性期望输出、有界副作用、有意义的退出码与检查模式。
-- 清单脚本创建稳定的 SHA-256 JSON 清单，按策略跳过链接，只在变化时写入，并在真实临时目录中验证幂等性。
-- 摘要检测字节差异，却不认证来源；同目录替换并非通用崩溃持久性。
-- 为命名能力添加包前，应测试 API 适配、目标支持、来源、闭包、运维、维护与退出成本。
-- `#r "nuget:"` 中的固定版本只锁定一项请求，不是已提交的传递锁图。
-- PackageReference 锁文件、本地工具清单、FAKE 与 Paket 分别管理不同的依赖或自动化问题。
-- 还原是供应链操作；可信来源、源映射、审计、锁评审与回滚是不同控制。
-- F# 生态包括整个 .NET 生态、F# 原生抽象与跨语言工具链。
-- Quotations、SRTP、灵活类型和 byref/Span 都先作为识别主题；只有具体问题确实需要时再深入。
-- 持续进步来自端到端项目、编译器与运行时反馈、明确的评审问题、简化和重复发布循环。
 
 第七部分至此完成。附录会把本书变成工作参考：环境配置、语法、集合、C# 迁移、编译器诊断、术语、答案评审和高级特性识别索引。
 

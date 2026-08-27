@@ -199,11 +199,11 @@ Console.WriteLine(
 ```
 The same client uses reflection to assert that exactly `BookingApi`, `BookingOutcome`, `BookingRequest`, and `BookingResponse` are exported; no public signature contains `Microsoft.FSharp.*`; nullability metadata is correct; and XML documentation ships beside the assembly. These assertions test the compiled API rather than assuming how F# source will appear to C#.
 
-Run the pair from the directory containing the example:
+Run the checked pair from the repository root:
 
 ```console
-dotnet build CSharpClient.csproj --configuration Release --no-restore
-dotnet run --project CSharpClient.csproj --configuration Release --no-build
+dotnet build examples/chapters/ch27/CSharpClient/CSharpClient.csproj --configuration Release
+dotnet run --project examples/chapters/ch27/CSharpClient/CSharpClient.csproj --configuration Release --no-build
 ```
 
 ## Migrate by seams, not by folders {#migration-workflow}

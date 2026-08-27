@@ -235,14 +235,13 @@ Earlier files should usually be more stable and know less about infrastructure. 
 
 Keep each project small enough to have one reason to change, but do not split solely to create more assemblies. A new project introduces a real reference and deployment boundary; a new module or file may be sufficient for organization. Use projects when independent reuse, build policy, ownership, or dependency direction warrants the boundary.
 
-## Build, run, and test the project {#build-test}
+## Build and run the project {#build-test}
 
-From the directory containing the example:
+From the repository root:
 
 ```console
-dotnet build Ch16.fsproj -c Release --locked-mode
-dotnet run --project Ch16.fsproj -c Release --no-build
-dotnet test ExampleTests.fsproj -c Release --no-restore --filter FullyQualifiedName~Ch16ProjectTests
+dotnet build examples/chapters/ch16/Ch16.fsproj -c Release
+dotnet run --project examples/chapters/ch16/Ch16.fsproj -c Release --no-build
 ```
 
 The executable prints:
@@ -251,7 +250,7 @@ The executable prints:
 accepted:REQ-16 remaining=1
 ```
 
-Focused tests cover nullable and whitespace identifiers, component validation errors, the cross-file workflow, and final program composition. Building the reversed expected-error project instead must fail with `FS0039`; that negative check protects the explanation of compilation order.
+The repository check also builds the reversed fixture at `examples/expected-errors/ch16-file-order/Ch16WrongOrder.fsproj` and requires `FS0039`. Together, the successful executable and expected failure verify both sides of the compilation-order rule.
 
 ## Exercises {#exercises}
 
@@ -280,17 +279,6 @@ Assume `BookingId.create : (string | null) -> Result<BookingId, BookingIdError>`
 Test both `null` and a non-null identifier. Explain why the parameter annotation belongs on the wrapper and why this boundary type is not a replacement for `option` in the domain model.
 
 [Read the chapter solutions](../solutions/ch-16-modules-namespaces-projects).
-
-## Model review {#model-review}
-
-- F# compiles ordinary source files in dependency order: providers before consumers.
-- `<Compile>` order is program semantics; folder and editor order are not.
-- Namespaces organize types and modules; modules contain F# values and functions.
-- `open` permits shorter following references but neither loads code nor changes accessibility.
-- A project defines a compilation; a solution groups projects; a normal build emits an assembly.
-- SDK, target framework, language version, nullable analysis, output kind, and warning policy answer different questions.
-- With null checking enabled, admit a nullable reference explicitly as `T | null` and propagate the contract through wrappers.
-- Use file order to reveal one-way architecture rather than merely rearranging files until a build passes.
 
 Chapter 17 uses signature files to restrict the public API to the types and operations that a component deliberately exposes.
 

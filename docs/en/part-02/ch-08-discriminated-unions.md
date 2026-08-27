@@ -188,10 +188,10 @@ If a union has many cases differing only by a few independent switches, the mode
 
 ## Run the shared example {#run-example}
 
-From the directory containing the example, run:
+From the repository root, run:
 
 ```console
-dotnet fsi --exec ch08-discriminated-unions.fsx
+dotnet fsi --exec examples/scripts/ch08-discriminated-unions.fsx
 ```
 
 You should see:
@@ -229,16 +229,6 @@ Write an exhaustive short-label function for `BookingStatus`. Then add `Waitlist
 Write a pure `cancel reason status` function: `Pending` and `Confirmed _` become `Cancelled reason`, while cancelled state remains unchanged. List the information lost by returning only `BookingStatus`. Then propose a return type that could distinguish success from a forbidden transition; you need not compose `Result` yet.
 
 [Read the chapter solutions](../solutions/ch-08-discriminated-unions).
-
-## Key takeaways {#summary}
-
-- Several Boolean flags create a combination space and may let contradictory states type-check.
-- A discriminated union says that a value is exactly one named case, and each case can carry its own data.
-- A case name constructs a value in an expression; in a pattern, it identifies the case and binds its data.
-- Exhaustive matching turns a new case into a compiler-located change list; an unintended wildcard weakens that feedback.
-- A union permits only legal states, while transition functions still implement business policy.
-- Records express “has all these fields,” and unions express “exactly one of these cases”; they commonly compose.
-- Independent facts may remain Boolean; do not turn a union into another huge combination enumeration.
 
 The next chapter compares two common return types: `option` represents possible absence, while `Result` represents an expected failure with context.
 

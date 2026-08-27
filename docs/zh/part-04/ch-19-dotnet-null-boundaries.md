@@ -220,19 +220,17 @@ let someNullText: (string | null) option = Some null
 
 普通缺失无需解释时使用 `option`；调用方需要原因时使用 `Result`。让意外异常保留诊断信息，直到某一层有足够上下文进行翻译。第 20 与 21 章会加入副作用及异常、资源策略，但不会改变这里的空值模型。
 
-## 运行契约测试 {#run-tests}
+## 构建已检查的示例 {#run-tests}
 
-在示例所在目录运行：
+在仓库根目录运行：
 
 ```console
-dotnet test ContractTests.fsproj \
-  --configuration Release \
-  --filter FullyQualifiedName~Ch19NullTests
+dotnet build examples/chapters/ch19/Ch19.fsproj --configuration Release
 ```
 
-契约测试会在启用空值检查、把警告视为错误的情况下编译。它们先验证构造函数、成员、重载和接口调用，再验证 null 输入收窄及 `Type.GetType` 的可空返回。测试还覆盖 `Nullable<int>` 与可空引用的两个转换方向，以及 `Some null` 反例。
+该项目启用空值检查。源码覆盖普通构造函数、成员、重载和接口调用，null 输入收窄，`Type.GetType` 的可空返回，`Nullable<int>` 与可空引用的双向转换，以及 `Some null` 反例。
 
-这些测试只覆盖此处展示的 API，并不代表每个 .NET 库。实际调用 API 时，始终要检查目标框架当前的标注与文档。
+这个夹具只覆盖此处展示的 API，并不代表每个 .NET 库。实际调用 API 时，始终要检查目标框架当前的标注与文档。
 
 ## 练习 {#exercises}
 
@@ -267,17 +265,6 @@ let suspicious : (string | null) option = Some null
 解释哪个函数适合普通缺失，哪个适合必填且需要验证的输入。不要使用 `Unchecked`，也不要用笼统的异常捕获。
 
 [阅读本章答案](../solutions/ch-19-dotnet-null-boundaries)。
-
-## 模型回顾 {#model-review}
-
-- .NET 构造函数、成员、重载与接口都是普通的有类型 F# 表达式。
-- 实参标注应该揭示所需重载选择，而不是用随意转换掩盖歧义。
-- `T | null`、`Nullable<T>` 与 `T option` 的语法、运行时表示和建模目的不同。
-- 可空引用分析是选择启用的编译期规则，不是运行时验证，也不能保证所有外部代码行为。
-- 只收窄可空引用一次，再让核心通过构造保持非空。
-- 根据来源表示选择转换对：对象/null、可空值或领域 option。
-- 当内部类型允许 null 时，`Some null` 可以出现，因此不能把 `option` 宣传成绝对防空机制。
-- `option` 描述普通缺失；`Result` 保留原因；异常需要自己的策略。
 
 下一章仍把转换留在核心外，并把时间、随机数和环境访问变成可见依赖，而不是隐藏输入。
 

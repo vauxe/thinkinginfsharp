@@ -172,10 +172,10 @@ Complete function definitions with explicit parameters can usually be generalize
 
 ## Run the shared example {#run-example}
 
-From the directory containing the example, run:
+From the repository root, run:
 
 ```console
-dotnet fsi --exec ch03-functions-as-values.fsx
+dotnet fsi --exec examples/scripts/ch03-functions-as-values.fsx
 ```
 
 You should see:
@@ -236,16 +236,6 @@ Compare `lineTotal` with `lineTotalTupled`:
 4. if unit price and seat count always travel as one indivisible coordinate-like pair in the domain, why might the tupled version be clearer?
 
 [Read the chapter solutions](../solutions/ch-03-functions-as-values).
-
-## Key takeaways {#summary}
-
-- A function is a value. Defining one establishes a binding; applying one evaluates its body and produces a result.
-- F# applies ordinary functions with spaces; application associates left, while arrow types associate right.
-- A curried function represents successive single-parameter functions, and partial application returns a function awaiting the rest.
-- A tupled function receives one composite value, while a curried function receives successive arguments; their signatures describe different input forms.
-- An anonymous function uses `fun parameter -> body` to create a function value directly.
-- A higher-order function receives or returns a function; a closure lets a returned function retain values from its definition environment.
-- Automatic generalization uses type variables such as `'a` for definitions independent of a concrete type while preserving consistency among positions.
 
 The next chapter lets function bodies choose. Both `if` and `match` are expressions that produce values, while patterns combine input structure with branch-local bindings.
 

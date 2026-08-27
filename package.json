@@ -8,8 +8,10 @@
     "build": "vitepress build docs",
     "preview": "vitepress preview docs",
     "test:theme": "node --test --test-isolation=none scripts/reading-progress.test.mjs",
+    "test:examples": "node --test --test-isolation=none scripts/check-examples.test.mjs",
     "check:book": "node scripts/check-book.mjs",
-    "check": "npm run test:theme && npm run check:book && npm run build"
+    "check:examples": "node scripts/check-examples.mjs",
+    "check": "npm run test:theme && npm run test:examples && npm run check:book && npm run check:examples && npm run build"
   },
   "engines": {
     "node": ">=24.0.0"

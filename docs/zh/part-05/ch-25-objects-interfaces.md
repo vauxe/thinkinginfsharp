@@ -219,14 +219,13 @@ F# 类可以继承一个直接基类，并实现多个接口。只有框架本�
 
 ## 运行共享示例 {#run-example}
 
-在示例所在目录执行：
+在仓库根目录执行：
 
 ```console
-dotnet run --project Ch25.fsproj --configuration Release
-dotnet test Sample.slnx --configuration Release --filter FullyQualifiedName~Ch25Object
+dotnet run --project examples/chapters/ch25/Ch25.fsproj --configuration Release
 ```
 
-程序会打印类、接口、扩展和结构体的运行结果。专项测试覆盖两个构造函数、成员校验、显式接口视图、对象表达式替身、扩展派生成员、值复制、不同的装箱对象，以及无效的零初始化修订号。
+程序用四行确定性输出覆盖类、接口、扩展和结构体；仓库检查会逐行核对结果。
 
 ## 练习 {#exercises}
 
@@ -243,18 +242,6 @@ dotnet test Sample.slnx --configuration Release --filter FullyQualifiedName~Ch25
 通过智能构造函数创建正数修订号结构体，复制它，分别装箱两个副本，并观察其默认值。然后重新设计该类型，让零初始化表示一个有名称的有效状态；或者记录并测试所有可能产生默认值的来源都会拒绝它。
 
 [阅读本章答案](../solutions/ch-25-objects-interfaces)。
-
-## 模型复盘 {#model-review}
-
-- F# 对象特性是原生工具，并非每个模型的必然终点。
-- 函数表达行为，记录组织相关数据，联合表达有限选项；类增加引用身份与对象协议。
-- 构造失败与预期方法拒绝需要不同策略。
-- 显式接口实现通过接口视图消费。
-- 对象表达式适合小型局部实现；规模与生命周期会证明具名类型合理。
-- 扩展添加可调用行为，但不添加存储状态或改变表示。
-- 结构体按值复制，而且始终具有零初始化的默认表示。
-- 默认选择组合；只有确实存在基类要求时才使用继承。
-- 封装会转移生命周期与并发责任，而不是消除它们。
 
 ## 资料来源 {#sources}
 

@@ -647,22 +647,6 @@ Suppose production payment and notification clients are created by a host contai
 
 [Read the chapter solutions](../solutions/ch-35-ports-persistence-config).
 
-## Model review {#model-review}
-
-- Ports state required capabilities; adapters choose mechanisms.
-- DTOs are permissive representations, not domain entities.
-- Tags, payloads, field names, casing, null omission, and versions form a JSON contract.
-- Reverse mapping checks version, presence, smart constructors, and legal union cases.
-- Raw command mapping preserves domain validation authority.
-- A configured absolute path is distinct from a secret and from request input.
-- Bounded strict decoding turns damaged files into explicit outcomes.
-- Same-directory temporary write, flush, and move avoid exposing an in-place partial target.
-- That replacement is not an atomic multi-operation business transaction.
-- Deterministic stubs control outcomes without pretending to be network integrations.
-- Cancellation is propagated before recording substitute side effects.
-- The composition root constructs, exposes, and disposes what it owns.
-- JSON, file-store, and adapter tests cover this layer; later chapters must still verify HTTP and consistency.
-
 ## Sources {#sources}
 
 - [Microsoft Learn: customize `System.Text.Json` property names and enum representation](https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/customize-properties)

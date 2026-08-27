@@ -606,27 +606,12 @@ Place any feature whose safe AOT discovery remains unproven outside the Player.
 
 [Read the chapter solutions](../solutions/ch-44-unity).
 
-## Chapter review {#chapter-review}
+## Sources {#sources}
 
-- Unity can execute imported managed F# assemblies, but source-language compatibility is only the first contract.
-- Verify .NET build, dependency closure, Unity import, Editor runtime, Mono Player, IL2CPP Player, and release separately.
-- The default low-friction boundary is a pure F# library behind a thin C# Unity adapter.
-- Direct F# components are possible managed plug-ins but need exact Unity assembly, Inspector, reload, and Player tests.
-- Target `netstandard2.1` for Unity's cross-platform API profile; do not confuse it with CoreCLR or JIT behavior.
-- Ship the exact locked `FSharp.Core.dll` and every runtime/native dependency; Unity does not restore the `.fsproj` graph.
-- Publish CLR-friendly methods and values to C# while keeping idiomatic F# types inside.
-- Keep Unity serialization fields, engine objects, and lifecycle callbacks in the adapter; map into validated domain state.
-- Reconstruct runtime state deliberately across reload, enable/disable, scene, and process lifetimes.
-- Pass input, time, and randomness into pure logic explicitly; return descriptions of external operations.
-- Measure frame code in a target Player; functional style neither guarantees nor forbids allocation.
-- The managed plug-in sample uses a small struct state after a regression test exposed a per-step class allocation.
-- IL2CPP strips managed code, converts IL to C++, invokes a native toolchain, and creates a platform package.
-- Reflection, runtime generation, dynamic generics, callbacks, and native libraries enlarge the AOT verification surface.
-- Use narrow, tested preservation rules; preservation does not verify compatibility or behavior.
-- Burst/Jobs use a separate HPC# contract and are not verified by the managed plug-in sample.
-- Pin the exact Unity patch, modules, packages, build profile, backend, stripping level, tools, and artifacts.
-- Keep logs, PDBs, native symbols, hashes, and launch results so failures remain attributable.
-- The chapter shows a managed F# plug-in design, dependency output contract, pure rule, and CLR-facing API.
-- Only a real Unity project can verify Editor import, Play Mode, stripping, and a target IL2CPP Player.
+- [Unity 6000.3.22f1 release notes](https://unity.com/releases/editor/whats-new/6000.3.22f1)
+- [Unity 6.3 Manual: managed plug-ins](https://docs.unity3d.com/6000.3/Documentation/Manual/plug-ins-managed.html)
+- [Unity 6.3 Manual: IL2CPP scripting back end](https://docs.unity3d.com/6000.3/Documentation/Manual/scripting-backends-il2cpp.html)
+- [Unity 6.3 Manual: build a Player from the command line](https://docs.unity3d.com/6000.3/Documentation/Manual/build-command-line.html)
+- [Unity 6.3 Manual: Assembly Definition properties](https://docs.unity3d.com/6000.3/Documentation/Manual/class-AssemblyDefinitionImporter.html)
 
 Chapter 45 returns to ordinary .NET tooling: scripts, automation, package evaluation, lock discipline, and a practical map for continuing to learn F#.

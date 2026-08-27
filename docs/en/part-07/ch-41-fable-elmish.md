@@ -360,7 +360,7 @@ The browser sample's production sequence is conceptually:
 
 ```sh
 dotnet tool restore
-dotnet restore FableSample.fsproj --locked-mode
+dotnet restore path/to/FableSample.fsproj --locked-mode
 dotnet fable --outDir generated --noRestore --noCache
 vite build
 vite preview
@@ -459,22 +459,13 @@ A team wants to share a server pricing project with a Fable checkout. It current
 
 [Read the chapter solutions](../solutions/ch-41-fable-elmish).
 
-## Chapter review {#chapter-review}
+## Sources {#sources}
 
-- Fable preserves the F# source language while changing the target runtime to JavaScript.
-- Separate ordinary F# type checking, Fable compatibility, and target-browser behavior.
-- The browser runs bundled JavaScript, not the project DLL or CLR.
-- Share dependency-light contracts and decisions; isolate server and browser effects behind adapters.
-- Lock and review NuGet and npm graphs independently, including binding/native pairings.
-- Keep browser HTTP untrusted and model every meaningful remote state.
-- Client code, storage, configuration, and source maps cannot protect secrets from the user or injected script.
-- Direct DOM is a valid small choice; Elmish earns its loop through coordinated state, effects, subscriptions, and composition.
-- Elmish organizes state transitions; React renders; Feliz supplies a typed React API; Elmish.React connects the loop and renderer.
-- Commands expose side-effect responsibility but do not remove failure, cancellation, or race semantics.
-- Reject stale completions by identity even when cancellation exists.
-- Renderer choice does not automate semantic HTML, focus, keyboard behavior, or responsive layout.
-- Test pure logic, bindings, wire contracts, production assets, and real browser behavior at separate layers.
-- Static hosting must still handle base paths, route fallback, MIME, caching, security headers, updates, and rollback.
-- Version metadata is a dated snapshot; only the browser sample's plain-DOM slice is executed here.
+- [Fable: supported targets and stability levels](https://fable.io/docs/index.html)
+- [Fable: create a project and install the tool](https://fable.io/docs/getting-started/your-first-fable-project.html)
+- [Fable: development and production builds with Vite](https://fable.io/docs/javascript/build-and-run.html)
+- [Fable CLI options and target behavior](https://fable.io/docs/getting-started/cli.html)
+- [NuGet: Fable tool versions](https://www.nuget.org/packages/Fable)
+- [Vite: production build guide](https://vite.dev/guide/build)
 
 Chapter 42 moves from a static browser artifact to deployed service topology: containers, cloud boundaries, serverless constraints, and .NET Aspire orchestration.

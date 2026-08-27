@@ -211,10 +211,10 @@ Use mutual recursion only when the domain genuinely has two distinct concepts. A
 
 ## Run the shared example {#run-example}
 
-From the directory containing the example:
+From the repository root:
 
 ```console
-dotnet fsi --exec ch10-recursive-types.fsx
+dotnet fsi --exec examples/scripts/ch10-recursive-types.fsx
 ```
 
 The six deterministic lines cover empty, leaf, and branch trees; direct traversals; a type-changing map; fold-derived queries; height; and preservation of leaf count.
@@ -234,15 +234,6 @@ Implement `mapTreeWithFold`, then check the identity and composition laws for `e
 Define a summary record containing `LeafCount`, `TotalSeats`, and `MaximumSeats : int option`. Compute it with one `foldTree` traversal. Give the correct summary for `Empty`, `Leaf 2`, and the shared branch tree, then state the time and direct stack bounds.
 
 [Read the chapter solutions](../solutions/ch-10-recursive-types).
-
-## Model review {#model-review}
-
-- A recursive type expresses arbitrarily nested but ordinarily finite values.
-- Structural recursion mirrors the type's cases and recurs into direct recursive fields.
-- `map` changes the payload type while preserving the tree structure.
-- `fold` exposes one rule per constructor and centralizes recursive plumbing.
-- Node count predicts traversal work; maximum height predicts direct call-stack depth.
-- Enforce an input-depth limit when trees may be untrusted or extremely deep.
 
 Chapter 11 examines how generic functions such as `mapTree` are inferred, where generalization stops, and which type constraints an operation introduces.
 

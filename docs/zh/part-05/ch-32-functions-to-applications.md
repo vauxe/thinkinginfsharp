@@ -376,31 +376,16 @@ lifecycle: store-disposed=true
 
 [阅读本章练习答案](../solutions/ch-32-functions-to-applications)。
 
-## 模型回顾 {#model-review}
-
-- 函数式核心负责决策；应用外壳取得事实并执行副作用。
-- 端口描述必需能力和领域相关数据，而不是框架对象。
-- 在解析与领域验证成功前，配置始终不可信。
-- 手工构造就是依赖注入；容器只是可选的自动化。
-- 一个组合根让实现与资源责任清晰可见。
-- 取消原样通过每个可取消副作用传播。
-- 业务拒绝、取消和故障具有不同的运维含义。
-- 每个可释放对象都有一个所有者；关闭时必须先等待现有工作完成，再释放资源。
-- 日志、指标和追踪回答不同问题。
-- 插桩产生信号；监听器、收集器、导出器、存储和告警是独立关注点。
-- 指标维度必须有界；每请求标识符属于受控日志或追踪，而不是指标标签。
-- 固定演示只能说明装配正确，不能说明持久性、原子性、恢复或后端交付。
-- 只有真实的配置、作用域、工作器和关闭需求才能说明需要更强的宿主。
-
 ## 第五部分检查点 {#part-checkpoint}
 
-在示例所在目录运行聚焦组合测试：
+在仓库根目录构建并运行自包含的组合示例：
 
 ```console
-dotnet test ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~Ch32CompositionTests
+dotnet build examples/chapters/ch32/Ch32.App.fsproj --configuration Release
+dotnet run --project examples/chapters/ch32/Ch32.App.fsproj --configuration Release --no-build -- --demo
 ```
 
-测试通过表明：配置错误会累积；依赖调用前会检查取消；资源会被释放；样例会发出结构化日志、指标和已结束活动。测试只覆盖进程内装配，不覆盖生产导出或持久交付。
+确定性输出确认请求被接受，并产生一条结构化日志、一个指标、一个已结束活动，最后释放所拥有的存储。它验证可执行的进程内装配，不覆盖每条失败路径、生产遥测导出或持久交付。
 
 [继续阅读第 33 章](../part-06/ch-33-domain-language-model)，把贯穿项目重建为一条连贯的应用路径。
 

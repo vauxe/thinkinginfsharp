@@ -263,10 +263,10 @@ The table is a starting point, not a ban on conversion. A program can receive a 
 
 ## Run the shared example {#run-example}
 
-From the directory containing the example:
+From the repository root:
 
 ```console
-dotnet fsi --exec ch14-collections-evaluation.fsx
+dotnet fsi --exec examples/scripts/ch14-collections-evaluation.fsx
 ```
 
 Eight deterministic lines and executable assertions cover eager list/array behavior, deferred and repeated sequence enumeration, caching, ordered `Map`/`Set` behavior, an equality-only dictionary key, and a conversion snapshot.
@@ -310,16 +310,6 @@ Then insert `let cached = values |> Seq.cache`, consume `cached` instead, and pr
 A domain key deliberately supports case-insensitive equality and hashing but has `[<NoComparison>]`. Explain why it can be used in `Dictionary` or `HashSet` but not `Map` or `Set`. Design an occasional alphabetic report without weakening the key's type contract, and state the rule that its equality and hash code must obey.
 
 [Read the chapter solutions](../solutions/ch-14-collections-evaluation).
-
-## Model review {#model-review}
-
-- A collection chooses data representation, evaluation timing, update rules, and lookup semantics.
-- Lists and arrays are eager stored collections; arrays additionally offer mutable indexed slots.
-- A sequence is an enumeration contract, not a promise of storage, purity, replay, or cheap work.
-- Re-enumerating a deferred producer may repeat work and side effects; cache or materialize only when that is the intended meaning.
-- Conversions have traversal, allocation, mutability, ordering, and duplicate-handling consequences.
-- `Map` and `Set` use generic comparison and ordered trees; hash collections use equality plus compatible hash codes.
-- Required semantics select the family; measurements refine the choice.
 
 Chapter 15 introduces active patterns. A matching abstraction should expose domain categories without hiding expensive evaluation or failures.
 

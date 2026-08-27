@@ -468,17 +468,4 @@ Distinguish “no lost local intent,” “at-least-once publication,” and “
 
 [Read the chapter solutions](../solutions/ch-37-consistency-idempotency).
 
-## Chapter review {#chapter-review}
-
-- Aggregate capacity cannot be enforced from one booking's state.
-- Read, decide, reserve, and write must share one consistency boundary.
-- Pending, confirmed, cancelled, and in-flight payment states need an explicit occupancy policy.
-- An operation key needs a normalized payload comparison, not identity alone.
-- Durable progress determines whether a retry replays, resumes, conflicts, or stops for reconciliation.
-- Marking payment started before the call favors no blind duplicate charge over automatic liveness.
-- Saving booking plus pending notification prevents lost local intent but still permits duplicate delivery.
-- `SemaphoreSlim` proves only application-local coordination; this file adapter is not multi-process storage.
-- A separate-process test proves orderly recovery more strongly than constructing another object.
-- F# makes knowledge and outcomes visible; storage and provider guarantees still determine consistency.
-
 Chapter 38 will wire this service through HTTP, add a C# contract client and end-to-end tests, then finish diagnostics and release evidence.

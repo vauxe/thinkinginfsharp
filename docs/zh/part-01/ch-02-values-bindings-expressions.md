@@ -147,10 +147,10 @@ val noFurtherResult: unit = ()
 
 ## 运行共享示例 {#run-example}
 
-在示例所在目录执行：
+在仓库根目录执行：
 
 ```console
-dotnet fsi --exec ch02-values-bindings-expressions.fsx
+dotnet fsi --exec examples/scripts/ch02-values-bindings-expressions.fsx
 ```
 
 应得到：
@@ -213,15 +213,6 @@ Normalized capacity: 24; outer capacity: 40
 4. 这段代码创建了几个绑定，又修改了几个既有值？
 
 [查看本章练习答案](../solutions/ch-02-values-bindings-expressions)。
-
-## 核心结论 {#summary}
-
-- 表达式产生值；`let` 用模式把名称绑定到右侧表达式的值。
-- 普通 `let` 绑定不能被重新赋值；被引用对象是否可变由对象本身决定。
-- 遮蔽建立同名新绑定，不修改旧值；作用域结束后外层绑定仍在。
-- F# 静态推断来自字面量、运算、已知用法和标注共同形成的约束。
-- 类型标注约束表达式；显式转换产生另一种表示的新值。
-- 读 FSI 签名时，把 `val name: type = value` 分成名称、类型和显示值。
 
 下一章会把函数纳入这幅图：函数也是值，应用也是表达式，而箭头类型会把数据依赖扩展为可组合的行为。
 

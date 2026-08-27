@@ -273,10 +273,10 @@ assert (closedDecision = Closed)
 
 ## 运行共享示例 {#run-example}
 
-在示例所在目录运行：
+在仓库根目录运行：
 
 ```console
-dotnet fsi --exec ch20-functional-core-effects.fsx
+dotnet fsi --exec examples/scripts/ch20-functional-core-effects.fsx
 ```
 
 六行输出会报告捕获快照、接受代码、后备区域、窗口边界、确切的外部调用顺序和重放结果。请比较其顺序与文本。
@@ -316,17 +316,6 @@ dotnet fsi --exec ch20-functional-core-effects.fsx
 确保设置缺失可以与随机数提供者返回范围外数值区分。判断后者应保留为异常还是变成错误案例，并根据谁能够恢复来说明理由。
 
 [阅读本章答案](../solutions/ch-20-functional-core-effects)。
-
-## 模型回顾 {#model-review}
-
-- 即使没有形参命名，时间、随机数与环境访问仍然是输入。
-- 当一次一致快照比重新读取能力更强时，应传入已捕获值。
-- 纯核心变换给定值，无须运行时设置即可重放。
-- 函数注入会让副作用可见，但不会让被调用函数自动变纯。
-- 闭包保留配置或状态，其纯净性取决于捕获了什么以及执行了什么。
-- 小型函数记录适合局部 F# 编排；接口适合连贯组件与面向 .NET 的 API。
-- 把真实运行时调用留在组合代码中，并立即转换其外部表示。
-- 结果固定的测试替身应直接验证要求，不使用 sleep、真实环境变更或假定随机序列。
 
 下一章会保留同一个函数式核心，并在编排层加入异常、可释放资源与文件 I/O。
 

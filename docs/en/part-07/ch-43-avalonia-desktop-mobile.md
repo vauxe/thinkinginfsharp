@@ -518,24 +518,11 @@ Finish by stating exactly what a desktop build proves about the mobile targets.
 
 [Read the chapter solutions](../solutions/ch-43-avalonia-desktop-mobile).
 
-## Chapter review {#chapter-review}
+## Sources {#sources}
 
-- A client is a stack of domain, presentation, toolkit, host, and distribution contracts.
-- Measure shared logic, shared UI, and verified platform coverage separately.
-- Choose a UI boundary from users, devices, native capabilities, team skills, and release channels.
-- Avalonia supplies official F# templates, compiled AXAML, shared controls, and multiple platform hosts; it does not erase platform behavior.
-- The desktop sample pins Avalonia 12.1.1 and separates a pure `Counter.update` from an imperative desktop view.
-- The project, pure test, and startup code are shown; each adopting application must run restore, build, tests, and native launch itself.
-- Manual MVU, MVVM adapters, code-behind, and code-only UI are choices with different pressure points.
-- Avalonia 12 bindings are compiled by default and require an explicit data type; reflection binding is an intentional exception.
-- Adapt immutable records, unions, options, collections, and commands at the UI boundary rather than weakening the domain.
-- Controls belong to a dispatcher; model asynchronous outcomes and cancellation as messages and reject stale results.
-- Desktop windows, iOS/browser single views, and Android activity factories have different lifetimes.
-- Put native capabilities behind ports and keep platform objects out of the reusable core.
-- One desktop project still needs separate Windows, macOS, and Linux runtime and package evidence.
-- Mobile requires platform projects, .NET 10 workloads, SDKs, permissions, signing, devices, and stores.
-- Accessibility, responsive layout, localization, keyboard, touch, and lifecycle are behavior, not polish.
-- Climb from pure tests through headless controls, native smoke, packages, devices, and store evidence.
-- Publish, package, sign, distribute, update, observe, and recover are separate release stages.
+- [Avalonia documentation and Avalonia 12 guidance](https://docs.avaloniaui.net/)
+- [Avalonia supported-platform matrix](https://docs.avaloniaui.net/docs/supported-platforms)
+- [Avalonia application lifetimes](https://docs.avaloniaui.net/docs/fundamentals/application-lifetimes)
+- [NuGet: Avalonia package versions](https://www.nuget.org/packages/Avalonia)
 
 Chapter 44 crosses another host boundary: using F# domain code inside Unity while keeping Unity serialization, component lifecycles, IL2CPP, and player builds in an explicit adapter layer.

@@ -243,10 +243,10 @@ module Capacity =
 
 ## 运行共享示例 {#run-example}
 
-在示例所在目录执行：
+在仓库根目录执行：
 
 ```console
-dotnet fsi --exec ch12-making-illegal-states-unrepresentable.fsx
+dotnet fsi --exec examples/scripts/ch12-making-illegal-states-unrepresentable.fsx
 ```
 
 五行输出覆盖接受容量、拒绝容量、标识规范化、有效请求构造及两条请求拒绝路径：
@@ -304,25 +304,15 @@ type BookingRequest = private { EventId: EventId; Seats: SeatCount }
 
 [查看本章练习答案](../solutions/ch-12-making-illegal-states-unrepresentable)。
 
-## 模型复盘 {#model-review}
-
-- 独立私有表示加检查式构造函数，能区分已验证值与原始输入。
-- 同名模块集中构造与观察，同时在一个可信作用域内保留表示访问权。
-- 组成不变量可以组合，但外层跨字段规则仍可能要求私有构造。
-- `private`、`internal` 与 `.fsi` 签名保护不同的词法或程序集边界。
-- 每个生产者与外部适配器都必须保持或重新建立不变量。
-- “无法表示”相对于受支持 API 而言；它不解决损坏、null 互操作或并发。
-- 保护那些在较大范围内都重要的不变量；如果公开构造和穷尽匹配本来就是设计目标，透明类型仍然更好。
-
 ## 第二部分检查点 {#part-checkpoint}
 
-编译预约领域并运行它的聚焦公开 API 测试：
+在仓库根目录运行本章已校验的领域示例：
 
 ```console
-dotnet test ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~BookingDomainTests
+dotnet fsi --warnaserror+ --exec examples/scripts/ch12-making-illegal-states-unrepresentable.fsx
 ```
 
-测试通过表明：受支持的构造函数会拒绝无效标识、容量、座位数与状态转换，有效值仍可通过公开 API 使用。它们不证明外部适配器也保持这些不变量；后续边界章节会单独验证。
+输出既展示成功构造，也展示对空活动 ID、非正容量和非正座位数的拒绝。这验证了本章的值构造边界；状态转换与外部适配器会在后文加入。
 
 [继续阅读第 13 章](../part-03/ch-13-composition-pipeline-api)，开始组合这些带类型的操作。
 

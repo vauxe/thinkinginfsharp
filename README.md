@@ -10,7 +10,7 @@ A bilingual static learning site for F# beginners. English is the default editio
 
 ## Run locally
 
-You only need Node.js 24 or later; npm is included with Node.js.
+The site needs Node.js 24 or later; npm is included with Node.js.
 
 ```console
 npm ci
@@ -23,14 +23,15 @@ Before committing, run:
 npm run check
 ```
 
-`npm run check` tests the reading theme, verifies that the English and Chinese pages, heading anchors, and code blocks correspond, then builds the VitePress site.
+The complete check also needs the .NET 10 SDK. It tests the reading theme, verifies bilingual structure, executes every registered example against its expected output or diagnostic, and builds the VitePress site.
 
 ## Repository layout
 
 ```text
 docs/                         Book content and site configuration
-scripts/check-book.mjs        Minimal bilingual consistency check
+examples/                     Runnable example sources referenced by the book
+scripts/                      Focused book, example, and theme checks
 .github/workflows/            GitHub Pages deployment
 ```
 
-Code examples live directly in the book pages. The Markdown manuscript and its embedded examples are the source of truth; the Node-based checks confirm that the book remains self-contained.
+Book pages show focused excerpts; `examples/` contains their complete runnable form. The checks keep those excerpts synchronized with the scripts and verify exact output or the documented compiler diagnostic.

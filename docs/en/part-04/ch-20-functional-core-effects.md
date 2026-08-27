@@ -272,10 +272,10 @@ No test sleeps, changes the process environment, or guesses what `Random` will r
 
 ## Run the shared example {#run-example}
 
-From the directory containing the example:
+From the repository root:
 
 ```console
-dotnet fsi --exec ch20-functional-core-effects.fsx
+dotnet fsi --exec examples/scripts/ch20-functional-core-effects.fsx
 ```
 
 Six deterministic output lines report the captured snapshot, accepted code, fallback region, window boundaries, exact effect order, and replay result. Compare their order and text.
@@ -315,17 +315,6 @@ Change setting lookup so a missing `BOOKING_REGION` is an error instead of using
 Ensure that a missing setting is distinguishable from a random provider returning an out-of-range value. Decide whether the latter should remain an exception or become an error case, and justify the choice based on who can recover.
 
 [Read the chapter solutions](../solutions/ch-20-functional-core-effects).
-
-## Model review {#model-review}
-
-- Time, randomness, and environment access are inputs even when no parameter names them.
-- Pass a captured value when one consistent snapshot is stronger than an ability to reread.
-- A pure core transforms supplied values and can be replayed without runtime setup.
-- Function injection makes a side effect visible; it does not purify the invoked function.
-- Closures retain configuration or state, and their purity depends on what they capture and do.
-- Small function records fit local F# orchestration; interfaces fit coherent components and .NET-facing APIs.
-- Keep real runtime calls in composition code and convert their foreign representations immediately.
-- Deterministic substitutes should verify required behavior directly, without sleeps, real environment mutation, or assumed random sequences.
 
 The next chapter adds exceptions, disposable resources, and file I/O to this orchestration layer while preserving the same functional core.
 

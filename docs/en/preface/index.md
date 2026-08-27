@@ -44,7 +44,7 @@ For each chapter:
 
 1. identify the opening problem and inspect important type signatures;
 2. predict output, failure, ordering, or ownership before running anything;
-3. copy and run the smallest relevant code block;
+3. predict the smallest relevant code block, then run the chapter script when execution matters;
 4. explain the result in your own words;
 5. solve all three exercises before opening the solution;
 6. compare the stated constraints with the observed result, then revise your answer.
@@ -59,13 +59,15 @@ You can read the site directly in a browser. To run the examples, install the SD
 dotnet --version
 ```
 
-Copy a chapter's code block into a file such as `lesson.fsx`, then run it directly:
+Book pages show the smallest code needed for the current idea. Complete chapter scripts live under `examples/scripts/`, while multi-file fixtures live under `examples/chapters/`; run a script from the repository root:
 
 ```console
-dotnet fsi --exec lesson.fsx
+dotnet fsi --exec examples/scripts/ch05-lists-pipelines.fsx
 ```
 
-Some examples intentionally demonstrate compiler errors. They are labelled as expected failures; read the stated diagnostic before running them. Ecosystem passages that describe proposals or manual platform checks say so explicitly.
+The repository check executes every registered script and compares exact output. Some examples intentionally demonstrate compiler errors; they are labelled as expected failures and checked for the stated diagnostic. Ecosystem passages that describe proposals or manual platform checks say so explicitly.
+
+Command paths beginning with `examples/` run against files in this repository. A path beginning with `path/to/`, such as `path/to/YourSolution.slnx`, is a template: replace it with the project you assembled for that chapter or with your own application. This distinction prevents a design recipe from looking like a bundled fixture.
 
 ## Read the type before the implementation {#reading-signatures}
 

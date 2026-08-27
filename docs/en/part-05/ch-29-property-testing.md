@@ -343,10 +343,10 @@ One hundred well-distributed cases with a readable shrinker can be more useful t
 
 ## Run and diagnose this chapter {#running}
 
-Run the Chapter 29 tests from the directory containing the example:
+After placing the shown properties in your test project, replace the template path and run:
 
 ```console
-dotnet test ExampleTests.fsproj \
+dotnet test path/to/YourTests.fsproj \
   --configuration Release \
   --filter FullyQualifiedName~Ch29
 ```
@@ -370,19 +370,6 @@ Extend `AllocationCase` with a nonempty event identifier containing uppercase AS
 A property says that reversing the request list cannot change the accepted-seat total. FsCheck finds capacity 2 with requests `[1; 2]`. Decide whether the property matches the greedy rule, write the smallest concrete regression example, and distinguish temporary replay data from the permanent test.
 
 [Read the chapter solutions](../solutions/ch-29-property-testing).
-
-## Model review {#model-review}
-
-- A property test samples many generated cases; its search is broad but not exhaustive.
-- Derive properties from domain invariants, algebra, inverses, or simpler models rather than copying implementation.
-- `Gen<'T>` produces values; a shrinker proposes smaller candidates; `Arbitrary<'T>` bundles both.
-- Construct valid values directly and use filtering only when acceptance is high.
-- Target meaningful shapes while inspecting distribution with classification or collection.
-- Shrinkers must preserve domain validity and move toward a well-founded simpler case.
-- A minimal counterexample reveals disagreement; requirements decide whether code or property is wrong.
-- Replay uses seed, gamma, and optionally size, and depends on stable code and package versions.
-- Preserve important discovered failures as clear example tests.
-- Example, property, contract, integration, and end-to-end tests cover different risks.
 
 ## Sources {#sources}
 

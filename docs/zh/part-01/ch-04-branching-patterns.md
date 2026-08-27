@@ -162,10 +162,10 @@ printfn "Queues: %s | %s | %s" (describeQueue []) (describeQueue [ "Lin" ]) (des
 
 ## 运行共享示例 {#run-example}
 
-在示例所在目录执行：
+在仓库根目录执行：
 
 ```console
-dotnet fsi --exec ch04-branching-patterns.fsx
+dotnet fsi --exec examples/scripts/ch04-branching-patterns.fsx
 ```
 
 应得到：
@@ -222,16 +222,6 @@ Queues: empty | one: Lin | next: Lin, then Ada
 4. 对队列 `[ "Lin"; "Ada" ]` 和四项队列，说明 `describeQueue` 命中哪个模式以及 `_` 代表什么。
 
 [查看本章练习答案](../solutions/ch-04-branching-patterns)。
-
-## 核心结论 {#summary}
-
-- `if` 与 `match` 都是表达式，选中分支的值成为整体结果，各分支类型必须统一。
-- `if` 条件具有 `bool` 类型；双分支形式返回统一结果类型，单分支形式返回 `unit`。
-- `match` 从上到下选择第一条模式匹配且守卫为真的规则；改变规则顺序可能改变结果。
-- 变量模式匹配任何兼容值，并建立分支局部绑定，即使外层存在同名值。
-- 元组模式按位置分解，列表模式区分空、固定长度与首尾结构。
-- 守卫增加运行时布尔条件；无守卫模式让编译器能够检查结构是否穷尽。
-- 通配符适合开放值域兜底，却可能在有限领域状态中隐藏未来新增用例。
 
 下一章会从列表结构走向列表变换，用 `map`、`filter`、`choose` 和管道把分支函数组合成可读的数据流，并比较循环和可变状态的取舍。
 

@@ -343,10 +343,10 @@ match runner.Result with
 
 ## 运行并诊断示例 {#running}
 
-在示例所在目录运行第 29 章测试：
+把本章属性放入自己的测试项目后，替换模板路径并运行：
 
 ```console
-dotnet test ExampleTests.fsproj \
+dotnet test path/to/YourTests.fsproj \
   --configuration Release \
   --filter FullyQualifiedName~Ch29
 ```
@@ -370,19 +370,6 @@ dotnet test ExampleTests.fsproj \
 某属性声称反转请求列表不会改变已接受座位总数。FsCheck 找到容量 2、请求 `[1; 2]`。判断该属性是否符合贪心规则，写出最小的具体回归示例，并区分诊断期间暂存的重放信息与永久保留的测试。
 
 [阅读本章练习答案](../solutions/ch-29-property-testing)。
-
-## 模型回顾 {#model-review}
-
-- 属性测试会采样许多生成案例；搜索范围很广，但并非穷尽证明。
-- 应从领域不变量、代数、逆运算或简单模型推导属性，而不是复制实现。
-- `Gen<'T>` 产生值，缩减器提出更小候选，`Arbitrary<'T>` 捆绑两者。
-- 直接构造合法值；只有接受率高时才使用筛选。
-- 应定向覆盖有意义的情况，同时用分类或收集观察分布。
-- 缩减器必须保持领域有效性，并让候选严格变小直至停止。
-- 最小反例揭示分歧；需求决定代码还是属性有错。
-- 重放使用种子、gamma 与可选规模，并依赖稳定代码和包版本。
-- 应把重要的已发现失败保存为清晰示例测试。
-- 示例、属性、契约、集成与端到端测试覆盖不同风险。
 
 ## 来源 {#sources}
 

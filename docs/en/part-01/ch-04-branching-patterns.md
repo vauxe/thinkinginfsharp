@@ -162,10 +162,10 @@ Both forms produce values. The real criterion is which one makes the input space
 
 ## Run the shared example {#run-example}
 
-From the directory containing the example, run:
+From the repository root, run:
 
 ```console
-dotnet fsi --exec ch04-branching-patterns.fsx
+dotnet fsi --exec examples/scripts/ch04-branching-patterns.fsx
 ```
 
 You should see:
@@ -222,16 +222,6 @@ Write a `classifyRequest` function that examines remaining and requested seats t
 4. for the queue `[ "Lin"; "Ada" ]` and a four-item queue, state which `describeQueue` pattern matches and what `_` denotes.
 
 [Read the chapter solutions](../solutions/ch-04-branching-patterns).
-
-## Key takeaways {#summary}
-
-- Both `if` and `match` are expressions. The selected branch becomes the result, and branch types must unify.
-- An `if` condition has type `bool`; a two-branch form returns a unified result type, while the one-branch form returns `unit`.
-- A `match` chooses the first rule whose pattern matches and guard is true, so rule order is semantic.
-- A variable pattern matches any compatible value and creates a branch-local binding, even when an outer value shares its name.
-- Tuple patterns decompose positions, while list patterns distinguish empty, fixed-length, and head-tail structure.
-- A guard adds a runtime Boolean constraint; unguarded patterns provide the compiler's structural evidence of exhaustiveness.
-- A wildcard is useful for an open value space but can hide future cases in a finite domain model.
 
 The next chapter moves from list shape to list transformation. `map`, `filter`, `choose`, and pipelines will compose branch functions into readable data flow and be compared honestly with loops and mutable state.
 

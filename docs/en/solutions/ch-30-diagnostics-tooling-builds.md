@@ -86,8 +86,8 @@ Start from the directory containing the example and record the selected SDK:
 dotnet --info
 dotnet tool restore
 dotnet fantomas . --check
-dotnet clean Sample.slnx --configuration Release
-dotnet restore Sample.slnx --locked-mode
+dotnet clean path/to/YourSolution.slnx --configuration Release
+dotnet restore path/to/YourSolution.slnx --locked-mode
 ```
 
 The local tool manifest makes `dotnet fantomas` use the declared 7.0.5 command; the teammate's global installation is not the repository contract. If formatting differs, run the pinned formatter deliberately and review its source-only diff.
@@ -95,9 +95,9 @@ The local tool manifest makes `dotnet fantomas` use the declared 7.0.5 command; 
 Locked restore should fail because the project dependency changed without the corresponding lock graph. That failure confirms the lock check works. Confirm that the package change is intentional, review its compatibility and sources, then regenerate deliberately:
 
 ```console
-dotnet restore Sample.slnx --force-evaluate
+dotnet restore path/to/YourSolution.slnx --force-evaluate
 git diff -- "*.fsproj" "*.csproj" "packages.lock.json"
-dotnet restore Sample.slnx --locked-mode
+dotnet restore path/to/YourSolution.slnx --locked-mode
 ```
 
 The shell's wildcard behavior varies, so use your version-control client or explicit project paths if that review command does not expand recursively. The required review is the project reference together with every affected `packages.lock.json`, not a particular shell spelling.
@@ -105,9 +105,9 @@ The shell's wildcard behavior varies, so use your version-control client or expl
 After the locked graph agrees, prove Release compilation and tests without implicit stages:
 
 ```console
-dotnet build Sample.slnx --configuration Release --no-restore
-dotnet test Sample.slnx --configuration Release --no-build
-dotnet test Sample.slnx --configuration Release --no-build
+dotnet build path/to/YourSolution.slnx --configuration Release --no-restore
+dotnet test path/to/YourSolution.slnx --configuration Release --no-build
+dotnet test path/to/YourSolution.slnx --configuration Release --no-build
 ```
 
 Update the PackageReference and affected lock files in one deliberate dependency change. Update `.config/dotnet-tools.json` only if the formatter upgrade is also intentional; preferably keep its baseline diff separate. `.editorconfig` changes only for a style-policy decision, and `global.json` changes only for an SDK-policy decision.

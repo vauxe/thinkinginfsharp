@@ -395,22 +395,6 @@ Compare current-state persistence with event sourcing for this booking system. I
 
 [Read the chapter solutions](../solutions/ch-33-domain-language-model).
 
-## Model review {#model-review}
-
-- The domain language precedes controllers, tables, serializers, and hosts.
-- A command asks; a validated command has sound fields; a decision may still refuse it.
-- An event states an accepted fact and uses past-tense business language.
-- State is the present context for the next decision, not automatically its storage format.
-- A DTO belongs to a compatibility boundary and remains untrusted until mapped.
-- Records express named products; discriminated unions express closed alternatives.
-- Private representations plus smart constructors and transition functions protect invariants.
-- `decide` owns whether a fact may occur; `evolve` projects an accepted fact into state.
-- A stable public module can hide workflow representation without becoming a wire contract.
-- Type aliases help migration but must not preserve two permanent vocabularies.
-- Domain events can be ordinary returned data; brokers and handlers are optional application choices.
-- Event sourcing and CQRS are separate architectural commitments, not consequences of an event union.
-- Current checks cover vocabulary and encapsulation, not persistence or concurrency guarantees.
-
 ## Sources {#sources}
 
 - [Microsoft Learn: F# records, immutability, construction, and access modifiers](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/records)

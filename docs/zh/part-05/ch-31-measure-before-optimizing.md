@@ -108,7 +108,7 @@ module Equivalence =
 编辑期间只运行正确性检查：
 
 ```console
-dotnet run --project Ch31.Benchmarks.fsproj \
+dotnet run --project path/to/Ch31.Benchmarks.fsproj \
   --configuration Release --no-restore -- --verify-only
 ```
 
@@ -148,12 +148,12 @@ type RequestAggregationBenchmarks() =
 - `Baseline = true` 给出每个参数组内部的比率；
 - `MemoryDiagnoser` 报告每次操作的托管分配与 GC 频率。
 
-项目锁定了 BenchmarkDotNet 0.15.8 及全部已解析依赖。应在没有附加调试器的情况下，从命令行以 Release 运行。BenchmarkDotNet 会构建基准可执行文件，执行预热与测量迭代，并报告运行时环境；手写 `Stopwatch` 循环则要自行重新实现这些控制。
+使用该样例的项目应锁定 BenchmarkDotNet 0.15.8 及全部已解析依赖。应在没有附加调试器的情况下，从命令行以 Release 运行。BenchmarkDotNet 会构建基准可执行文件，执行预热与测量迭代，并报告运行时环境；手写 `Stopwatch` 循环则要自行重新实现这些控制。
 
 快速模式只是执行检查：
 
 ```console
-dotnet run --project Ch31.Benchmarks.fsproj \
+dotnet run --project path/to/Ch31.Benchmarks.fsproj \
   --configuration Release --no-restore -- --smoke
 ```
 
@@ -161,7 +161,7 @@ dotnet run --project Ch31.Benchmarks.fsproj \
 
 ## 解读采集结果而不夸大 {#read-results}
 
-已提交基线记录了工具版本、作业、OS、运行时、架构、GC、配置、种子、工作负载和限制。在那台开发者工作站上，ShortRun 摘要为：
+下方基线记录了工具版本、作业、OS、运行时、架构、GC、配置、种子、工作负载和限制。在那台开发者工作站上，ShortRun 摘要为：
 
 | 方法 | 数量 | 均值 | 误差（99.9% 置信区间半宽） | 标准差 | 比率 | 已分配 |
 |---|---:|---:|---:|---:|---:|---:|
@@ -263,20 +263,6 @@ Native AOT 在发布时把 IL 编译成平台专属原生代码，并去除运�
 对每种症状——API 的 p95 延迟高、已知聚合调用栈的分配率高、命令行启动缓慢——选择下一项端到端、剖析器、计数器或微基准观察。说明什么结果能支持实现实验，以及此后必须复测什么。
 
 [阅读本章练习答案](../solutions/ch-31-measure-before-optimizing)。
-
-## 模型回顾 {#model-review}
-
-- 性能结论需要工作负载、环境、可观察量和目标。
-- 隔离可疑函数前，应先剖析有代表性的系统。
-- 比较性能前，应保持语义等价。
-- Release、无调试器、受控设置、被消费的结果和已记录上下文，才能让微基准可解释。
-- Dry 是执行冒烟，而不是测量基线。
-- 比率与分配只支持已测试的方法、输入、运行时和环境。
-- 局部可变状态可以移除已测分配，而不让公开模型变成可变。
-- 集合选择先从语义开始；随后测量有代表性的操作。
-- `inline`、`voption` 和 Span/byref 是带表示与维护成本的假设。
-- 裁剪与 Native AOT 优化部署维度，并需要发布产物测试。
-- 只有端到端需求也得到改善时，微基准改进才有意义。
 
 ## 来源 {#sources}
 

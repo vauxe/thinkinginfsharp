@@ -252,10 +252,10 @@ finally
 
 ## 运行共享示例 {#run-example}
 
-在示例所在目录运行：
+在仓库根目录运行：
 
 ```console
-dotnet fsi --exec ch21-exceptions-resources-io.fsx
+dotnet fsi --exec examples/scripts/ch21-exceptions-resources-io.fsx
 ```
 
 五行输出会验证成功路径释放、异常路径释放、成功读取、缺失路径转换和最终临时目录清理。请逐行核对。
@@ -287,17 +287,6 @@ let read path =
 解释当第二项资源依赖第一项时，为何反向声明顺序很重要，以及操作为何不能返回任何一个 reader。
 
 [阅读本章答案](../solutions/ch-21-exceptions-resources-io)。
-
-## 模型回顾 {#model-review}
-
-- `try/with` 从正常分支或第一个匹配异常处理器返回值。
-- 在异常基类型前捕获其子类型，并且只翻译调用方理解的结果。
-- `reraise()` 会保留当前异常堆栈；无意义的捕获再抛出只会增加风险而没有策略。
-- `use` 会在正常与异常退出时，为一个词法作用域及时执行释放。
-- 释放、异常翻译、领域验证与日志是不同决定。
-- 保留结构化错误上下文与原始原因，而不是把每项失败都缩减成消息。
-- 真实临时资源验证适配器；纯值验证解析与领域逻辑。
-- `option`、`Result`、累积、异常与 `use` 回答不同问题，并且可以组合。
 
 下一章会把同样的分离应用到稍后才完成的计算，比较 F# `Async<'T>` 与 .NET `Task<'T>`。
 

@@ -250,10 +250,10 @@ let seatsFromInt raw : int<seat> =
 
 ## 运行共享示例 {#run-example}
 
-在示例所在目录执行：
+在仓库根目录执行：
 
 ```console
-dotnet fsi --exec ch11-generics-constraints.fsx
+dotnet fsi --exec examples/scripts/ch11-generics-constraints.fsx
 ```
 
 五行输出依次展示：同一个泛型函数用于两种类型、可安全泛化的简单值、每次生成新值的泛型工厂、泛型记录带来的相等与比较约束，以及经过量纲检查的算术。
@@ -297,15 +297,6 @@ let keepAll = List.filter (fun _ -> true)
 解释序列化后还会保留哪些度量信息，并说出一条仅靠度量无法强制的预约不变量。
 
 [查看本章练习答案](../solutions/ch-11-generics-constraints)。
-
-## 模型复盘 {#model-review}
-
-- 只有当定义安全地不依赖具体类型时，自动泛化才会量化类型变量。
-- 值限制防止一个不可泛化的值被用成彼此不相容的构造类型。
-- 类型标注会专门化一个值；显式参数会公开泛型函数；`()` 可以建立每次生成新值的工厂。
-- 相等与比较约束来自操作，并通过结构字段组合。
-- 普通泛型不需要 SRTP；应通过 `inline` 加成员约束来识别 SRTP，而不是只看 `'T` 与 `^T` 标点。
-- 度量单位在编译期拒绝量纲错误，在运行时擦除，而且不会强制数值范围不变量。
 
 第 12 章会有意运用这些类型能力：私有表示与智能构造函数将阻止调用方构造无效领域值。
 

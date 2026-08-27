@@ -243,10 +243,10 @@ Start with the smallest type that removes real risk. Protect `EventId` if nonbla
 
 ## Run the shared example {#run-example}
 
-From the directory containing the example:
+From the repository root:
 
 ```console
-dotnet fsi --exec ch12-making-illegal-states-unrepresentable.fsx
+dotnet fsi --exec examples/scripts/ch12-making-illegal-states-unrepresentable.fsx
 ```
 
 The five deterministic lines cover accepted capacity, rejected capacity, identifier normalization, valid request construction, and both request rejection paths:
@@ -304,25 +304,15 @@ Write the public portion of a `.fsi` signature for `Capacity` plus a `tryReserve
 
 [Read the chapter solutions](../solutions/ch-12-making-illegal-states-unrepresentable).
 
-## Model review {#model-review}
-
-- A distinct private representation plus a checked constructor distinguishes validated values from raw input.
-- A same-named module groups creation and observation while retaining representation access inside one trusted scope.
-- Component invariants compose, but outer cross-field rules may still require private construction.
-- `private`, `internal`, and `.fsi` signatures guard different lexical or assembly boundaries.
-- Every producer and external adapter must preserve or re-establish the invariant.
-- “Unrepresentable” is relative to the supported API; it does not solve corruption, null interop, or concurrency.
-- Protect values whose invariants matter broadly; transparent types remain better when exhaustive construction is the feature.
-
 ## Part II checkpoint {#part-checkpoint}
 
-Compile the booking domain and run its focused public-API tests:
+From the repository root, run the chapter's checked domain example:
 
 ```console
-dotnet test ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~BookingDomainTests
+dotnet fsi --warnaserror+ --exec examples/scripts/ch12-making-illegal-states-unrepresentable.fsx
 ```
 
-Passing tests show that the supported constructors reject invalid identifiers, capacity, seat counts, and state transitions while valid values remain usable through the public API. They do not prove that an external adapter preserves those invariants; later boundary chapters test that separately.
+Its output shows successful construction plus rejection of a blank event ID, non-positive capacity, and non-positive seat count. This checks the chapter's value-construction boundary; later chapters add state transitions and external adapters.
 
 [Continue to Chapter 13](../part-03/ch-13-composition-pipeline-api), which begins composing these typed operations.
 

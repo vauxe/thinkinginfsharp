@@ -305,6 +305,7 @@ CLR 枚举的默认值是零，任意底层整数也能被转换成枚举。`Boo
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
     <AssemblyName>ThinkingInFSharp.Ch27.FSharpApi</AssemblyName>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <WarnOn>$(WarnOn);3390</WarnOn>
@@ -344,11 +345,11 @@ C# 公共类型也不应自动成为 JSON 模式。进程内调用方、网络�
 
 ## 运行共享 API 示例 {#run-example}
 
-从示例所在目录构建并运行真实 C# 调用方：
+从仓库根目录构建并运行真实 C# 调用方：
 
 ```console
-dotnet build CSharpClient.csproj --configuration Release --no-restore
-dotnet run --project CSharpClient.csproj --configuration Release --no-build
+dotnet build examples/chapters/ch27/CSharpClient/CSharpClient.csproj --configuration Release
+dotnet run --project examples/chapters/ch27/CSharpClient/CSharpClient.csproj --configuration Release --no-build
 ```
 
 客户端会断言业务结果、参数检查、四个导出类型、公开签名、可空元数据和 XML 文档，而不只是打印演示输出。修改公共 API 后，先重新编译这个调用程序，再运行旧二进制兼容性测试与行为测试。
@@ -368,17 +369,6 @@ dotnet run --project CSharpClient.csproj --configuration Release --no-build
 假设序列化器要求无参构造和可写属性。设计一个允许未验证输入的 DTO、一个返回结构化错误的领域转换，以及反向投影位置。分类一次 JSON 字段改名会影响哪种兼容性，并说明为何 DTO 规则不应进入领域类型。
 
 [阅读本章练习答案](../solutions/ch-27-fsharp-api-for-csharp)。
-
-## 模型复盘 {#model-review}
-
-- 共享 CLR 不等于共享惯用 API；应从调用点和元数据评审最终的公共 API。
-- F# 核心应保留联合、`option`、`Result`、函数与纯组合的表达力。
-- 只在公共 API 中转换一次，不让签名泄露调用方无须理解的 F# 表示。
-- 类型、成员、参数名、可空性、异常和文档都是 API 约定。
-- 可空标注帮助静态分析；公开入口仍需运行时防卫。
-- 业务拒绝、调用者错误和系统故障应支持不同的调用者动作。
-- 领域模型、.NET 公共模型与传输格式 DTO 可以共享含义，但不必共享表示。
-- 兼容性包含源码、二进制、行为与传输格式；基线工具只覆盖其中一部分。
 
 ## 来源 {#sources}
 

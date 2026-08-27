@@ -45,13 +45,13 @@ Expected-error examples make documentation statements executable. The checker re
 
 The complete Chapter 11 example is one binding:
 
-```fsharp:line-numbers [ch11-value-restriction.fsx]
+```fsharp:line-numbers [ch11-value-restriction.fsx — expected error FS0030]
 let ambiguousBuckets = Array.create 2 []
 ```
 Run it directly:
 
 ```console
-dotnet fsi --exec value-restriction.fsx
+dotnet fsi --exec examples/expected-errors/ch11-value-restriction.fsx
 ```
 
 F# 10 reports FS0030 and the weak type `'_a list array`. `Array.create` constructs one mutable array whose element type remains unresolved; that storage location cannot safely be generalized for unrelated element types. The diagnostic suggests three valid repairs: add a concrete annotation, make the data an argument to a generic function, or add `()` when each call should construct a fresh value.
@@ -82,7 +82,7 @@ The repair is to place `Domain.fs` before `Workflow.fs` in the valid project. Du
 Run only the invalid project while investigating:
 
 ```console
-dotnet build Ch16WrongOrder.fsproj \
+dotnet build examples/expected-errors/ch16-file-order/Ch16WrongOrder.fsproj \
   --configuration Release
 ```
 
@@ -203,9 +203,9 @@ Use separate stages when reproducibility matters:
 ```console
 dotnet tool restore
 dotnet fantomas . --check
-dotnet restore Sample.slnx --locked-mode
-dotnet build Sample.slnx --configuration Release --no-restore
-dotnet test Sample.slnx --configuration Release --no-build
+dotnet restore path/to/YourSolution.slnx --locked-mode
+dotnet build path/to/YourSolution.slnx --configuration Release --no-restore
+dotnet test path/to/YourSolution.slnx --configuration Release --no-build
 ```
 
 `dotnet build` normally performs an implicit restore. `--no-restore` confirms that the build consumes the graph from the preceding locked restore. `--no-build` similarly prevents tests from hiding a build step. These flags make each stage's responsibility visible; they are not performance decorations.
@@ -244,21 +244,6 @@ A compiled booking workflow returns `Rejected(3, 2)` when a caller expected acce
 A teammate changes one package version but forgets its lock file, has a global Fantomas version, and reports that Debug succeeds from a warm tree. Give an ordered, platform-neutral command sequence that should expose each mismatch and state which repository files must be updated deliberately.
 
 [Read the chapter solutions](../solutions/ch-30-diagnostics-tooling-builds).
-
-## Model review {#model-review}
-
-- Start with the first relevant diagnostic; later errors may be recovery cascades.
-- A diagnostic position is where the compiler noticed a problem, not guaranteed root cause.
-- Expected-error fixtures must fail and contain the declared code.
-- FSI answers small inference and execution questions but does not replace a project build.
-- A debugger tests one runtime hypothesis through values, stack frames, and exceptions.
-- Preserve debugger discoveries as automated regression tests.
-- Fantomas formatting and compiler static analysis answer different questions.
-- Pin local tools and use `--check` when a gate must not rewrite source.
-- Lock files reproduce a resolved package graph; locked restore fails on drift.
-- Separate restore, build, and test so each stage's inputs are visible.
-- Clean builds are controlled experiments, not the first response to every failure.
-- Reproducibility has layers and never substitutes for recording the actual environment.
 
 ## Sources {#sources}
 

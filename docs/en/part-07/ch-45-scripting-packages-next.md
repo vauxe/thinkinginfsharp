@@ -53,8 +53,8 @@ Microsoft documents the command form as `dotnet fsi [options] [script-file [argu
 The manifest script accepts these forms:
 
 ```console
-dotnet fsi --exec ch45-scripting-packages-next.fsx write ./artifacts ./artifacts.manifest.json
-dotnet fsi --exec ch45-scripting-packages-next.fsx check ./artifacts ./artifacts.manifest.json
+dotnet fsi --exec examples/scripts/ch45-scripting-packages-next.fsx write ./artifacts ./artifacts.manifest.json
+dotnet fsi --exec examples/scripts/ch45-scripting-packages-next.fsx check ./artifacts ./artifacts.manifest.json
 ```
 
 `--exec` runs the script and exits rather than remaining interactive. `write` converges the output toward desired content. `check` performs no write and returns exit code `2` when the output is absent or stale. Unexpected failures return `1`; success returns `0`.
@@ -236,7 +236,11 @@ The application layer compares existing and desired text. Only a difference crea
 
 ```fsharp:line-numbers [ch45-scripting-packages-next.fsx]
 let replaceFromSameDirectory (outputPath: string) (content: string) =
-    let outputDirectory = Path.GetDirectoryName outputPath
+    let outputDirectory =
+        match Path.GetDirectoryName outputPath with
+        | null -> invalidArg (nameof outputPath) "Output path must include a directory."
+        | directory -> directory
+
     Directory.CreateDirectory outputDirectory |> ignore
 
     let temporaryPath =
@@ -280,7 +284,7 @@ With no arguments, the manifest script creates two files in a unique directory u
 Run the verified slice from the directory containing the example:
 
 ```console
-dotnet fsi --exec ch45-scripting-packages-next.fsx
+dotnet fsi --exec examples/scripts/ch45-scripting-packages-next.fsx
 ```
 
 The registered example requires these ordered observations:
@@ -524,22 +528,6 @@ Your team wants a command-line parser for the promoted manifest tool. Compare ha
 Choose one project track from this chapter. Define three four-week increments that each end in executable evidence, not reading alone. Include the F# concepts to revisit, one real .NET or platform boundary, tests and diagnostics, package budget, deployment or distribution target, review question, and a criterion for simplifying or reversing the design. Place advanced features only where a measured problem demands them.
 
 [Read the chapter solutions](../solutions/ch-45-scripting-packages-next).
-
-## Model review {#model-review}
-
-- A REPL answers one question; a script preserves one bounded operation; a project controls a growing build and distribution contract.
-- FSI executes declarations in order, exposes explicit script arguments, and distinguishes caller working directory from source directory.
-- Directives affect compilation and restore; loaded scripts should not hide top-level effects.
-- Reliable automation has explicit inputs, deterministic desired output, bounded effects, meaningful exit codes, and a check mode.
-- The manifest script creates a stable SHA-256 JSON manifest, skips links by policy, writes only on change, and verifies idempotence in a real temporary fixture.
-- A digest detects byte differences but does not authenticate provenance; same-directory replacement is not universal crash durability.
-- Add a package for a named capability after testing API fit, target support, provenance, closure, operations, maintenance, and exit cost.
-- An exact `#r "nuget:"` version pins one request but is not a committed transitive lock graph.
-- PackageReference lock files, local tool manifests, FAKE, and Paket control different dependency or automation concerns.
-- Restore is a supply-chain operation; trusted sources, source mapping, audit, lock review, and rollback are separate controls.
-- The F# ecosystem includes the full .NET ecosystem plus F#-native abstractions and cross-language toolchains.
-- Quotations, SRTP, flexible types, and byref/Span are recognition topics until a concrete problem justifies deeper study.
-- Continued mastery comes from vertical projects, compiler and runtime feedback, review questions, simplification, and repeated release loops.
 
 Part VII is now complete. The appendices turn the book into a working reference: environment setup, syntax, collections, C# migration, compiler diagnostics, terminology, solution review, and the advanced-feature recognition index.
 

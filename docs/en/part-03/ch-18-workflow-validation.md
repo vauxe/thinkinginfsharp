@@ -294,10 +294,10 @@ Types state possible results; combining functions state evaluation policy. Revie
 
 ## Run the shared example {#run-example}
 
-From the directory containing the example:
+From the repository root:
 
 ```console
-dotnet fsi --exec ch18-workflow-validation.fsx
+dotnet fsi --exec examples/scripts/ch18-workflow-validation.fsx
 ```
 
 Seven deterministic lines and assertions verify first-error output, three- and two-error accumulation, agreement on valid input, and capacity-check counts for invalid, excessive, and accepted seat text. Compare their exact order.
@@ -332,27 +332,15 @@ Explain why FSharp.Core alone does not establish that this compiles or accumulat
 
 [Read the chapter solutions](../solutions/ch-18-workflow-validation).
 
-## Model review {#model-review}
-
-- Dependency, not visual syntax, determines whether a later check can run.
-- `Result.bind` returns the existing `Error` without calling its success continuation.
-- Independent pure checks can all run and have their errors accumulated in a documented order.
-- A field may contain its own dependent substeps even when fields are accumulated together.
-- Construct the valid domain value only in the all-success branch.
-- Keep database, network, time, and other effects outside pure input accumulation.
-- FSharp.Core has `Result` and combinators, but no built-in result or validation computation-expression builder.
-- `and!` expresses independent bindings; its merge behavior belongs to the selected builder.
-- Ordinary functions provide a readable semantic baseline before custom syntax earns its cost.
-
 ## Part III checkpoint {#part-checkpoint}
 
-Run the focused workflow tests from the directory containing the example:
+From the repository root, run the checked workflow example:
 
 ```console
-dotnet test ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~BookingWorkflowTests
+dotnet fsi --warnaserror+ --exec examples/scripts/ch18-workflow-validation.fsx
 ```
 
-Passing tests show that independent command errors accumulate in field order, valid commands produce events, and existing state short-circuits later capacity work. They exercise ordinary functions, so the result does not depend on an unstated computation-expression builder.
+Its seven lines show independent errors accumulating in field order, valid input succeeding, and invalid input short-circuiting the dependent capacity lookup. The example uses ordinary functions, so the result does not depend on an unstated computation-expression builder.
 
 [Continue to Chapter 19](../part-04/ch-19-dotnet-null-boundaries), where external .NET values enter through a dedicated adapter.
 

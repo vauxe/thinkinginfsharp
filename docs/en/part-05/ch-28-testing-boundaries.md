@@ -289,16 +289,16 @@ Code coverage reveals which locations executed; risk and invariant analysis dete
 
 ## Run focused and complete tests {#running-tests}
 
-In a solution containing these tests, use a filter for quick feedback:
+In your application solution, use a filter for quick feedback (replace the template path):
 
 ```console
-dotnet test Sample.slnx --configuration Release --filter FullyQualifiedName~Ch28
+dotnet test path/to/YourSolution.slnx --configuration Release --filter FullyQualifiedName~Ch28
 ```
 
 The filter selects names containing `Ch28`. Before committing an application change, run the same solution without the filter so cross-project wiring is checked too:
 
 ```console
-dotnet test Sample.slnx --configuration Release
+dotnet test path/to/YourSolution.slnx --configuration Release
 ```
 
 ## A practical selection checklist {#selection-checklist}
@@ -330,19 +330,6 @@ Write a test for the `ProductNotFound` path. Hand-write dependencies that record
 The product will add an optional `note` field. Decide behavior for old readers, old writers, and unknown fields; list input and output contract tests required before release. Explain which inputs become accepted if `PropertyNameCaseInsensitive` changes to `true` and what kind of behavioral change that is.
 
 [Read the chapter solutions](../solutions/ch-28-testing-boundaries).
-
-## Model review {#model-review}
-
-- Test levels follow risk, not directory names or frameworks.
-- Pure functions provide the fastest and clearest feedback through small values and structural equality.
-- Specific error values should preserve the counterexample context needed by callers.
-- Small functions and records are often sufficient as deterministic dependency doubles.
-- Prefer state assertions; assert interactions only when they are externally observable.
-- Contract tests include the real conversion library, options, and adapter.
-- JSON property order is usually not a contract; field names, types, absence, and unknown-member policy can be.
-- Time, randomness, shared state, sleeping, and real services damage repeatability.
-- Confirm a trustworthy red light, implement the green result, and refactor under behavioral protection.
-- Tests should permit equivalent refactoring while preventing public behavior and integration contracts from drifting.
 
 ## Sources {#sources}
 

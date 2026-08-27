@@ -177,10 +177,10 @@ Do not invent a custom symbolic operator for an operation that has a good domain
 
 ## Run the shared example {#run-example}
 
-From the directory containing the example:
+From the repository root:
 
 ```console
-dotnet fsi --exec ch13-composition-pipeline-api.fsx
+dotnet fsi --exec examples/scripts/ch13-composition-pipeline-api.fsx
 ```
 
 The six deterministic lines show nested application, an equivalent pipeline, forward and backward composition, configured partial application, and a deliberately direct predicate.
@@ -222,15 +222,6 @@ let canAccept capacity request =
 Give a direct version and a pipeline version with one meaningful intermediate name. Choose one for production and justify the choice from readability and debugging, not from character count.
 
 [Read the chapter solutions](../solutions/ch-13-composition-pipeline-api).
-
-## Model review {#model-review}
-
-- `|>` applies a value to a function now; `>>` and `<<` create a function for later.
-- Nested calls, pipelines, and composition can express the same application order.
-- Configuration-first and data-last often make curried F# functions easy to reuse.
-- Type alignment, not operator syntax, determines whether stages compose.
-- Direct calls remain preferable for simple, symmetric, constructor-like operations and established .NET APIs.
-- Representative call sites should drive argument order; custom operators should not hide domain names.
 
 Chapter 14 applies this API reasoning to collections, where the chosen representation also determines evaluation timing, lookup rules, and conversion cost.
 

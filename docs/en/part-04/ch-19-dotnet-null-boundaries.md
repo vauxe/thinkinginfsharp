@@ -220,19 +220,17 @@ Nullable checking catches some accidental dereferences at compile time. Whitespa
 
 Use `option` when ordinary absence needs no explanation. Use `Result` when callers need a reason. Let unexpected exceptions retain diagnostics until a layer has enough context to translate them. Chapters 20 and 21 add side effects and exception/resource policy without changing this null model.
 
-## Run the contract tests {#run-tests}
+## Build the checked example {#run-tests}
 
-From the directory containing the example:
+From the repository root:
 
 ```console
-dotnet test ContractTests.fsproj \
-  --configuration Release \
-  --filter FullyQualifiedName~Ch19NullTests
+dotnet build examples/chapters/ch19/Ch19.fsproj --configuration Release
 ```
 
-The contract tests compile with null checking and warnings as errors. They verify constructor, member, overload, and interface calls, plus null-input narrowing and the nullable return of `Type.GetType`. They also cover both conversion directions for `Nullable<int>` and nullable references, and the `Some null` counterexample.
+The project compiles with null checking enabled. Its source covers ordinary constructor, member, overload, and interface calls; null-input narrowing; the nullable return of `Type.GetType`; both conversion directions for `Nullable<int>` and nullable references; and the `Some null` counterexample.
 
-These tests cover the APIs shown here, not every .NET library. Always inspect the current target-framework annotations and documentation for the API you call.
+This fixture covers the APIs shown here, not every .NET library. Always inspect the current target-framework annotations and documentation for the API you call.
 
 ## Exercises {#exercises}
 
@@ -267,17 +265,6 @@ Show that `Option.isSome suspicious` is true while the payload is null. Write an
 Explain which function is appropriate for ordinary absence and which is appropriate for required validated input. Do not use `Unchecked` or an exception-catching blanket.
 
 [Read the chapter solutions](../solutions/ch-19-dotnet-null-boundaries).
-
-## Model review {#model-review}
-
-- .NET constructors, members, overloads, and interfaces are ordinary typed F# expressions.
-- Argument annotations should reveal intended overload selection rather than patch over ambiguity with arbitrary casts.
-- `T | null`, `Nullable<T>`, and `T option` have different syntax, runtime representation, and modeling purpose.
-- Nullable-reference analysis is an opt-in compile-time contract, not runtime validation or proof about all foreign code.
-- Narrow nullable references once, then keep the core non-null by construction.
-- Use the conversion pair that matches the source representation: object/null, nullable value, or domain option.
-- `Some null` is possible when the payload type admits null, so `option` must not be advertised as absolute null prevention.
-- `option` describes ordinary absence; `Result` preserves a reason; exceptions require their own policy.
 
 The next chapter keeps conversion outside the core and makes time, randomness, and environment access visible dependencies instead of hidden inputs.
 

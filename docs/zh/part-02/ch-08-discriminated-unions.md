@@ -188,10 +188,10 @@ F# 9 起，联合值会生成 `.IsConfirmed` 等案例测试属性。只需要�
 
 ## 运行共享示例 {#run-example}
 
-在示例所在目录执行：
+在仓库根目录执行：
 
 ```console
-dotnet fsi --exec ch08-discriminated-unions.fsx
+dotnet fsi --exec examples/scripts/ch08-discriminated-unions.fsx
 ```
 
 应得到：
@@ -229,16 +229,6 @@ All descriptions: 3
 为 `cancel reason status` 写纯函数：`Pending` 和 `Confirmed _` 变为 `Cancelled reason`，已取消状态保持原值。列出只返回 `BookingStatus` 会丢失什么信息，再提出一种能区分成功与禁止转换的返回类型；暂时无需组合 `Result`。
 
 [查看本章练习答案](../solutions/ch-08-discriminated-unions)。
-
-## 核心结论 {#summary}
-
-- 多个布尔标志会产生组合空间，并可能让矛盾状态通过类型检查。
-- 可辨识联合规定一个值只能属于若干命名案例之一，每个案例可携带专属数据。
-- 案例名在表达式中构造值，在模式中识别案例并绑定数据。
-- 穷尽匹配让新增案例形成编译器定位的修改清单；无意通配符会削弱这项反馈。
-- 联合只允许合法状态，转换函数仍需实现正确业务政策。
-- 记录表达“同时有这些字段”，联合表达“只能是这些案例之一”，两者通常组合使用。
-- 独立事实仍可用布尔值；不要把联合变成另一种巨大组合枚举。
 
 下一章会比较两种常见返回类型：`option` 表示可能缺失，`Result` 表示带具体原因的预期失败。
 

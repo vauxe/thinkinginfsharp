@@ -610,27 +610,12 @@ Unity 命令行构建支持显式 build target 或保存的 build profile。始�
 
 [阅读本章练习答案](../solutions/ch-44-unity)。
 
-## 本章回顾 {#chapter-review}
+## 资料来源 {#sources}
 
-- Unity 可以执行导入的托管 F# 程序集，但源码语言兼容只是第一项契约。
-- 分别验证 .NET 构建、依赖闭包、Unity 导入、Editor 运行、Mono Player、IL2CPP Player 与发布路径。
-- 通常最容易实现的边界，是在简短的 C# Unity 适配器后使用纯 F# 类库。
-- 直接 F# 组件是可行的托管插件，但需要在确切 Unity 程序集、Inspector、重载与 Player 中测试。
-- 以 `netstandard2.1` 为 Unity 跨平台 API profile 目标；不要把它与 CoreCLR 或 JIT 行为混淆。
-- 发布确切锁定的 `FSharp.Core.dll` 及所有运行期/原生依赖；Unity 不会还原 `.fsproj` 图。
-- 向 C# 提供常规 CLR 类型与调用形式，同时把地道 F# 类型留在内部。
-- 把 Unity 序列化字段、引擎对象与生命周期回调留在适配器；映射成已验证领域状态。
-- 跨重载、启用/禁用、场景与进程生命周期有意重建运行期状态。
-- 明确地把输入、时间和随机数源传给纯逻辑，再由纯逻辑返回外部操作描述。
-- 在目标 Player 中度量帧代码；函数式风格既不保证分配，也不禁止分配。
-- 回归测试暴露每步 class 分配后，托管插件样例使用小型 struct 状态。
-- IL2CPP 裁剪托管代码、把 IL 转成 C++、调用原生工具链并创建平台包。
-- 反射、运行期生成、动态泛型、回调与原生库会扩大 AOT 验证范围。
-- 使用窄且经过测试的保留规则；保留本身不能验证兼容性或行为。
-- Burst/Jobs 使用独立 HPC# 契约，且托管插件样例未验证它们。
-- 锁定确切 Unity 补丁、模块、包、build profile、后端、裁剪级别、工具与产物。
-- 保留日志、PDB、原生符号、哈希与启动结果，使失败仍可归因。
-- 本章展示托管 F# 插件设计、依赖产物契约、纯规则，以及面向 CLR 调用方的 API。
-- 只有真实 Unity 项目才能验证 Editor 导入、Play Mode、裁剪与目标 IL2CPP Player。
+- [Unity 6000.3.22f1 发布说明](https://unity.com/releases/editor/whats-new/6000.3.22f1)
+- [Unity 6.3 手册：托管插件](https://docs.unity3d.com/6000.3/Documentation/Manual/plug-ins-managed.html)
+- [Unity 6.3 手册：IL2CPP 脚本后端](https://docs.unity3d.com/6000.3/Documentation/Manual/scripting-backends-il2cpp.html)
+- [Unity 6.3 手册：从命令行构建 Player](https://docs.unity3d.com/6000.3/Documentation/Manual/build-command-line.html)
+- [Unity 6.3 手册：程序集定义属性](https://docs.unity3d.com/6000.3/Documentation/Manual/class-AssemblyDefinitionImporter.html)
 
 第 45 章回到普通 .NET 工具：脚本、自动化、包评估、锁定纪律，以及继续学习 F# 的实用地图。

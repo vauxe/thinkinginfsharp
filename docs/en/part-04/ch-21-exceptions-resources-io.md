@@ -252,10 +252,10 @@ Map errors where the workflow combines reading and parsing; do not flatten both 
 
 ## Run the shared example {#run-example}
 
-From the directory containing the example:
+From the repository root:
 
 ```console
-dotnet fsi --exec ch21-exceptions-resources-io.fsx
+dotnet fsi --exec examples/scripts/ch21-exceptions-resources-io.fsx
 ```
 
 Five deterministic lines prove success-path disposal, exception-path disposal, successful reading, missing-path translation, and final temporary-directory cleanup. Compare the exact output.
@@ -287,17 +287,6 @@ Write `withTwoReaders` using two `use` bindings. Inject opener functions that re
 Explain why reverse declaration order matters for resources where the second depends on the first, and why the operation must not return either reader.
 
 [Read the chapter solutions](../solutions/ch-21-exceptions-resources-io).
-
-## Model review {#model-review}
-
-- `try/with` returns a value from the normal branch or the first matching exception handler.
-- Catch exception subtypes before their base types, and translate only outcomes the caller understands.
-- `reraise()` preserves the current exception stack; a pointless catch-and-raise adds risk without policy.
-- `use` owns prompt disposal for one lexical scope on normal and exceptional exit.
-- Disposal, exception translation, domain validation, and logging are separate decisions.
-- Preserve structured error context and original causes instead of reducing every failure to a message.
-- Real temporary resources verify the adapter; pure values verify parsing and domain logic.
-- `option`, `Result`, accumulation, exceptions, and `use` answer different questions and can compose.
 
 The next chapter applies the same separation to computations that complete later, comparing F# `Async<'T>` with .NET `Task<'T>`.
 

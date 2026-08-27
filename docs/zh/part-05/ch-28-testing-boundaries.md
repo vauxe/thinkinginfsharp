@@ -294,16 +294,16 @@ Arrange—Act—Assert 是一种阅读约定，并不要求机械地添加注释
 
 ## 运行聚焦测试与完整测试 {#running-tests}
 
-在包含这些测试的解决方案中，可用过滤器快速得到结果：
+在自己的应用解决方案中，可用过滤器快速得到结果（请替换模板路径）：
 
 ```console
-dotnet test Sample.slnx --configuration Release --filter FullyQualifiedName~Ch28
+dotnet test path/to/YourSolution.slnx --configuration Release --filter FullyQualifiedName~Ch28
 ```
 
 该过滤器会选择名称中含 `Ch28` 的测试。提交应用改动前，还应去掉过滤器运行同一解决方案，以检查跨项目连接：
 
 ```console
-dotnet test Sample.slnx --configuration Release
+dotnet test path/to/YourSolution.slnx --configuration Release
 ```
 
 ## 一份实用的选择清单 {#selection-checklist}
@@ -335,19 +335,6 @@ dotnet test Sample.slnx --configuration Release
 产品要增加可选 `note` 字段。决定旧读取方、旧写入方和未知字段策略；列出发布前应增加的输入与输出契约测试。说明若将 `PropertyNameCaseInsensitive` 改为 `true`，哪些输入开始被接受以及这属于什么行为变化。
 
 [阅读本章练习答案](../solutions/ch-28-testing-boundaries)。
-
-## 模型复盘 {#model-review}
-
-- 测试层由风险决定，不由目录名或框架决定。
-- 纯函数配合小型值与结构相等，可以提供最快、最清楚的反馈。
-- 具体错误值应保留调用方需要的反例上下文。
-- 小函数与记录通常足以构造结果确定的依赖替身。
-- 优先断言状态；只有外部可观察的交互才值得专门断言。
-- 契约测试让真实转换库、选项和适配器参与。
-- JSON 属性顺序通常不是契约；字段名、类型、缺失与未知策略可能是。
-- 时间、随机、共享状态、休眠和真实服务会损害测试可重复性。
-- 先确认测试因预期原因失败，再使它通过，并在测试保护下重构。
-- 测试应允许等价重构，同时阻止公共行为与集成约定漂移。
 
 ## 来源 {#sources}
 

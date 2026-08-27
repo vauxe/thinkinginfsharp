@@ -450,7 +450,7 @@ Neither test style replaces the other. Starting a random real port for every con
 
 ## Run the API locally {#local-run}
 
-The commands below use a temporary snapshot and bind only to loopback. Run them from the directory containing the example.
+After assembling the shown files into an ASP.NET Core project, replace the template project path below. The commands use a temporary snapshot and bind only to loopback.
 
 ### Start the host {#local-start}
 
@@ -461,7 +461,7 @@ BOOKING_STORE_PATH="${TMPDIR:-/tmp}/thinking-in-fsharp-booking.json" \
 BOOKING_EVENT_ID="EVT-LOCAL" \
 BOOKING_CAPACITY="4" \
 ASPNETCORE_URLS="http://127.0.0.1:5086" \
-dotnet run --project Booking.Api.fsproj -c Release
+dotnet run --project path/to/Booking.Api.fsproj -c Release
 ```
 
 In PowerShell:
@@ -471,7 +471,7 @@ $env:BOOKING_STORE_PATH = Join-Path ([IO.Path]::GetTempPath()) "thinking-in-fsha
 $env:BOOKING_EVENT_ID = "EVT-LOCAL"
 $env:BOOKING_CAPACITY = "4"
 $env:ASPNETCORE_URLS = "http://127.0.0.1:5086"
-dotnet run --project Booking.Api.fsproj -c Release
+dotnet run --project path/to/Booking.Api.fsproj -c Release
 ```
 
 ### Send successful requests {#local-success}
@@ -547,24 +547,6 @@ For each interruption—payment authorized then append fails, append succeeds th
 Compare exposing Kestrel directly with running it behind a reverse proxy. Produce a short responsibility table for TLS, forwarded headers, host filtering, request limits, rate limiting, authentication, secret retrieval, and log redaction. Mark which controls are required by this booking API and which depend on deployment requirements.
 
 [Read the chapter solutions](../solutions/ch-36-web-api-boundaries).
-
-## Model review {#model-review}
-
-- HTTP is an outer interpreter, not the owner of domain rules.
-- Four explicit routes accept and return boundary representations only.
-- Media type, size, syntax, DTO presence, and domain validity are distinct checks.
-- A real bound counts bytes even without `Content-Length`.
-- One strict JSON policy prevents transport and persistence drift.
-- Stable error codes are public; exception and provider messages are not.
-- `RequestAborted` flows through every asynchronous effect and response write.
-- Cancellation does not roll back an already-visible effect.
-- Payment-before-append and notification-after-append create different retry hazards.
-- `TestServer` verifies the pipeline; loopback Kestrel verifies selected transport behavior.
-- Configuration rejection never requires printing the rejected value.
-- Environment variables avoid commits but are not encrypted secret storage.
-- Body logging requires explicit classification and redaction.
-- Disabling a server header is hardening, not an authorization system.
-- The current host is runnable and testable, not yet consistency-safe or production-complete.
 
 ## Sources {#sources}
 

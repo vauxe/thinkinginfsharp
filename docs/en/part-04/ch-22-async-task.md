@@ -203,10 +203,10 @@ Use a fresh gate set for each execution. Complete every gate in cleanup when a f
 
 ## Run the shared example {#run-example}
 
-From the directory containing the example:
+From the repository root:
 
 ```console
-dotnet fsi --exec ch22-async-task.fsx
+dotnet fsi --exec examples/scripts/ch22-async-task.fsx
 ```
 
 Six deterministic lines demonstrate construction versus start, suspension before completion, eventual results, and conversion in both directions. Compare their order.
@@ -238,17 +238,6 @@ val prepareRefresh : unit -> Async<Snapshot>
 For each API, state whether callers share an execution, create and immediately start one, or create a deferred description. Choose the safest API for a refresh that may be retried but must not overlap, and describe the concurrency rule still required.
 
 [Read the chapter solutions](../solutions/ch-22-async-task).
-
-## Model review {#model-review}
-
-- `Async<'T>` describes a computation; constructing it does not run its body.
-- Starting the same async description again creates another execution and repeats its effects.
-- An evaluated F# `task {}` starts immediately and runs through the first incomplete asynchronous operation on the current thread.
-- That statement is about task expressions, not every object that inherits `Task`.
-- `let!` waits without intentionally blocking the current thread; `.Result` and `.Wait()` block it.
-- Asynchrony alone guarantees neither a new thread, concurrency, nor CPU parallelism.
-- Convert once where APIs meet, and make responsibility for start, cancellation, failure, and observation clear.
-- Deterministic signals prove ordering; arbitrary sleeps only guess.
 
 The next chapter carries these start models into cancellation, timeout, fault propagation, and resource release on every completion path.
 

@@ -183,10 +183,10 @@ printfn "Direct predicate: requested=%d capacity=%d fits=%b" requested capacity 
 
 ## 运行共享示例 {#run-example}
 
-在示例所在目录执行：
+在仓库根目录执行：
 
 ```console
-dotnet fsi --exec ch13-composition-pipeline-api.fsx
+dotnet fsi --exec examples/scripts/ch13-composition-pipeline-api.fsx
 ```
 
 六行输出展示嵌套调用、等价管道、前向与后向组合、固定配置后的部分应用，以及有意保持直接调用的谓词。
@@ -228,15 +228,6 @@ let canAccept capacity request =
 给出一个直接版本，以及一个带有一个有意义中间名称的管道版本。为生产代码选择其一，并从可读性与调试角度说明原因，而不是比较字符数。
 
 [查看本章练习答案](../solutions/ch-13-composition-pipeline-api)。
-
-## 模型复盘 {#model-review}
-
-- `|>` 现在就把值应用于函数；`>>` 与 `<<` 创建稍后使用的函数。
-- 嵌套调用、管道与组合可以表达相同应用顺序。
-- 配置在前、数据在后通常让柯里化 F# 函数便于复用。
-- 阶段能否组合取决于类型对齐，而不是运算符语法。
-- 对于简单、对称、类似构造器的操作和惯用 .NET API，直接调用仍然更好。
-- 代表性调用位置应驱动参数顺序；自定义运算符不应隐藏领域名称。
 
 第 14 章会把这套 API 推理应用于集合；所选表示还会决定求值时机、查找规则与转换成本。
 

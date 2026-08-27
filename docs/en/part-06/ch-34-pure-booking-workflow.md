@@ -385,20 +385,6 @@ Consider a cancelled booking and three cancel commands: blank ID plus blank reas
 
 [Read the chapter solutions](../solutions/ch-34-pure-booking-workflow).
 
-## Model review {#model-review}
-
-- The workflow signature exposes protected context, raw intent, accepted fact, and expected refusal.
-- Independent pure field checks accumulate; dependent business decisions short-circuit.
-- Private validated records mark the exact phase boundary.
-- Stable error ordering follows validator order, not accidental map iteration.
-- `Result.bind` invokes the next rule only for `Ok`; `map` and `mapError` preserve the other side.
-- Exhaustive matching routes every command case.
-- Specialized decisions and protected transitions remain rule authorities.
-- Error projection preserves structure instead of flattening to text.
-- `decide` accepts or refuses; `evolve` projects only accepted facts.
-- Purity makes decisions deterministic and cheap to test, not commits atomic.
-- Focused tests cover single-booking workflow behavior; aggregate capacity and persistence remain later work.
-
 ## Sources {#sources}
 
 - [Microsoft Learn: the F# `Result` type](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/results)

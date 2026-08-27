@@ -45,13 +45,13 @@ path/File.fs(12,9): error FS0039: The value or constructor 'name' is not defined
 
 第 11 章的完整测试示例只有一个绑定：
 
-```fsharp:line-numbers [ch11-value-restriction.fsx]
+```fsharp:line-numbers [ch11-value-restriction.fsx — 预期错误 FS0030]
 let ambiguousBuckets = Array.create 2 []
 ```
 直接运行它：
 
 ```console
-dotnet fsi --exec value-restriction.fsx
+dotnet fsi --exec examples/expected-errors/ch11-value-restriction.fsx
 ```
 
 F# 10 报告 FS0030 和弱类型 `'_a list array`。`Array.create` 构造了一个元素类型尚未确定的可变数组；同一个存储位置不能安全地泛化为互不相关的元素类型。诊断给出三种合理修复：添加具体类型标注；把数据改成泛型函数的参数；或在每次调用都应构造新值时添加 `()`。
@@ -82,7 +82,7 @@ F# 项目中的文件顺序是固定的。一个文件只能使用排在它前�
 调查期间只运行无效项目：
 
 ```console
-dotnet build Ch16WrongOrder.fsproj \
+dotnet build examples/expected-errors/ch16-file-order/Ch16WrongOrder.fsproj \
   --configuration Release
 ```
 
@@ -203,9 +203,9 @@ Fantomas 统一代码布局。F# 编译器检查语法、名称解析、类型�
 ```console
 dotnet tool restore
 dotnet fantomas . --check
-dotnet restore Sample.slnx --locked-mode
-dotnet build Sample.slnx --configuration Release --no-restore
-dotnet test Sample.slnx --configuration Release --no-build
+dotnet restore path/to/YourSolution.slnx --locked-mode
+dotnet build path/to/YourSolution.slnx --configuration Release --no-restore
+dotnet test path/to/YourSolution.slnx --configuration Release --no-build
 ```
 
 `dotnet build` 通常会隐式还原。`--no-restore` 可以确认构建使用前一步锁定还原产生的依赖图；`--no-build` 同样防止测试悄悄执行构建。这些标志让各阶段的责任清楚可见，并不只是性能选项。
@@ -244,21 +244,6 @@ dotnet test Sample.slnx --configuration Release --no-build
 一位队友修改了一个包版本却忘记锁文件，使用全局 Fantomas，并报告 Debug 构建在已有构建缓存和产物时成功。给出一组有序、平台无关的命令来暴露每项不一致，并说明哪些仓库文件必须有意更新。
 
 [阅读本章练习答案](../solutions/ch-30-diagnostics-tooling-builds)。
-
-## 模型回顾 {#model-review}
-
-- 从首个相关诊断开始；后续错误可能只是编译器尝试恢复后产生的连锁结果。
-- 诊断位置是编译器察觉问题之处，不保证就是根因。
-- 预期错误示例必须编译失败，并包含声明的编号。
-- FSI 回答小型推断与执行问题，但不能替代项目构建。
-- 调试器通过值、栈帧与异常检验一个运行时假设。
-- 应把调试器中的发现保存为自动回归测试。
-- Fantomas 格式化与编译器静态分析回答不同问题。
-- 锁定本地工具；当门不得改写源码时使用 `--check`。
-- 锁文件复现已解析包图；锁定还原会在漂移时失败。
-- 分离还原、构建与测试，让各阶段输入可见。
-- 干净构建是受控实验，不是每次失败的第一反应。
-- 可复现性分为多个层次，绝不能替代对实际环境的记录。
 
 ## 来源 {#sources}
 

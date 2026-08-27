@@ -384,19 +384,4 @@ A 40-endpoint service has handlers, authentication helpers, generated OpenAPI, a
 
 [Read the chapter solutions](../solutions/ch-39-web-ecosystem).
 
-## Chapter review {#chapter-review}
-
-- ASP.NET Core supplies the host, server, middleware, routing, security integration, diagnostics, and test infrastructure.
-- Minimal APIs are the platform's default starting point for new HTTP APIs; controllers retain specialized extension value.
-- Direct F# Minimal APIs may need explicit delegate and null-boundary adaptation.
-- Giraffe offers mature continuation-style functional handlers over ASP.NET Core.
-- Falco offers a focused endpoint and response toolkit with related markup integrations.
-- Oxpecker uses endpoint routing and a terminal F# handler model, with a newer related full-stack family.
-- Saturn offers stronger conventions, but a new .NET 10 adoption needs direct compatibility checks.
-- Version observations are dated facts, not permanent rankings or guarantees of production suitability.
-- JSON, OpenAPI, HTML, authentication, DI, testing, performance, and deployment are separable decisions.
-- Framework-specific types belong at the outer adapter boundary, not in the functional core.
-- Compare candidates with the same vertical slice and the same contract assertions.
-- Choose the smallest surface that reduces demonstrated friction, then pin and test it.
-
 Chapter 40 moves from HTTP boundaries to data access, type providers, analysis, visualization, and machine learning—another area where workload characteristics matter more than one universal stack.

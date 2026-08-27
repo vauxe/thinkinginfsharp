@@ -211,10 +211,10 @@ and Binding =
 
 ## 运行共享示例 {#run-example}
 
-在示例所在目录执行：
+在仓库根目录执行：
 
 ```console
-dotnet fsi --exec ch10-recursive-types.fsx
+dotnet fsi --exec examples/scripts/ch10-recursive-types.fsx
 ```
 
 六行输出覆盖空树、叶子与分支树、直接遍历、改变叶子类型的 map、由 fold 推导的查询、高度，以及叶子数保持不变。
@@ -234,15 +234,6 @@ dotnet fsi --exec ch10-recursive-types.fsx
 定义一个包含 `LeafCount`、`TotalSeats` 和 `MaximumSeats : int option` 的摘要记录。用一次 `foldTree` 遍历计算它。分别给出 `Empty`、`Leaf 2` 与共享分支树的正确摘要，再说明时间复杂度与直接调用栈上界。
 
 [查看本章练习答案](../solutions/ch-10-recursive-types)。
-
-## 模型复盘 {#model-review}
-
-- 递归类型表达可任意嵌套、但通常有限的值。
-- 结构递归映照类型案例，并递归进入直接的递归字段。
-- `map` 改变叶子值的类型，同时保持树结构。
-- `fold` 为每个构造器公开一条处理规则，并把递归过程集中在一处。
-- 节点数预示遍历工作，最大高度预示直接调用栈深度。
-- 当树来自不可信来源或可能极深时，应限制输入深度。
 
 第 11 章会研究 `mapTree` 等泛型函数是怎样被推断的、泛化在哪里停止，以及操作会引入哪些类型约束。
 

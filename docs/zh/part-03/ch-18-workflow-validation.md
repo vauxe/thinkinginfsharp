@@ -294,10 +294,10 @@ validation {
 
 ## 运行共享示例 {#run-example}
 
-在示例所在目录运行：
+在仓库根目录运行：
 
 ```console
-dotnet fsi --exec ch18-workflow-validation.fsx
+dotnet fsi --exec examples/scripts/ch18-workflow-validation.fsx
 ```
 
 七行输出与断言验证首错结果、三项和两项错误累积、有效输入时两种策略一致，以及无效、超量和接受的座位文本各自对应的容量检查次数。请比较确切顺序。
@@ -332,27 +332,15 @@ result {
 
 [阅读本章答案](../solutions/ch-18-workflow-validation)。
 
-## 模型回顾 {#model-review}
-
-- 决定后续检查能否运行的是依赖关系，而不是视觉语法。
-- `Result.bind` 会直接返回已有 `Error`，而不调用成功延续。
-- 独立纯检查可以全部运行，并按有文档的顺序累积错误。
-- 即使多个字段一起累积，一个字段内部仍可能包含依赖子步骤。
-- 只在全部成功的分支中构造有效领域值。
-- 让数据库、网络、时间和其他副作用离开纯输入累积。
-- FSharp.Core 有 `Result` 及其组合函数，却没有内置 result 或验证计算表达式构建器。
-- `and!` 表达独立绑定；其合并行为属于选定的构建器。
-- 在自定义语法赢得成本之前，普通函数提供可读的语义基线。
-
 ## 第三部分检查点 {#part-checkpoint}
 
-在示例所在目录运行聚焦工作流测试：
+在仓库根目录运行已校验的工作流示例：
 
 ```console
-dotnet test ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~BookingWorkflowTests
+dotnet fsi --warnaserror+ --exec examples/scripts/ch18-workflow-validation.fsx
 ```
 
-测试通过表明：独立命令错误按字段顺序累积，有效命令产生事件，已有状态会使后续容量工作短路。测试直接调用普通函数，因此结果不依赖未声明的计算表达式构建器。
+七行输出展示了独立错误按字段顺序累积、有效输入成功，以及无效输入会跳过后续容量查询。示例直接调用普通函数，因此结果不依赖未声明的计算表达式构建器。
 
 [继续阅读第 19 章](../part-04/ch-19-dotnet-null-boundaries)，通过专门的适配层接收外部 .NET 值。
 

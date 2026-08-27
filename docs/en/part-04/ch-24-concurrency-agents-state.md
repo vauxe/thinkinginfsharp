@@ -333,10 +333,10 @@ Repeat focused tests to expose resource and lifecycle mistakes, but repetition i
 
 ## Run the shared example {#run-example}
 
-From the directory containing the example:
+From the repository root:
 
 ```console
-dotnet fsi --checknulls+ --exec ch24-concurrency-agents-state.fsx
+dotnet fsi --checknulls+ --exec examples/scripts/ch24-concurrency-agents-state.fsx
 ```
 
 Seven deterministic lines cover concurrent waiting, data-parallel equivalence, forced lost update, lock and atomic corrections, a compound capacity invariant, agent serialization, and a single-computation cache.
@@ -363,26 +363,15 @@ Explain why a thread-safe dictionary alone cannot guarantee freshness, bounded m
 
 [Read the chapter solutions](../solutions/ch-24-concurrency-agents-state).
 
-## Model review {#model-review}
-
-- Asynchrony, concurrency, and parallelism answer different questions.
-- Immutable data removes shared writes; it does not make external resources consistent.
-- A barrier can force a lost update and turn a probabilistic race into a deterministic test.
-- `lock` protects a short compound invariant; `Interlocked` protects supported single-location operations.
-- Never await unbounded work while holding a monitor.
-- A mailbox serializes one in-process loop; it does not coordinate the surrounding world.
-- Concurrent collections have method-specific guarantees; read the factory and composition semantics.
-- Cache correctness includes freshness, lifecycle, failure, and resource policies.
-
 ## Part IV checkpoint {#part-checkpoint}
 
-Run the booking API tests against deterministic asynchronous substitutes:
+From the repository root, run the deterministic concurrency example:
 
 ```console
-dotnet test ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~BookingAsyncPortTests
+dotnet fsi --warnaserror+ --exec examples/scripts/ch24-concurrency-agents-state.fsx
 ```
 
-Passing tests show that caller cancellation tokens reach every dependency and that controlled operations remain pending until they succeed, fail, or observe cancellation. They do not establish cross-process consistency or durability.
+Its seven lines expose a forced lost update, verify lock and atomic corrections, preserve a compound capacity invariant, serialize updates through an agent, and compute one cached value under contention. These in-process checks do not establish cross-process consistency or durability.
 
 [Continue to Chapter 25](../part-05/ch-25-objects-interfaces), which examines object-oriented interfaces in the wider .NET ecosystem.
 

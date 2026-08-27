@@ -307,17 +307,16 @@ Generate or write a signature after representative call sites reveal the right A
 
 ## Build and verify the example {#build-test}
 
-From the directory containing the example:
+From the repository root:
 
 ```console
-dotnet build Ch17.fsproj -c Release --locked-mode
-dotnet test ExampleTests.fsproj -c Release --no-restore --filter FullyQualifiedName~Ch17SignatureTests
+dotnet build examples/chapters/ch17/Ch17.fsproj -c Release
 ```
 
-The focused suite passes. This command is intentionally expected to fail and is checked separately:
+This command is intentionally expected to fail and is checked separately:
 
 ```console
-dotnet build Ch17HiddenRepresentation.fsproj -c Release
+dotnet build examples/expected-errors/ch17-hidden-representation/Ch17HiddenRepresentation.fsproj -c Release
 ```
 
 Its required `FS0800` diagnostic verifies that the representation is hidden. A successful build of that invalid consumer would be a regression, not a passing example.
@@ -356,18 +355,6 @@ val apply: policy: Policy -> request: Request -> Result<Decision, DecisionError>
 The implementation defines `let apply (policy, request) = ...` and a `traceDecision` helper. Explain why `apply` does not match, then repair it. Show how to keep `traceDecision` usable only inside the implementation file, and how the declarations must change if one later file in the same assembly genuinely needs that helper.
 
 [Read the chapter solutions](../solutions/ch-17-signatures-encapsulation).
-
-## Model review {#model-review}
-
-- A `.fsi` file is a compiler-checked consumer view of its matching `.fs` implementation.
-- The signature precedes the implementation and publishes declarations, not bodies.
-- An abstract type name lets consumers use values without constructing or deconstructing representation.
-- Transparent error unions are useful when callers should match actionable alternatives.
-- Signature/implementation types, arity, constraints, modifiers, and exposed order must agree.
-- `private`, `internal`, signature omission, and abstract representation protect different scopes.
-- A good F#-facing surface is small but complete: safe construction, meaningful operations, necessary observations, and typed outcomes.
-- External positive tests prove usability; a compiler-failing consumer can prove opacity.
-- Signature edits are API edits, so add explicit signatures when that deliberate stability is worth their maintenance cost.
 
 Chapter 18 composes these public types and operations into larger workflows. It contrasts first-error `Result` sequencing with accumulation of independent validation errors.
 

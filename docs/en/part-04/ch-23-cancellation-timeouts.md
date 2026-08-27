@@ -425,10 +425,10 @@ This checklist is more useful than a universal helper. A database transaction, s
 
 ## Run the shared example {#run-example}
 
-From the directory containing the example:
+From the repository root:
 
 ```console
-dotnet fsi --checknulls+ --exec ch23-cancellation-timeouts.fsx
+dotnet fsi --checknulls+ --exec examples/scripts/ch23-cancellation-timeouts.fsx
 ```
 
 Seven deterministic lines prove operation cancellation, abandoned waiting, controlled timeout, original fault propagation, and synchronous plus asynchronous cleanup on every body outcome.
@@ -454,17 +454,6 @@ Write a compiled task expression using an `IAsyncDisposable` probe and `use`. Ma
 Then make disposal fault. Record which exception reaches the caller and propose a diagnostic policy that retains both a body fault and cleanup fault.
 
 [Read the chapter solutions](../solutions/ch-23-cancellation-timeouts).
-
-## Model review {#model-review}
-
-- Cancellation is a cooperative request; the operation must receive and observe its token.
-- Canceling `WaitAsync` can stop one wait without stopping the underlying task.
-- A timeout must specify whether work stops, continues under another owner, or needs reconciliation.
-- Expected domain errors, faulted tasks, and canceled tasks are distinct outcomes.
-- Await task faults instead of using blocking wrappers in an asynchronous workflow.
-- Once a resource is acquired, success, fault, and cancellation must all pass through cleanup.
-- An outer task is not complete until asynchronous disposal is complete.
-- Signals and controllable time prove state transitions without scheduler guesses.
 
 The next chapter separates concurrency from parallelism and compares immutable coordination, agents, locks, atomics, and intentionally controlled mutation.
 

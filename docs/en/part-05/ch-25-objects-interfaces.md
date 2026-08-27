@@ -219,14 +219,13 @@ Chapter 27 will revisit the last question from a C# consumer's view. Chapter 31 
 
 ## Run the verified example {#run-example}
 
-From the directory containing the example:
+From the repository root:
 
 ```console
-dotnet run --project Ch25.fsproj --configuration Release
-dotnet test Sample.slnx --configuration Release --filter FullyQualifiedName~Ch25Object
+dotnet run --project examples/chapters/ch25/Ch25.fsproj --configuration Release
 ```
 
-The program prints results for classes, interfaces, extensions, and structs. Focused tests cover both constructors, member validation, the explicit interface view, an object-expression substitute, derived extension members, value copying, distinct boxes, and the invalid zero-initialized revision.
+The program prints four deterministic lines covering classes, interfaces, extensions, and structs; the repository check compares them exactly.
 
 ## Exercises {#exercises}
 
@@ -243,18 +242,6 @@ Implement the same discount rule once as a function and once as an `IDiscountPol
 Create a positive revision struct through a smart constructor, copy it, box both copies, and observe its default value. Then redesign the type so zero initialization represents a valid named state, or document and test rejection at every source of default values.
 
 [Read the chapter solutions](../solutions/ch-25-objects-interfaces).
-
-## Model review {#model-review}
-
-- F# object features are native tools, not a required destination for every model.
-- Functions express behavior; records express grouped data; unions express alternatives; classes add reference identity and object protocols.
-- Constructor failure and expected method rejection need different policies.
-- Explicit interface implementations are consumed through an interface view.
-- Object expressions suit small local implementations; size and lifecycle justify a named type.
-- Extensions add callable behavior but no stored state or representation change.
-- Structs copy by value and always have a zero-initialized default representation.
-- Composition is the default; inherit only when a real base-type requirement exists.
-- Encapsulation transfers lifecycle and concurrency responsibility—it does not erase it.
 
 ## Sources {#sources}
 

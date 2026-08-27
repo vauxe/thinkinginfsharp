@@ -425,10 +425,10 @@ asyncCancellation.Dispose()
 
 ## 运行共享示例 {#run-example}
 
-在示例所在目录运行：
+在仓库根目录运行：
 
 ```console
-dotnet fsi --checknulls+ --exec ch23-cancellation-timeouts.fsx
+dotnet fsi --checknulls+ --exec examples/scripts/ch23-cancellation-timeouts.fsx
 ```
 
 七行输出验证操作取消、放弃等待、受控超时、原始故障传播，以及成功、故障和取消时的同步与异步清理。
@@ -454,17 +454,6 @@ dotnet fsi --checknulls+ --exec ch23-cancellation-timeouts.fsx
 然后让释放发生故障。记录调用方收到哪个异常，并提出同时保留主体故障与清理故障的诊断策略。
 
 [阅读本章练习答案](../solutions/ch-23-cancellation-timeouts)。
-
-## 模型复盘 {#model-review}
-
-- 取消是协作式请求；操作必须收到并观察其令牌。
-- 取消 `WaitAsync` 可以停止一次等待而不停止底层任务。
-- 超时必须规定工作是停止、交由其他组件继续负责，还是需要对账。
-- 预期领域错误、故障任务与取消任务是三种不同结果。
-- 在异步工作流中应等待任务故障，而不是使用阻塞包装器。
-- 一旦获取资源，成功、故障与取消都必须经过清理。
-- 异步释放完成之前，外层任务尚未完成。
-- 信号与可控时间无需猜测调度器即可证明状态转换。
 
 下一章会区分并发与并行，并比较不可变协调、代理、锁、原子操作和有意受控的可变性。
 

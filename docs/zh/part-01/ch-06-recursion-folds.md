@@ -186,10 +186,10 @@ printfn "Fold order: left=%d right=%d" leftAssociated rightAssociated
 
 ## 运行共享示例 {#run-example}
 
-在示例所在目录执行：
+在仓库根目录执行：
 
 ```console
-dotnet fsi --warnaserror+ --exec ch06-recursion-folds.fsx
+dotnet fsi --warnaserror+ --exec examples/scripts/ch06-recursion-folds.fsx
 ```
 
 应得到：
@@ -246,22 +246,12 @@ Fold order: left=-6 right=2
 
 [查看本章练习答案](../solutions/ch-06-recursion-folds)。
 
-## 核心结论 {#summary}
-
-- `let rec` 让函数名在自身主体可见；程序员负责提供基础情况与终止论证。
-- 结构递归让模式对应数据构造，并把更小组成部分交给递归调用。
-- 尾调用会直接返回调用结果；递归调用后的待完成工作会把它归为非尾调用。
-- 累加器携带已完成结果，使简单线性递归可把自调用放到尾位置。
-- `[<TailCall>]` 检查尾调用意图；终止性与各执行模型下的栈行为必须分别验证。
-- `List.fold` 从左向右穿行状态；`foldBack` 从右组合且 folder 参数顺序不同。
-- 尾递归、时间复杂度、算术安全与领域正确性必须分别验证。
-
 ## 第一部分检查点 {#part-checkpoint}
 
-在示例所在目录运行集成后的预约脚本：
+在仓库根目录运行集成后的预约脚本：
 
 ```console
-dotnet fsi --warnaserror+ --exec booking-basics.fsx
+dotnet fsi --warnaserror+ --exec examples/capstone/part-01/BookingBasics.fsx
 ```
 
 输出必须区分有效与无效输入行，接受容量允许的请求，拒绝超容量请求，并得到正确的已预约与剩余容量。这完成了第一部分从基础语法到小型数据处理流程的学习路径；持久化与并发保证会在后续部分加入。
