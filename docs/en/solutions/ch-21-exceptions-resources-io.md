@@ -51,7 +51,7 @@ let loadSeats path =
         |> Result.mapError ParseFailure)
 ```
 
-The four required tests should assert these shapes:
+The four required tests should assert these results:
 
 | Fixture | Expected result |
 |---|---|
@@ -102,7 +102,7 @@ Specific missing-path cases come before the `IOException` base handler. There is
 
 Log where the operation is finally handled or abandoned, not automatically inside `read`. If `OtherIo` is returned to a service boundary, that boundary can log `cause` once with request context and map it to a stable external response.
 
-## Exercise 3: prove nested disposal order {#exercise-03}
+## Exercise 3: verify nested disposal order {#exercise-03}
 
 ### Keep both readers inside the scope {#exercise-03-scope}
 

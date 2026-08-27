@@ -1,18 +1,18 @@
 ---
 title: "附录 F：F# 术语表"
-description: "自足的 F# 术语表，并提供每个术语首次教学章节的链接。"
+description: "自包含的 F# 术语表，并提供每个术语首次讲解章节的链接。"
 translationKey: glossary
 ---
 
 # 附录 F：F# 术语表 {#overview}
 
-本术语表定义中文版使用的 F# 词汇。
+本术语表定义中文版使用的 F# 术语。
 
 “首次讲解”指阅读顺序中最早直接教授该概念的章节。可沿链接查看动机、示例和相关概念。
 
 ## 如何使用本术语表 {#how-to-use}
 
-可以搜索术语、通过锚点直接链接某项，也可以按部分阅读，以原学习顺序复习概念。定义说明本书中的用法；所链接章节提供操作细节。
+你可以搜索术语、直接打开某个锚点，也可以按章节顺序复习概念。这里给出本书采用的定义；链接章节解释具体用法。
 
 ## 第 1 部分 · 基础：值、函数与控制流 {#part-1}
 
@@ -24,7 +24,7 @@ translationKey: glossary
 
 ### F# Interactive {#fsharp-interactive}
 
-随 .NET SDK 提供的 F# 交互环境；它以读取、求值、打印、循环的方式执行提交，也可以运行 F# 脚本。
+随 .NET SDK 提供的 F# 交互环境；它通过“读取—求值—输出”循环（REPL）执行输入，也可以运行 F# 脚本。
 
 **首次讲解:** [第 1 章：第一次 F# 会话](./part-01/ch-01-first-session#overview)
 
@@ -42,7 +42,7 @@ translationKey: glossary
 
 ### unit {#unit}
 
-只有一个值 () 的类型，用于表达某个表达式没有需要传递给后续计算的特定结果。
+只有一个值 `()` 的类型，表示表达式没有需要传给后续计算的具体结果。
 
 **首次讲解:** [第 1 章：第一次 F# 会话](./part-01/ch-01-first-session#overview)
 
@@ -54,13 +54,13 @@ translationKey: glossary
 
 ### 绑定 {#binding}
 
-由 let 等模式建立的名称与值之间的关联；它不是一个可随意改写的存储槽。
+名称与值之间的关联，通常由 `let` 和模式建立。绑定不是可以随意改写的存储槽。
 
 **首次讲解:** [第 2 章：值、绑定与表达式](./part-01/ch-02-values-bindings-expressions#overview)
 
 ### 不可变性 {#immutability}
 
-保持已建立值的性质。绑定维持名称与值的关联，被引用对象的内部则遵循自己的可变性契约。
+保持既有值不变的性质。绑定会维持名称与值的关联；如果该值引用对象，对象内部能否改变则由其类型另行决定。
 
 **首次讲解:** [第 2 章：值、绑定与表达式](./part-01/ch-02-values-bindings-expressions#overview)
 
@@ -78,7 +78,7 @@ translationKey: glossary
 
 ### 类型标注 {#type-annotation}
 
-源码中显式写出的类型约束，用来记录意图或补足编译器无法可靠推断的上下文。
+源码中明确写出的类型约束，用来记录意图，或补充编译器无法可靠推断的上下文。
 
 **首次讲解:** [第 2 章：值、绑定与表达式](./part-01/ch-02-values-bindings-expressions#overview)
 
@@ -102,13 +102,13 @@ translationKey: glossary
 
 ### 自动泛化 {#automatic-generalization}
 
-编译器在安全且不依赖具体类型时，把推断类型中的未知类型提升为可由多种类型实例化的类型参数。
+在安全且定义不依赖具体类型时，编译器会把推断出的未知类型变成类型参数，使其能用于多种具体类型。
 
 **首次讲解:** [第 3 章：函数也是值](./part-01/ch-03-functions-as-values#overview)
 
 ### 闭包 {#closure}
 
-函数值连同它从定义位置捕获、并在以后调用时仍需使用的周围值。
+一个函数值，以及它在定义处捕获并供以后调用使用的外部值。
 
 **首次讲解:** [第 3 章：函数也是值](./part-01/ch-03-functions-as-values#overview)
 
@@ -126,7 +126,7 @@ translationKey: glossary
 
 ### 函数应用 {#function-application}
 
-向函数值提供实参并求值其函数主体，以产生结果。
+向函数值提供实参并执行函数体，从而产生结果。
 
 **首次讲解:** [第 3 章：函数也是值](./part-01/ch-03-functions-as-values#overview)
 
@@ -156,13 +156,13 @@ translationKey: glossary
 
 ### 穷尽性 {#exhaustiveness}
 
-一组模式覆盖输入类型所有可能形状的性质；无法穷尽时，某些输入可能没有匹配分支。
+一组模式覆盖输入类型的所有可能形式。若无法穷尽，某些输入就可能没有匹配分支。
 
 **首次讲解:** [第 4 章：分支与基本模式](./part-01/ch-04-branching-patterns#overview)
 
 ### 守卫 {#guard}
 
-模式初步匹配后才求值的 when 布尔条件；条件为 false 时继续尝试后续规则。
+模式初步匹配后才求值的 `when` 布尔条件；条件为 `false` 时继续尝试后续规则。
 
 **首次讲解:** [第 4 章：分支与基本模式](./part-01/ch-04-branching-patterns#overview)
 
@@ -174,19 +174,19 @@ translationKey: glossary
 
 ### 模式 {#pattern}
 
-用来检查输入结构、分解组成部分并可为其建立局部绑定的形状规则。
+用来检查输入结构、分解组成部分，并可为其建立局部绑定的规则。
 
 **首次讲解:** [第 4 章：分支与基本模式](./part-01/ch-04-branching-patterns#overview)
 
 ### 模式匹配 {#pattern-matching}
 
-按值的形状选择匹配分支，并可同时为其组成部分建立绑定。
+根据值的结构选择匹配分支，并可同时为组成部分建立绑定。
 
 **首次讲解:** [第 4 章：分支与基本模式](./part-01/ch-04-branching-patterns#overview)
 
 ### 通配符模式 {#wildcard-pattern}
 
-写作 _、匹配任何输入但不为该输入建立可用名称的模式。
+写作 `_`，可以匹配任何输入，但不会为该输入建立名称。
 
 **首次讲解:** [第 4 章：分支与基本模式](./part-01/ch-04-branching-patterns#overview)
 
@@ -196,7 +196,7 @@ translationKey: glossary
 
 **首次讲解:** [第 5 章：列表、管道与数据流](./part-01/ch-05-lists-pipelines#overview)
 
-### 效果 {#effect}
+### 副作用 {#effect}
 
 求值期间发生、不能只由返回值描述的可观察行为，例如输出、写文件或修改状态。
 
@@ -222,25 +222,25 @@ translationKey: glossary
 
 ### 累加器 {#accumulator}
 
-在递归或折叠的每一步携带到下一步、表示截至当前已完成结果的值。
+递归或折叠每一步都会传给下一步的值，表示截至当前的计算结果。
 
 **首次讲解:** [第 6 章：递归、尾调用与折叠](./part-01/ch-06-recursion-folds#overview)
 
 ### 折叠 {#fold}
 
-按确定顺序用折叠函数把集合元素逐项并入累加器，最终返回累加状态的高阶操作。
+按确定顺序用组合函数把集合元素逐项并入累加器，最后返回累加器的高阶操作。
 
 **首次讲解:** [第 6 章：递归、尾调用与折叠](./part-01/ch-06-recursion-folds#overview)
 
 ### 递归 {#recursion}
 
-函数直接或间接调用自身，以更小或更接近终止条件的问题继续计算。
+函数直接或间接调用自身，并把更小的问题或更接近终止条件的输入交给下一次调用。
 
 **首次讲解:** [第 6 章：递归、尾调用与折叠](./part-01/ch-06-recursion-folds#overview)
 
 ### 结构递归 {#structural-recursion}
 
-按数据类型的构造形状分支，并在递归分支中处理结构上更小组成部分的递归。
+按数据类型的构造方式分支，并在递归分支中处理结构上更小组成部分的递归。
 
 **首次讲解:** [第 6 章：递归、尾调用与折叠](./part-01/ch-06-recursion-folds#overview)
 
@@ -260,13 +260,13 @@ translationKey: glossary
 
 ### 匿名记录 {#anonymous-record}
 
-无需预先声明名称、由一组精确字段标签和类型确定形状的记录值。
+无需单独声明类型名称，其具体类型由字段名和字段类型共同确定的记录值。
 
 **首次讲解:** [第 7 章：记录、更新、相等与比较](./part-02/ch-07-records-equality#overview)
 
 ### 哈希码 {#hash-code}
 
-由相等语义一致地导出的整数摘要，用于哈希数据结构定位候选项；不同值仍可能产生同一码。
+用于在哈希数据结构中定位候选项的整数摘要。相等的值必须产生相同哈希码，不同值也可能产生同一码。
 
 **首次讲解:** [第 7 章：记录、更新、相等与比较](./part-02/ch-07-records-equality#overview)
 
@@ -278,7 +278,7 @@ translationKey: glossary
 
 ### 引用身份 {#reference-identity}
 
-两个引用是否指向同一个运行时对象的关系，与对象内容是否结构相等分开。
+判断两个引用是否指向同一个运行时对象；这与对象内容是否结构相等是两回事。
 
 **首次讲解:** [第 7 章：记录、更新、相等与比较](./part-02/ch-07-records-equality#overview)
 
@@ -302,7 +302,7 @@ translationKey: glossary
 
 ### 联合案例 {#union-case}
 
-可辨识联合中一种有名称的可能形状，可不携带数据，也可携带只对该形状有意义的字段。
+可辨识联合中的一种具名选项。它可以不携带数据，也可以携带只对该选项有意义的字段。
 
 **首次讲解:** [第 8 章：可辨识联合与状态建模](./part-02/ch-08-discriminated-unions#overview)
 
@@ -338,7 +338,7 @@ translationKey: glossary
 
 ### 泛型类型参数 {#generic-type-parameter}
 
-在一个定义中代表尚未指定的类型、并在每次具体使用时由一致类型实参替换的类型级参数。
+定义中尚未指定具体类型的占位参数；每次具体使用时，同一个参数都会由同一种类型替换。
 
 **首次讲解:** [第 11 章：泛型、约束与度量单位](./part-02/ch-11-generics-constraints#overview)
 
@@ -356,13 +356,13 @@ translationKey: glossary
 
 ### 值限制 {#value-restriction}
 
-自动泛化只允许安全形状的绑定；带未解析类型变量而不可泛化的值绑定会被拒绝，以免同一存储被不安全地当作多种类型。
+自动泛化只适用于安全的绑定形式。若值包含未解析的类型变量，而且泛化可能让同一存储被当作多种类型使用，编译器就会拒绝该绑定。
 
 **首次讲解:** [第 11 章：泛型、约束与度量单位](./part-02/ch-11-generics-constraints#overview)
 
 ### 访问控制 {#access-control}
 
-用 public、internal、private 或签名文件规定哪些代码位置能够使用某个程序实体的机制。
+决定哪些代码可以使用某个程序实体的规则。F# 通过 `public`、`internal`、`private` 和签名文件中公开的声明来表达这些规则。
 
 **首次讲解:** [第 12 章：让非法状态无法表示](./part-02/ch-12-making-illegal-states-unrepresentable#overview)
 
@@ -380,13 +380,13 @@ translationKey: glossary
 
 ### 签名文件 {#signature-file}
 
-扩展名为 .fsi、位于对应 .fs 实现之前并声明其他文件可见公开表面的 F# 文件。
+扩展名为 `.fsi`、位于对应 `.fs` 实现之前的 F# 文件。它声明其他文件可以看到的 API。
 
 **首次讲解:** [第 12 章：让非法状态无法表示](./part-02/ch-12-making-illegal-states-unrepresentable#overview)
 
 ### 智能构造函数 {#smart-constructor}
 
-在产生受保护领域值之前执行验证或规范化，并以显式返回类型报告拒绝原因的函数。
+先验证或规范化输入，再产生满足约束的领域值；输入不合法时通过返回类型报告原因的函数。
 
 **首次讲解:** [第 12 章：让非法状态无法表示](./part-02/ch-12-making-illegal-states-unrepresentable#overview)
 
@@ -466,7 +466,7 @@ translationKey: glossary
 
 ### 编译顺序 {#compilation-order}
 
-F# 源文件提供给编译器的先后次序；通常后面的文件可以使用前面定义，反向依赖则不可用。
+F# 源文件提供给编译器的先后次序。通常，后面的文件可以使用前面的定义，前面的文件不能使用后面的定义。
 
 **首次讲解:** [第 16 章：模块、命名空间、项目与编译设置](./part-03/ch-16-modules-namespaces-projects#overview)
 
@@ -484,7 +484,7 @@ F# 源文件提供给编译器的先后次序；通常后面的文件可以使�
 
 ### 可空引用类型 {#nullable-reference-type}
 
-启用 F# 空值检查后，用 `T | null` 明确允许 null 的引用类型标注；它是编译期契约，不是运行时包装器。
+启用 F# 空值检查后，`T | null` 表示引用类型允许为 `null`。它只供编译器检查，不会在运行时增加包装。
 
 **首次讲解:** [第 16 章：模块、命名空间、项目与编译设置](./part-03/ch-16-modules-namespaces-projects#overview)
 
@@ -502,13 +502,13 @@ F# 源文件提供给编译器的先后次序；通常后面的文件可以使�
 
 ### 抽象表示 {#abstract-representation}
 
-签名只公开类型名称而省略联合案例、记录字段或其他实现形状，使消费者能使用该类型的值却不能依赖其底层表示。
+签名只公开类型名称，不公开联合案例、记录字段或其他实现细节。调用方可以使用该类型的值，却不能依赖其底层表示。
 
 **首次讲解:** [第 17 章：签名、访问控制与面向 F# 的 API](./part-03/ch-17-signatures-encapsulation#overview)
 
-### 公共 API 表面 {#public-api-surface}
+### 公开 API {#public-api-surface}
 
-组件有意向消费者公开并承诺支持的一组类型、案例、函数、成员及其签名。
+组件主动向调用方公开并承诺支持的类型、案例、函数、成员及其签名。
 
 **首次讲解:** [第 17 章：签名、访问控制与面向 F# 的 API](./part-03/ch-17-signatures-encapsulation#overview)
 

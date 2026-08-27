@@ -6,7 +6,7 @@ translationKey: solutions/ch-21-exceptions-resources-io
 
 # 第 21 章答案 {#overview}
 
-让资源取得过程保持短暂，再把普通数据交给纯解析。只翻译对当前调用方具有诚实类型含义的异常；其他失败应保留其原有运行身份。
+尽快完成资源获取，再把纯文本交给解析函数。只转换那些对当前调用方确实有明确类型含义的异常；其他失败应保留原始异常类型与诊断信息。
 
 [返回第 21 章](../part-04/ch-21-exceptions-resources-io)。
 
@@ -51,16 +51,16 @@ let loadSeats path =
         |> Result.mapError ParseFailure)
 ```
 
-四项必需测试应断言这些形状：
+四项必需测试应断言这些结果：
 
-| 夹具 | 预期结果 |
+| 测试输入 | 预期结果 |
 |---|---|
 | 包含 `"3"` 的文件 | `Ok 3` |
 | 缺失文件 | `Error(ReadFailure(PathNotFound path))` |
 | 包含 `"oops"` 的文件 | `Error(ParseFailure(SeatsNotInteger "oops"))` |
 | 包含 `"0"` 的文件 | `Error(ParseFailure(SeatsNotPositive 0))` |
 
-在一个唯一临时目录下创建所有文件，并在 `finally` 中移除该确切目录。`readText` 会在 `parsePositiveSeats` 运行前释放 reader，所以解析成功或失败都不能延长文件句柄生命周期。
+在一个唯一临时目录下创建所有文件，并在 `finally` 中只删除该目录。`readText` 会在 `parsePositiveSeats` 运行前释放 reader，因此无论解析成功还是失败，都不会延长文件句柄的生命周期。
 
 ## 练习 2：审计全捕获适配器 {#exercise-02}
 
@@ -72,12 +72,12 @@ let loadSeats path =
 - 堆栈跟踪与内部异常；
 - 路径与操作等结构化上下文；
 - 缺失、拒绝、格式错误、取消与意外故障之间的区别；
-- 哪些条件可恢复的显式决定；
+- 对哪些条件可以恢复的明确判断；
 - 稳定处理能力，因为本地化或随版本变化的消息属于呈现文本。
 
 它还可能捕获以后加入 `try` 块的程序错误，并把它们错误报告成文件读取失败。
 
-### 让翻译策略保持窄小 {#exercise-02-rewrite}
+### 只转换明确列出的异常 {#exercise-02-rewrite}
 
 ```fsharp
 open System.IO
@@ -102,7 +102,7 @@ let read path =
 
 日志应放在操作最终得到处理或放弃的位置，而不是自动放进 `read`。如果 `OtherIo` 返回到服务边界，该边界可以带请求上下文记录一次 `cause`，再把它映射成稳定外部响应。
 
-## 练习 3：证明嵌套释放顺序 {#exercise-03}
+## 练习 3：验证嵌套释放顺序 {#exercise-03}
 
 ### 让两个 reader 都留在作用域内 {#exercise-03-scope}
 

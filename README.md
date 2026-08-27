@@ -33,4 +33,4 @@ scripts/check-book.mjs        Minimal bilingual consistency check
 .github/workflows/            GitHub Pages deployment
 ```
 
-Code examples live directly in the book pages. The Markdown manuscript and its embedded examples are the source of truth; the Node-based checks validate that self-contained book structure.
+Code examples live directly in the book pages. The Markdown manuscript and its embedded examples are the source of truth; the Node-based checks confirm that the book remains self-contained.

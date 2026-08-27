@@ -38,7 +38,7 @@ If arithmetic returns a new fill rate, it must call `create` or be implemented i
 
 ## Exercise 2: choose a transparent or private outer record {#exercise-02}
 
-Favor the public record when the complete rule is simply “contains one valid `EventId` and one valid `SeatCount`.” Both components already carry their proofs, all field combinations are legal, and consumers benefit from record construction, copy-and-update, and pattern matching.
+Favor the public record when the complete rule is simply “contains one valid `EventId` and one valid `SeatCount`.” Both components are already validated, and all field combinations are legal. Consumers then retain record construction, copy-and-update, and pattern matching.
 
 Favor the private record when there is a cross-field rule, a derived field that must stay synchronized, normalization that must occur as a unit, or a likely representation change that should not break consumers. For example, a group-booking policy may require a contact address whenever `SeatCount` exceeds a threshold.
 

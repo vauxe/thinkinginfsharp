@@ -10,23 +10,9 @@ A script can hide a useful fact: a program has a dependency direction. Once doma
 
 This rule is not ceremony added by an editor. It gives a project an inspectable architecture. In this chapter's executable project, `Domain.fs` knows nothing about the workflow, `Workflow.fs` depends on the domain, and `Program.fs` composes both. The project file records exactly that order.
 
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- turn a single-file experiment into a small multi-file F# project;
-- read `<Compile>` items as a semantic dependency order;
-- predict and repair a forward-reference `FS0039` error;
-- distinguish a namespace, a module, a project, a solution, and an assembly;
-- choose qualified names or a deliberate `open` declaration;
-- explain what common SDK and compiler settings control;
-- mark a nullable reference input as `T | null` when null checking is enabled;
-- propagate that annotation through a public wrapper instead of disabling a diagnostic;
-- shape file order so domain code does not depend on orchestration or startup code.
-
 ## From a script to a project {#script-to-project}
 
-Use `.fsx` scripts while discovering expressions and APIs. Move to a project when code needs several files, package or project references, repeatable compiler settings, tests, or a deployable output. The syntax inside functions barely changes; the surrounding compilation contract becomes explicit.
+Use `.fsx` scripts while discovering expressions and APIs. Move to a project when code needs several files, package or project references, repeatable compiler settings, tests, or a deployable output. The syntax inside functions barely changes; the project now states its compilation rules explicitly.
 
 The chapter example has this physical layout:
 
@@ -50,9 +36,9 @@ namespace ThinkingInFSharp.Ch16
 
 Each then places definitions in a focused module:
 
-- `Domain` owns protected identifiers, seat counts, capacity, requests, and validation;
-- `Workflow` owns the decision union and pure decision functions;
-- `Program` owns composition and the process entry point.
+- `Domain` defines protected identifiers, seat counts, capacity, requests, and validation;
+- `Workflow` defines the decision union and pure decision functions;
+- `Program` contains composition and the process entry point.
 
 The resulting qualified names expose both layers, such as `ThinkingInFSharp.Ch16.Domain.BookingId` and `ThinkingInFSharp.Ch16.Workflow.decide`. A filename helps navigation, but it is not automatically part of either qualified name.
 
@@ -84,11 +70,11 @@ The project file lists source inputs in dependency order:
   </ItemGroup>
 </Project>
 ```
-`<Compile Include="Domain.fs" />` contributes a compiler input. The next item can use its definitions, and the item after that can use both preceding files. Reordering tabs or moving files in the folder does not change this contract; changing the `<Compile>` sequence does.
+`<Compile Include="Domain.fs" />` contributes a compiler input. The next item can use its definitions, and the item after that can use both preceding files. Reordering editor tabs or moving files in the folder does not change compilation order; changing the `<Compile>` sequence does.
 
 The same ordering rule applies within a source file: definitions normally use earlier definitions. F# has explicit constructs for genuine recursion, but ordinary program layers should read from foundations toward composition.
 
-`Program.fs` is last because it depends on both other modules and contains `[<EntryPoint>]`. Keeping startup composition at the edge also prevents domain code from acquiring a dependency on console concerns.
+`Program.fs` is last because it depends on both other modules and contains `[<EntryPoint>]`. Keeping startup composition in the final layer also prevents domain code from depending on console concerns.
 
 ### The wrong order is a real compiler error {#wrong-order}
 
@@ -158,7 +144,7 @@ open ThinkingInFSharp.Ch16.Domain
 
 After that declaration, accessible names from `Domain` can be written as `Capacity`, `BookingRequest`, and `BookingId` instead of with their full path. `open` changes name lookup within the following scope. Project membership or an assembly reference supplies the definitions; compile order supplies their visibility; access modifiers continue to control which names are available.
 
-Qualification is often clearer at boundaries:
+Qualification is often clearer where modules meet:
 
 ```fsharp
 let requested = request |> Domain.BookingRequest.seats |> Domain.SeatCount.value
@@ -179,20 +165,20 @@ Two dependency mechanisms therefore operate at different levels:
 
 The test project uses `ProjectReference` to consume the chapter project. Its test files still have their own `<Compile>` order. A namespace with the same name may appear in both assemblies, but the reference—not the namespace spelling—makes external definitions available.
 
-## Compiler settings are executable contracts {#settings}
+## Compiler settings determine the build {#settings}
 
 Read settings by the question they answer:
 
 | Setting | Question answered |
 |---|---|
 | `global.json` `sdk.version` and `rollForward` | Which installed .NET SDK may run CLI/build tooling? |
-| `<TargetFramework>net10.0</TargetFramework>` | Which target framework APIs and runtime contract does this project compile against? |
+| `<TargetFramework>net10.0</TargetFramework>` | Which target framework APIs and runtime does this project target? |
 | `<LangVersion>10.0</LangVersion>` | Which F# language version does the compiler accept? |
 | `<Nullable>enable</Nullable>` | Should F# perform its opt-in nullness analysis? |
 | `<OutputType>Exe</OutputType>` | Is the project packaged as an executable rather than the default library? |
 | `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` | Must compiler warnings fail the build? |
 
-These controls govern separate decisions. The SDK selects the build toolset, `TargetFramework` selects the API and runtime contract, and `LangVersion` selects accepted F# language features. A reproducible project states each policy explicitly.
+These settings govern separate decisions. The SDK selects the build toolset, `TargetFramework` selects the APIs and runtime, and `LangVersion` selects accepted F# features. A reproducible project records each choice.
 
 Shared policy can live in `Directory.Build.props`; MSBuild imports it for descendant projects. A larger codebase can centralize `LangVersion`, nullable checking, warnings as errors, deterministic output, and locked package restore there. Keep a small standalone teaching project self-contained; centralize stable policy only when several real projects share it.
 
@@ -200,9 +186,9 @@ Prefer fixing a diagnostic to globally suppressing it. Warnings-as-errors makes 
 
 ## The minimum nullable-reference model {#nullable-minimum}
 
-With F# null checking enabled, `string` expresses a non-null reference contract and `string | null` explicitly admits null. The annotation guides compile-time analysis and uses the ordinary .NET reference representation at runtime. Foreign and unchecked code still require validation at the boundary.
+With F# null checking enabled, `string` means a non-null reference and `string | null` admits null. The annotation guides compile-time analysis but still uses an ordinary .NET reference at runtime. Validate values that arrive from foreign or unchecked code.
 
-The domain boundary deliberately accepts nullable text:
+The domain constructor deliberately accepts nullable text:
 
 ```fsharp
 let create (raw: string | null) =
@@ -214,9 +200,9 @@ let create (raw: string | null) =
 
 After the `null` case, analysis knows the remaining `value` is non-null. The boundary converts absence into a domain error before a protected `BookingId` is created. Internal functions can then consume the protected value without repeating null checks.
 
-Use `option` for absence that belongs in an F# domain model. Use `T | null` when the actual reference contract admits null, especially at .NET interoperability boundaries. Chapter 19 covers nullable value types, annotations from other .NET languages, `Null`/`NonNull` patterns, `option`, and runtime boundary validation as one complete model.
+Use `option` for absence in an F# domain model. Use `T | null` when an external .NET interface actually admits null. Chapter 19 combines nullable value types, annotations from other .NET languages, `Null`/`NonNull` patterns, `option`, and runtime validation into one model.
 
-### Nullable contracts must propagate through wrappers {#nullable-propagation}
+### Wrappers must preserve nullable annotations {#nullable-propagation}
 
 `BookingRequest.create` forwards its text to `BookingId.create`, so its own public input states the same contract:
 
@@ -229,9 +215,9 @@ let create (rawId: string | null) rawSeats =
         // ...
 ```
 
-Leaving `rawId` unannotated makes inference choose a non-null `string` parameter. Passing `null` in the focused test then produces nullable-mismatch diagnostic `FS3261`. The repair is to describe the real boundary on the wrapper, not disable nullable checking and not scatter an unchecked conversion.
+Leaving `rawId` unannotated makes inference choose a non-null `string` parameter. Passing `null` in the focused test then produces nullable-mismatch diagnostic `FS3261`. Fix the wrapper's parameter type; do not disable null checking or scatter unchecked conversions.
 
-Do not annotate every reference as nullable “just in case.” That weakens contracts and moves checks inward. Admit null only where the caller can actually supply it, validate there, and keep the core model non-null by construction.
+Do not annotate every reference as nullable “just in case.” That loses useful type information and moves checks inward. Admit null only where callers can supply it, validate there, and keep the core model non-null by construction.
 
 ## Let dependency shape guide the architecture {#dependency-shape}
 
@@ -306,7 +292,7 @@ Test both `null` and a non-null identifier. Explain why the parameter annotation
 - With null checking enabled, admit a nullable reference explicitly as `T | null` and propagate the contract through wrappers.
 - Use file order to reveal one-way architecture rather than merely rearranging files until a build passes.
 
-Chapter 17 strengthens these boundaries with signature files: consumers will see only the types and operations that a component deliberately exposes.
+Chapter 17 uses signature files to restrict the public API to the types and operations that a component deliberately exposes.
 
 ## Sources {#sources}
 

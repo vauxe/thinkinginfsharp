@@ -6,7 +6,7 @@ translationKey: glossary
 
 # Appendix F: F# Glossary {#overview}
 
-This glossary defines the F# vocabulary used in this edition.
+This glossary defines the F# terms used in this edition.
 
 “First introduced” points to the earliest chapter that teaches the concept directly. Follow the link for motivation, examples, and surrounding ideas.
 
@@ -54,13 +54,13 @@ A result produced when evaluation completes normally and available to other expr
 
 ### binding {#binding}
 
-An association, introduced by a pattern such as let, between a name and a value; it is not an implicitly rewritable storage slot.
+An association between a name and a value, usually introduced with `let` and a pattern. A binding is not an implicitly rewritable storage slot.
 
 **First introduced:** [Chapter 2: Values, Bindings, and Expressions](./part-01/ch-02-values-bindings-expressions#overview)
 
 ### immutability {#immutability}
 
-The property of retaining an established value. A binding keeps its name-to-value association, while a referenced object's internals follow their own mutability contract.
+The property of retaining an established value. A binding keeps its name-to-value association; if that value refers to an object, the object's type separately determines whether its internals can change.
 
 **First introduced:** [Chapter 2: Values, Bindings, and Expressions](./part-01/ch-02-values-bindings-expressions#overview)
 
@@ -72,7 +72,7 @@ Explicitly producing a value of one numeric type from another, such as using dec
 
 ### shadowing {#shadowing}
 
-Introducing a new binding with the same name in an inner or later scope so that the old binding can no longer be reached by that name there; it does not mutate the old value.
+Introducing a new binding with the same name in an inner or later scope. The old binding can no longer be reached by that name there, but its value is not mutated.
 
 **First introduced:** [Chapter 2: Values, Bindings, and Expressions](./part-01/ch-02-values-bindings-expressions#overview)
 
@@ -102,7 +102,7 @@ A value or expression actually supplied for a parameter when a function is appli
 
 ### automatic generalization {#automatic-generalization}
 
-The compiler's promotion of inferred unknown types to type parameters that can be instantiated with multiple types when doing so is safe and the definition does not depend on one concrete type.
+When it is safe, the compiler turns inferred unknown types into type parameters that can be instantiated with different concrete types.
 
 **First introduced:** [Chapter 3: Functions Are Values](./part-01/ch-03-functions-as-values#overview)
 
@@ -156,7 +156,7 @@ A type that combines a fixed number of positional values, whose component types 
 
 ### exhaustiveness {#exhaustiveness}
 
-The property that a set of patterns covers every possible shape of the input type; without it, some input may have no matching branch.
+The property that a set of patterns covers every possible form of the input type; without it, some input may have no matching branch.
 
 **First introduced:** [Chapter 4: Branching and Basic Patterns](./part-01/ch-04-branching-patterns#overview)
 
@@ -174,13 +174,13 @@ An ordered immutable singly linked collection of elements of one type; [] is emp
 
 ### pattern {#pattern}
 
-A shape rule used to test input structure, decompose components, and optionally bind local names to them.
+A structural rule used to test an input, decompose its components, and optionally bind local names to them.
 
 **First introduced:** [Chapter 4: Branching and Basic Patterns](./part-01/ch-04-branching-patterns#overview)
 
 ### pattern matching {#pattern-matching}
 
-Selecting a branch by the shape of a value while optionally binding names to its constituent parts.
+Selecting a branch from a value's structure while optionally binding names to its constituent parts.
 
 **First introduced:** [Chapter 4: Branching and Basic Patterns](./part-01/ch-04-branching-patterns#overview)
 
@@ -228,13 +228,13 @@ A value threaded into the next recursive or folding step that represents the res
 
 ### fold {#fold}
 
-A higher-order operation that combines collection elements into an accumulator in a defined order and returns the final state.
+A higher-order operation that combines collection elements into an accumulator in a defined order and returns the final accumulator.
 
 **First introduced:** [Chapter 6: Recursion, Tail Calls, and Folds](./part-01/ch-06-recursion-folds#overview)
 
 ### recursion {#recursion}
 
-A function calling itself directly or indirectly to continue with a smaller problem or one closer to a termination condition.
+A function calling itself directly or indirectly with a smaller problem, or with input closer to a termination condition.
 
 **First introduced:** [Chapter 6: Recursion, Tail Calls, and Folds](./part-01/ch-06-recursion-folds#overview)
 
@@ -260,13 +260,13 @@ Recursion whose recursive paths place the recursive call in tail position, allow
 
 ### anonymous record {#anonymous-record}
 
-A record value whose exact shape is determined by its field labels and types without a separately declared type name.
+A record value whose exact type is determined by its field labels and field types, without a separately declared type name.
 
 **First introduced:** [Chapter 7: Records, Updates, Equality, and Comparison](./part-02/ch-07-records-equality#overview)
 
 ### hash code {#hash-code}
 
-An integer summary derived consistently with equality to locate candidates in hash-based structures; unequal values may still share one code.
+An integer summary used to locate candidates in hash-based structures. Equal values must produce the same hash code, although unequal values may also share one.
 
 **First introduced:** [Chapter 7: Records, Updates, Equality, and Comparison](./part-02/ch-07-records-equality#overview)
 
@@ -302,7 +302,7 @@ A type made of named cases; each value belongs to exactly one case, and a case m
 
 ### union case {#union-case}
 
-One named possible shape of a discriminated union, carrying either no data or fields meaningful only for that shape.
+One named alternative in a discriminated union, carrying either no data or fields meaningful only for that alternative.
 
 **First introduced:** [Chapter 8: Discriminated Unions and State Modeling](./part-02/ch-08-discriminated-unions#overview)
 
@@ -356,13 +356,13 @@ A compile-time type annotation attached to supported numeric types to check dime
 
 ### value restriction {#value-restriction}
 
-The restriction of automatic generalization to safe binding shapes, rejecting nongeneralizable values with unresolved type variables so one storage location cannot be used unsafely at multiple types.
+The restriction of automatic generalization to safe binding forms. It rejects values with unresolved type variables when generalizing them could let one storage location be used unsafely at multiple types.
 
 **First introduced:** [Chapter 11: Generics, Constraints, and Units](./part-02/ch-11-generics-constraints#overview)
 
 ### access control {#access-control}
 
-The mechanism for specifying which code locations may use a program entity through public, internal, private, or a signature file.
+The rules that determine which code may use a program entity. F# expresses them with `public`, `internal`, `private`, and the declarations exposed by a signature file.
 
 **First introduced:** [Chapter 12: Making Illegal States Unrepresentable](./part-02/ch-12-making-illegal-states-unrepresentable#overview)
 
@@ -380,7 +380,7 @@ A design in which callers can use a type but cannot directly use its underlying 
 
 ### signature file {#signature-file}
 
-An F# .fsi file placed before its corresponding .fs implementation that declares the public surface visible to other files.
+An F# `.fsi` file placed before its corresponding `.fs` implementation. It declares the API visible to other files.
 
 **First introduced:** [Chapter 12: Making Illegal States Unrepresentable](./part-02/ch-12-making-illegal-states-unrepresentable#overview)
 
@@ -466,7 +466,7 @@ A .NET-compiled .dll or .exe, together with its metadata and code, used as a uni
 
 ### compilation order {#compilation-order}
 
-The sequence in which F# source files are supplied to the compiler; later files can ordinarily use earlier definitions, but not the reverse.
+The order in which F# source files are supplied to the compiler. Later files can ordinarily use earlier definitions, but earlier files cannot use later ones.
 
 **First introduced:** [Chapter 16: Modules, Namespaces, Projects, and Compiler Settings](./part-03/ch-16-modules-namespaces-projects#overview)
 

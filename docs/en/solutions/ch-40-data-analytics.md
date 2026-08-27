@@ -6,7 +6,7 @@ translationKey: solutions/ch-40-data-analytics
 
 # Chapter 40 Solutions {#overview}
 
-These answers choose provisional boundaries, then name the evidence that can reverse them. Package syntax alone cannot settle transaction ownership, schema compatibility, analytical correctness, or model usefulness.
+These answers make provisional tool choices, then state the criteria that would reverse them. Package syntax alone cannot settle transaction scope, schema compatibility, analytical correctness, or model usefulness.
 
 [Return to Chapter 40](../part-07/ch-40-data-analytics).
 
@@ -16,7 +16,7 @@ These answers choose provisional boundaries, then name the evidence that can rev
 
 Start with the vendor ADO.NET provider plus [Dapper 2.1.79](https://www.nuget.org/packages/Dapper/2.1.79) inside one infrastructure adapter. Keep the five tuned SQL statements explicit and map persistence DTOs to the existing booking domain.
 
-The application port should describe effects, not query mechanics:
+The application port should describe the persistence operation, not query mechanics:
 
 ```fsharp
 type BookingStore =
@@ -31,10 +31,10 @@ One transaction loads or checks the current version and performs a conditional w
 
 Direct ADO.NET is the countercandidate. It may win if streaming, batching, provider-specific types, or mapping control makes Dapper's helpers marginal. EF Core 10 is another candidate only if change tracking, migrations, or its application model provides demonstrated value; five tuned queries and explicit event/version semantics do not by themselves justify tracked entities.
 
-The spike must prove:
+The spike must verify:
 
 - every value is parameterized and any dynamic identifier comes from an allowlist;
-- transaction ownership is visible and connections/readers are disposed;
+- transaction scope and disposal responsibility are visible, and connections and readers are disposed;
 - cancellation reaches open, execute, and read operations;
 - the five queries return bounded projections and use expected indexes;
 - two controlled writers with one expected version yield one success and one conflict;
@@ -42,13 +42,13 @@ The spike must prove:
 - SQL diagnostics expose duration and row count without logging sensitive parameters;
 - locked restore, migration, publish, startup, and rollback work in the target environment.
 
-Choose direct ADO.NET if Dapper complicates record/null mapping or adds no recurring value. Choose EF Core if a representative write aggregate and read query show that its unit of work and migration graph reduce total ownership without leaking entities into the domain.
+Choose direct ADO.NET if Dapper complicates record or null mapping, or adds no recurring value. Choose EF Core if a representative write aggregate and read query show that its unit of work and migrations reduce total implementation and maintenance cost. Its entities must not leak into the domain.
 
 ### Case B: weekly CSV analysis and accessible chart {#exercise-01-case-b}
 
 Start with FSharp.Data for bounded ingestion, [Deedle 8.0.0](https://www.nuget.org/packages/Deedle/8.0.0) for date-keyed alignment and missing-data work, and [Plotly.NET 5.1.0](https://www.nuget.org/packages/Plotly.NET/5.1.0) only at the rendering boundary.
 
-First compare Deedle with ordinary records plus `Map<DateOnly, _>`. If three small files have one unique date key and two joins, typed maps may be clearer and give stronger row-shape visibility. Deedle wins provisionally when repeated outer joins, alignment, resampling, and missing-value policies dominate the analysis.
+First compare Deedle with records plus `Map<DateOnly, _>`. If three small files have one unique date key and two joins, typed maps may be clearer and make every row field visible in the type. Deedle wins provisionally when repeated outer joins, alignment, resampling, and missing-value policies dominate the analysis.
 
 The weekly job should:
 
@@ -62,15 +62,15 @@ The weekly job should:
 - bundle or approve browser assets and scan HTML/tooltips for sensitive data;
 - run headlessly from a clean process and compare invariant summary values.
 
-Plotly.NET loses if the delivery target requires a static format its export path cannot reproduce reliably, if browser policy rejects its assets, or if a simpler reporting tool already owns accessibility and distribution. The analytical calculation survives because it does not return chart objects.
+Plotly.NET loses if its export path cannot reproduce the required static format reliably or browser policy rejects its assets. It also loses if a simpler reporting tool already handles accessibility and distribution. The analytical calculation remains because it does not return chart objects.
 
 ### Case C: Python-trained model with local 30 ms inference {#exercise-01-case-c}
 
 Start with an ONNX export and the [ONNX Runtime .NET binding](https://onnxruntime.ai/docs/get-started/with-csharp.html). It preserves the Python team's training ecosystem while keeping inference in process and avoiding a network hop.
 
-Define a versioned `FeatureDto` at HTTP input, validate it, then map to a neutral `FeatureVector`. One inference adapter owns tensor names, order, dtype, dimensions, normalization, session lifetime, execution provider, and output-to-decision mapping. Do not let tensor objects or model-specific column names enter the domain.
+Define a versioned `FeatureDto` at HTTP input, validate it, then map it to a neutral `FeatureVector`. One inference adapter contains tensor names, order, data types, dimensions, normalization, session management, execution-provider selection, and output-to-decision mapping. Do not let tensor objects or model-specific column names enter the domain.
 
-Acceptance evidence includes:
+Acceptance criteria include:
 
 - the Python and .NET paths run a golden vector set and agree within a declared tolerance;
 - model digest, opset, feature schema, preprocessing version, labels, threshold, and training-data identity travel together;
@@ -81,7 +81,7 @@ Acceptance evidence includes:
 - diagnostics report model version, latency, and bounded outcome—not raw features;
 - the previous artifact remains deployable and rollback does not require a schema downgrade.
 
-ML.NET is the countercandidate because it can import ONNX and add .NET transforms. It wins only if those transforms reduce owned preprocessing while golden vectors remain identical. A local Python sidecar loses the initial comparison because it reintroduces process startup, packaging, serialization, and health boundaries without a demonstrated requirement.
+ML.NET is the alternative because it can import ONNX and add .NET transforms. It wins only if those transforms reduce the preprocessing the team must maintain while golden vectors remain identical. A local Python sidecar loses the initial comparison because it reintroduces process startup, packaging, serialization, and health checks without a demonstrated requirement.
 
 ## Exercise 2: design for CSV schema drift {#exercise-02}
 
@@ -94,7 +94,7 @@ Do not replace the data sample and hope every producer changed atomically. Defin
 | v1 | `OrderId,Region,Product,Units,UnitPrice,OrderedAt` | unknown columns follow an explicit ignore-or-reject policy |
 | v2 | `OrderId,Region,Product,Units,Price,Currency` plus `OrderedAt` | blank `OrderedAt` is syntactically allowed; unknown columns use the same stated policy |
 
-Keep one small synthetic compile-time sample per accepted version. A v2 sample must include a blank date and enough representative values to infer the intended optional numeric/date shapes. Generated provider types remain private inside `V1Adapter` and `V2Adapter`.
+Keep one small synthetic compile-time sample per accepted version. A v2 sample must include a blank date and enough representative values to infer the intended optional numeric and date types. Generated provider types remain private inside `V1Adapter` and `V2Adapter`.
 
 If upstream drift is frequent or headers are genuinely open, replace sample-derived runtime decoding with an explicit CSV schema/parser while retaining samples as fixtures. A type provider is optional ergonomics, not the compatibility authority.
 
@@ -108,18 +108,18 @@ bounded UTF-8 CSV
   -> syntax and column diagnostics
   -> version-specific normalization
   -> domain validation
-  -> accepted rows or quarantined evidence
+  -> accepted rows or quarantine records
 ```
 
 `Price` becomes a money candidate only after `Currency` is parsed against an allowed ISO currency set. For v1, use a versioned configured currency such as USD only if the supplier contract guarantees it; otherwise v1 cannot construct money safely and must be rejected or routed for enrichment. Never add decimals from different currencies.
 
 A blank v2 `OrderedAt` maps to `None` in the source DTO. The domain then decides whether absence is permitted, substituted from trusted envelope time, or rejected. An invalid nonblank date is not `None`; it is malformed input.
 
-Normalize `OrderId`, region, units, and product through the same constructors used by other adapters. Detect duplicate order IDs within the file before effects. Attach row number, source version, safe error code, and input digest to quarantine evidence; exclude full sensitive rows from ordinary logs.
+Normalize `OrderId`, region, units, and product through the same constructors used by other adapters. Detect duplicate order IDs within the file before any side effects. Attach the row number, source version, safe error code, and input digest to the quarantine record. Exclude complete sensitive rows from application logs.
 
 Unknown columns should be either rejected for a closed contract or ignored while recorded for an extension-tolerant contract. Apply the same policy in both versions. Silently switching based on provider behavior makes compatibility accidental.
 
-### Build the evolution evidence {#exercise-02-evidence}
+### Build compatibility fixtures {#exercise-02-evidence}
 
 Fixtures should cover:
 
@@ -136,7 +136,15 @@ Fixtures should cover:
 
 Compile both adapters in clean locked builds without network access. Run their normalized accepted rows through the same downstream contract tests. Observe accepted/rejected counts by source version with bounded labels.
 
-Delete v1 only after the supplier contract and migration window have ended, production observations show no v1 input for the agreed retention interval, retained replays no longer require v1, all callers and fixtures have moved, and rollback cannot restore a v1-emitting producer. Keep the migration decision and a safe schema example even after deleting executable support.
+Delete v1 only after every condition below is true:
+
+- the supplier contract and migration window have ended;
+- production has received no v1 input during the agreed retention interval;
+- retained replays no longer require v1;
+- all callers and fixtures have moved; and
+- rollback cannot restore a producer that emits v1.
+
+Keep the migration decision and a safe schema example even after deleting executable support.
 
 ## Exercise 3: productionize an exploratory model {#exercise-03}
 
@@ -171,17 +179,17 @@ The promoted artifact contains:
 
 Choose an ML.NET model when training and serving intentionally share its pipeline; choose ONNX when portability from the Python trainer is the stable seam. Conversion is tested with golden vectors and representative batches, not accepted because export succeeded.
 
-### Deploy inference as a separate owned component {#exercise-03-inference}
+### Give the inference component clear responsibilities {#exercise-03-inference}
 
 At startup, load the exact configured model, verify digest and schema, create the long-lived session/engine, warm it, and then report readiness. The request path validates the feature DTO, applies the matching preprocessing version, invokes a bounded concurrency pool, maps outputs to a declared decision, and never logs raw sensitive features.
 
-Contract tests cover schema versions, golden predictions, thresholds, invalid floating-point values, timeout/cancellation, corrupt/missing models, native-library failure, and safe errors. Load tests run in the deployment image on every CPU/GPU architecture. A real-process smoke proves publish layout and startup ownership.
+Contract tests cover schema versions, golden predictions, thresholds, invalid floating-point values, timeout and cancellation, corrupt or missing models, native-library failure, and safe errors. Load tests run in the deployment image on every CPU or GPU architecture. A real-process smoke test verifies the published layout and startup lifecycle.
 
 Monitor input validity, missingness, feature ranges, prediction distribution, latency, failures, model version, and delayed decision outcomes with privacy-preserving bounded dimensions. Drift is an investigation signal, not an automatic retrain command.
 
 Deploy a new immutable artifact through shadow or canary comparison where policy allows. Roll back by selecting the previous model/service artifact; keep input compatibility across the rollback window. Retraining requires the same evaluation and approval gate, not merely a newer timestamp.
 
-The original chart becomes a generated review artifact with its source table and textual summary. It is never the only evidence for promotion.
+The original chart becomes a reproducible review output with its source table and text summary. It is never the sole basis for promotion.
 
 ## Solution review {#solution-review}
 
@@ -193,12 +201,12 @@ The original chart becomes a generated review artifact with its source table and
 - CSV versions are recognized explicitly and normalize through private source adapters.
 - Blank, invalid, unknown, and absent remain different states throughout ingestion.
 - Currency needs a code and contract; a decimal alone is not money.
-- V1 removal depends on producer, observation, replay, fixture, and rollback evidence.
+- V1 removal depends on producer, observation, replay, fixture, and rollback checks.
 - Training data, split, preprocessing, model, metrics, and approval form one lineage.
-- Exploration moves into compiled, tested functions before it becomes production evidence.
-- Serving owns model loading, concurrency, diagnostics, native dependencies, and rollback.
+- Exploration moves into compiled, tested functions before it informs production decisions.
+- The serving component manages model loading, concurrency, diagnostics, native dependencies, and rollback.
 - Drift prompts investigation; it does not silently replace the deployed model.
-- Every recommendation remains reversible when its stated evidence fails.
+- Every recommendation remains reversible when its stated validation criteria fail.
 
 ## Sources {#sources}
 

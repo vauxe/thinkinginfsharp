@@ -8,23 +8,11 @@ translationKey: part-02/ch-09-option-result
 
 一次查找可能合理地找不到预约。另一个预约请求可能已被找到，却因为索要过多座位而失败。两种计算都没有得到正常值，但它们传达的含义不同：前者中，“没有”就是完整答案；后者中，调用方还需要知道原因。
 
-F# 用不同类型表达这两种含义。`'T option` 表示“可能有一个 `'T`”。`Result<'T, 'TError>` 表示“要么有成功的 `'T`，要么有已建模的 `'TError`”。二者都是可辨识联合，因此调用方必须处理其案例，而不必依赖 `-1`、空字符串等特殊值，也不必猜测未写明的异常约定。
+F# 用不同类型表达这两种含义。`'T option` 表示“可能有一个 `'T`”。`Result<'T, 'TError>` 表示“要么成功并得到 `'T`，要么得到有类型的错误”。二者都是可辨识联合。调用方直接处理其案例，无需依赖 `-1`、空字符串等特殊值，也无需猜测未写明的异常约定。
 
-## 学完本章后你能做什么 {#outcomes}
+这里先用普通函数讨论同步代码。第 18 章介绍计算表达式，第 19 章处理可空引用互操作，第 21 章讨论异常。
 
-学完本章后，你应该能够：
-
-- 在“缺失”无需进一步解释时选择 `option`；
-- 在预期失败的原因有意义时选择 `Result`；
-- 用模式匹配和默认值安全地使用这两种类型；
-- 根据后续函数的返回类型区分 `map` 与 `bind`；
-- 组合验证步骤，同时保留第一个错误；
-- 用 `Result.mapError` 添加上下文而不改变成功值；
-- 解释为什么 `Some null` 可能存在，以及为何通常应在边界处将其规范化。
-
-本章只讨论同步代码，并使用显式函数。计算表达式见第 18 章，可空引用互操作见第 19 章，异常边界见第 21 章。
-
-## 让缺失成为案例，而不是秘密值 {#absence-as-data}
+## 用案例表示缺失，不用隐含特殊值 {#absence-as-data}
 
 设想一个函数在找不到参与者时返回 `""`。调用方无法分辨空字符串究竟表示“缺失”，还是存储的数据本来就是空字符串。返回 `null` 只是把歧义移入运行时约定；抛出异常则会把普通的查找结果伪装成异常情况。
 
@@ -36,9 +24,9 @@ type Option<'T> =
     | None
 ```
 
-这里展示的是概念定义——该类型已经存在于 FSharp.Core。`Some value` 证明值存在，`None` 声明值缺失。返回类型在代码运行前就记录了这种可能性。
+这里展示的是概念定义——该类型已经存在于 FSharp.Core。`Some value` 表示值存在，`None` 表示值缺失。返回类型在代码运行前就写明了这两种可能。
 
-共享脚本遵循标准的 `try` 命名惯例，用它命名可能无法产生值的操作：
+共享脚本遵循标准的 `try` 命名惯例，用它命名可能找不到值的操作：
 
 ```fsharp:line-numbers [ch09-option-result.fsx]
 let attendees = [ "B-101", "Lin"; "B-102", "Ada" ]
@@ -52,9 +40,9 @@ let missingAttendee = tryFindAttendee "B-999" |> Option.defaultValue "none"
 
 printfn "Lookup: known=%s missing=%s" knownAttendee missingAttendee
 ```
-`List.tryFind` 返回 option。`Option.map snd` 只在元组存在时变换它：`Some (id, name)` 变成 `Some name`，`None` 仍为 `None`。这个函数不会编造一个替代参与者。
+`List.tryFind` 返回 option。`Option.map snd` 只在元组存在时变换它：`Some (id, name)` 变成 `Some name`，`None` 仍为 `None`。这个函数不会编造一个占位参加者。
 
-### 有意识地处理缺失 {#consuming-option}
+### 明确处理缺失 {#consuming-option}
 
 当两个案例会触发不同行为时，模式匹配会保留二者：
 
@@ -65,9 +53,9 @@ let lookupMessage bookingId =
     | None -> "booking not found"
 ```
 
-当一个真正的后备值已经足够时，`Option.defaultValue fallback option` 会在该边界把两个案例收拢为一种值。若后备值的计算成本较高，`Option.defaultWith` 会把计算推迟到确实需要时。
+确实有合适的后备值时，`Option.defaultValue fallback option` 会把两个案例归并为一个普通值。若计算后备值的成本较高，`Option.defaultWith` 会推迟到需要时再计算。
 
-不要把 `.Value` 或 `Option.get` 当成解包 option 的常规方式。二者遇到 `None` 都会抛出异常，丢掉类型所表达的安全性。只有当 `Some` 的证明就在局部且显而易见时，它们才可能合理；模式匹配通常能更清楚地记录这项证明。
+不要把 `.Value` 或 `Option.get` 当成解包 option 的常规方式。二者遇到 `None` 都会抛出异常，丢掉类型所表达的安全性。只有附近代码已经确认值是 `Some` 时，才可能合理使用；模式匹配通常更清楚。
 
 ## `map` 变换现有值，`bind` 继续查找 {#option-composition}
 
@@ -106,22 +94,22 @@ printfn "Option bind: positive=%s nonPositive=%s" positiveSeats nonPositiveSeats
 | `'T -> 'U` | `Option.map` | `Some (f x)` | `None` |
 | `'T -> 'U option` | `Option.bind` | `f x` | `None` |
 
-`bind` 会**短路**：一个步骤返回 `None` 后，后续依赖函数不会运行。这是由案例编码的普通数据流，不是隐藏的控制流。
+`bind` 会**短路**：一个步骤返回 `None` 后，后续依赖函数不会运行。这是由案例自然决定的流程，不是隐藏控制。
 
 option 有意不说明值为何缺失。如果调用方需要区分“未知预约”“标识无效”和“目录不可用”，`None` 已经抹掉了调用方所需的信息。此时，`Result` 才是更好的模型。
 
-## 预期失败值得拥有错误类型 {#result-model}
+## 用错误类型表示预期失败 {#result-model}
 
 `Result<'T, 'TError>` 也有两个案例：
 
 ```fsharp
-// 概念形状；FSharp.Core 已经提供 Result。
+// 概念结构；FSharp.Core 已经提供 Result。
 type Result<'T, 'TError> =
     | Ok of 'T
     | Error of 'TError
 ```
 
-`Ok value` 携带成功值；`Error error` 携带领域所选的原因。可辨识联合通常优于裸错误字符串，因为每种失败形状仍可供程序读取：
+`Ok value` 携带成功值；`Error error` 携带领域所选的原因。可辨识联合通常优于裸错误字符串，因为程序仍能识别每种失败案例：
 
 ```fsharp:line-numbers [ch09-option-result.fsx]
 let validateAttendee request =
@@ -210,9 +198,9 @@ let doublyInvalidRequest = { Attendee = ""; Seats = 0 }
 
 printfn "Short circuit: %s" (validate 4 doublyInvalidRequest |> describeResult)
 ```
-对相互依赖的步骤而言，这种行为正确：只有前面的数据有效后，座位验证才可能有意义。它不会累积所有错误。如果表单应一次展示所有相互独立的问题，就要显式收集这些结果，或采用累积式验证；第 18 章会回到这个区别。
+对相互依赖的步骤而言，这种行为正确：只有前面的数据有效，座位验证才有意义。它不会累积所有错误。如果表单要一次展示所有相互独立的问题，就应主动收集结果，或采用累积式验证；第 18 章会再谈这个区别。
 
-`Error` 应描述调用方能够合理检查或处理的失败。不要捕获所有异常并将它们变成模糊的 `Error "failed"`；这会破坏堆栈和原因信息。程序缺陷、取消、资源失败和领域拒绝各有不同边界，第 21 章会建立这项策略。
+`Error` 应描述调用方能够合理检查或处理的失败。不要捕获所有异常并将它们变成模糊的 `Error "failed"`；这会破坏堆栈和原因信息。程序缺陷、取消、资源失败和领域拒绝需要不同处理，第 21 章会给出具体策略。
 
 ## 选择能准确表达含义的最小类型 {#choosing-a-type}
 
@@ -222,8 +210,8 @@ printfn "Short circuit: %s" (validate 4 doublyInvalidRequest |> describeResult)
 | --- | --- | --- |
 | 查找可能无匹配，知道“无匹配”就已足够 | `'T option` | 存在或缺失 |
 | 解析或验证可能因有用的已知原因失败 | `Result<'T, 'Error>` | 成功或已建模原因 |
-| 函数契约保证值存在 | `'T` | 一个值，没有公开的替代案例 |
-| 失败出乎预期或无法在局部处理 | 不要自动选择 `Result` | 保留恰当的异常或取消边界 |
+| 函数保证值存在 | `'T` | 一个值，没有公开的替代案例 |
+| 失败出乎预期或无法在局部处理 | 不要自动选择 `Result` | 保留异常或取消的原有语义 |
 
 不要仅仅为了模仿 option 而返回 `Result<'T, unit>`；错误不携带信息时就使用 option。反过来，也不要只为缩短签名而把有意义的错误压缩成 `None`。
 
@@ -245,7 +233,7 @@ printfn "Some null: isSome=%b payloadIsNull=%b" riskyPayload.IsSome payloadIsNul
 ```
 这样会产生三种可表示状态：`None`、`Some null` 和 `Some "Lin"`。这通常是意外复杂度。在 .NET 边界处，应先把可空结果规范化为 `None`，或拒绝它，再让核心代码接收该值。
 
-启用 F# 空值检查后，标注 `(string | null) option` 会明确表示其中的值可以为 null。本章只需记住：`Some` 本身不能证明内部引用一定非 null。第 19 章会完整解释 `T | null`、`Nullable<T>`、旧式 .NET 标注与边界转换。
+启用 F# 空值检查后，`(string | null) option` 明确表示其中的值可以为 null。这里先记住：`Some` 不能保证内部引用非 null。第 19 章会完整解释 `T | null`、`Nullable<T>`、旧式 .NET 标注与互操作转换。
 
 ## 运行共享示例 {#run-example}
 
@@ -255,7 +243,7 @@ printfn "Some null: isSome=%b payloadIsNull=%b" riskyPayload.IsSome payloadIsNul
 dotnet fsi --exec ch09-option-result.fsx
 ```
 
-六行输出覆盖成功查找、缺失、option 组合、验证成功与失败、附加错误信息、遇到第一个错误后停止，以及 `Some null` 边界情况。请逐行核对。
+六行输出覆盖成功查找、缺失、option 组合、验证成功与失败、补充错误信息、遇到第一个错误后停止，以及 `Some null` 特殊情况。请逐行核对。
 
 ## 练习 {#exercises}
 
@@ -299,7 +287,7 @@ tryConfirmedCode : Booking -> string option
 - `map` 变换已包装值；`bind` 使用一个已经返回同种包装的函数继续计算。
 - `Option.bind` 和 `Result.bind` 会在第一个 `None` 或 `Error` 处停止。
 - `Result.mapError` 丰富失败上下文，而不打扰成功值。
-- option 可以包含 `null`；应在有意设置的边界规范化可空 .NET 值。
+- option 可以包含 `null`；应在明确的 .NET 互操作入口规范化可空值。
 
 第 10 章会把同样由案例驱动的推理从两个案例的容器推广到递归树。
 

@@ -6,26 +6,9 @@ translationKey: part-06/ch-35-ports-persistence-config
 
 # Chapter 35: Ports, Persistence, Configuration, and Stubs {#overview}
 
-Chapter 34 ended at an accepted fact. This chapter crosses the effect boundary without letting JSON, paths, or test-service behavior become domain rules. The result is deliberately small: one versioned DTO contract, one bounded local snapshot, deterministic payment and notification stubs, and one composition object that owns them.
+Chapter 34 ended with an accepted fact. This chapter performs external operations without turning JSON, paths, or test-service behavior into domain rules. The design remains small: one versioned DTO contract, one size-limited local snapshot, deterministic payment and notification stubs, and one composition object that owns them.
 
 The central question is authority. The domain decides whether a command is legal. A mapper decides whether an external representation can become protected data. A file adapter decides how bytes are replaced. A composition root decides which implementations supply capabilities and who disposes them. Keeping those decisions separate makes failures both honest and testable.
-
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- read a port as a capability required by the application rather than an implementation choice;
-- keep transport and persistence DTOs separate from private F# records and discriminated unions;
-- design bidirectional mapping that either succeeds completely or returns a precise error;
-- choose and lock a stable JSON representation for a union;
-- use a schema version as a compatibility decision point, not decoration;
-- reject unknown, wrongly cased, oversized, malformed, and semantically impossible snapshots;
-- distinguish a same-directory replacement from a database transaction or distributed guarantee;
-- load a configurable path without treating ordinary configuration as a secret;
-- build deterministic stubs for success, refusal, fault, and cancellation;
-- propagate the caller's cancellation token through every asynchronous port;
-- put resource ownership at the composition boundary and make disposal idempotent;
-- state exactly what this local adapter still cannot guarantee.
 
 ## Follow dependency direction {#dependency-direction}
 
@@ -44,7 +27,7 @@ Booking.Infrastructure ---> Booking.Contracts ---> Booking.Domain
 
 This is not ceremonial layering. If the domain referenced `JsonPropertyNameAttribute`, a file path, or a payment stub, changing an outer mechanism could force changes to business types. The dependency graph prevents that accidental authority transfer.
 
-## Keep wire shape separate from domain shape {#separate-shapes}
+## Keep wire representation separate from domain representation {#separate-shapes}
 
 The snapshot DTO is intentionally ordinary .NET data:
 
@@ -66,7 +49,7 @@ type BookingDto =
       [<JsonPropertyName("cancellationReason")>]
       CancellationReason: string | null }
 ```
-`[<CLIMutable>]` adds a parameterless constructor and property setters for CLI-oriented consumers. It does not make this record a domain entity. `[<JsonPropertyName>]` fixes the wire names in both serialization directions, independently of future F# field renames.
+`[<CLIMutable>]` adds a parameterless constructor and property setters for serializers and other .NET consumers. It does not make the record a domain entity. `[<JsonPropertyName>]` fixes names in the serialized format, independently of future F# field renames.
 
 The DTO admits states the domain forbids: null identifiers, a missing seat count, an unknown status string, or two status payloads at once. That is correct at an untrusted boundary. If its type pretended those values were impossible, deserialization failure would merely move into reflection or exceptions without giving the application an explicit mapping policy.
 
@@ -84,7 +67,7 @@ Version 1 projects `BookingStatus` to one exact tag plus at most one payload:
 
 A raw string is preferable to a CLR enum here. The domain value is not an enum: two cases carry different protected data. A string tag also lets mapping return `UnknownStatus actual` instead of allowing serializer defaults to invent a numeric convention.
 
-Omitted null payloads make each successful shape smaller, but omission is not ambiguity. The tag says which payload must exist. Contract tests assert the exact property set for every case so a serializer-option change cannot quietly add both null fields.
+Omitting null payloads makes each successful JSON document smaller without creating ambiguity. The tag says which payload must exist. Contract tests assert the exact property set for every case so a serializer-option change cannot quietly add both null fields.
 
 ## Make reverse mapping explicit {#explicit-mapping}
 
@@ -201,7 +184,7 @@ module CancelBookingMapping =
             | _, null -> Error DtoMappingError.MissingCancellationReason
             | requestId, reason -> Ok(Commands.cancel requestId reason)
 ```
-They reject transport absence such as a missing body, request ID, seat property, code, or reason. They deliberately preserve blank strings and zero seats in raw domain commands. Chapter 34's validators own those rules and can accumulate their errors; repeating them in DTO mapping would create competing authorities and different precedence.
+They reject missing transport data: the body, request ID, seat property, code, or reason. They deliberately preserve blank strings and zero seats in raw domain commands. Chapter 34's validators own those rules and can accumulate their errors; repeating them in DTO mapping would duplicate policy and could change error precedence.
 
 Thus “mapping succeeded” means the transport supplied the fields needed to express an intent. It does not mean the intent passed domain validation or business decision.
 
@@ -555,7 +538,7 @@ type PaymentStub(behavior: PaymentStubBehavior) =
         member _.Dispose() =
             lock syncRoot (fun () -> disposed <- true)
 ```
-It authorizes with a supplied transaction ID, returns a supplied decline reason, or raises `DependencyUnavailableException` whose `InnerException` carries the supplied failure detail. The notification substitute similarly delivers or raises the same typed availability signal:
+It either authorizes with a supplied transaction ID, returns a supplied decline reason, or raises `DependencyUnavailableException`. In the last case, `InnerException` carries the supplied failure detail. The notification substitute likewise either delivers or raises the same typed failure:
 
 ```fsharp:line-numbers [NotificationStub.fs]
 type NotificationStub(behavior: NotificationStubBehavior) =
@@ -624,15 +607,15 @@ Ownership would be ambiguous if a composition accepted arbitrary externally owne
 
 One generic `Error of string` would erase which layer has authority to recover or report. Conversely, inventing a separate exception class for every domain refusal would turn ordinary business outcomes into control-flow surprises.
 
-## Verify effects with real boundaries {#testing}
+## Verify side effects with real implementations {#testing}
 
-File-store contract tests write only to unique system temporary directories. They prove real JSON round trips, replacement without temporary residue, missing-file behavior, strict encoding, corruption categories, the size cap, path validation, and cancellation before save preserving the prior complete snapshot.
+File-store contract tests write only to unique system temporary directories. They verify real JSON round trips, replacement without temporary residue, missing-file behavior, strict encoding, corruption categories, the size cap, and path validation. They also confirm that cancellation before save preserves the previous complete snapshot.
 
 Adapter tests run the real file adapter and deterministic substitutes. They cover authorization, decline, delivery, exact faults, cancellation without recorded side effects, token propagation to the clock, persistence through the composed ports, typed corruption errors, repeated disposal, and use-after-disposal rejection.
 
 The Release solution build passes with F# 10 null checking and warnings as errors. The complete example gate restores locked dependencies, builds every registered project, and runs tests and scripts. The capstone runtime projects add no third-party runtime package and require no service account; the test and tooling gate still restores its locked packages.
 
-This evidence does not yet cover HTTP input, concurrent capacity, retry, restart of a multi-booking store, or a C# client. Those are the next three chapters, not hidden assumptions here.
+These tests do not cover HTTP input, concurrent capacity, retries, restart of a multi-booking store, or a C# client. The next three chapters address those concerns explicitly.
 
 ## Avoid common boundary mistakes {#boundary-mistakes}
 
@@ -669,7 +652,7 @@ Suppose production payment and notification clients are created by a host contai
 - Ports state required capabilities; adapters choose mechanisms.
 - DTOs are permissive representations, not domain entities.
 - Tags, payloads, field names, casing, null omission, and versions form a JSON contract.
-- Reverse mapping checks version, presence, smart constructors, and legal union shape.
+- Reverse mapping checks version, presence, smart constructors, and legal union cases.
 - Raw command mapping preserves domain validation authority.
 - A configured absolute path is distinct from a secret and from request input.
 - Bounded strict decoding turns damaged files into explicit outcomes.
@@ -678,7 +661,7 @@ Suppose production payment and notification clients are created by a host contai
 - Deterministic stubs control outcomes without pretending to be network integrations.
 - Cancellation is propagated before recording substitute side effects.
 - The composition root constructs, exposes, and disposes what it owns.
-- JSON, file-store, and adapter evidence proves this boundary; later chapters must still prove HTTP and consistency.
+- JSON, file-store, and adapter tests cover this layer; later chapters must still verify HTTP and consistency.
 
 ## Sources {#sources}
 

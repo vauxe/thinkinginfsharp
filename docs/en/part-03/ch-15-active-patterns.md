@@ -1,28 +1,14 @@
 ---
-title: "Chapter 15: Active Patterns and Domain Matching Boundaries"
+title: "Chapter 15: Active Patterns and Domain Views"
 description: "Use complete, partial, and parameterized active patterns as explicit domain views while keeping I/O, expensive work, and detailed failure visible."
 translationKey: part-03/ch-15-active-patterns
 ---
 
-# Chapter 15: Active Patterns and Domain Matching Boundaries {#overview}
+# Chapter 15: Active Patterns and Domain Views {#overview}
 
-Ordinary patterns reveal a value's declared shape. Active patterns let a function provide another named view for pattern matching. A booking status can therefore be viewed as `Open` or `Closed` without changing its underlying union; text can be recognized as a positive seat count without turning every caller into parsing code.
+Ordinary patterns match the cases and fields declared by a type. Active patterns let a function provide another named view for matching. A booking status can therefore be viewed as `Open` or `Closed` without changing its union; text can be recognized as a positive seat count without duplicating parsing code at every caller.
 
-That convenience has a boundary. An active pattern is executable code invoked during matching. If it opens a file, calls a database, constructs an expensive parser, reads the clock, or discards a useful error, the match expression looks simpler while its behavior becomes harder to see. Good active patterns expose a cheap, deterministic view of values already in hand.
-
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- explain an active pattern as a function-backed pattern view;
-- define and consume complete multi-case and single-case active patterns;
-- define a partial active pattern that may not match;
-- specialize a single-case active pattern with parameters;
-- predict how clause order can repeat a recognizer;
-- distinguish “not this shape” from a failure whose reason must be preserved;
-- keep I/O, exceptions, time, and other effects outside matching abstractions;
-- decide when an ordinary function, direct union match, or smart constructor is clearer;
-- treat a public active pattern's case names and payloads as an API contract.
+That convenience has a cost: an active pattern is executable code invoked during matching. If it opens a file, calls a database, builds an expensive parser, reads the clock, or discards a useful error, the match looks simpler while its behavior becomes obscure. Good active patterns provide a cheap, deterministic view of values already in hand.
 
 ## Use ordinary patterns first {#ordinary-patterns-first}
 
@@ -56,7 +42,7 @@ At a match site, these names occupy pattern position, but their definitions exec
 
 The three principal forms differ in one question:
 
-| Form | Definition shape | Match promise |
+| Form | Definition syntax | Match behavior |
 |---|---|---|
 | Complete multi-case | `(|A|B|)` | Every input becomes exactly one named partition |
 | Complete single-case | `(|View|)` | Every input decomposes successfully into the returned payload |
@@ -135,7 +121,7 @@ printfn
     (describeRawSeatCount "0")
     (describeRawSeatCount "oops")
 ```
-Both `"0"` and `"oops"` become “not matched.” That is appropriate only when the caller needs a yes/no shape test.
+Both `"0"` and `"oops"` become “not matched.” That is appropriate only when the caller needs a yes/no classification.
 
 ### Non-match is smaller than a modeled error {#non-match-versus-error}
 
@@ -147,7 +133,7 @@ Use a partial active pattern when:
 - diagnostics are irrelevant at this decision point;
 - the recognizer does not need to validate and return a protected value with rich errors.
 
-Keep `Result` visible when a UI, API, log, retry policy, or test must know why recognition failed. Never catch an arbitrary exception inside a partial pattern and translate it to `None`; that turns a defect or infrastructure failure into a misleading shape mismatch. Exceptions thrown by a recognizer otherwise propagate normally—`match` does not suppress them.
+Keep `Result` visible when a UI, API, log, retry policy, or test must know why recognition failed. Never catch an arbitrary exception inside a partial pattern and translate it to `None`; that turns a defect or infrastructure failure into a misleading non-match. Exceptions thrown by a recognizer otherwise propagate normally—`match` does not suppress them.
 
 ## Parameters specialize one recognizer {#parameterized-active-patterns}
 
@@ -201,7 +187,7 @@ printfn
 ```
 Six seats satisfy the first clause after one check. Three seats fail `AtLeast 5`, then satisfy `AtLeast 2`, so the recognizer runs twice. One seat also checks both parameterized occurrences before reaching the fallback.
 
-The counter is evidence, not recommended recognizer design. Each pattern occurrence is executable work, and refactoring clauses can change how often it runs. Correctness must not depend on a hidden mutable call count.
+The counter demonstrates evaluation frequency; it is not a recommended design. Each pattern occurrence performs executable work, and refactoring clauses can change how often it runs. Correctness must not depend on a hidden mutable call count.
 
 ## Keep matching cheap, deterministic, and local {#effect-boundary}
 
@@ -226,7 +212,7 @@ let decide loadBooking bookingId =
         | Closed reason -> Error $"closed:{reason}"
 ```
 
-The function call shows where loading happens and preserves its error. The inner active pattern now performs only an in-memory status view. Later chapters will make the same boundary asynchronous without moving I/O into the pattern.
+The function call shows where loading happens and preserves its error. The inner active pattern now performs only an in-memory status view. Later chapters make the loading step asynchronous without moving I/O into the pattern.
 
 If a recognizer needs a precompiled parser or policy, pass that cheap prepared value as a parameter or close over it in a module-scoped definition. Do not let compact syntax hide setup cost.
 
@@ -234,7 +220,7 @@ If a recognizer needs a precompiled parser or policy, pass that cheap prepared v
 
 An active pattern can let F# callers match a type whose union cases or fields remain private. This supports representation changes, but it does not make the pattern free to change. Case names, case count, input type, payload types, and complete-versus-partial behavior all affect consumer source code.
 
-Expose a small stable view and document its semantics. Do not mirror every private field through an active pattern, because that recreates the representation as a public contract. Chapter 17 will place such views in a signature file and test what consumers can actually observe.
+Expose a small stable view and document its semantics. Do not mirror every private field through an active pattern, because that recreates the private representation as public API. Chapter 17 places such views in a signature file and tests what consumers can actually observe.
 
 ## Return-form refinements belong after measurement {#return-forms}
 
@@ -255,9 +241,9 @@ let (|Integer|_|) (raw: string) =
     | false, _ -> ValueNone
 ```
 
-The return attribute is required; changing only the expression to `ValueSome`/`ValueNone` is not enough. Start with `option`, measure a real allocation problem, and optimize only that boundary. A struct return does not make expensive recognition cheap.
+The return attribute is required; changing only the expression to `ValueSome`/`ValueNone` is not enough. Start with `option`, measure a real allocation problem, and optimize only the affected hot path. A struct return does not make expensive recognition cheap.
 
-F# also supplies `Null`/`NonNull` active patterns for nullable boundaries. Chapter 19 treats them with the complete .NET null model rather than mixing that separate concern into domain recognition here.
+F# also supplies `Null`/`NonNull` active patterns for nullable references. Chapter 19 treats them with the complete .NET null model rather than mixing that concern into domain recognition here.
 
 ## A small selection rule {#selection-rule}
 
@@ -321,7 +307,7 @@ Assume `tryLoad` queries a database and returns `Booking option`. Explain the co
 - A partial non-match carries less information than a modeled error.
 - Each pattern occurrence can execute recognizer work, so clause order and repeated attempts matter.
 - Keep I/O, changing external state, expensive setup, and exception handling explicit outside the match.
-- Public case names and payload shapes are API contracts, even when the underlying representation stays private.
+- Public case names and payload types are part of the API, even when the underlying representation stays private.
 
 Chapter 16 moves from expression-level views to program structure: modules, namespaces, file order, projects, and compiler settings determine which definitions are available at all.
 

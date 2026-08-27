@@ -6,24 +6,24 @@ translationKey: appendices/h-advanced-index
 
 # Appendix H: Advanced Feature Recognition Index {#overview}
 
-This appendix is a routing aid. It helps you identify four F# feature families in unfamiliar code, ask the first correctness question, and find the authoritative entry point. It does not make them prerequisites for ordinary F#.
+This appendix is a recognition guide. It helps you identify four F# feature families in unfamiliar code, ask the first useful question, and find an authoritative reference. None of them is a prerequisite for everyday F#.
 
-The foundation remains functions, types, patterns, modules, collections, explicit effects, async/task, .NET interoperability, and tests. Study an advanced feature deeply when a real API, performance trace, library, or abstraction requires it.
+The foundation remains functions, types, patterns, modules, collections, controlled effects, async/task, .NET interoperability, and tests. Study an advanced feature deeply only when an API, profiling result, library, or necessary abstraction requires it.
 
-## Quick recognition map {#quick-map}
+## Quick recognition table {#quick-map}
 
-| Feature | Surface signal | Core idea | First stop question |
+| Feature | Recognition clues | Core idea | First question |
 |---|---|---|---|
 | quotations | `<@ ... @>`, `<@@ ... @@>`, `Expr<'T>`, quotation patterns | represent an F# expression as data | is the code constructing, transforming, translating, or executing an expression tree? |
 | SRTP | `inline` with static/member constraints; `'T` in current simplified signatures or `^T` in older/complex forms | resolve required members and specialize at compile time | why can ordinary generics, an interface, or concrete overloads not express this clearly? |
 | flexible types | `#BaseType` inside a type expression | accept any subtype or interface implementation in a nested/higher-order position | would a normal parameter upcast already work, and is the more general signature worth exposing? |
-| byref/Span | `&value`, `byref`, `inref`, `outref`, `Span`, `ReadOnlySpan` | use stack-constrained managed references and contiguous-memory views | which measured copy or interop boundary justifies the lifetime restrictions? |
+| byref/Span | `&value`, `byref`, `inref`, `outref`, `Span`, `ReadOnlySpan` | use stack-constrained managed references and contiguous-memory views | which measured copying cost or interop API justifies the lifetime restrictions? |
 
-Do not infer meaning from punctuation alone. The same symbols occur elsewhere: `#` begins FSI directives, `^` appears in older SRTP syntax and operators, `&` also appears in member constraints and Boolean operators, and `<@` is meaningful only as quotation syntax.
+Do not infer meaning from punctuation alone. The same symbols occur elsewhere: `#` begins FSI directives, `^` appears in older SRTP syntax and in operators, and `&` also appears in member constraints and Boolean operators. `<@` has this meaning only when it begins quotation syntax.
 
 ## Quotations: code represented as expression data {#quotations}
 
-A typed quotation uses `<@ expression @>` and has type `Expr<'T>`. An untyped quotation uses `<@@ expression @@>` and has type `Expr`. The compiler builds an object representation of the expression instead of compiling that quoted expression as ordinary execution at that location.
+A typed quotation uses `<@ expression @>` and has type `Expr<'T>`. An untyped quotation uses `<@@ expression @@>` and has type `Expr`. The compiler builds an object tree that represents the quoted expression instead of executing that expression at this location.
 
 Recognition signals include:
 
@@ -35,7 +35,7 @@ Recognition signals include:
 
 The first distinction is representation versus execution. A quotation does not execute itself. An evaluator, translator, provider, or other consumer gives the tree meaning, and that consumer may support only a subset of possible expressions.
 
-Use quotations when code-as-data is the actual contract: for example, a typed query translator needs to inspect property access and comparisons. Do not wrap ordinary callbacks in quotations merely because expression trees look more powerful. A function is simpler when the caller only needs to invoke behavior.
+Use quotations when a caller genuinely needs to inspect code as data—for example, when a typed query translator reads property access and comparisons. Do not wrap ordinary callbacks in quotations merely because expression trees look more powerful. A function is simpler when the caller only needs to invoke the behavior.
 
 Review:
 
@@ -66,7 +66,7 @@ Before introducing SRTP, compare:
 - an ordinary generic function with no member requirement;
 - an interface, delegate, or record of operations passed explicitly;
 - a small set of named overloads;
-- current .NET generic-math interfaces when that ecosystem contract is the real target.
+- current .NET generic-math interfaces when interoperating with that API family is the real goal.
 
 SRTP can enlarge inferred signatures, duplicate specialized code, increase compile time, make public APIs harder to consume, and interact subtly with inference. Keep it local, inspect the inferred type, test every intended instantiation, and avoid exposing incidental constraints.
 
@@ -99,7 +99,7 @@ Recognition signals include:
 - code that cannot capture a value in a closure, object field, or asynchronous workflow;
 - direct adaptation to a .NET API that already uses spans or references.
 
-Use these types at a synchronous, measured boundary: avoiding a material slice/copy, parsing a hot buffer, or interoperating with an existing API. They are not replacements for arrays, lists, records, or `Memory<'T>` in long-lived and asynchronous code.
+Use these types in synchronous code when measurement shows that avoiding a slice or copy matters, or when an existing API requires them. They are not replacements for arrays, lists, records, or `Memory<'T>` in long-lived and asynchronous code.
 
 Review ownership of the underlying storage, mutation and aliasing, empty/default values, bounds, escape lifetime, and behavior after the call. `inref` restricts what that reference holder may do; it does not prove that no other alias mutates the value.
 
@@ -126,7 +126,7 @@ When unfamiliar advanced code blocks progress:
 2. identify whether the feature represents code, resolves members, broadens subtype input, or constrains memory lifetime;
 3. read the linked official reference for the exact language version;
 4. isolate one executable example with one failure or rejection;
-5. find the feature's boundary in the larger system;
+5. find where the feature enters and leaves the larger system;
 6. decide whether to learn the implementation, wrap it, or keep it behind a library adapter;
 7. record target, version, performance, trimming/AOT, and interoperability evidence when relevant.
 

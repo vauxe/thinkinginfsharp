@@ -10,18 +10,7 @@ An F# service runs as a .NET process in the cloud. Its domain types, functions, 
 
 Start by naming the deployment problem, then choose the product and layer. A container packages a process. A compute platform such as Kubernetes runs it. Serverless changes the execution and billing contract. Aspire describes an application model and can drive local orchestration or target-specific deployment work; a separate target runtime hosts production.
 
-This chapter starts with the process and artifact, then moves outward. That order keeps F# design visible and makes every cloud claim proportional to evidence.
-
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- distinguish source, application artifact, image, running instance, platform configuration, and release, then match each claim to proportionate evidence;
-- choose among managed processes, managed containers, Kubernetes, and Serverless from trigger, lifetime, state, scale, control, and operational ownership;
-- define process and platform contracts for configuration, secrets, identity, storage, networking, resources, shutdown, and health;
-- design durable handlers for retries, duplicate delivery, partial completion, and poison input while keeping state and idempotency outside ephemeral instances;
-- connect F# services to containers and Aspire while keeping AppHost, service health, publish/deploy, and CI/CD responsibilities distinct;
-- promote one immutable artifact through a reversible release with explicit cost, security, observability, and rollback evidence.
+Start with the process and artifact, then move outward. That order keeps the F# design visible and limits each cloud claim to what has been verified.
 
 ::: tip Two reading passes
 For a first pass, follow the [deployment stack](#deployment-contracts), [decision map](#compute-decision-map), and [verified local slice](#verified-slice). Return to the [release plan](#release-observe-rollback), [evidence ladder](#evidence-ladder), and [adoption spike](#adoption-spike) when preparing a real deployment.
@@ -61,9 +50,9 @@ The answer may be one small managed Web service. Distributed topology is not a m
 | Managed container platform | A portable image is already a release contract; moderate scaling and networking needs; no cluster API requirement | Registry, image lifecycle, ingress, identity, volumes, probes, scaling limits, cold capacity |
 | Kubernetes | Many workloads need common cluster scheduling, custom controllers, network policy, sidecars, or a platform team already operates it | Cluster upgrades, policy, capacity, ingress, certificates, storage, tenancy, observability, incident load |
 | Serverless function/event runtime | Bursty or sparse bounded work maps naturally to provider triggers and can tolerate the invocation contract | Binding/runtime compatibility, cold start, duration and payload limits, retries, concurrency, ephemeral state, local fidelity, provider coupling |
-| VM or directly managed host | Legacy/native dependency, unusual OS control, stable load, or migration constraint makes host ownership worthwhile | Patching, process supervision, capacity, failover, certificates, deployment, telemetry, backup, hardening |
+| VM or directly managed host | Legacy/native dependency, unusual OS control, stable load, or migration constraint justifies managing the host directly | Patching, process supervision, capacity, failover, certificates, deployment, telemetry, backup, hardening |
 
-These are starting points, not a ranking. A managed container product can scale to zero; a Serverless product may accept container images; Kubernetes may be managed; a VM can run containers. Decide from the contract you must own, not the marketing category.
+These are starting points, not a ranking. A managed container product can scale to zero; a Serverless product may accept container images; Kubernetes may be managed; a VM can run containers. Decide from the responsibilities the team must retain, not the marketing category.
 
 ## The local cloud sample: one verified local slice {#verified-slice}
 
@@ -187,7 +176,7 @@ builder.Build().Run();
 ```
 The AppHost names the resource, explicitly declares an `http` endpoint, injects `DEPLOYMENT_MODE=aspire-local`, and attaches an HTTP health check. The explicit endpoint matters: without launch-profile endpoint metadata, the first real run failed before orchestration because the health check had no `http` or `https` endpoint to select.
 
-This is a good inter-language boundary. F# owns the application and its typed behavior. C# owns a small infrastructure DSL whose current templates, generated metadata, and examples are C#-first. No domain type crosses the boundary, so replacing the orchestration tool does not rewrite the service.
+This is a good inter-language boundary. F# implements the application and its typed behavior. C# contains a small infrastructure DSL whose current templates, generated metadata, and examples are C#-first. No domain type crosses the boundary, so replacing the orchestration tool does not rewrite the service.
 
 ### What was actually executed {#executed-evidence}
 
@@ -282,13 +271,13 @@ The final checked command lets the container target choose the Linux image platf
 
 ## Serverless is an invocation contract {#serverless-contract}
 
-“Serverless” means the provider owns more of the execution fleet and exposes a higher-level invocation, scaling, and billing model. Servers still exist, and application responsibilities remain.
+“Serverless” means the provider manages more of the execution fleet and exposes a higher-level invocation, scaling, and billing model. Servers still exist, and application responsibilities remain.
 
 Choose a function or event runtime when work is naturally bounded, sparse or bursty, provider triggers remove meaningful infrastructure, scale-to-zero is acceptable, and the team can live within the runtime's limits. A continuously busy low-latency API, long-lived socket, heavy native process, stable high-throughput worker, or workflow with complex in-memory coordination may fit a service or container better.
 
 ### Put a thin handler around a pure decision {#thin-handler}
 
-Use this shape:
+Use this flow:
 
 ```text
 provider event/binding
@@ -300,7 +289,7 @@ provider event/binding
 
 Keep provider attributes, trigger types, contexts, and SDK clients at the edge. The core should accept ordinary records and unions and return declared decisions. That makes the business behavior runnable without an emulator and keeps migration between a function and a worker possible.
 
-Bindings save code only when their failure semantics are understood. Ask who owns serialization, batching, checkpointing, acknowledgement, retries, poison messages, partial batch success, concurrency, cancellation, and telemetry. If an output binding hides the error you need to classify, a direct client SDK behind a port may be safer.
+Bindings save code only when their failure semantics are understood. Ask which component handles serialization, batching, checkpointing, acknowledgement, retries, poison messages, partial batch success, concurrency, cancellation, and telemetry. If an output binding hides the error you need to classify, a direct client SDK behind a port may be safer.
 
 ### Assume retries and duplicate delivery {#retries-duplicates}
 
@@ -320,7 +309,7 @@ Every provider defines supported .NET versions, CPU architectures, duration, mem
 
 ### F# on provider .NET workers {#fsharp-provider-workers}
 
-A provider advertising “.NET” does not prove first-class F# templates, analyzers, generated bindings, local tools, Native AOT behavior, or documentation. F# can consume ordinary .NET libraries, but code-generation and tooling surfaces may be language-shaped.
+A provider advertising “.NET” does not prove first-class F# templates, analyzers, generated bindings, local tools, Native AOT behavior, or documentation. F# can consume ordinary .NET libraries, but code generation and tooling APIs may favor one language.
 
 As of 2026-08-25, Azure Functions 4.x isolated worker documentation lists .NET 10 and notes that F# applications may need explicit registration for some binding extensions. It also records plan-specific restrictions and minimum worker package versions. This chapter reviewed that documentation but did not build or deploy an Azure Function.
 
@@ -336,7 +325,7 @@ An Aspire AppHost is code that declares resources and relationships. In run mode
 
 `AddProject`, `AddContainer`, and hosting integrations add resources to an application model. `WithReference` expresses a relationship and can inject connection or endpoint information. `WaitFor` controls startup readiness. These operations solve different problems: a reference is not automatically a wait, and either one is not a production authorization policy.
 
-Aspire integrations are packages that teach the AppHost how to represent and connect resources. Adding a database integration may start a local container, connect to an existing service, or participate in deployment. It does not decide schema ownership, transaction boundaries, backup, capacity, failover, data classification, or deletion.
+Aspire integrations are packages that teach the AppHost how to represent and connect resources. Adding a database integration may start a local container, connect to an existing service, or participate in deployment. It does not decide who governs the schema, where transactions end, or how backup, capacity, failover, data classification, and deletion work.
 
 Name resources as stable operational concepts. Treat generated connection data as configuration at the service boundary. Keep domain code unaware of Aspire resource types, so tests and alternative hosts can construct the same ports directly.
 
@@ -358,7 +347,7 @@ For a real F# solution, choose one of three honest paths:
 2. reproduce only the required registrations directly in F#, with locked packages and tests;
 3. create a language-neutral shared library whose public API is deliberately F#- and C#-friendly.
 
-Do not copy a template once and forget it. Own retry policy, timeouts, endpoint exposure, instrumentation sources, exporter behavior, sampling, package upgrades, and production backend verification.
+Do not copy a template once and forget it. The team must define and maintain retry policy, timeouts, endpoint exposure, instrumentation sources, exporter behavior, sampling, package upgrades, and production-backend verification.
 
 ## Local orchestration and deployment are separate modes {#local-versus-deployment}
 
@@ -461,7 +450,7 @@ The spike should be cheap to remove. Keep provider types outside the domain core
 - Shipping secrets, environment values, certificates, or provider IDs inside an image.
 - Promoting mutable tags or rebuilding separately for each environment.
 - Ignoring OS, CPU architecture, non-root user, filesystem, signal, and memory differences.
-- Adding Aspire resources without understanding connection, ordering, health, and production ownership.
+- Adding Aspire resources without understanding connection, ordering, health, and production responsibility.
 - Assuming AppHost environment automatically becomes the child application's environment.
 - Assuming OTLP variables mean the F# service is instrumented or telemetry reached a backend.
 - Treating a green local dashboard as a production deployment or probe configuration.
@@ -491,20 +480,20 @@ Design the minimum work required to deploy the F# service from the local cloud s
 - **Artifact and supply chain:** architecture, immutable image identity, registry, SBOM, signing, and vulnerability policy.
 - **Runtime contract:** configuration and secret identity, Service Defaults or alternative telemetry, production probes, non-root/read-only execution, resource limits, and shutdown.
 - **Release path:** staging smoke, representative load, progressive rollout, rollback, and data compatibility.
-- **Ownership:** cost, cleanup, and the team responsible for each operational response.
+- **Responsibility:** cost, cleanup, and the team responsible for each operational response.
 
 Label each claim as either illustrated by this chapter or awaiting evidence from the target environment.
 
 ### Exercise 3: design an idempotent Serverless booking consumer {#exercise-03}
 
-A provider event delivers `BookingConfirmed` at least once. The handler must reserve a notification identity, call an email provider, record the outcome, retry transient faults, isolate poison input, and tolerate a crash after the provider accepted the email but before the handler recorded success.
+A provider event delivers `BookingConfirmed` at least once. The handler must reserve a notification identity, call an email provider, record the outcome, retry transient faults, and isolate poison input. It must also recover when the provider accepted an email but the handler crashed before recording success.
 
 Show four parts in the design:
 
 - **Core state:** F# types, persistent transitions, the atomic boundary, and concurrency control.
 - **Provider boundary:** the email adapter and reconciliation of an unknown outcome.
 - **Operations:** retry and dead-letter policy, telemetry, deployment, and rollback.
-- **Proof:** tests for duplicate delivery, partial completion, poison input, and recovery.
+- **Verification:** tests for duplicate delivery, partial completion, poison input, and recovery.
 
 Finish by naming the guarantee that requires cooperation from the email provider.
 
@@ -513,18 +502,18 @@ Finish by naming the guarantee that requires cooperation from the email provider
 ## Chapter review {#chapter-review}
 
 - F# cloud code remains ordinary .NET application code; deployment changes external contracts, not the value of types and functions.
-- Separate compilation, publish layout, image, platform configuration, running instance, and observable release evidence.
-- Choose compute from trigger, lifetime, state, scale, control, and operational ownership.
+- Separate compilation, publish layout, image, platform configuration, running instance, and observable release checks.
+- Choose compute from trigger, lifetime, state, scale, control, and operational responsibility.
 - A container packages a process; a platform runs it; Serverless defines an invocation model; Aspire declares an application model.
 - Keep configuration external, secrets out of artifacts, identity narrow, and durable state outside ephemeral instances.
 - Treat shutdown as best effort and propagate cancellation; durable work needs idempotency and recovery.
 - Liveness, readiness, startup, resource readiness, synthetic journeys, and business health have different consumers and reactions.
-- Pin and inspect base image, architecture, user, port, entry point, supply-chain evidence, and immutable digest.
+- Pin and inspect the base image, architecture, user, port, entry point, supply-chain records, and immutable digest.
 - Serverless handlers need thin provider adapters, explicit retry semantics, duplicate handling, concurrency bounds, and measured cold paths.
-- Provider “.NET support” is not enough evidence for F# templates, bindings, code generation, or tooling.
+- Provider “.NET support” does not guarantee F# templates, bindings, code generation, or tooling.
 - A C# AppHost can be an honest narrow infrastructure adapter around an F# service.
 - AppHost is a development orchestrator, not the production runtime; local resource health is not production probe configuration.
-- Service Defaults are optional owned source code; environment injection alone does not instrument a service.
+- Service Defaults are optional source code that the team must maintain; environment injection alone does not instrument a service.
 - `aspire publish` emits a handoff, `aspire deploy` applies a target pipeline, and CI/CD still owns governance.
 - Promote one immutable artifact, design compatible data changes, observe progressive rollout, and rehearse rollback or forward fix.
 - The local cloud sample verifies a local F# service, C# AppHost, dashboard health, and image archive only; all provider paths remain unexecuted.

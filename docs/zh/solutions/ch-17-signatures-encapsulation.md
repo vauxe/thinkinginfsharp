@@ -1,6 +1,6 @@
 ---
 title: "第 17 章答案"
-description: "规定抽象电子邮件类型，收窄不一致的分配表面，并让函数元数与辅助函数可访问性在签名文件对中保持一致。"
+description: "规定抽象电子邮件类型，收窄不一致的分配 API，并让函数元数与辅助函数可访问性在签名和实现中保持一致。"
 translationKey: solutions/ch-17-signatures-encapsulation
 ---
 
@@ -10,11 +10,11 @@ translationKey: solutions/ch-17-signatures-encapsulation
 
 [返回第 17 章](../part-03/ch-17-signatures-encapsulation)。
 
-## 练习 1：设计电子邮件地址文件对 {#exercise-01}
+## 练习 1：设计电子邮件地址的签名与实现 {#exercise-01}
 
 ### 公共签名 {#exercise-01-signature}
 
-`EmailAddress.fsi` 可以公开可行动的错误与抽象的成功值：
+`EmailAddress.fsi` 可以公开调用方能处理的错误，以及抽象的成功值：
 
 ```fsharp
 namespace Contacts
@@ -65,7 +65,7 @@ module EmailAddress =
     let value (EmailAddress address) = address
 ```
 
-`NormalizedText` 是普通实现声明，但从匹配签名中省略它，就会让它在该实现文件之外不可用。也可以额外把它声明为 `private`；对于后续消费者，签名省略已经足够。
+`NormalizedText` 是实现内部声明，但只要匹配签名省略它，该文件之外就无法使用。也可以额外声明为 `private`；对后续调用方而言，签名省略已经足够。
 
 项目顺序是 `EmailAddress.fsi`、`EmailAddress.fs`，随后才是任何消费者文件。后续文件能看到错误案例、抽象类型、`create` 和 `value`，却看不到 `NormalizedText` 或 `EmailAddress` 联合案例。
 
@@ -75,7 +75,7 @@ module EmailAddress =
 
 ### 用工作流代替构造 {#exercise-02-redesign}
 
-假设 `Capacity` 和 `SeatCount` 已经是受保护类型。分配表面可以是：
+假设 `Capacity` 和 `SeatCount` 已经是受保护类型。公开的分配 API 可以是：
 
 ```fsharp
 type AllocationError =
@@ -94,7 +94,7 @@ val allocate:
     Result<Allocation, AllocationError>
 ```
 
-这里没有 `unsafeCreate`。`allocate` 是唯一已发布的生产者，所以实现可以建立 `remaining = capacity - requested`，并拒绝超过容量的请求。前两个访问器返回受保护的组件类型，从而保留已有证明；剩余座位返回 `int` 是诚实的，因为允许为零。
+这里没有 `unsafeCreate`。`allocate` 是唯一公开构造入口，因此能建立 `remaining = capacity - requested`，并拒绝超过容量的请求。前两个访问器保留已经验证的受保护类型；剩余座位可以直接返回 `int`，因为零是合法值。
 
 ### 让有用的错误保持透明 {#exercise-02-error}
 
@@ -126,7 +126,7 @@ let apply policy request =
 
 ### 选择最小的辅助函数作用域 {#exercise-03-helper}
 
-如果追踪只在实现文件中使用，就从签名中省略它，并显式表达局部意图：
+如果追踪只在实现文件中使用，就从签名中省略它，并明确表达局部用途：
 
 ```fsharp
 let private traceDecision decision =
@@ -148,7 +148,7 @@ let internal traceDecision decision =
 
 现在程序集中的后续文件可以调用它，外部程序集则不能。只在 `Library.fs` 中写 `internal`，却从 `Library.fsi` 省略该值，仍会让它在实现文件之外保持隐藏，因为签名就是可见清单。
 
-不要只为方便白盒测试就扩大辅助函数的范围。应优先通过已发布决策测试 `apply`；只有另一个真实实现消费者拥有这项依赖时，才扩大可见性。
+不要只为方便白盒测试就扩大辅助函数的范围。应优先通过公开行为测试 `apply`；只有其他实现代码确实依赖该函数时，才扩大可见性。
 
 ## 要点 {#what-to-notice}
 

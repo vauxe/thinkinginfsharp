@@ -8,19 +8,7 @@ translationKey: part-02/ch-08-discriminated-unions
 
 Suppose booking status is represented by three Boolean fields: `IsPending`, `IsConfirmed`, and `IsCancelled`. Three independent switches have eight combinations, while the business may allow only three: pending, confirmed, or cancelled. What does `true, true, false` mean? The type already permits a question callers should not be able to ask.
 
-A discriminated union changes “how might these fields combine?” into “this value is exactly one of these named cases.” Each case can carry only the data its state needs: a confirmation code exists only in confirmed state, and a cancellation reason exists only in cancelled state. Pattern matching then aligns processing logic with every possible shape.
-
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- recognize illegal states created by Boolean flag combinations;
-- define cases with and without carried data;
-- read a case name as both constructor and pattern;
-- deconstruct case-specific data with an exhaustive `match`;
-- understand how a wildcard can hide a newly added case;
-- write state changes as functions between union values;
-- decide whether a Boolean is an independent fact or a mistaken representation of exclusive state.
+A discriminated union says that a value is exactly one of several named cases. Each case carries only the data that state needs: a confirmation code exists only in `Confirmed`, and a cancellation reason only in `Cancelled`. Pattern matching then requires the code to consider every case.
 
 This chapter handles a closed, synchronous, in-memory state representation. Chapter 9 adds `Result` for failed transitions, Chapter 12 protects construction invariants, and later capstone slices address persistence and concurrency.
 
@@ -77,11 +65,11 @@ let confirmed = Confirmed "C-42"
 let cancelled = Cancelled "duplicate"
 ```
 
-When type context is insufficient or several unions reuse a case name, qualify it as `BookingStatus.Confirmed "C-42"`. Large domains also sometimes apply `[<RequireQualifiedAccess>]` to require qualification. This chapter keeps the definition minimal and focuses on data shape.
+When type context is insufficient or several unions reuse a case name, qualify it as `BookingStatus.Confirmed "C-42"`. Large domains also sometimes apply `[<RequireQualifiedAccess>]`. We will keep the definition minimal and focus on cases and their data.
 
-In a pattern, the same case name verifies shape and binds carried data. `Confirmed code` is not a call there; it means “if the input is `Confirmed`, bind its field as `code`.” Construction and deconstruction share one vocabulary, avoiding manual synchronization between labels and runtime tags.
+In a pattern, the same name identifies a case and binds its data. `Confirmed code` is not a call there; it means “if the input is `Confirmed`, bind its field as `code`.” Construction and deconstruction share one vocabulary, so no separate runtime tag needs to stay synchronized.
 
-## Exhaustive matches turn shape into logic {#exhaustive-match}
+## Exhaustive matches cover every case {#exhaustive-match}
 
 The shared function covers all three cases:
 
@@ -98,7 +86,7 @@ let descriptions = statuses |> List.map describeStatus
 
 printfn "Statuses: %A" descriptions
 ```
-Every branch returns `string`, so the whole `match` is a `string` expression. The compiler knows the closed set of `BookingStatus` cases and can check whether patterns cover every shape.
+Every branch returns `string`, so the whole `match` is a `string` expression. The compiler knows the closed set of `BookingStatus` cases and checks whether the patterns cover all of them.
 
 If the type later gains `Waitlisted of position: int`, every explicit match that omits it produces a diagnostic. Model evolution becomes a compiler-located change list instead of an omission discovered on a rare runtime path.
 
@@ -117,7 +105,7 @@ The F# compiler reports warning FS0025 for an incomplete pattern match and gives
 
 Do not mechanically add `| _ -> "other"` to silence it. When states have distinct business meaning, a wildcard lets a future case fall silently into old behavior. A wildcard is appropriate only when remaining cases truly share one rule and you intentionally accept future cases under that rule too.
 
-## Case data arrives with its proof {#case-data}
+## Match a case before reading its data {#case-data}
 
 To read a confirmation code, first prove the state is `Confirmed`:
 
@@ -132,7 +120,7 @@ printfn "Confirmed case carries code: %s" (confirmationCode (Confirmed "C-42") |
 ```
 `confirmationCode` returns `string option`: confirmed state yields `Some code`, and other states yield `None`. This reuses the minimal `option` intuition established for `List.choose` in Chapter 5. The next chapter treats missing-value composition systematically.
 
-The important part is not one extra `match`; code cannot directly read a nonexistent `ConfirmationCode` from `Pending`. The case label is evidence that its carried data is valid.
+Code cannot read a nonexistent confirmation code from `Pending`. A successful `Confirmed code` pattern establishes both the case and the availability of `code`.
 
 Several cases can share one branch:
 
@@ -161,9 +149,9 @@ printfn "All descriptions: %d" (List.length descriptions)
 ```
 `confirm` constructs `Confirmed code` from `Pending`; for already confirmed or cancelled state, it returns the original value. The function does not mutate its input, and its output remains inside the legal `BookingStatus` cases.
 
-“Keep the original state on an invalid transition” is merely this chapter's strategy for focusing on type shape. It may be wrong for a real booking system. Repeated confirmation might be idempotent success or a conflict; confirming after cancellation normally deserves contextual failure. Chapter 9 uses `Result` to place that decision in the return type instead of silently discarding information.
+“Keep the original state on an invalid transition” is a teaching choice, not a general booking rule. Repeated confirmation might be an idempotent success or a conflict; confirmation after cancellation usually deserves a contextual failure. Chapter 9 uses `Result` to put that decision in the return type.
 
-The union guarantees that output has a legal state shape. It does not guarantee every transition policy is correct. Types shrink the problem space; functions still implement business policy.
+The union guarantees that output is a legal state, not that every transition policy is correct. Types shrink the problem space; functions still implement business policy.
 
 ## What records and unions each carry {#records-and-unions}
 
@@ -176,15 +164,15 @@ type Booking =
       Status: BookingStatus }
 ```
 
-Do not replace every record with a union, and do not flatten case data back into one giant record. A common domain model has records for stable fields, union-valued fields for varying shape, and perhaps a small record or named fields carried by each union case.
+Do not replace every record with a union or flatten case data back into one giant record. A common domain model uses a record for stable fields and a union-valued field for the changing state. Each union case may in turn carry named fields or a small record.
 
 Like records, ordinary unions automatically receive structural equality and comparison when their component data supports them. `Confirmed "C-42" = Confirmed "C-42"` is true; different cases are unequal. Whether that equality means business-entity equality still comes from requirements.
 
 ## `.IsCase` properties and patterns {#case-tests}
 
-Starting with F# 9, union values expose generated case-test properties such as `.IsConfirmed`. One can be useful at a narrow boundary that needs only a Boolean test, but it does not deconstruct the confirmation code. When you need case data, several branches, or exhaustiveness, `match` remains more direct.
+Starting with F# 9, union values expose generated case-test properties such as `.IsConfirmed`. This is useful when code needs only a Boolean test, but it does not extract the confirmation code. Use `match` when you need case data, several branches, or exhaustiveness.
 
-Do not use a sequence of `.IsPending` and `.IsConfirmed` checks to turn a union back into flag-oriented code. A union's value lies in tying cases to data and letting the compiler understand the complete shape set.
+Do not use a sequence of `.IsPending` and `.IsConfirmed` checks to turn a union back into flag-oriented code. A union ties each case to its data and lets the compiler understand the complete case set.
 
 ## Design checklist {#design-checklist}
 
@@ -218,11 +206,11 @@ All descriptions: 3
 
 The first line preserves the counterexample. The remaining four prove union construction, exhaustive deconstruction, case-specific data, and pure transition. The valid script itself contains no incomplete match; compare all five lines in order.
 
-## Debugging: inspect shape, not only branches {#debugging}
+## Inspect the case payload {#debugging}
 
 When a new case causes FS0025, decide the new case's real rule in each match instead of adding a wildcard first. If branches repeat, confirm that their semantics truly agree before joining them with an OR pattern.
 
-When case construction causes a type error, inspect the data shape after `of`. `Confirmed of string` receives one string. A `Case of string * int` payload has that case field shape, and construction and patterns must agree with it.
+When case construction causes a type error, inspect the data after `of`. `Confirmed of string` receives one string; `Case of string * int` receives the stated pair. Construction and patterns must agree with that declaration.
 
 Code that first tests a case and then matches again to extract data can usually become one `match`. If a state transition returns its input but callers cannot tell whether anything happened, its return type probably needs Chapter 9's `Result`.
 
@@ -238,29 +226,21 @@ Write an exhaustive short-label function for `BookingStatus`. Then add `Waitlist
 
 ### Exercise 3: design a transition policy {#exercise-03}
 
-Write a pure `cancel reason status` function: `Pending` and `Confirmed _` become `Cancelled reason`, while cancelled state remains unchanged. List the information lost by returning only `BookingStatus`, and preview a return shape that could distinguish success from a forbidden transition. You need not implement `Result` composition yet.
+Write a pure `cancel reason status` function: `Pending` and `Confirmed _` become `Cancelled reason`, while cancelled state remains unchanged. List the information lost by returning only `BookingStatus`. Then propose a return type that could distinguish success from a forbidden transition; you need not compose `Result` yet.
 
 [Read the chapter solutions](../solutions/ch-08-discriminated-unions).
 
-## Summary {#summary}
+## Key takeaways {#summary}
 
 - Several Boolean flags create a combination space and may let contradictory states type-check.
 - A discriminated union says that a value is exactly one named case, and each case can carry its own data.
-- A case name constructs a value in an expression and verifies shape while binding data in a pattern.
+- A case name constructs a value in an expression; in a pattern, it identifies the case and binds its data.
 - Exhaustive matching turns a new case into a compiler-located change list; an unintended wildcard weakens that feedback.
-- A union guarantees legal state shape, while transition functions still implement business policy.
-- Records express “has all these fields,” and unions express “exactly one of these shapes”; they commonly compose.
+- A union permits only legal states, while transition functions still implement business policy.
+- Records express “has all these fields,” and unions express “exactly one of these cases”; they commonly compose.
 - Independent facts may remain Boolean; do not turn a union into another huge combination enumeration.
 
-The next chapter separates two frequent return shapes: `option` represents possible absence, while `Result` represents expected failure with context.
-
-## Vocabulary {#vocabulary}
-
-- **discriminated union:** a type whose values are exactly one of a finite number of named cases, each possibly carrying different data.
-- **union case:** one named union shape that acts as both constructor and pattern tag.
-- **exhaustiveness:** the property that a pattern set covers every possible shape of its input type.
-- **case-specific data:** data that exists and can be deconstructed only when a particular case holds.
-- **state transition:** a function mapping current state to new state or failure information.
+The next chapter compares two common return types: `option` represents possible absence, while `Result` represents an expected failure with context.
 
 ## Sources {#sources}
 

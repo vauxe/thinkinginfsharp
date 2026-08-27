@@ -8,10 +8,10 @@ aside: false
 
 # F# 思维 {#overview}
 
-本书从表达式、值、类型和函数开始讲解 F#，再逐渐进入副作用、测试、.NET 互操作和完整应用。
+本书从 F# 的表达式、值、类型和函数讲起，再把它们用于副作用、测试、.NET 互操作和完整应用。
 
 ::: tip 从这里开始
-如果你刚开始学习 F#，请先阅读[前言](./preface/)，再[进入第 1 章](./part-01/ch-01-first-session)，按顺序学习第一至第三部分；后续部分可在需要相应主题时继续学习。
+如果你刚开始学习 F#，请先阅读[前言](./preface/)，再[进入第 1 章](./part-01/ch-01-first-session)。第一至第三部分适合按顺序学习；后续部分可按需要选读。
 :::
 
 ## 第一部分 · 表达式与函数 {#part-1}
@@ -53,10 +53,10 @@ aside: false
 ## 第五部分 · .NET 互操作与工程质量 {#part-5}
 
 - [第 25 章：在 F# 中定义对象](./part-05/ch-25-objects-interfaces)
-- [第 26 章：深入 .NET 边界](./part-05/ch-26-dotnet-runtime-boundaries)
+- [第 26 章：深入 .NET 互操作](./part-05/ch-26-dotnet-runtime-boundaries)
 - [第 27 章：为 C# 设计 F# API](./part-05/ch-27-fsharp-api-for-csharp)
-- [第 28 章：示例测试、替身与边界测试](./part-05/ch-28-testing-boundaries)
-- [第 29 章：使用 FsCheck 进行性质测试](./part-05/ch-29-property-testing)
+- [第 28 章：示例测试、测试替身与契约测试](./part-05/ch-28-testing-boundaries)
+- [第 29 章：使用 FsCheck 做基于属性的测试](./part-05/ch-29-property-testing)
 - [第 30 章：诊断、调试、格式化与构建](./part-05/ch-30-diagnostics-tooling-builds)
 - [第 31 章：先测量再优化](./part-05/ch-31-measure-before-optimizing)
 - [第 32 章：从函数到应用](./part-05/ch-32-functions-to-applications)
@@ -68,12 +68,12 @@ aside: false
 - [第 35 章：端口、持久化、配置与替身](./part-06/ch-35-ports-persistence-config)
 - [第 36 章：Web API、JSON 与输入边界](./part-06/ch-36-web-api-boundaries)
 - [第 37 章：一致性、幂等、重试与部分失败](./part-06/ch-37-consistency-idempotency)
-- [第 38 章：集成、诊断、C# 客户端与发布证据](./part-06/ch-38-integration-diagnostics-release)
+- [第 38 章：集成、诊断、C# 客户端与发布验证](./part-06/ch-38-integration-diagnostics-release)
 
 ## 第七部分 · F# 适合做什么 {#part-7}
 
 - [第 39 章：ASP.NET Core 与 F# Web 生态](./part-07/ch-39-web-ecosystem)
-- [第 40 章：数据、类型提供器、分析与机器学习](./part-07/ch-40-data-analytics)
+- [第 40 章：数据、类型提供程序、分析与机器学习](./part-07/ch-40-data-analytics)
 - [第 41 章：Fable、Elmish 与浏览器应用](./part-07/ch-41-fable-elmish)
 - [第 42 章：云、容器、Serverless 与 .NET Aspire](./part-07/ch-42-cloud-containers-aspire)
 - [第 43 章：Avalonia、桌面端与移动端](./part-07/ch-43-avalonia-desktop-mobile)

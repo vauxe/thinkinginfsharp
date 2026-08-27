@@ -6,7 +6,7 @@ translationKey: solutions/ch-24-concurrency-agents-state
 
 # Chapter 24 Solutions {#overview}
 
-The unit of synchronization should match the unit of truth. A counter is one location; capacity is a compound transition; an agent is one in-process owner; durable cross-process allocation belongs to durable storage.
+The synchronization scope should cover the whole invariant. A counter is one location; capacity is a compound transition; an agent serializes in-process state. Durable cross-process allocation belongs to durable storage.
 
 [Return to Chapter 24](../part-04/ch-24-concurrency-agents-state).
 
@@ -17,7 +17,7 @@ The unit of synchronization should match the unit of truth. A counter is one loc
 | Need | Suitable first boundary | Important non-guarantee |
 |---|---|---|
 | Request metric increment | `Interlocked.Increment` | Does not atomically update another field or external metric store |
-| Capacity transition over remaining and accepted | Private `lock` or one serialized owner | In-process lock is not a cross-process transaction |
+| Capacity transition over remaining and accepted | Private `lock` or one serialized state loop | In-process lock is not a cross-process transaction |
 | Immutable configuration refresh | Build a new snapshot, atomically publish its reference | Readers may still hold the previous valid snapshot |
 | Per-key computed cache | Concurrent dictionary plus explicit lazy/single-flight policy | Thread safety does not define freshness or eviction |
 | Durable cross-process seat allocation | Database constraint/transaction or equivalent authority | Process memory coordination cannot enforce it |
@@ -215,6 +215,6 @@ Exactly-once remote effects still require idempotency at their authoritative bou
 - Synchronize the whole invariant, not each field independently.
 - Test bookkeeping needs its own coordination and should not leak into production design.
 - Agent tests accept every valid arrival order and reject invalid final state.
-- A mailbox owns only in-process state and lifecycle.
+- A mailbox manages only in-process state and lifecycle.
 - `GetOrAdd` can invoke its factory more than once; keep irreversible effects outside that assumption.
 - `Lazy` changes duplicate-computation and failure-caching policy but not freshness or durability.

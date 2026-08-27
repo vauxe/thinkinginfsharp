@@ -1,6 +1,6 @@
 ---
 title: "Chapter 31 Solutions"
-description: "Bound conclusions to the captured benchmark, design a behavior-preserving option versus voption allocation experiment, and choose evidence for three different system symptoms."
+description: "Limit conclusions to the recorded benchmark, design a behavior-preserving option versus voption allocation experiment, and choose measurements for three system symptoms."
 translationKey: solutions/ch-31-measure-before-optimizing
 ---
 
@@ -28,13 +28,13 @@ Three unsupported claims are:
 
 It is also unsupported to claim that 0 B means no process memory use or that 260 cases prove equivalence for all integers. State exactly what the tools observed.
 
-Dry performs one cold-start measurement for each benchmark. It proves discovery, generated-project build, setup, execution, and result collection work. One sample has no useful variance estimate; startup and JIT effects dominate these very small operations, and the diagnoser documents its allocation accuracy for ShortRun or longer jobs. Dry is therefore a smoke signal, not a replacement baseline.
+Dry performs one cold-start measurement for each benchmark. It confirms that discovery, generated-project build, setup, execution, and result collection all work. One sample has no useful variance estimate. Startup and JIT effects dominate these tiny operations, and the diagnoser documents allocation accuracy only for ShortRun or longer jobs. Dry is therefore a smoke check, not a performance baseline.
 
 Even ShortRun is deliberately brief. Its three measurements and uncontrolled workstation make the stored record appropriate for this chapter's hypothesis, not for a production service-level threshold.
 
 ## Exercise 2: design an `option` versus `voption` experiment {#exercise-02}
 
-### Keep algorithm, inputs, and returned observable equal {#exercise-02-design}
+### Keep the algorithm, inputs, and returned result equal {#exercise-02-design}
 
 Begin with two functions that differ only in optional representation:
 

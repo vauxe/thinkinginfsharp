@@ -6,24 +6,11 @@ translationKey: part-02/ch-10-recursive-types
 
 # Chapter 10: Recursive Types and Structural Recursion {#overview}
 
-A venue may divide into sections, each section into smaller sections, until the leaves hold bookable groups. The depth is not fixed in advance. A flat record with fields such as `Left`, `LeftLeft`, and `LeftRight` cannot express that open-ended shape, while a list loses the fact that groups branch.
+A venue may divide into sections, each section into smaller sections, until the leaves hold bookable groups. The depth is not fixed in advance. A flat record with fields such as `Left`, `LeftLeft`, and `LeftRight` cannot express this open-ended hierarchy, while a list loses the branching relationship.
 
 A recursive type solves the representation problem by referring to itself. Structural recursion solves the processing problem by following the same cases and recurring only into the smaller values stored there. The type definition is therefore not merely storage syntax: it is a plan for the functions that consume it.
 
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- define a recursive discriminated union for a tree;
-- read its cases as the grammar of every legal value;
-- derive a terminating traversal from that grammar;
-- write a shape-preserving generic `map`;
-- extract repeated recursion into a reusable `fold`;
-- derive queries by supplying one rule per case;
-- estimate time from node count and call-stack use from tree height;
-- recognize when depth is an input boundary rather than an implementation detail.
-
-This chapter uses ordinary finite in-memory values. It does not add mutation, lazy cycles, or a stack-optimization scheme.
+We use finite in-memory values here and do not consider mutation, cyclic lazy values, or alternative stack-management techniques.
 
 ## A recursive case stores smaller values of the same type {#recursive-type}
 
@@ -40,7 +27,7 @@ let leafTree = Leaf 2
 
 let branchTree = Branch(Leaf 2, Branch(Leaf 3, Leaf 4))
 ```
-`BookingTree<'T>` appears inside its own `Branch` case. That self-reference makes the type recursive. The type parameter says every leaf in one tree carries the same payload type, while the tree shape is independent of that type.
+`BookingTree<'T>` appears inside its own `Branch` case. That self-reference makes the type recursive. The type parameter says every leaf in one tree carries the same payload type, while the branching structure is independent of that type.
 
 Read the cases as construction rules:
 
@@ -53,9 +40,9 @@ a BookingTree<'T> is
 
 `Branch(Leaf 2, Branch(Leaf 3, Leaf 4))` is finite even though the type permits arbitrary depth. Each branch value contains already constructed subtrees. The declaration allows more nesting; it does not create an infinite value by itself.
 
-The chosen cases are domain policy. If an empty tree is meaningless, omit `Empty` and define a non-empty tree. If branch nodes also need labels, carry a value in `Branch`. Do not copy this exact type before deciding which shapes are legal.
+The chosen cases are domain policy. If an empty tree is meaningless, omit `Empty` and define a non-empty tree. If branch nodes also need labels, carry a value in `Branch`. Decide which structures are legal before copying this particular definition.
 
-## The type gives the traversal skeleton {#structural-traversal}
+## The type determines the traversal {#structural-traversal}
 
 To consume every `BookingTree`, cover every case. To process a `Branch`, recursively process its two subtree fields:
 
@@ -86,7 +73,7 @@ This is **structural recursion**. Each recursive call receives a direct componen
 
 The result rule still depends on the question. `countLeaves` gives every leaf `1`; `totalSeats` gives it its payload. Both give `Empty` the identity `0` and combine branch results with addition.
 
-## `map` changes payloads and preserves shape {#tree-map}
+## `map` changes payloads and preserves structure {#tree-map}
 
 A tree map handles every case but changes only leaves:
 
@@ -107,7 +94,7 @@ let labeledTree = branchTree |> mapTree (fun seats -> $"{seats} seats")
 
 printfn "Mapped: %s" (renderTree id labeledTree)
 ```
-Its inferred shape is:
+Its inferred type is:
 
 ```fsharp
 mapTree : ('T -> 'U) -> BookingTree<'T> -> BookingTree<'U>
@@ -115,7 +102,7 @@ mapTree : ('T -> 'U) -> BookingTree<'T> -> BookingTree<'U>
 
 `Empty` remains `Empty`; `Leaf value` becomes `Leaf (mapping value)`; a `Branch` is rebuilt from mapped subtrees in the same positions. The mapping function knows nothing about branches, and the traversal knows nothing about the payload conversion.
 
-Two useful laws state what “shape-preserving” means:
+Two useful laws state what “structure-preserving” means:
 
 ```text
 mapTree id tree = tree
@@ -124,7 +111,7 @@ mapTree (f >> g) tree = mapTree f tree |> mapTree g
 
 The second law assumes ordinary pure functions and equality-capable values when tested. These laws are design checks, not special compiler behavior. Reordering or dropping a branch would violate them.
 
-`renderTree` is another structural traversal. It does not preserve shape as a tree; it converts the same cases into text. Similar skeletons appearing repeatedly are a signal that the case handling can be factored out.
+`renderTree` is another structural traversal. It does not preserve the tree structure; it converts the same cases into text. Repeated traversal code suggests that the case handling can be factored out.
 
 ## `fold` names one rule for each case {#tree-fold}
 
@@ -178,7 +165,7 @@ let mapTreeWithFold mapping =
         (fun left right -> Branch(left, right))
 ```
 
-The three arguments are exactly the three constructor-preserving rules. The explicit recursive version remains valuable because it reveals the derivation; the fold version centralizes the traversal once that shape is familiar.
+The three arguments are exactly the rules that preserve the three constructors. The explicit recursive version reveals how the function is derived; once those rules are familiar, the fold version centralizes traversal.
 
 ## Height predicts the direct traversal's stack need {#depth-and-stack}
 
@@ -207,7 +194,7 @@ These branch traversals are not tail-recursive: after a child call returns, the 
 
 For ordinary bounded domain trees, the direct definition is often clearest. If input can be adversarial or extremely deep, height needs an explicit limit, measurement, or an iterative traversal with an explicit work stack. Treat that as a requirement backed by expected input, not as a reason to obscure every recursive definition preemptively.
 
-## Mutually recursive shapes use `and` {#mutual-recursion}
+## Mutually recursive types use `and` {#mutual-recursion}
 
 Sometimes two types contain each other. F# joins their declarations with `and`:
 
@@ -252,10 +239,10 @@ Define a summary record containing `LeafCount`, `TotalSeats`, and `MaximumSeats 
 
 - A recursive type expresses arbitrarily nested but ordinarily finite values.
 - Structural recursion mirrors the type's cases and recurs into direct recursive fields.
-- `map` changes payload type while preserving the tree's construction shape.
+- `map` changes the payload type while preserving the tree structure.
 - `fold` exposes one rule per constructor and centralizes recursive plumbing.
 - Node count predicts traversal work; maximum height predicts direct call-stack depth.
-- A depth limit is part of the input contract when trees can be untrusted or extreme.
+- Enforce an input-depth limit when trees may be untrusted or extremely deep.
 
 Chapter 11 examines how generic functions such as `mapTree` are inferred, where generalization stops, and which type constraints an operation introduces.
 

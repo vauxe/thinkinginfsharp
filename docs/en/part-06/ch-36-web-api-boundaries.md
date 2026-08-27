@@ -10,23 +10,6 @@ Chapter 35 assembled capabilities inside the process. This chapter adds a networ
 
 The implementation keeps one question visible at every step: which layer is allowed to decide this? HTTP decides media type and status. The JSON contract decides wire shape. DTO mapping decides whether required transport data exists. The domain decides business validity and transitions. Adapters decide effects. The API coordinates those decisions and translates only their declared outcomes.
 
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- map a small set of command-oriented routes without exposing domain representation;
-- separate media-type, byte-size, JSON-shape, DTO-presence, and domain validation failures;
-- reuse one strict `JsonSerializerOptions` policy for request and response boundaries;
-- bound a request even when `Content-Length` is absent or a test server bypasses Kestrel limits;
-- turn domain refusals into stable status/code pairs without leaking protected values;
-- pass `HttpContext.RequestAborted` through every asynchronous port;
-- distinguish client cancellation from an internally cancelled dependency;
-- explain exactly when payment, persistence, notification, and response become visible;
-- return safe operational errors without returning exception messages;
-- load configuration without printing rejected values or committing secrets;
-- use `TestServer` for the application pipeline and a real Kestrel smoke test for transport behavior;
-- state which production concerns this teaching host intentionally omits.
-
 ## Treat HTTP as an outer interpreter {#outer-interpreter}
 
 The request crosses several representations before it may cause an effect:
@@ -94,7 +77,7 @@ The API exposes commands rather than a generic endpoint that accepts a serialize
 | `POST /api/bookings/cancel` | `CancelBookingDto` | `200` + `BookingDto` | validate transition, append, notify |
 | `GET /api/bookings/{requestId}` | route text | `200` + `BookingDto` | load the matching snapshot |
 
-Separate routes make allowed commands discoverable and give each request one stable JSON shape. They also avoid treating the compiler-oriented encoding of `BookingCommand` as a public protocol.
+Separate routes make allowed commands discoverable and give each request one stable JSON representation. They also avoid treating the compiler-oriented encoding of `BookingCommand` as a public protocol.
 
 `201 Created` includes a relative `Location` header built from the normalized request ID. After trimming, the ID follows three rules:
 
@@ -108,7 +91,7 @@ Command routes provide one small, consistent REST contract for this workflow. Ot
 
 ## Keep response types at the boundary {#boundary-dtos}
 
-Successful handlers project protected `Booking` values through `BookingMapping.ofDomain`; they never hand a domain record or union to the serializer. Failed handlers return one API-owned shape:
+Successful handlers project protected `Booking` values through `BookingMapping.ofDomain`; they never hand a domain record or union to the serializer. Failed handlers return one representation defined by the API:
 
 ```fsharp:line-numbers [Endpoints.fs]
 [<CLIMutable>]
@@ -342,7 +325,7 @@ The current sequence has observable interruption windows:
 
 This HTTP boundary exposes these facts rather than hiding them behind a generic `try/with`. Chapter 37 introduces atomic capacity and idempotency policy, then defines retry and restart behavior. Until then, this API is a runnable boundary demonstration, not a consistency-safe commercial booking service.
 
-The test named “dependency failures are safe and reveal the post-commit notification window” proves that notification failure returns a safe `503` while the recorded state is already `Booked`. That is evidence of the problem, not evidence that the problem is solved.
+The test named “dependency failures are safe and reveal the post-commit notification window” confirms that notification failure returns a safe `503` after the recorded state becomes `Booked`. It exposes the problem; it does not solve it.
 
 ## Keep exception details inside the process {#safe-errors}
 
@@ -553,7 +536,7 @@ Choose middleware from the threat model. For example, CORS governs browser origi
 
 ### Exercise 1: change binding without changing the contract {#exercise-01}
 
-Redesign one command route to use automatic Minimal API parameter binding. Preserve the exact strict JSON policy, 16 KiB effective limit, `ApiErrorDto` shapes, cancellation propagation, and all current status/code pairs. Identify which behavior belongs in configuration, an endpoint filter or middleware, and the handler. Specify contract tests that prevent framework defaults from changing the public response.
+Redesign one command route to use automatic Minimal API parameter binding. Preserve the exact strict JSON policy, 16 KiB effective limit, `ApiErrorDto` representation, cancellation propagation, and all current status/code pairs. Identify which behavior belongs in configuration, an endpoint filter or middleware, and the handler. Specify contract tests that prevent framework defaults from changing the public response.
 
 ### Exercise 2: reason from the last visible effect {#exercise-02}
 
@@ -576,7 +559,7 @@ Compare exposing Kestrel directly with running it behind a reverse proxy. Produc
 - `RequestAborted` flows through every asynchronous effect and response write.
 - Cancellation does not roll back an already-visible effect.
 - Payment-before-append and notification-after-append create different retry hazards.
-- `TestServer` proves the pipeline; loopback Kestrel proves selected transport behavior.
+- `TestServer` verifies the pipeline; loopback Kestrel verifies selected transport behavior.
 - Configuration rejection never requires printing the rejected value.
 - Environment variables avoid commits but are not encrypted secret storage.
 - Body logging requires explicit classification and redaction.

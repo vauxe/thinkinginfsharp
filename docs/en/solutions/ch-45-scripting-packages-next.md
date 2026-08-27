@@ -1,22 +1,22 @@
 ---
 title: "Chapter 45 Solutions"
-description: "Extend deterministic artifact automation, evaluate current command-line packages without overstating evidence, and turn the book into a twelve-week F# delivery loop."
+description: "Extend deterministic artifact automation, evaluate command-line packages without claiming more than the checks show, and turn the book into a twelve-week F# delivery loop."
 translationKey: solutions/ch-45-scripting-packages-next
 ---
 
 # Chapter 45 Solutions {#overview}
 
-These are engineering solutions, not the only valid code. A strong answer makes semantics explicit before choosing syntax or a package, preserves the manifest script's existing evidence, and marks research separately from executed proof.
+These are engineering solutions, not the only valid implementations. A strong answer defines behavior before choosing syntax or a package, preserves what the manifest script already verifies, and separates researched facts from results produced by running the code.
 
 ## Exercise 1: add exclusion without losing determinism {#exercise-01}
 
-The word “glob” is not a complete contract. Shells and libraries disagree about separators, case, hidden files, character classes, recursive matching, malformed patterns, and whether a directory match prunes traversal. Define those decisions before adding `--exclude`.
+The word “glob” is not a complete contract. Shells and libraries use different rules for separators, case, hidden files, character classes, recursion, malformed patterns, and directory pruning. Define those rules before adding `--exclude`.
 
 ### Contract {#exclusion-contract}
 
 One acceptable version-2 contract is:
 
-- `--exclude PATTERN` may repeat after the mode and before the two positional paths;
+- `--exclude PATTERN` may appear more than once after the mode and before the two positional path arguments;
 - patterns and candidate paths use `/` regardless of host OS;
 - matching is ordinal and case-sensitive on every platform;
 - `*` matches zero or more characters inside one path segment;
@@ -24,12 +24,12 @@ One acceptable version-2 contract is:
 - `**` is valid only as a complete segment and matches zero or more complete segments;
 - `[abc]`, brace expansion, escaping, absolute paths, empty segments, `.` segments, and `..` segments are unsupported and rejected;
 - a pattern names files; `logs/**` is the explicit way to exclude a directory tree;
-- the output file is excluded by identity before user rules are evaluated;
+- the output file is excluded by its resolved identity before user rules are evaluated;
 - symbolic links remain skipped by the existing traversal policy, independent of exclusions;
 - duplicate patterns are removed, then normalized patterns are sorted ordinally;
 - an invalid pattern fails before hashing or writing and returns exit `2` as a usage error.
 
-Always-case-sensitive matching may surprise Windows users, but it produces one repository contract. A different answer may intentionally follow filesystem case rules if it records and tests that platform-dependent behavior.
+Case-sensitive matching may surprise Windows users, but it gives the repository one rule on every platform. An alternative may follow each filesystem's case behavior, provided that the platform dependency is documented and tested.
 
 ### Schema and planning {#exclusion-schema}
 
@@ -43,7 +43,7 @@ Version the manifest because exclusions change what “complete” means:
 }
 ```
 
-Including normalized rules makes two manifests with the same current file rows but different future coverage distinguishable. It also lets a reviewer see why an artifact is absent.
+Recording normalized rules distinguishes manifests that currently list the same files but apply different exclusion policies. It also explains why an artifact is absent.
 
 Refactor the plan boundary conceptually into:
 
@@ -57,13 +57,13 @@ parse arguments
   -> render one version-2 desired document
 ```
 
-`write` and `check` must call the same planner. A separate check implementation is likely to drift. Keep output-file exclusion outside user patterns so no caller can accidentally make the manifest hash itself.
+`write` and `check` must call the same planner. Separate implementations will drift. Keep output-file exclusion outside the user rules so callers cannot accidentally make the manifest hash itself.
 
-Directory pruning is an optimization with semantic risk. A `logs/**` rule may safely prune `logs`, but a general matcher with negation or future include rules might need to descend. This contract has no negation, so a tested prefix analysis may prune; the first implementation can remain simpler and filter file paths after traversal.
+Directory pruning is an optimization that can change behavior. A `logs/**` rule can safely prune `logs`, but a future matcher with negation or include rules might still need to enter it. This contract has no negation, so tested prefix analysis may prune. The first implementation can simply filter file paths after traversal.
 
 ### Matcher choice {#matcher-choice}
 
-Do not translate arbitrary user patterns directly into unbounded regular expressions. Either implement only the grammar above with a linear segment matcher and bounded pattern length, or evaluate a maintained glob package against the exact semantics.
+Do not translate arbitrary user patterns directly into unbounded regular expressions. Either implement only the grammar above with a linear segment matcher and a pattern-length limit, or test a maintained glob package against every stated rule.
 
 For this answer, choose a package only if a spike proves all of the following:
 
@@ -80,9 +80,9 @@ If no candidate meets those constraints, the intentionally tiny grammar is safer
 
 Use pure path/pattern tests plus real temporary directories:
 
-| Case | Expected evidence |
+| Case | Expected result |
 |---|---|
-| no rules | version 2 contains the same two files as the manifest script |
+| no rules | version 2 contains the same two files as the existing manifest script |
 | `**/*.pdb` | nested and root `.pdb` files are absent; `.PDB` remains |
 | `logs/**` | every file below normalized `logs/` is absent |
 | `a/?eta.bin` | `a/beta.bin` matches; `a/longbeta.bin` does not |
@@ -94,29 +94,37 @@ Use pure path/pattern tests plus real temporary directories:
 | stale check | exit `2`, no write, previous output bytes unchanged |
 | link to an outside tree | link is skipped; outside file is never hashed |
 
-Simulate Windows-style strings in pure tests on every OS, then add filesystem tests on actual Windows and Unix-like runners. Do not call a Linux-only path test cross-platform evidence.
+Simulate Windows-style strings in pure tests on every OS, then add filesystem tests on actual Windows and Unix-like runners. A Linux-only path test does not establish cross-platform behavior.
 
 ## Exercise 2: write a package adoption record {#exercise-02}
 
-Start with the requirement, not the candidates. The promoted tool needs `write` and `check` subcommands, two required path arguments, repeatable `--exclude`, generated help, predictable usage failures, testable parsing without process termination, and ordinary .NET 10 publishing. Shell completion and native AOT are desirable but not release requirements.
+Start with the requirements, not the candidates. The promoted tool needs:
+
+- `write` and `check` subcommands;
+- two required path arguments and repeatable `--exclude` options;
+- generated help and predictable usage failures;
+- a parser that tests can call without terminating the process;
+- standard .NET 10 publishing.
+
+Shell completion and native AOT are desirable, but they are not release requirements.
 
 ### Candidate record as of 2026-08-25 {#candidate-record}
 
 The official NuGet pages reviewed for this answer show:
 
-| Choice | Reviewed version | Relevant shape | Friction or unanswered evidence |
+| Choice | Reviewed version | Relevant fit | Cost or open question |
 |---|---:|---|---|
-| hand-written parser | repository code | zero package graph; exact control over three tokens today | help, repeated options, aliases, diagnostics, and future subcommands become our maintenance |
+| hand-written parser | repository code | no dependency graph; exact control over today's three arguments | we must maintain help, repeated options, aliases, diagnostics, and future subcommands |
 | Argu | 6.2.5 | F#-oriented declarative parser using discriminated unions; targets .NET Standard 2.0 | package last updated in December 2024; brings FSharp.Core and `System.Configuration.ConfigurationManager`; trimming/AOT behavior needs a real spike |
-| System.CommandLine | 2.0.11 | commands, options, arguments, validation, help, completions, and async actions; targets .NET 8 and .NET Standard 2.0 | object/builder API is C#-shaped; F# overload/null adaptation and exact help/error stability need a spike |
+| System.CommandLine | 2.0.11 | commands, options, arguments, validation, help, completions, and async actions; targets .NET 8 and .NET Standard 2.0 | API uses object and builder patterns common in C#; F# overload/null adaptation and help/error stability need a spike |
 
-Both package versions are research facts checked on that date, not executable dependencies of the book site. The shown manifest script covers only its BCL parser until you run package-specific spikes.
+Both package versions are facts checked on that date; neither is a dependency of the book site. The manifest script verifies only its BCL parser until the package-specific spikes are run.
 
-Do not compare download counts as if they were correctness. Inspect owners, MIT licenses, source repositories, dependency tabs, release history, advisories, and the exact `.nupkg`; then run restore audit under the adopting project's effective sources.
+Do not treat download counts as a measure of correctness. Inspect maintainers, MIT licenses, source repositories, dependency tabs, release history, advisories, and the exact `.nupkg`. Then run a restore audit with the adopting project's effective package sources.
 
 ### Focused spike {#parser-spike}
 
-Create a disposable `net10.0` F# console project for each package. Lock its exact direct version and generated closure. Drive the parser as a pure-ish adapter from `string array` to:
+Create a disposable `net10.0` F# console project for each package. Lock its exact direct version and resolved dependency graph. Wrap the parser in a testable adapter from `string array` to:
 
 ```fsharp
 type Command =
@@ -142,26 +150,26 @@ Run the same golden vectors against hand parsing, Argu, and System.CommandLine:
 - published executable invocation on Windows and one Unix-like target;
 - trimming and native AOT only if they become declared release requirements.
 
-Capture restore, lock diff, build warnings, package audit, published size, startup, and the amount of adapter code. Do not infer AOT support from target-framework compatibility.
+Record the restore, lock-file diff, build warnings, package audit, published size, startup time, and amount of adapter code. Do not infer AOT support from target-framework compatibility.
 
 ### Reversible decision {#package-decision}
 
-Keep the hand-written parser in the manifest script because the current contract has only a mode plus two paths. For the promoted tool with repeatable exclusions and generated help, provisionally choose System.CommandLine `2.0.11` if the spike passes the vectors. Its command model matches the planned CLI and the recent stable release has a direct .NET ownership path.
+Keep the hand-written parser in the manifest script because the current contract has only a mode and two paths. For the promoted tool, provisionally choose System.CommandLine `2.0.11` if it passes every test vector. Its command model fits the planned subcommands, repeated options, and generated help, and its .NET project home makes the maintenance path clear.
 
-This is not a universal preference over Argu. Choose Argu if the team values a DU-declared F# surface and its spike produces clearer code with acceptable maintenance and deployment evidence. The deciding artifact is the adapter and test matrix, not language branding.
+This is not a universal preference over Argu. Choose Argu if the team values a DU-declared F# API and its spike produces clearer code with acceptable maintenance and deployment results. The adapter and test matrix should decide, not language branding.
 
 The adoption change should include:
 
-- exact PackageReference in the console project;
+- an exact `PackageReference` version in the console project;
 - committed `packages.lock.json` and CI `dotnet restore --locked-mode`;
 - effective source and Package Source Mapping review;
 - restore audit with warnings handled by policy;
 - one module owning every package-specific type;
 - golden CLI contract tests and a published-process smoke test;
-- an update owner and quarterly review trigger;
+- a named maintainer and a quarterly review trigger;
 - a removal note: replace only the parsing adapter, retain `Command` and all core functions.
 
-If the package fails a required vector, retain hand parsing or spike the other candidate. Do not expand the public CLI merely to match a library's defaults.
+If the package fails a required vector, retain hand parsing or test the other candidate. Do not expand the public CLI merely to match a library's defaults.
 
 ## Exercise 3: plan the next twelve weeks {#exercise-03}
 
@@ -174,7 +182,7 @@ This example chooses the tooling-and-libraries track. Each four-week increment s
 Work includes:
 
 - move manifest entries, rendering, planning outcomes, and path normalization into ordered `.fs` modules;
-- keep filesystem and console effects behind narrow functions;
+- isolate filesystem and console I/O behind narrow functions;
 - add example-based tests for rendering and process-level tests for exits `0`, `1`, and `2`;
 - run Windows and Linux/macOS temporary-directory tests for separators, links where supported, and output exclusion;
 - publish a framework-dependent artifact and run it outside the source tree;
@@ -182,9 +190,9 @@ Work includes:
 
 Revisit Chapters 9, 16–18, 21, 26, 28, and 30. Use no new runtime package. The real boundary is filesystem plus process CLI. Diagnostics record command, exit, stderr category, SDK, OS, and output hash.
 
-Review question: “Can any invalid argument or filesystem failure produce a partial destination or success exit?” Reverse if the project adds ceremony without improving tests, distribution, or locked behavior.
+Review question: “Can an invalid argument or filesystem failure produce a partial destination or a success exit?” Reverse the promotion if the project adds complexity without improving tests, distribution, or reproducibility.
 
-### Weeks 5–8: add versioned exclusions and dependency evidence {#weeks-05-08}
+### Weeks 5–8: add versioned exclusions and dependency verification {#weeks-05-08}
 
 **Outcome:** schema version 2, explicit exclusion semantics from Exercise 1, backward-readable version 1 manifests, and a locked parser decision.
 
@@ -193,8 +201,8 @@ Work includes:
 - model `ManifestV1` and `ManifestV2` separately and define one directional upgrade;
 - add normalized exclusion rules to desired state and keep `write`/`check` on one planner;
 - execute the parser spike from Exercise 2 before adding any package;
-- if adopted, commit the exact package and closure lock, plus restore audit evidence;
-- fuzz or property-test ordering, duplicate rules, and render/parse stability within bounded generators;
+- if adopted, commit the exact package version and complete lock file, plus the restore audit results;
+- fuzz-test or property-test ordering, duplicate rules, and render/parse stability with bounded generators;
 - add a migration fixture and reject unknown future schema versions without overwriting them;
 - measure traversal and hashing on a representative tree before parallelizing.
 
@@ -219,13 +227,13 @@ Work includes:
 
 Revisit Chapters 20–24, 27, 30–32, 38, and 45. The package budget remains the approved parser; every new package needs a separate adoption record. The real boundary is installation, source trust, cancellation, and compatibility.
 
-Review question: “Can a new contributor restore, verify, upgrade, diagnose, and remove this tool without private machine knowledge?” If not, reduce distribution ambition or make the missing ownership explicit.
+Review question: “Can a new contributor restore, verify, upgrade, diagnose, and remove this tool without undocumented machine knowledge?” If not, reduce the distribution scope or assign responsibility for the missing work.
 
 ### Advanced-feature budget {#advanced-budget}
 
-None of the three increments requires quotations, SRTP, flexible types, or custom byrefs. Ordinary records, unions, functions, interfaces at effects, tasks for cancellation, and arrays/streams are sufficient.
+None of the three increments requires quotations, SRTP, flexible types, or custom byrefs. Ordinary records, unions, and functions are sufficient. Use interfaces to isolate side effects, tasks to support cancellation, and arrays or streams for data movement.
 
-Consider Span only if a profile shows boundary copying dominates and a synchronous lifetime can be proved. Consider SRTP only if several concrete algorithms genuinely need one member-constrained abstraction. Quotations would make sense only if the product begins consuming or producing expression trees. Flexible types may appear in a library signature; recognize them before deciding whether to expose them.
+Consider `Span` only if profiling shows that boundary copying dominates and the lifetime is demonstrably synchronous. Consider SRTP only if several concrete algorithms need the same member-constrained abstraction. Quotations make sense only if the product consumes or produces expression trees. Flexible types may appear in a library signature; identify them before deciding whether to expose them.
 
 That restraint is part of the plan, not missing ambition. The learning goal is to ship increasingly trustworthy F#, then deepen a language feature when the system supplies a reason.
 
@@ -235,7 +243,7 @@ That restraint is part of the plan, not missing ambition. The learning goal is t
 - Do `write` and `check` share one desired-state planner?
 - Are schema, path, ordering, encoding, and case rules stable and tested?
 - Are link, output-file, untrusted-input, and destructive-target policies explicit?
-- Are researched package facts dated and separated from executed repository evidence?
+- Are researched package facts dated and separated from checks run in the repository?
 - Does the lock cover the application closure, and does CI enforce locked restore?
 - Can package-specific types be removed at one adapter?
 - Does every four-week increment end in a runnable artifact and a falsifiable review question?

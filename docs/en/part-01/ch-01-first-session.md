@@ -8,17 +8,7 @@ translationKey: part-01/ch-01-first-session
 
 The fastest way into a language is to form a model that is accurate enough to test immediately. Syntax then has a context and a purpose. This chapter answers one question: **how does a piece of F# code become a result you can observe?**
 
-We will move among three ways of running code. An interactive session answers one small question, a script preserves an experiment, and a project gives a boundary to code that must be compiled, tested, and shipped. One F# idea runs through all three: code is made of expressions, and an expression that completes normally produces a value.
-
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- start F# Interactive (FSI) and explain the types and values it prints;
-- run an `.fsx` script and distinguish it from interactive input;
-- decide when an experiment should become an `.fsproj` project;
-- read strings, integers, Booleans, string interpolation, and simple arithmetic;
-- explain why `printfn` produces output yet returns the `unit` value `()`.
+We will move among three ways of running code. An interactive session answers one small question, a script preserves an experiment, and a project organizes code that must be compiled, tested, and shipped. One F# idea runs through all three: code is made of expressions, and an expression that completes normally produces a value.
 
 Functions, pattern matching, and collections arrive in later chapters. For now, read `let` as “give this value a name.” Chapter 2 will state precisely what a binding is and how type inference works.
 
@@ -34,7 +24,7 @@ This chapter uses only the .NET SDK. An editor or IDE is optional, and the examp
 
 ## Choose the shortest feedback loop {#feedback-loop}
 
-The three entry points serve different lengths of feedback loop.
+The three entry points suit different kinds of feedback.
 
 | Entry point | Best suited to | What you retain |
 | --- | --- | --- |
@@ -58,13 +48,13 @@ The `;;` sequence terminates an interactive submission. Ordinary F# source files
 
 ### F# script {#script}
 
-An F# script has the `.fsx` extension. This stable command runs a script and tells FSI to exit after it finishes:
+An F# script has the `.fsx` extension. This command runs a script and tells FSI to exit after it finishes:
 
 ```console
 dotnet fsi --exec ch01-first-session.fsx
 ```
 
-A script preserves the order, names, and output of an experiment. It can therefore live in version control and be rerun by a quality gate. You normally omit `;;` in a script because the file boundary and its syntax already tell the compiler what to process.
+A script preserves the order, names, and output of an experiment. It can therefore live in version control and run again in automated checks. You normally omit `;;` because the file and its syntax already tell the compiler what to process.
 
 The script is still executed by FSI. A project adds multi-file compilation order, a test entry point, publishing settings, and a reusable assembly. Move to a project when code acquires those responsibilities.
 
@@ -77,7 +67,7 @@ dotnet new console -lang "F#" -o HelloFSharp
 dotnet run --project HelloFSharp
 ```
 
-The project file records the target framework, source-file order, package dependencies, and build settings. That structure has a small cost, but it gives `dotnet build`, `dotnet test`, and publishing tools a clear boundary. This book moves gradually from scripts to projects: use FSI for a small arithmetic experiment, and use a project once an application needs tests or deployment.
+The project file records the target framework, source-file order, package dependencies, and build settings. That structure has a small cost, but it lets `dotnet build`, `dotnet test`, and publishing tools operate consistently. This book moves gradually from scripts to projects: use FSI for a small arithmetic experiment, and use a project once an application needs tests or deployment.
 
 ## Read the first program as expressions {#expressions}
 
@@ -122,7 +112,7 @@ Inference removes repetitive annotations while preserving static types. Subtract
 
 The example first evaluates `printfn "%s" summary`, so the summary appears on screen. The name `printResult` is then bound to the returned value `()`. A later line prints that value. C#'s `void` denotes the absence of an available result; F#'s `unit` is an ordinary type with one value.
 
-This distinction matters later. A signature ending in `unit` usually tells you that the meaningful result lies in an effect, such as writing a file, sending a response, or recording a log. The signature describes only the return shape; tests and explicit result models provide evidence about effect completion and error handling.
+This distinction matters later. A signature ending in `unit` usually means that the call matters because it performs an effect, such as writing a file, sending a response, or recording a log. The return type alone cannot say whether that effect completed or failed; tests and an explicit error model must check those outcomes.
 
 ## Run the example {#run-example}
 
@@ -142,9 +132,9 @@ Printing returned: ()
 
 In interactive mode, FSI proactively displays the values and types of submissions. Under `--exec`, every line above comes from an explicit `printfn` call in the script, so rerunning the file reproduces the same ordered output.
 
-## Debugging: identify the execution boundary first {#debugging}
+## Check how the code is being run first {#debugging}
 
-Problems in a first session usually occur at the execution boundary rather than in business logic.
+Problems in a first session usually come from how the code is launched rather than from its business logic.
 
 - **FSI keeps waiting:** the interactive submission may lack its closing `;;`, parenthesis, or quotation mark.
 - **The script path does not exist:** confirm that the terminal is in the directory where you saved the file.
@@ -156,7 +146,7 @@ A productive rhythm is to send the smallest expression to FSI, understand its ty
 
 ## Exercises {#exercises}
 
-Answer independently before running or editing a local copy. Use the solution to compare both reasoning and final text.
+Answer independently before running or editing a local copy. Use the solution to compare both your reasoning and your final answer.
 
 ### Exercise 1: explain the run {#exercise-01}
 
@@ -187,24 +177,15 @@ Choose FSI, a script, or a project for each job, and give one reason:
 
 [Read the chapter solutions](../solutions/ch-01-first-session).
 
-## Summary {#summary}
+## Key takeaways {#summary}
 
 - FSI gives the shortest feedback loop and displays both values and inferred types.
 - An `.fsx` file preserves an experiment as a repeatable script; `--exec` exits when it finishes.
-- A project gives boundaries to multi-file compilation, dependencies, tests, and publishing.
+- A project organizes multi-file compilation, dependencies, tests, and publishing.
 - The basic reading unit in F# is an expression; an expression that completes normally produces a value.
 - Output is an effect, while the return value of `printfn` is the sole `unit` value, `()`.
 
 The next chapter tightens the temporary language used here: what `let` binds, how immutable names work by default, and how the compiler infers types from constraints.
-
-## Vocabulary {#vocabulary}
-
-- **expression:** code that is evaluated and produces a value when it completes normally.
-- **value:** a result of evaluation that another expression can use; functions will also count as values.
-- **literal:** a value representation written directly in source, such as `40` or `"hello"`.
-- **F# Interactive:** the F# REPL in the .NET SDK, also capable of executing `.fsx` scripts.
-- **F# script:** an `.fsx` source file normally run directly by FSI.
-- **unit:** a type with one value, `()`, often returned when only an effect is of interest.
 
 ## Sources {#sources}
 

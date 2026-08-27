@@ -6,25 +6,9 @@ translationKey: part-06/ch-34-pure-booking-workflow
 
 # Chapter 34: The Pure Booking Workflow and Validation {#overview}
 
-Chapter 33 fixed the words. This chapter connects them with one function. The workflow accepts a protected activity, current booking state, and one raw command; it returns either an accepted fact or an explicit decision error. All required facts arrive through its arguments, and application adapters retain responsibility for databases, clocks, transport failures, and notifications.
+Chapter 33 defined the vocabulary. This chapter connects it with one function. The workflow accepts a protected activity, current booking state, and raw command; it returns either an accepted fact or a classified refusal. All required facts arrive through arguments. Application adapters remain responsible for databases, clocks, transport failures, and notifications.
 
-The interesting design choice is not the absence of I/O. It is the placement of failure boundaries. Independent malformed fields are all useful at once, so validation accumulates them. A state-dependent decision cannot meaningfully evaluate every later rule after an earlier prerequisite fails, so it short-circuits. Treating both categories with one indiscriminate combinator would either lose useful errors or invent misleading ones.
-
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- read a workflow signature as an executable statement of inputs, facts, and refusals;
-- distinguish raw commands from protected validated commands;
-- accumulate errors from independent pure field validators in stable order;
-- use `Result.bind` when a later rule requires an earlier successful value;
-- explain why validation accumulation and business short-circuiting are complementary;
-- route a closed command union with an exhaustive match;
-- reuse specialized decisions and domain transitions instead of copying rules;
-- map detailed errors into one workflow error vocabulary without erasing meaning;
-- keep `decide` separate from `evolve`;
-- test failure precedence directly without mocks or external services;
-- state what purity proves and what persistence must still guarantee.
+The key design choice is where each kind of failure belongs. Independent malformed fields are useful together, so validation accumulates them. A state-dependent decision stops when a prerequisite fails because later rules no longer have meaningful inputs. Applying one combination policy to both categories would either lose useful errors or invent misleading ones.
 
 ## Read the contract from left to right {#contract}
 
@@ -39,7 +23,7 @@ Event
 
 Each position carries a different trust level:
 
-| Position | Meaning | Trust at entry |
+| Position | Meaning | Validity on entry |
 |---|---|---|
 | `Event` | The scheduled activity and its protected capacity | Already constructed from `EventId` and `Capacity` |
 | `BookingState` | The current booking view for this decision | Already a valid union value containing zero or one protected booking |
@@ -47,7 +31,7 @@ Each position carries a different trust level:
 | `Ok BookingEvent` | A fact accepted by domain rules | Safe to evolve and then commit according to application policy |
 | `Error BookingDecisionError` | A classified expected refusal | No accepted fact was produced |
 
-Currying lets an application partially apply a stable activity or state if that improves a local pipeline, but the argument order primarily tells the story: supply context first and the changing command last.
+Currying allows partial application of a stable activity or state. More importantly, the argument order tells the story: context first, changing command last.
 
 “Pure” means the same inputs produce the same result and evaluation has no observable external effect. Command acceptance, computational cost, exceptional behavior elsewhere in .NET, and concurrent commit safety are separate properties.
 
@@ -93,7 +77,7 @@ The raw records use `string` and `int` because a caller or future DTO begins wit
 
 This split avoids two bad extremes. Making the raw command constructor private would force an untrusted boundary to pretend its fields were already valid. Leaving the validated record public would let callers bypass normalization and invariants. Separate types preserve both honest input and protected internal data.
 
-A validated command guarantees only its field-level claims. `ValidConfirmBooking` says its identifier and code are nonblank and normalized. It does not say a booking exists or is pending. Those facts depend on state and belong to decision.
+A validated command guarantees only that its fields are valid. `ValidConfirmBooking` has a nonblank, normalized identifier and code; it does not guarantee that a booking exists or is pending. Those facts depend on state and belong to the decision phase.
 
 ## Accumulate independent errors deliberately {#accumulation}
 
@@ -150,7 +134,7 @@ Ok createValidCommand
 
 The order is stable because validators are applied in field order and the combinator uses `earlier @ later`. Stable order makes tests and user-facing mapping predictable; it is not a claim that one invalid field is more important.
 
-These validators are pure and cheap. F# evaluates the next validator expression even when the accumulated function result is already `Error`, which is exactly what collection requires. Do not reuse this shape around database calls, rate-limited services, or destructive operations: evaluating all of those after failure could be expensive or wrong.
+These validators are pure and cheap. F# evaluates the next validator expression even when the accumulated function result is already `Error`, which is exactly what collection requires. Do not reuse this accumulation pattern around database calls, rate-limited services, or destructive operations: evaluating all of those after failure could be expensive or wrong.
 
 ### Extend the same policy to lifecycle commands {#lifecycle-validation}
 
@@ -349,7 +333,7 @@ Rule ownership is easier to review when written down:
 
 ## Test behavior without effects {#testing}
 
-The focused workflow tests call ordinary values and functions. They need no mock framework because the decider has no ports. They establish:
+The focused workflow tests call ordinary values and functions. They need no mocking framework because the decider has no external dependencies. They cover:
 
 - place, confirm, and cancel each accumulate their independent malformed fields in order;
 - invalid lifecycle fields win before a missing-state check;
@@ -362,9 +346,9 @@ The focused workflow tests call ordinary values and functions. They need no mock
 - cancellation emits a normalized final fact;
 - repeated cancellation preserves `CannotCancelFrom`.
 
-The wider domain, workflow, property, and decider filter also passes. The full example gate restores locked dependencies, builds Release with null checking and warnings as errors, runs every test and script, and verifies expected compiler diagnostics.
+The broader domain, workflow, property, and decider test filter also passes. The full example check restores locked dependencies, builds Release with null checking and warnings as errors, runs every test and script, and verifies expected compiler diagnostics.
 
-This evidence proves deterministic decisions for the covered model. It does not prove that several bookings cannot consume the same activity capacity, that state was loaded consistently, or that a fact was committed exactly once. Those guarantees need an atomic persistence boundary and later integration tests.
+These results show deterministic decisions for the covered model. They do not show that several bookings cannot consume the same activity capacity, that state was loaded consistently, or that a fact was committed exactly once. Those guarantees require atomic persistence and integration tests.
 
 ## Avoid common false simplifications {#false-simplifications}
 
@@ -413,7 +397,7 @@ Consider a cancelled booking and three cancel commands: blank ID plus blank reas
 - Error projection preserves structure instead of flattening to text.
 - `decide` accepts or refuses; `evolve` projects only accepted facts.
 - Purity makes decisions deterministic and cheap to test, not commits atomic.
-- The focused evidence proves single-booking workflow behavior; aggregate capacity and persistence remain later work.
+- Focused tests cover single-booking workflow behavior; aggregate capacity and persistence remain later work.
 
 ## Sources {#sources}
 

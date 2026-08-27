@@ -6,7 +6,7 @@ translationKey: solutions/ch-37-consistency-idempotency
 
 # Chapter 37 Solutions {#overview}
 
-These are designs, not drop-in production recipes. Each answer first names the invariant and durable evidence, then chooses coordination. Provider, database, and broker contracts still need to be verified against the products actually deployed.
+These are designs, not drop-in production recipes. Each answer first states the invariant and the durable state needed to enforce it, then chooses a coordination mechanism. Provider, database, and broker contracts still need verification against the products actually deployed.
 
 [Return to Chapter 37](../part-06/ch-37-consistency-idempotency).
 
@@ -50,7 +50,7 @@ The retry reruns the pure decision against freshly loaded state. It must not mer
 
 Bound attempts, observe cancellation, and add jittered backoff only when repeated collisions justify it. Storage timeouts, authentication failures, corrupt data, and domain rejections are not version conflicts. The [Retry pattern](https://learn.microsoft.com/en-us/azure/architecture/patterns/retry) recommends classifying faults rather than repeating every failure.
 
-Payment must not run before the capacity reservation wins its conditional commit. The external-effect phases and provider key from the chapter remain necessary after replacing the local store.
+Payment must not run before the capacity reservation wins its conditional commit. The external-operation phases and provider key from the chapter remain necessary after replacing the local store.
 
 ### Force both writers to use one version {#exercise-01-test}
 
@@ -67,7 +67,7 @@ Do not replace the storage engine's concurrency test with two objects in one pro
 
 ## Exercise 2: reconcile an unknown payment {#exercise-02}
 
-### Model provider evidence separately {#exercise-02-model}
+### Model provider status separately {#exercise-02-model}
 
 Add a stable provider idempotency key derived from the operation identity and persisted before any provider call. A useful minimum model is:
 
@@ -154,7 +154,7 @@ Retention must cover the maximum broker redelivery and replay horizon. The handl
 
 The resulting claims are deliberately different:
 
-| Claim | What the design establishes |
+| Claim | What the design guarantees |
 |---|---|
 | no lost local intent | booking change and outbox row commit or roll back together |
 | at least once publish attempt | while storage and the relay remain available, an unfinished row stays recoverable and retryable |
@@ -171,7 +171,7 @@ Microsoft's [transactional outbox guidance](https://learn.microsoft.com/en-us/az
 - A conditional-write loser reloads and re-decides; it never commits a stale decision.
 - Partitioning by event avoids global coordination only when the storage path preserves that partitioning.
 - Payment runs only after a durable reservation wins.
-- An ambiguous provider call remains reserved until lookup supplies trustworthy terminal evidence.
+- An ambiguous provider call remains reserved until lookup supplies a trustworthy terminal result.
 - `NotFound` means only what the provider contract explicitly promises.
 - Reconciliation preserves the original operation key and payload fingerprint.
 - A transactional outbox prevents a gap between local state and local delivery intent.

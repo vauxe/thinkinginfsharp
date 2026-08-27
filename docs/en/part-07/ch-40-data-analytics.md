@@ -6,26 +6,9 @@ translationKey: part-07/ch-40-data-analytics
 
 # Chapter 40: Data, Type Providers, Analytics, and Machine Learning {#overview}
 
-F# makes data transformation pleasant because records, units of measure, pattern matching, sequences, and higher-order functions describe shape and flow directly. Library choice, schema trust, query placement, memory scale, and model usefulness remain explicit engineering decisions with separate evidence.
+F# makes data transformation pleasant because records, units of measure, pattern matching, sequences, and higher-order functions describe structure and flow directly. Library choice, schema trust, query placement, memory scale, and model usefulness still require separate engineering decisions and validation.
 
-The right question is not “What is the F# data stack?” It is “Who owns this data and schema, where must each operation execute, how large and sensitive is the workload, and what evidence must survive after exploration?” This chapter builds a decision map from a small verified local CSV slice, then expands carefully into relational access, analysis, visualization, and machine learning.
-
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- distinguish compile-time sample inference from runtime data validation;
-- consume a type provider without exporting its generated row type;
-- decide whether a `Seq` or query expression executes locally or through an `IQueryable` provider;
-- choose among direct ADO.NET, Dapper, EF Core, and SQLProvider by ownership and query shape;
-- contain database DTOs, generated types, and framework entities at an adapter boundary;
-- choose arrays, sequences, data frames, or storage-side computation from scale and alignment needs;
-- turn an exploratory script into a locked, tested, repeatable artifact;
-- treat visualization as a reviewed output boundary rather than proof by picture;
-- separate training, evaluation, model packaging, and online inference;
-- compare ML.NET, ONNX Runtime, TorchSharp, and an external ML stack without language tribalism;
-- read stable versions, prereleases, target assets, native dependencies, and deprecations accurately;
-- design schema-drift and model-drift evidence before production deployment.
+There is no single “F# data stack.” Start by asking who controls the data and schema, where operations must run, how large and sensitive the workload is, and what must remain reproducible. A verified local CSV example leads into relational access, analysis, visualization, and machine learning.
 
 ## Start with the data contract {#data-contract}
 
@@ -144,7 +127,7 @@ let highValueOrders (minimumRevenue: decimal) (path: string) : HighValueOrder li
 ```
 Here `Orders.Load(path).Rows` is an in-process sequence, so filtering, sorting, and projection execute locally. The syntax resembles a database query, but no SQL exists.
 
-Focused tests assert the exact six-row aggregation, `DateOnly` values, threshold, and descending order. A locked restore followed by Release `--no-restore` build and test passes with no network schema. The console resolves its user-supplied path to an absolute path and prints three deterministic summaries. This evidence covers only the fixed local shape and calculations; it does not cover arbitrary uploads, huge files, encoding attacks, or a database provider.
+Focused tests assert the exact six-row aggregation, `DateOnly` values, threshold, and descending order. A locked restore followed by a Release `--no-restore` build and test passes without a network schema. The console resolves the supplied path to an absolute path and prints three deterministic summaries. These checks cover only the fixed local schema and calculations, not arbitrary uploads, huge files, encoding attacks, or a database provider.
 
 ## Treat schema as a versioned dependency {#schema-dependency}
 
@@ -173,7 +156,7 @@ If a database type provider is valuable, prefer its supported offline schema mec
 For genuinely open data, a representative sample can still improve ergonomics, but place an explicit decoding layer after parsing:
 
 ```text
-bytes -> syntax parser -> source-shaped values -> validation -> trusted model
+bytes -> syntax parser -> source-format values -> validation -> trusted model
 ```
 
 Decide whether a new field is ignored or rejected, whether a missing field is optional or an error, how numeric widening works, and how versions coexist. Keep raw input or a safe digest for diagnosis where policy permits. Type inference cannot decide those compatibility rules for you.
@@ -191,13 +174,13 @@ The [F# query expression reference](https://learn.microsoft.com/en-us/dotnet/fsh
 
 The same-looking `where` can therefore mean a local predicate or a provider expression. Unsupported translation can throw; provider versions may translate differently; database null, collation, decimal, date, and ordering semantics may differ from .NET.
 
-Make the boundary visible in naming and tests. Inspect generated SQL or provider diagnostics for important queries. Project only required columns, bound result size, pass cancellation, and test against the real database engine when dialect or transaction behavior matters. An in-memory provider is not evidence for production SQL.
+Make the execution boundary visible in names and tests. Inspect generated SQL or provider diagnostics for important queries. Project only required columns, limit result size, pass cancellation, and test against the real database engine when dialect or transaction behavior matters. An in-memory provider does not validate production SQL.
 
 Avoid hiding a remote query behind an innocent `seq<'T>` if enumeration performs I/O. A port such as `search : Query -> CancellationToken -> Task<SearchResult list>` states the effect, materialization, and cancellation boundary more honestly.
 
-## Choose relational access by control and change ownership {#relational-access}
+## Choose relational access by control and schema responsibility {#relational-access}
 
-F# can consume the full .NET database ecosystem. The useful distinction is not “F# library versus C# library,” but how much SQL, mapping, tracking, schema discovery, and lifecycle each choice owns.
+F# can consume the full .NET database ecosystem. The useful distinction is not “F# library versus C# library,” but how much SQL, mapping, tracking, schema discovery, and lifecycle work each choice handles.
 
 ### Direct ADO.NET provider {#ado-net}
 
@@ -207,36 +190,36 @@ Never construct SQL by interpolating untrusted values. Parameters protect values
 
 ### Dapper {#dapper}
 
-[Dapper 2.1.79](https://www.nuget.org/packages/Dapper/2.1.79) is a SQL-first object mapper over ADO.NET. It can reduce repetitive parameter and row mapping while leaving query text and transaction ownership visible.
+[Dapper 2.1.79](https://www.nuget.org/packages/Dapper/2.1.79) is a SQL-first object mapper over ADO.NET. It can reduce repetitive parameter and row mapping while keeping query text visible and transaction control explicit.
 
 It fits read models and services whose team wants explicit SQL. F# friction appears around constructors, anonymous parameters, options, records, and nulls; contain it with CLR-friendly persistence DTOs and small mapping functions. Dapper does not design aggregates, migrations, concurrency rules, or safe SQL composition for you.
 
 ### Entity Framework Core {#ef-core}
 
-EF Core owns a broader unit-of-work, change-tracking, relationship, LINQ translation, migration, and provider model. [EF Core 10](https://learn.microsoft.com/en-us/ef/core/what-is-new/ef-core-10.0/whatsnew) is the .NET 10 LTS line and requires the .NET 10 runtime.
+EF Core provides a broader model for units of work, change tracking, relationships, LINQ translation, migrations, and providers. [EF Core 10](https://learn.microsoft.com/en-us/ef/core/what-is-new/ef-core-10.0/whatsnew) is the .NET 10 LTS line and requires the .NET 10 runtime.
 
-Choose it when that application model and its provider ecosystem repay the conventions. F# can call it, but mutable entity shapes, navigation properties, expression translation, attributes, proxy assumptions, and C#-first examples may make persistent entities poor domain types. Keep EF entities in infrastructure and map them to immutable records/unions rather than weakening the domain for tracking convenience.
+Choose it when that application model and its provider ecosystem repay the conventions. F# can call it, but mutable entity types, navigation properties, expression translation, attributes, proxy assumptions, and C#-first examples may make persistent entities poor domain types. Keep EF entities in infrastructure and map them to immutable records or unions rather than weakening the domain for tracking convenience.
 
 ### SQLProvider {#sqlprovider}
 
 [SQLProvider 1.5.27](https://www.nuget.org/packages/SQLProvider/1.5.27) is an F# database type provider with LINQ queries, schema exploration, CRUD support, multiple database backends, and an offline schema option. It can give excellent feedback when the database schema is stable and provider support matches the target.
 
-Its adoption spike must exercise the actual driver, design-time schema path, generated SQL, nullability, transactions, async/cancellation, migrations, publish output, and CI restore. Generated entities remain adapter types. A 47 MB package download and its driver/native graph are operational facts to inspect, not a quality judgment.
+An adoption spike must exercise the actual driver, design-time schema path, generated SQL, nullability, transactions, async/cancellation, migrations, publish output, and CI restore. Generated entities remain adapter types. A 47 MB package download and its driver/native dependency graph are operational facts to inspect, not a quality judgment.
 
-### Compare the ownership surface {#relational-comparison}
+### Compare what each option controls {#relational-comparison}
 
-| Need | First candidate | Main proof required |
+| Need | First candidate | Key verification |
 |---|---|---|
 | exact SQL and provider features | direct ADO.NET | mapping, lifetime, cancellation, transaction, and injection tests |
 | explicit SQL with less mapping ceremony | Dapper | F# DTO mapping, parameterization, multi-mapping, and transaction behavior |
 | change tracking and rich application model | EF Core | real-provider translation, concurrency, migration, and entity/domain separation |
-| compile-time database-shaped F# access | SQLProvider | repeatable schema acquisition, generated SQL, driver, and deployment compatibility |
+| compile-time, schema-driven F# access | SQLProvider | repeatable schema acquisition, generated SQL, driver, and deployment compatibility |
 
-One service can use a write-oriented adapter and separate read projections. Do not let two libraries own the same transaction or migration path without a precise boundary.
+One service can use a write-oriented adapter and separate read projections. Do not let two libraries coordinate the same transaction or migration path without a precise boundary.
 
 ## Keep transactions and domain decisions distinct {#transactions-domain}
 
-Database libraries expose mechanics; the application owns meaning. Put uniqueness, capacity, version checks, or ledger balance behind the atomic boundary that actually protects them. Map unique violations and optimistic-concurrency conflicts to declared application results rather than leaking vendor exceptions.
+Database libraries expose mechanics; the application defines business meaning. Put uniqueness, capacity, version checks, or ledger balance behind the atomic operation that actually protects them. Map unique violations and optimistic-concurrency conflicts to declared application results rather than leaking vendor exceptions.
 
 Retries require idempotency and transaction knowledge. Retrying a read-only transient failure differs from retrying a command after the connection drops during commit. Measure pool saturation, query duration, returned rows, retries, and conflicts with bounded labels; do not log full SQL parameters or row contents by default.
 
@@ -248,7 +231,7 @@ Start with ordinary F# collections when rows are bounded and the operations are 
 
 [Deedle 8.0.0](https://www.nuget.org/packages/Deedle/8.0.0) targets `net10.0` and provides labeled series and frames, alignment, joins, missing-data operations, grouping, statistics, and time-series functions. Choose it when those semantics reduce real work, not because every CSV deserves a data frame.
 
-Data frames trade some static row-shape visibility for heterogeneous columns and interactive manipulation. Specify keys, duplicate handling, alignment, missing values, ordering, and conversions explicitly. A frame that prints attractively can still contain an `object` column, silent coercion, or a misaligned time series.
+Data frames trade some static information about row types for heterogeneous columns and interactive manipulation. Specify keys, duplicate handling, alignment, missing values, ordering, and conversions explicitly. A frame that prints attractively can still contain an `object` column, silent coercion, or a misaligned time series.
 
 When data no longer fits the intended memory budget, push projection and aggregation into the database or analytical engine, partition the workload, or use a suitable columnar format. Benchmark parsing, allocation, joins, and serialization with representative cardinality. “Lazy” does not mean constant memory after grouping, sorting, caching, or materialization.
 
@@ -308,7 +291,7 @@ Split before fitting transformations that learn from data. Preserve entity or ti
 
 [ML.NET](https://learn.microsoft.com/en-us/dotnet/machine-learning/mldotnet-api) provides .NET data views, transforms, trainers, evaluation, model persistence, and import paths including ONNX and TensorFlow. [Microsoft.ML 5.0.0](https://www.nuget.org/packages/Microsoft.ML/5.0.0) is the checked stable package; 6.0 is prerelease on the checked date.
 
-It is a strong candidate for classical ML that must train or infer inside a .NET estate. F# can consume the CLR API, though attributes, mutable input/output classes, generic overloads, and examples are C#-shaped. Put those shapes in an ML adapter and map from validated F# feature records. Test the persisted model by loading it in a fresh process, not only by predicting with the in-memory object that trained it.
+It is a strong candidate for classical ML that must train or infer inside a .NET estate. F# can consume the CLR API, though its attributes, mutable input/output classes, generic overloads, and examples are designed around C#. Keep those types in an ML adapter and map from validated F# feature records. Test the persisted model by loading it in a fresh process, not only by predicting with the in-memory object that trained it.
 
 ### ONNX Runtime {#onnx-runtime}
 
@@ -409,17 +392,17 @@ An `.fsx` script loads a local export, engineers features, trains a classifier, 
 
 ## Chapter review {#chapter-review}
 
-- Start with schema ownership, execution location, scale, effects, sensitivity, and evidence.
+- Start with schema responsibility, execution location, scale, side effects, sensitivity, and reproducibility.
 - A type provider turns a sample into compile-time feedback; it does not validate all runtime data.
 - Keep generated rows and database entities inside adapters, then return ordinary trusted types.
 - `Seq` and `query {}` describe syntax; the source determines local enumeration or provider translation.
-- ADO.NET, Dapper, EF Core, and SQLProvider own different amounts of SQL, mapping, tracking, and schema discovery.
+- ADO.NET, Dapper, EF Core, and SQLProvider handle different amounts of SQL, mapping, tracking, and schema discovery.
 - Transactions protect invariants only when the application puts the whole decision inside the real atomic boundary.
 - Use ordinary collections for bounded typed work; use frames when labels, alignment, and missing data justify them.
-- Make exploration headless and repeatable before it becomes decision evidence.
+- Make exploration headless and repeatable before using it to make a decision.
 - .NET Interactive and Polyglot Notebooks are deprecated; evaluate maintained notebook tooling explicitly.
 - Test chart inputs and accessibility; visual plausibility is not correctness.
-- Separate training evidence, immutable model packaging, and inference operations.
+- Separate training evaluation, immutable model packaging, and inference operations.
 - ML.NET fits many in-process .NET tasks; ONNX is an inference contract; TorchSharp adds native tensor/runtime ownership.
 - Version tables are dated observations; applications must verify the options they adopt.
 - Choose the smallest boundary that meets the real workload, then lock, test, measure, and rehearse change.

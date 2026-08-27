@@ -22,7 +22,7 @@ printfn "Availability: %s" (availability 3)
 ```
 `availability 3` 的条件为 `true`，结果是 `"available"`；`availability 0` 的条件为 `false`，结果是 `"full"`。条件 `remaining > 0` 是 `bool`，两个分支都是 `string`，因此整个函数是 `int -> string`。
 
-若 `then` 返回字符串而 `else` 只调用 `printfn`，两个结果分别为 `string` 与 `unit`，无法统一。输出效果不会变成字符串结果。只有在整个条件表达式只负责效果、`then` 也返回 `unit` 时，才可以省略 `else`；未命中路径的结果于是也是 `()`。
+若 `then` 返回字符串而 `else` 只调用 `printfn`，两个结果分别为 `string` 与 `unit`，无法统一。输出副作用不会变成字符串结果。只有当整个条件表达式只执行副作用、`then` 也返回 `unit` 时，才可以省略 `else`；未命中路径也返回 `()`。
 
 ## 练习 2：追踪规则与守卫 {#exercise-02}
 

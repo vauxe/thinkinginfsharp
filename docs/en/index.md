@@ -8,7 +8,7 @@ aside: false
 
 # Thinking in F# {#overview}
 
-This book teaches F# from expressions, values, types, and functions, then grows toward effects, testing, .NET interoperability, and complete applications.
+This book starts with F# expressions, values, types, and functions, then applies them to effects, testing, .NET interoperability, and complete applications.
 
 ::: tip Start here
 If F# is new to you, read the [preface](./preface/) and then [start Chapter 1](./part-01/ch-01-first-session). Continue through Parts I–III in order; use the later parts when you need their topics.
@@ -53,9 +53,9 @@ If F# is new to you, read the [preface](./preface/) and then [start Chapter 1](.
 ## Part V · .NET interop and engineering quality {#part-5}
 
 - [Chapter 25: Defining Objects in F#](./part-05/ch-25-objects-interfaces)
-- [Chapter 26: Deeper .NET Boundaries](./part-05/ch-26-dotnet-runtime-boundaries)
+- [Chapter 26: Deeper .NET Interoperability](./part-05/ch-26-dotnet-runtime-boundaries)
 - [Chapter 27: Designing F# APIs for C#](./part-05/ch-27-fsharp-api-for-csharp)
-- [Chapter 28: Example Tests, Test Doubles, and Boundary Tests](./part-05/ch-28-testing-boundaries)
+- [Chapter 28: Example Tests, Test Doubles, and Contract Tests](./part-05/ch-28-testing-boundaries)
 - [Chapter 29: Property Testing with FsCheck](./part-05/ch-29-property-testing)
 - [Chapter 30: Diagnostics, Debugging, Formatting, and Builds](./part-05/ch-30-diagnostics-tooling-builds)
 - [Chapter 31: Measure Before Optimizing](./part-05/ch-31-measure-before-optimizing)
@@ -68,7 +68,7 @@ If F# is new to you, read the [preface](./preface/) and then [start Chapter 1](.
 - [Chapter 35: Ports, Persistence, Configuration, and Stubs](./part-06/ch-35-ports-persistence-config)
 - [Chapter 36: Web API, JSON, and Input Boundaries](./part-06/ch-36-web-api-boundaries)
 - [Chapter 37: Consistency, Idempotency, Retries, and Partial Failure](./part-06/ch-37-consistency-idempotency)
-- [Chapter 38: Integration, Diagnostics, C# Client, and Release Evidence](./part-06/ch-38-integration-diagnostics-release)
+- [Chapter 38: Integration, Diagnostics, C# Client, and Release Verification](./part-06/ch-38-integration-diagnostics-release)
 
 ## Part VII · Where F# fits {#part-7}
 

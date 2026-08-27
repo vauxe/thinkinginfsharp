@@ -6,25 +6,11 @@ translationKey: part-02/ch-12-making-illegal-states-unrepresentable
 
 # Chapter 12: Making Illegal States Unrepresentable {#overview}
 
-A function named `validateCapacity` does not protect a plain `int`. Any caller can skip it, store `0`, and pass that value into code that assumes capacity is positive. Validation has happened somewhere, but the result carries no proof.
+A function named `validateCapacity` does not protect a plain `int`. Any caller can skip it, store `0`, and pass that value into code that assumes capacity is positive. The validated result is indistinguishable from an unchecked integer.
 
-F# can turn that convention into an API boundary: expose a `Capacity` type, hide its representation, and make the only public construction path return `Result<Capacity, CapacityError>`. After a caller obtains `Capacity`, downstream code may rely on the invariant established by the constructor instead of checking the same integer repeatedly.
+F# can enforce that rule through the API. Expose a `Capacity` type, hide its representation, and make the only public constructor return `Result<Capacity, CapacityError>`. Once a caller obtains `Capacity`, downstream code can rely on its invariant instead of checking the same integer repeatedly.
 
-“Impossible” here means impossible through the supported public API under its stated boundary assumptions. It does not mean corrupted storage, hostile reflection, unsafe primitives, null interoperation, or a concurrency race have ceased to exist.
-
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- distinguish a type abbreviation from a protected domain type;
-- expose a type while hiding its union or record representation;
-- place smart constructors and accessors in a same-named companion module;
-- return typed rejection reasons for expected invalid input;
-- compose protected component types into a larger valid model;
-- explain the scopes of `private`, `internal`, and `public`;
-- use a `.fsi` signature to hide representation across files;
-- preserve an invariant in every transformation that can create a new value;
-- decide when representation hiding earns its cost and when it is overdesign.
+“Impossible” here means impossible through the supported public API under the stated assumptions. Corrupted storage, hostile reflection, unsafe primitives, null interoperation, and concurrency races still exist.
 
 ## Validation without a protected result is bypassable {#bypassable-validation}
 
@@ -38,16 +24,16 @@ let validateCapacity capacity =
     else Error "capacity must be positive"
 ```
 
-Even if one path calls `validateCapacity`, another path can still write `let capacity: Capacity = 0<seat>`. A type abbreviation is another name for the same type; it does not own construction.
+Even if one path calls `validateCapacity`, another can write `let capacity: Capacity = 0<seat>`. A type abbreviation is only another name for the same type; it cannot control construction.
 
-A public record has the same weakness when callers can fill its fields directly. Validation returning the unchanged public representation is useful at an input boundary, but it does not make later code distinguish validated from unvalidated data.
+A public record has the same weakness when callers can fill its fields directly. Validation that returns the unchanged public representation is useful when accepting input, but later code still cannot distinguish validated from unchecked data.
 
 The repair needs two parts:
 
 1. a distinct type whose representation callers cannot construct;
 2. a function that checks raw input before it returns that type.
 
-Either part alone is incomplete. A private wrapper with a public unchecked constructor still permits invalid values; a validator returning raw `int` still carries no proof.
+Either part alone is incomplete. A private wrapper with a public unchecked constructor still permits invalid values; a validator returning raw `int` gives later code no additional guarantee.
 
 ## Expose the type and hide the constructor {#private-representation}
 
@@ -75,7 +61,7 @@ type Capacity = private Capacity of int<seat>
 
 The type `Capacity` is visible, while its union representation is private to the enclosing `BookingDomain` module. By contrast, `type private Capacity = ...` would hide the type itself, making it unusable in a public signature.
 
-The outer `Capacity` name denotes the type; the inner case also constructs or patterns on its representation. Code outside the access boundary can pass a `Capacity`, store it, and call public functions over it, but cannot invoke that case.
+The outer `Capacity` name denotes the type; the inner case constructs or matches its representation. Code outside `BookingDomain` can pass and store a `Capacity` or call public functions over it, but cannot invoke that case.
 
 This diagnostic-only bypass was verified with F# 10:
 
@@ -86,7 +72,7 @@ let invalid = BookingDomain.Capacity 0<BookingDomain.seat>
 
 F# union cases are not individually less accessible than their union representation. Hiding the representation hides all construction/deconstruction cases together. Private record representation similarly hides direct record construction and field-pattern access from consumers.
 
-## The companion module owns construction and observation {#companion-module}
+## The companion module groups construction and observation {#companion-module}
 
 F# allows a type and module to share a name. This produces a focused API:
 
@@ -97,11 +83,11 @@ Capacity.value : Capacity -> int<seat>
 
 The module is inside the same enclosing `BookingDomain` module, so it can construct and pattern-match the private case. Callers use qualified names and never need the representation.
 
-`create` is a **smart constructor**. It accepts boundary-friendly raw data, checks positivity, attaches the `seat` measure, and returns either a protected value or a typed expected error. It does not throw for ordinary rejection.
+`create` is a **smart constructor**. It accepts raw data, checks positivity, attaches the `seat` measure, and returns either a protected value or a typed expected error. It does not throw for an expected rejection.
 
 `value` is a deliberate observation function. Returning the measured integer lets adapters display or persist it, but does not let them turn an arbitrary integer back into `Capacity` without calling `create` again.
 
-Keep the trusted surface small. Every function inside the enclosing module that can invoke `Capacity` directly is part of the invariant's implementation boundary. `private` stops outside callers; it does not prove that inside code is correct.
+Keep the trusted code small. Every function that can invoke the private `Capacity` case is responsible for preserving the invariant. `private` blocks outside callers; it does not prove the code inside the module correct.
 
 ## Smart construction may validate and normalize {#validation-and-normalization}
 
@@ -143,11 +129,11 @@ Normalization is domain policy, not harmless cleanup. Trimming is appropriate he
 
 Error types retain the rejected fact: `NonPositiveSeatCount actual` is more useful than `Error "invalid"`. Formatting and localization remain outside the constructor.
 
-Do not publish an unchecked escape hatch merely for convenience. If trusted migration code needs one, keep it private or narrowly internal and test that boundary explicitly.
+Do not publish an unchecked escape hatch merely for convenience. If trusted migration code needs one, keep it private or narrowly `internal` and test that exceptional path directly.
 
-## Valid components can make a larger state valid {#composing-invariants}
+## Compose protected values into larger states {#composing-invariants}
 
-The request model combines the two component proofs and also hides its record representation:
+The request model combines the two protected component types and also hides its record representation:
 
 ```fsharp:line-numbers [ch12-making-illegal-states-unrepresentable.fsx]
 type BookingRequestError =
@@ -194,7 +180,7 @@ For example, subtracting reserved seats from capacity can reach zero. Whether ze
 
 Avoid getters that expose mutable internal objects. The wrappers here contain immutable strings and numbers. If a protected type contains an array or mutable .NET object, returning it directly lets callers mutate state behind the proof; return a copy, read-only view, or operations that preserve the invariant.
 
-## `private`, `internal`, and signatures protect different boundaries {#access-boundaries}
+## `private`, `internal`, and signatures protect different scopes {#access-boundaries}
 
 F# access control is lexical and assembly-aware:
 
@@ -209,7 +195,7 @@ Every F# file is implicitly a module when no explicit top-level namespace/module
 
 In the shared script, both type and companion module sit inside `BookingDomain`; code after that module is outside the private boundary even though it is in the same physical `.fsx` file. Scope is determined by the enclosing module, not merely by the filename.
 
-### A signature file makes the cross-file contract explicit {#signature-file}
+### A signature file defines the cross-file API {#signature-file}
 
 For a stable library API, `BookingDomain.fsi` can expose an abstract type:
 
@@ -233,9 +219,9 @@ The corresponding `BookingDomain.fs` contains the private union representation a
 
 Signature files add maintenance cost because public changes must agree in two files. They are valuable once an API is stable or representation hiding across a component boundary matters; they need not be added mechanically to every exploratory file. Chapter 16 returns to project order and signatures as part of multi-file design.
 
-## State the guarantee honestly at external boundaries {#boundary-limits}
+## Revalidate data that enters from outside {#boundary-limits}
 
-Private representation secures ordinary compiled callers. Data arriving from JSON, a database, environment variables, or another service is raw again and must pass through validation. Units of measure are erased, so persistence cannot carry their proof either.
+Private representation constrains ordinary compiled callers. Data arriving from JSON, a database, environment variables, or another service is raw again and must pass through validation. Units of measure are erased, so persisted numbers carry no measure information.
 
 Reflection-based serializers, unsafe code, `Unchecked.defaultof`, legacy nulls, or corrupted persisted bytes may bypass normal construction assumptions. Configure adapters to serialize an explicit DTO and rebuild the domain value through smart constructors. Chapter 19 handles null boundaries; later capstone slices handle persistence and concurrency.
 
@@ -253,7 +239,7 @@ Representation hiding earns its cost when:
 
 It is likely overdesign when a value is a short-lived local, its components already enforce every rule, or the wrapper exposes unchecked construction and therefore proves nothing. A public discriminated union is often better when all cases are legal and callers benefit from exhaustive matching.
 
-Start with the smallest truthful barrier. Protect `EventId` if nonblank identity matters everywhere. Do not wrap every display label merely to make the type list longer.
+Start with the smallest type that removes real risk. Protect `EventId` if nonblank identity matters everywhere. Do not wrap every display label merely to make the type list longer.
 
 ## Run the shared example {#run-example}
 
@@ -320,7 +306,7 @@ Write the public portion of a `.fsi` signature for `Capacity` plus a `tryReserve
 
 ## Model review {#model-review}
 
-- A distinct private representation plus a checked constructor carries proof that a raw validator cannot.
+- A distinct private representation plus a checked constructor distinguishes validated values from raw input.
 - A same-named module groups creation and observation while retaining representation access inside one trusted scope.
 - Component invariants compose, but outer cross-field rules may still require private construction.
 - `private`, `internal`, and `.fsi` signatures guard different lexical or assembly boundaries.

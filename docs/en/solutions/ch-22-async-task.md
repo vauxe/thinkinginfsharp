@@ -1,6 +1,6 @@
 ---
 title: "Chapter 22 Solutions"
-description: "Prove async and task start semantics with gates, compose a task API with an Async validator, and make single-execution ownership explicit."
+description: "Verify async and task start semantics with gates, compose a task API with an Async validator, and define when each execution starts."
 translationKey: solutions/ch-22-async-task
 ---
 
@@ -10,7 +10,7 @@ These solutions make causal order observable. A test controls completion through
 
 [Return to Chapter 22](../part-04/ch-22-async-task).
 
-## Exercise 1: predict and prove entry {#exercise-01}
+## Exercise 1: predict and verify entry {#exercise-01}
 
 ### Observe both start boundaries {#exercise-01-proof}
 
@@ -114,19 +114,19 @@ Calling `execute` evaluates its task expression. It then evaluates `send request
 
 In production, the public function would accept and propagate a cancellation token. Chapter 23 adds that policy rather than smuggling it into this start-timing exercise.
 
-## Exercise 3: make start ownership explicit {#exercise-03}
+## Exercise 3: define when each execution starts {#exercise-03}
 
 ### Classify the three APIs {#exercise-03-classification}
 
-| API | Ownership meaning |
+| API | Execution semantics |
 |---|---|
 | `refresh : Task<Snapshot>` | One task was created already; all callers receive or share that execution |
 | `refreshAgain : unit -> Task<Snapshot>` | Every call evaluates the factory and ordinarily starts a new execution |
 | `prepareRefresh : unit -> Async<Snapshot>` | Every call creates a deferred description; a later start creates an execution |
 
-The signatures do not by themselves specify retries, overlap, caching duration, cancellation ownership, or whether a completed value remains reusable. Those are separate policies.
+The signatures do not specify retries, overlap, caching duration, who may cancel, or whether a completed value remains reusable. Those are separate policies.
 
-### Add an explicit single-flight owner {#exercise-03-single-flight}
+### Add a single-flight coordinator {#exercise-03-single-flight}
 
 For a refresh that may run again after completion but must not overlap, a task factory can sit behind a small coordinator:
 

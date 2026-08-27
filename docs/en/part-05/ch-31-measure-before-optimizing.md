@@ -8,22 +8,7 @@ translationKey: part-05/ch-31-measure-before-optimizing
 
 Performance is behavior under a workload, on an environment, against a requirement. “This code looks fast” is not evidence. Neither is one stopwatch result, one profiler screenshot, or a microbenchmark copied from another machine. Begin with what a user or operator needs, locate the expensive path, change one cause, and measure the same observable again.
 
-F# does not require abandoning expressions, immutability, or domain types to be efficient. Clear code is the baseline that lets you test an optimization hypothesis. When evidence identifies a hot loop, tightly scoped local mutation or a lower-level representation can be appropriate. The public boundary should remain as simple and truthful as the requirement allows.
-
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- turn “make it faster” into a workload, environment, observable, and target;
-- distinguish end-to-end measurement, profiling, counters, tracing, and microbenchmarking;
-- follow a baseline → profile → hypothesis → change → equivalence → remeasure loop;
-- design a BenchmarkDotNet benchmark that isolates work and returns its result;
-- read mean, error, standard deviation, ratio, allocation, and GC columns conservatively;
-- explain why one captured benchmark cannot rank F# collections in general;
-- use local mutation without leaking mutable state across the API;
-- recognize when `inline`, `voption`, `Span<'T>`, and byrefs deserve an experiment;
-- separate steady-state throughput from startup, memory, and deployment size;
-- treat trimming and Native AOT as deployment models with compatibility costs, not magic speed flags.
+Efficient F# does not require abandoning expressions, immutability, or domain types. Clear code provides the baseline for testing an optimization hypothesis. When measurement identifies a hot loop, tightly scoped local mutation or a lower-level representation may be appropriate. Keep the public API as simple and accurate as requirements allow.
 
 ## Define the performance question first {#performance-question}
 
@@ -31,24 +16,24 @@ A useful performance statement contains four parts:
 
 | Part | Example | Missing-part failure |
 |---|---|---|
-| Workload | Aggregate 4,096 requests with the observed value distribution | A tiny or synthetic shape may optimize the wrong path |
+| Workload | Aggregate 4,096 requests with the observed value distribution | A tiny or artificial distribution may optimize the wrong path |
 | Environment | .NET 10, arm64, Release, workstation or named production class | Runtime, JIT, CPU, GC, and power behavior differ |
 | Observable | p95 request latency, operations/second, allocated bytes, startup time, or publish size | “Faster” combines unrelated outcomes |
 | Target | p95 below 150 ms at 200 requests/second | Any change can be called successful |
 
-Choose an observable at the same boundary as the requirement. If users report slow HTTP requests, start with end-to-end request latency and throughput, not the nanoseconds of a list function. If containers restart too slowly, measure process readiness. If GC pauses dominate, measure allocation rate, heap behavior, and pauses rather than only CPU time.
+Choose a metric that directly matches the requirement. If users report slow HTTP requests, start with end-to-end latency and throughput, not the nanoseconds of a list function. If containers restart too slowly, measure process readiness. If GC pauses dominate, measure allocation rate, heap behavior, and pauses rather than only CPU time.
 
-Use percentiles for distributions whose tail matters. An average can improve while p99 becomes worse. Record concurrency, data shape, cache state, runtime configuration, and external dependencies with the result. A benchmark without these inputs is a number without a claim.
+Use percentiles when the tail of a distribution matters. An average can improve while p99 becomes worse. Record concurrency, data distribution, cache state, runtime configuration, and external dependencies with the result. Without those inputs, a benchmark number has no useful meaning.
 
-## Follow an evidence ladder {#evidence-ladder}
+## Measure in increasing detail {#evidence-ladder}
 
 A reliable optimization loop is ordered:
 
-1. Reproduce the relevant workload and record a baseline at the user-visible boundary.
+1. Reproduce the relevant workload and record a baseline for the user-visible result.
 2. Use counters or a profiler to locate where time, allocation, contention, or I/O accumulates.
 3. State one causal hypothesis, including the observable it predicts will change.
 4. If the suspected work is small and deterministic, isolate it in a microbenchmark.
-5. Preserve functional equivalence with examples, properties, or a trusted reference implementation.
+5. Check functional equivalence with examples, properties, or a trusted reference implementation.
 6. Make one focused change and rerun the same benchmark under comparable conditions.
 7. Rerun the end-to-end workload; reject a locally faster change that does not improve the requirement.
 
@@ -84,7 +69,7 @@ The candidate changes traversal structure and therefore creates correctness risk
 
 ## Prove enough equivalence before timing {#equivalence}
 
-The sample checks four named cases and 256 deterministic generated cases before any benchmark begins:
+Before any benchmark begins, the sample checks four named cases and 256 deterministically generated cases:
 
 ```fsharp:line-numbers [Benchmarks.fs]
 module Equivalence =
@@ -118,7 +103,7 @@ module Equivalence =
 
         fixedCases.Length + generatedCases.Length
 ```
-The reference implementation and candidate are independently shaped, which makes comparison useful. The cases include empty input, exact boundaries, rejected values, negative values, and varying lengths. Passing 260 cases is evidence, not a mathematical proof; production rules may require additional properties, overflow cases, or domain-level tests.
+The reference implementation and candidate use different structures, which makes comparison useful. Cases include empty input, values exactly at the limit, rejected and negative values, and varying lengths. Passing 260 cases is not a mathematical proof; production rules may require more properties, overflow cases, or domain-level tests.
 
 Run only the semantic gate while editing:
 
@@ -127,11 +112,11 @@ dotnet run --project Ch31.Benchmarks.fsproj \
   --configuration Release --no-restore -- --verify-only
 ```
 
-Do not encode a noisy time limit in this check. Correctness gates should be deterministic. Performance histories can detect a suspected regression, but a threshold needs controlled runners, repeated evidence, and a policy for variance before it belongs in CI.
+Do not encode a noisy time limit in this check. Correctness checks should be deterministic. Performance history can reveal a suspected regression, but a CI threshold requires controlled runners, repeated measurements, and a policy for variance.
 
 ## Design a benchmark that isolates the hypothesis {#benchmark-design}
 
-The benchmark fixture moves deterministic input construction into `GlobalSetup`, returns each computed sum, tests two data sizes, marks the pipeline as the baseline, and enables managed-allocation reporting:
+The benchmark setup creates deterministic input in `GlobalSetup`, returns each computed sum, tests two data sizes, marks the pipeline as the baseline, and enables managed-allocation reporting:
 
 ```fsharp:line-numbers [Benchmarks.fs]
 [<MemoryDiagnoser>]
@@ -157,13 +142,13 @@ type RequestAggregationBenchmarks() =
 Each choice closes a common loophole:
 
 - setup time is excluded from the operation being compared;
-- the fixed seed makes both methods see reproducible shapes;
+- the fixed seed gives both methods reproducible inputs;
 - returning the result discourages dead-code elimination;
 - parameters reveal whether the relationship changes with input size;
 - `Baseline = true` gives ratios within each parameter group;
 - `MemoryDiagnoser` reports managed allocation per operation and GC frequency.
 
-The project locks BenchmarkDotNet 0.15.8 and all resolved dependencies. Run it from the command line in Release without an attached debugger. BenchmarkDotNet builds generated benchmark executables, performs warmup and measurement iterations, and reports the runtime environment; a hand-written `Stopwatch` loop would need to rediscover those controls.
+The project locks BenchmarkDotNet 0.15.8 and all resolved dependencies. Run it from the command line in Release without an attached debugger. BenchmarkDotNet builds benchmark executables, performs warmup and measurement iterations, and reports the runtime environment; a hand-written `Stopwatch` loop would need to reimplement those controls.
 
 The quick mode is only an execution check:
 
@@ -172,11 +157,11 @@ dotnet run --project Ch31.Benchmarks.fsproj \
   --configuration Release --no-restore -- --smoke
 ```
 
-It uses a Dry job with one cold-start measurement. Its means and ratios are not a baseline. Running without chapter-specific arguments uses ShortRun; use a longer job and a controlled machine when a consequential decision requires tighter evidence.
+It uses a Dry job with one cold-start measurement, so its means and ratios are not a baseline. Running without the chapter-specific arguments uses ShortRun. Use a longer job and a controlled machine when an important decision requires greater precision.
 
 ## Read the captured result without overclaiming {#read-results}
 
-The committed baseline records the exact tool, job, OS, runtime, architecture, GC, configuration, seed, workload, and limitations. On that one developer workstation, the ShortRun summary was:
+The committed baseline records the tool version, job, OS, runtime, architecture, GC, configuration, seed, workload, and limitations. On that one developer workstation, the ShortRun summary was:
 
 | Method | Count | Mean | Error (99.9% CI half-width) | StdDev | Ratio | Allocated |
 |---|---:|---:|---:|---:|---:|---:|
@@ -185,9 +170,9 @@ The committed baseline records the exact tool, job, OS, runtime, architecture, G
 | `ArrayPipeline` | 4,096 | 5,777.7 ns | 691.47 ns | 37.90 ns | 1.00 | 7,504 B |
 | `SinglePass` | 4,096 | 2,475.9 ns | 70.92 ns | 3.89 ns | 0.43 | 0 B reported |
 
-The defensible conclusion is narrow: on this captured environment and input generator, the single-pass candidate preserved all checked results, measured about 0.43 times the pipeline mean at both tested sizes, and avoided the intermediate-array allocation reported by MemoryDiagnoser.
+The result supports only a narrow conclusion. In this environment and with this input generator, the single-pass candidate preserved every checked result. At both tested sizes, its mean was about 0.43 times the pipeline mean, and MemoryDiagnoser reported no intermediate-array allocation.
 
-The conclusion applies to these two implementations, sizes, and this captured environment. General claims about loops, pipelines, arrays, lists, mutation, other runtimes, or other CPUs require new measurements. The processor query was denied, workstation power and background load were uncontrolled, and ShortRun supplied only three measured iterations, so the wide confidence interval deserves particular caution.
+The conclusion applies only to these two implementations, sizes, and this environment. Statements about loops, pipelines, arrays, lists, mutation, other runtimes, or other CPUs require new measurements. The processor query was denied, workstation power and background load were uncontrolled, and ShortRun supplied only three measured iterations, so treat the wide confidence interval cautiously.
 
 Mean is the arithmetic mean of measured operations. Standard deviation describes observed spread. The displayed error is half of BenchmarkDotNet's stated confidence interval and applies to this sample rather than every future run. Ratio compares methods within the corresponding `Count` group. “0 B reported” means the diagnoser observed zero managed bytes per operation at its resolution; the process still uses memory elsewhere.
 
@@ -195,7 +180,7 @@ Mean is the arithmetic mean of measured operations. Standard deviation describes
 
 In this sample, `Array.filter` creates an intermediate array containing accepted values, then `Array.sumBy` traverses it. The allocation grows with the number of matches. The single pass reads the source array and accumulates an `int64` without constructing that result array. The measurements agree with this specific causal explanation.
 
-Allocation is not automatically a defect. A materialized value may simplify ownership, enable reuse, or avoid repeated deferred work. Short-lived allocations may be inexpensive until their rate creates GC pressure. Optimize allocation when a profile or measured rate shows it contributes to the requirement, not because the word “allocation” appears in code.
+Allocation is not automatically a defect. A materialized value may simplify code, enable reuse, or avoid repeated deferred work. Short-lived allocations may be inexpensive until their rate creates GC pressure. Optimize allocation when profiling or measured rates show that it affects the requirement, not because the word “allocation” appears in code.
 
 There is no context-free fastest F# collection:
 
@@ -207,7 +192,7 @@ There is no context-free fastest F# collection:
 | Key lookup with ordering | `Map<'K,'V>` | Tree comparisons and allocation on updates |
 | Key lookup without ordering | `Dictionary<'K,'V>` | Mutation, comparer quality, capacity, and resize behavior |
 
-Choose from semantics first, then profile representative operations and sizes. Changing a collection can alter ordering, equality, mutation, laziness, thread-safety, and memory ownership—not only speed.
+Choose by behavior first, then profile representative operations and sizes. Changing a collection can alter ordering, equality, mutation, laziness, thread safety, and memory lifetime—not only speed.
 
 ## Profile the application, not only a function {#profiling}
 
@@ -217,9 +202,9 @@ Use representative traffic and preserve operational context. A microbenchmark de
 
 Likewise, a CPU profile does not prove causation merely because a function appears near the top. It may be called often because of an upstream design, or it may wait inside an operation attributed elsewhere. Form a hypothesis, change one cause, and confirm both the profile and end-to-end observable.
 
-## Recognize lower-level F# tools by evidence {#lower-level-tools}
+## Use lower-level F# tools only after measuring {#lower-level-tools}
 
-Lower-level features trade convenience and generality for representation or call-site control. Introduce them at a narrow boundary and benchmark the exact use case.
+Lower-level features trade convenience and generality for control over representation or calls. Keep them narrowly scoped and benchmark the actual use case.
 
 ### `inline` is not a universal speed annotation {#inline}
 
@@ -231,19 +216,19 @@ Marking a function `inline` may remove call or lambda overhead, expose further o
 
 `option<'T>` is the natural model for optional data. `voption<'T>` is a struct discriminated union with `ValueSome` and `ValueNone`. It can avoid allocating an option wrapper in a hot path, especially for small payloads, but copying a large struct can cost more and boxing or generic/interface use may erase the expected benefit.
 
-Changing `option` to `voption` changes a public type and its case names. Measure an allocation-sensitive path, include both present and absent distributions, preserve behavior tests, and keep the value option internal unless callers truly benefit from that contract. F# 10 also supports struct-backed optional member parameters, but the same evidence requirement applies.
+Changing `option` to `voption` changes a public type and its case names. Measure an allocation-sensitive path, include both present and absent distributions, and preserve behavior tests. Keep the value option internal unless callers truly benefit from that API. F# 10 also supports struct-backed optional member parameters, but the same measurement requirement applies.
 
 ### Span and byrefs impose lifetime rules {#span-byref}
 
 `byref<'T>`, `inref<'T>`, and `outref<'T>` are managed pointers. `Span<'T>` and `ReadOnlySpan<'T>` are byref-like views over contiguous memory; the view itself is stack-bound even when the underlying memory is managed or unmanaged. Compile-time escape rules prevent storing or capturing these values in ordinary heap objects, lambdas, or asynchronous workflows.
 
-Span can remove slicing copies and adapt efficiently to buffer-oriented .NET APIs in synchronous code. It is not a replacement for every array or list. When work must cross an asynchronous boundary or outlive the call, use an owned representation such as `Memory<'T>`/`ReadOnlyMemory<'T>` or an array and make ownership explicit. Add Span/byref only after a profile identifies copying or boundary conversion as material.
+Span can remove slicing copies and adapt efficiently to buffer-oriented .NET APIs in synchronous code. It is not a replacement for every array or list. When work must continue asynchronously or outlive the call, use `Memory<'T>`, `ReadOnlyMemory<'T>`, or an array with a clear lifetime. Add Span or byref only after profiling shows that copying or conversion materially affects performance.
 
 ## Separate runtime optimization from deployment optimization {#deployment}
 
 Trimming and Native AOT change how an application is published. They should be evaluated with startup time, working set, package size, compatibility, build time, and the target runtime identifier—not inferred from this aggregation microbenchmark.
 
-Trimming removes statically unreachable code from self-contained publications to reduce deployment size. Reflection and other dynamic patterns can hide required code from analysis, so trim warnings are correctness evidence. Resolve them and test the published artifact; suppressing them merely to produce a smaller package can create runtime failure.
+Trimming removes statically unreachable code from self-contained publications to reduce deployment size. Reflection and other dynamic patterns can hide required code from analysis, so trim warnings may indicate correctness problems. Resolve them and test the published artifact; suppressing them merely to produce a smaller package can create runtime failures.
 
 Native AOT compiles IL to platform-specific native code at publish time and removes the runtime JIT dependency. It can improve startup and memory footprint for suitable applications, while increasing build time and constraining dynamic loading, runtime code generation, reflection-heavy libraries, and deployment targets. It does not promise better steady-state throughput for every workload.
 
@@ -254,20 +239,20 @@ Compare the actual JIT and AOT artifacts under the same startup or service workl
 A useful performance record states:
 
 - the requirement and user-visible baseline;
-- the exact revision, command, input distribution, environment, and job;
-- profiler evidence locating the suspected cost;
-- the hypothesis and semantic-equivalence evidence;
+- the revision, full command, input distribution, environment, and job;
+- profiler results locating the suspected cost;
+- the hypothesis and semantic-equivalence checks;
 - raw summary statistics and allocation data, not only the best run;
 - the end-to-end result after the change;
 - known limitations, rejected alternatives, and a rollback condition.
 
-Keep historical results as evidence, not a permanent pass/fail threshold. Rebaseline deliberately after runtime, dependency, hardware, workload, or benchmark-code changes. If the environment differs, compare new alternatives within the same run before comparing absolute values across history.
+Keep historical results as context, not as a permanent pass/fail threshold. Rebaseline deliberately after runtime, dependency, hardware, workload, or benchmark-code changes. If the environment differs, compare alternatives within the same run before comparing absolute values across history.
 
 ## Exercises {#exercises}
 
-### Exercise 1: state only supported conclusions {#exercise-01}
+### Exercise 1: state only measured conclusions {#exercise-01}
 
-Using the captured table, write three conclusions that the evidence supports and three claims it does not support. Explain why the Dry smoke output must not replace the ShortRun baseline.
+Using the captured table, write three conclusions supported by the measurements and three that are not. Explain why the Dry smoke output cannot replace the ShortRun baseline.
 
 ### Exercise 2: design an `option` versus `voption` experiment {#exercise-02}
 
@@ -281,7 +266,7 @@ For each symptom—high p95 API latency, high allocation rate in a known aggrega
 
 ## Model review {#model-review}
 
-- Performance claims require a workload, environment, observable, and target.
+- Performance statements require a workload, environment, observable, and target.
 - Profile a representative system before isolating a suspected function.
 - Preserve semantic equivalence before comparing performance.
 - Release, no debugger, controlled setup, consumed results, and recorded context make a microbenchmark interpretable.

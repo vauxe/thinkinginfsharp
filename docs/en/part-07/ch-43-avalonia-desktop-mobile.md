@@ -10,21 +10,10 @@ An F# user interface is not “some controls around the real program.” It is a
 
 Avalonia is a cross-platform .NET UI framework with official F# templates. It draws its own controls and provides desktop, mobile, and browser hosts, but that does not make every platform identical. A shared view can compile while its font, input, lifecycle, permission, native integration, package, signing, or accessibility path fails on one target. “Cross-platform” describes an architecture and support surface; it is not a test result.
 
-This chapter therefore starts with product and platform constraints, not XAML syntax. It uses the desktop sample to show one small, verified desktop slice, then expands outward to state patterns, binding boundaries, threading, platform services, mobile hosts, testing, packaging, and release evidence.
-
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- choose a UI boundary from users, devices, native capabilities, team skills, and release channels while separating shared source, shared UI, and verified behavior;
-- structure an application across domain, presentation, view, platform host, and distribution layers, then choose a fitting MVU, MVVM, code-behind, or code-only pattern;
-- adapt F# records, unions, options, commands, and collections at the binding boundary and configure compiled bindings explicitly;
-- model desktop and mobile lifetimes, return asynchronous results safely to the UI thread, and isolate platform services behind ports;
-- design accessible, responsive layouts for window size, display scale, keyboard, touch, localization, and assistive technology;
-- build per-target evidence from project and XAML checks through native launch, packaging, signing, store release, and a reversible adoption spike.
+Start with product and platform constraints, not XAML syntax. A small desktop sample with a defined verification scope leads into state patterns, binding boundaries, threading, platform services, mobile hosts, testing, packaging, and release checks.
 
 ::: tip Two reading passes
-For a first pass, follow the [UI stack](#ui-stack-contracts), [decision map](#decision-map), and [verified desktop slice](#verified-slice). When implementing or adopting a toolkit, use the state, binding, lifetime, platform, evidence, and release sections as focused references.
+For a first pass, follow the [UI stack](#ui-stack-contracts), [decision map](#decision-map), and [verified desktop slice](#verified-slice). When implementing or adopting a toolkit, return to the sections on state, binding, lifetime, platforms, verification, and release as needed.
 :::
 
 ## A UI application is a stack of contracts {#ui-stack-contracts}
@@ -41,7 +30,7 @@ domain rules and durable data
 
 The domain can often be a normal F# library. Presentation state turns domain outcomes and UI events into states the screen can render. Avalonia controls are mutable .NET objects owned by a UI dispatcher. The host decides whether the top level is a desktop window, an Android activity, or a single mobile view. Packaging then adds operating-system identity, architecture, metadata, signing, distribution, and upgrade behavior.
 
-Each layer needs evidence at its own boundary. Pure transition tests cover presentation logic; a XAML build covers declared names and markup; a native debug launch covers device rendering and interaction; packaging checks cover signing and installation; upgrade and accessibility tests complete the release evidence.
+Verify each layer at its own boundary. Pure transition tests check presentation logic, while a XAML build checks declared names and markup. Native launches cover rendering and interaction; package, upgrade, and accessibility tests cover the release path.
 
 ### Shared is not the same as identical {#shared-not-identical}
 
@@ -49,7 +38,7 @@ Use three separate percentages when discussing reuse:
 
 1. **Shared logic:** domain rules, validation, network contracts, persistence abstractions, and presentation transitions.
 2. **Shared UI:** views, styles, resources, navigation concepts, and toolkit-specific adapters.
-3. **Shared evidence:** tests and observations that actually ran on each supported OS, architecture, input mode, and release channel.
+3. **Verified coverage:** tests and observations that actually ran on each supported OS, architecture, input mode, and release channel.
 
 The first can be high while the second is low for a native-feeling mobile product. The first two can be high while the third remains near zero before device and packaging tests. Reuse is valuable, but an honest denominator is more valuable than a large percentage.
 
@@ -57,14 +46,14 @@ The first can be high while the second is low for a native-feeling mobile produc
 
 Start with the users and release constraints:
 
-| First candidate | Strong fit | F# boundary | Evidence still required |
+| First candidate | Strong fit | F# boundary | Verification still required |
 | --- | --- | --- | --- |
 | Avalonia desktop | New or rewritten Windows/macOS/Linux client; one rendered control system is acceptable | Official F# app and MVVM templates exist; pure core can stay idiomatic | Native launch, DPI/input, OS integration, packaging, signing, install/update on every supported desktop |
-| Avalonia cross-platform | A shared Avalonia view layer across desktop plus selected mobile/browser targets is worth platform hosts | Official cross-platform template includes F#; keep hosts thin and state portable | Android/iOS workloads, lifetimes, permissions, device APIs, signing, simulator/device and store evidence |
-| WPF or WinUI shell | Product is intentionally Windows-only or depends deeply on existing Windows controls and APIs | A narrow C# UI shell can reference an F# core; direct F# XAML tooling needs its own proof | Supported Windows versions, installer, enterprise deployment, accessibility, Windows-specific integration |
+| Avalonia cross-platform | A shared Avalonia view layer across desktop plus selected mobile/browser targets justifies maintaining platform hosts | Official cross-platform template includes F#; keep hosts thin and state portable | Android/iOS workloads, lifetimes, permissions, device APIs, signing, simulator/device tests, and store validation |
+| WPF or WinUI shell | Product is intentionally Windows-only or depends deeply on existing Windows controls and APIs | A narrow C# UI shell can reference an F# core; direct F# XAML tooling needs separate validation | Supported Windows versions, installer, enterprise deployment, accessibility, Windows-specific integration |
 | .NET MAUI shell | Mobile-first product needs MAUI handlers, controls, ecosystem, or native platform integration | Official product and templates are C#/XAML-shaped; an F# core behind a thin shell is the low-friction baseline | Workloads, handler behavior, platform SDKs, devices, signing, stores; direct F# UI requires a separate toolchain spike |
 | Fable or another web UI | Browser delivery, URL navigation, web accessibility, and instant updates dominate | F# can own browser state directly; Chapter 41 covers the runtime boundary | Browser/device matrix, offline needs, installability, native bridge, store or wrapper requirements |
-| Thin native hosts | Platform conventions, camera/media, background modes, or native controls dominate more than shared UI | Share the F# domain only where the platform interop and AOT story is proven | Each native host, ABI, lifecycle, toolchain, device, signing, and store path |
+| Thin native hosts | Platform conventions, camera/media, background modes, or native controls dominate more than shared UI | Share the F# domain only after validating platform interop and AOT | Each native host, ABI, lifecycle, toolchain, device, signing, and store path |
 
 This is not a framework ranking. Existing expertise and code, accessibility requirements, control vendors, offline behavior, update policy, startup budget, package size, native API depth, and the number of platforms all change the answer.
 
@@ -178,7 +167,7 @@ type MainWindow() as this =
 
 The window loads AXAML, obtains named controls, turns clicks into messages, calls the pure update, and renders the result. This is a small manual model-view-update loop. It is not a claim that all UI effects should fit in one constructor.
 
-### Markup owns shape, not business rules {#markup-shape}
+### Markup defines structure, not business rules {#markup-shape}
 
 ```xml:line-numbers [MainWindow.axaml]
 <Window
@@ -219,7 +208,7 @@ The window loads AXAML, obtains named controls, turns clicks into messages, call
   </Grid>
 </Window>
 ```
-The markup owns layout, control identity, labels, and initial visual values. Text buttons already expose useful accessible names through their content. A production screen would add stable automation IDs, explicit labels where visible text is ambiguous, localized resources, keyboard behavior, contrast checks, and tests at large text and narrow widths.
+Markup defines layout, control identity, labels, and initial visual values. Text buttons already expose useful accessible names through their content. A production screen would add stable automation IDs, explicit labels where visible text is ambiguous, localized resources, keyboard behavior, contrast checks, and tests at large text and narrow widths.
 
 `GetControl<T>` intentionally fails if a required name is absent. The string passed to `GetControl` is not a typed binding path, so a successful XAML compilation does not prove every lookup. A headless or native construction test closes that gap.
 
@@ -264,7 +253,7 @@ A focused xUnit test can reference the pure state module and check three additio
 
 ### State the native launch result exactly {#native-launch-result}
 
-| Evidence | Status in this chapter | What it can prove when run | What it does not prove |
+| Check | Status in this chapter | What it verifies when run | What it does not verify |
 | --- | --- | --- | --- |
 | Project and lock configuration | Shown | The recorded NuGet graph resolves | Future versions or other runtime graphs |
 | Release build | Run after copying | F# and AXAML compile for `net10.0` | A usable native window or package |
@@ -272,7 +261,7 @@ A focused xUnit test can reference the pure state module and check three additio
 | Native start | Run on every supported desktop OS | A real window starts in that environment | Other operating systems or packages |
 | Mobile/package/store | Not covered | Nothing | Mobile lifetime, signing, installation, or store behavior |
 
-A successful build is not native-launch evidence. Run the application in an interactive desktop session on each supported operating system; record failures without weakening the pure model or suppressing host exceptions.
+A successful build does not verify native startup. Run the application in an interactive desktop session on each supported operating system. Record failures without weakening the pure model or suppressing host exceptions.
 
 ## Choose a state pattern deliberately {#state-patterns}
 
@@ -320,7 +309,7 @@ Named lookup and event hookup are simple for small views. Binding scales better 
 
 In Avalonia 12, ordinary `{Binding ...}` maps to compiled binding by default. A compiled binding needs an `x:DataType`; the XAML compiler can then reject missing paths and incompatible types. Use `{ReflectionBinding ...}` only for an intentionally dynamic value, not as a blanket escape from type errors.
 
-The desktop sample contains no binding expression, so it does not need an `x:DataType` and proves nothing about a view-model binding surface. A real binding spike should include nested templates, two-way editing, commands, validation, design data, trimming or AOT if planned, and the actual IDE used by the team.
+The desktop sample contains no binding expression, so it does not need an `x:DataType` and does not validate a view-model binding surface. A real binding spike should include nested templates, two-way editing, commands, validation, design data, trimming or AOT if planned, and the actual IDE used by the team.
 
 ### Adapt functional types instead of weakening them {#binding-adapters}
 
@@ -407,9 +396,9 @@ Test simulator and device paths, foreground/background transitions, memory press
 
 First, Avalonia's official templates list F# for desktop, MVVM, and cross-platform solutions. Second, the surrounding mobile SDKs, most native examples, store tooling, and many third-party libraries remain C#-shaped. Both can be true.
 
-Prefer an idiomatic F# shared core and the thinnest host that the tested toolchain supports. A small C# platform adapter is often cheaper than forcing generated or designer conventions through F#. If direct F# hosts work in the chosen template and IDE, keep them—but preserve a reproducible command-line build and device proof.
+Prefer an idiomatic F# shared core and the thinnest host that the tested toolchain supports. A small C# platform adapter is often cheaper than forcing generated or designer conventions through F#. If direct F# hosts work in the chosen template and IDE, keep them—but preserve a reproducible command-line build and device test.
 
-.NET MAUI is a separate UI product targeting Android, iOS, Mac Catalyst, and Windows. Its official documentation and current template source are C#/XAML-oriented. That does not prevent an F# library from powering a MAUI app, nor prove a community F# template unsuitable; it means direct F# MAUI UI work is a separate adoption decision rather than evidence for Avalonia.
+.NET MAUI is a separate UI product for Android, iOS, Mac Catalyst, and Windows. Its official documentation and current templates center on C# and XAML. An F# library can still power a MAUI app, and a community F# template may work well. Direct F# MAUI UI development simply requires its own adoption decision; Avalonia results do not validate it.
 
 ## Accessibility, input, and responsive layout are behavior {#accessible-responsive-ui}
 
@@ -421,7 +410,7 @@ Responsive design is more than detecting “mobile.” Let layouts react to avai
 
 Accessibility and localization defects are platform defects even when the shared AXAML is identical. Include representative assistive technologies and input devices in the platform matrix.
 
-## Build an evidence ladder {#testing-evidence-ladder}
+## Verify from pure logic to released packages {#testing-evidence-ladder}
 
 Use the cheapest useful layer first, but do not stop there:
 
@@ -435,7 +424,7 @@ Use the cheapest useful layer first, but do not stop there:
 
 Headless testing is valuable in CI, but it replaces the native windowing and rendering backend. It cannot certify Win32, macOS, X11/Wayland, Android, iOS, drivers, packaging, signing, or store behavior.
 
-Keep an evidence table keyed by OS version, CPU, package, locale, scale, input, assistive technology, test date, commit, and result. “Works on my machine” becomes useful only after “machine” is named.
+Record each result with its OS version, CPU, package, locale, scale, input, assistive technology, test date, and commit. “Works on my machine” becomes useful only after “machine” is named.
 
 ## Publishing is not packaging or release {#publishing-and-release}
 
@@ -479,7 +468,7 @@ Compare implementation and operational cost, not screenshot similarity. A framew
 - Letting business decisions, HTTP, files, and cancellation accumulate in window code-behind.
 - Calling a mutable view model “the model” and losing the immutable domain state beneath it.
 - Exposing discriminated unions or options directly to XAML without a deliberate adapter contract.
-- Disabling compiled binding globally to silence an `x:DataType` or public-shape error.
+- Disabling compiled binding globally to silence an `x:DataType` or public-type mismatch.
 - Blocking the UI dispatcher or starting unsupervised fire-and-forget tasks from event handlers.
 - Accepting a late asynchronous result after navigation or a newer request.
 - Storing irreplaceable state only in a window, activity, control, singleton, cache, or working directory.
@@ -505,14 +494,14 @@ Evaluate these products separately:
 2. An offline field tool needs Windows, macOS, and two named Linux distributions, plus keyboard, touch, and local documents. It has no phone release.
 3. A consumer app needs Android and iOS, camera, push notifications, deep links, background upload, store distribution, and a small desktop viewer.
 
-For each product, record the first candidate, rejected alternatives, evidence gap, and reversal condition. Compare Avalonia, a C# platform shell around an F# core, .NET MAUI, and a browser surface; each product may lead to a different boundary.
+For each product, record the first candidate, rejected alternatives, missing verification, and conditions for changing direction. Compare Avalonia, a C# platform shell around an F# core, .NET MAUI, and a browser surface; each product may lead to a different boundary.
 
 ### Exercise 2: turn the desktop sample into a desktop release {#exercise-02}
 
 Produce two artifacts for turning the desktop sample into a supported Windows/macOS/Linux application:
 
 - **Application plan:** module boundaries, asynchronous effects, persistence, settings migration, accessibility, and localization.
-- **Evidence matrix:** headless tests, native smoke, runtime identifiers, framework-dependent and self-contained delivery, native assets, packages, signing or notarization, clean install, update, rollback, crash diagnostics, and the exact platform matrix.
+- **Verification matrix:** headless tests, native smoke, runtime identifiers, framework-dependent and self-contained delivery, native assets, packages, signing or notarization, clean install, update, rollback, crash diagnostics, and the exact platform matrix.
 
 Keep the existing `-6661` native-launch result in the matrix until a later run supplies stronger evidence.
 
@@ -532,7 +521,7 @@ Finish by stating exactly what a desktop build proves about the mobile targets.
 ## Chapter review {#chapter-review}
 
 - A client is a stack of domain, presentation, toolkit, host, and distribution contracts.
-- Measure shared logic, shared UI, and shared evidence separately.
+- Measure shared logic, shared UI, and verified platform coverage separately.
 - Choose a UI boundary from users, devices, native capabilities, team skills, and release channels.
 - Avalonia supplies official F# templates, compiled AXAML, shared controls, and multiple platform hosts; it does not erase platform behavior.
 - The desktop sample pins Avalonia 12.1.1 and separates a pure `Counter.update` from an imperative desktop view.

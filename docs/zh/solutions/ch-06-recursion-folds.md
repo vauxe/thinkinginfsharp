@@ -6,7 +6,7 @@ translationKey: solutions/ch-06-recursion-folds
 
 # 第 6 章练习答案 {#overview}
 
-递归答案必须解释递减、不变量和返回后工作；仅写最终整数没有验证算法结构。
+递归答案必须解释参数如何递减、不变量是什么，以及返回后还有哪些工作。只写最终整数，无法说明算法结构是否正确。
 
 [返回第 6 章](../part-01/ch-06-recursion-folds)。
 
@@ -20,11 +20,17 @@ let rec sumRecursive values =
     | [] -> 0
     | head :: tail -> head + sumRecursive tail
 ```
-完整展开为 `3 + sumRecursive [0; 4]`，再到 `3 + (0 + sumRecursive [4])`，再到 `3 + (0 + (4 + sumRecursive []))`，基础规则给出 `0`，最终为 `7`。
+展开过程如下：
+
+1. `3 + sumRecursive [0; 4]`；
+2. `3 + (0 + sumRecursive [4])`；
+3. `3 + (0 + (4 + sumRecursive []))`。
+
+基础规则让 `sumRecursive []` 返回 `0`，最终结果为 `7`。
 
 三次非空调用的 `(head, tail)` 分别是 `(3, [0; 4])`、`(0, [4])`、`(4, [])`。每次尾部长度减少一，有限输入最终到达空列表，所以终止。
 
-每层都必须等待递归结果，再执行 `head + result`。这些三个加法是尚未完成的工作，因此自调用不在尾位置，调用深度随列表长度增加。
+每层都必须等待递归结果，再执行 `head + result`。这三个加法都是尚未完成的工作，因此递归调用不在尾位置，调用深度随列表长度增加。
 
 ## 练习 2：证明累加器含义 {#exercise-02}
 
@@ -57,7 +63,7 @@ printfn "Fold order: left=%d right=%d" leftAssociated rightAssociated
 
 用 `List.fold` 计数时，初始状态是 `0`；folder 可写成接收 `count` 与被忽略元素、返回 `count + 1`，抽象类型为 `int -> 'a -> int`。完整操作把 `'a list` 折叠成 `int`。
 
-普通求和优先 `List.sum`，因为名称直接表达意图。寻找首个匹配项优先 `List.tryFind`，它能提前停止；普通 `fold` 通常遍历全部输入。二叉树应使用与叶/分支结构对齐的直接递归，直到第 10 章再抽取树折叠。
+一般求和优先使用 `List.sum`，因为名称直接表达意图。寻找首个匹配项优先使用 `List.tryFind`，因为它能提前停止；`fold` 通常遍历全部输入。二叉树先使用与叶、分支结构对齐的直接递归，第 10 章再抽取树折叠。
 
 ## 应该注意什么 {#what-to-notice}
 

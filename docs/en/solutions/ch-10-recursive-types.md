@@ -59,7 +59,7 @@ let compositionHolds =
         = (tree |> mapTreeWithFold increment |> mapTreeWithFold double))
 ```
 
-Both values are `true` for the three examples. That detects several likely implementation mistakes, but the recursive type allows trees of unbounded size and shape; three values cannot enumerate them all.
+Both values are `true` for the three examples. That detects several likely implementation mistakes, but the recursive type allows trees of arbitrary size and structure; three values cannot enumerate them all.
 
 A proof follows the same structure. The laws hold directly for `Empty` and `Leaf`. For `Branch`, assume they hold for each smaller subtree, then show reconstruction preserves the combined result. This structural induction is the reasoning counterpart of structural recursion.
 

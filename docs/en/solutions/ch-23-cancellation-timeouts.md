@@ -6,7 +6,7 @@ translationKey: solutions/ch-23-cancellation-timeouts
 
 # Chapter 23 Solutions {#overview}
 
-These solutions test ownership decisions, not elapsed time. A recorded token proves propagation; explicit tasks represent caller and deadline signals; an async-disposable gate proves cleanup is awaited.
+These solutions test cancellation responsibilities, not elapsed time. A recorded token verifies propagation; controlled tasks represent caller and deadline signals. An async-disposable gate confirms that cleanup is awaited.
 
 [Return to Chapter 23](../part-04/ch-23-cancellation-timeouts).
 
@@ -69,7 +69,7 @@ A broken variant passes `CancellationToken.None` to `Notify`. Its recording test
 
 Check cancellation before starting a charge that should not begin for an abandoned request, and propagate the token if the payment API defines safe cancellation. Once the provider confirms an irreversible charge, returning a canceled overall result can hide a committed effect.
 
-A production workflow should persist the receipt or committed state before optional notification. Notification can have its own retry or cancellation policy, and the returned model can distinguish `ConfirmedButNotificationPending`. The simple function proves token wiring; it is not a complete payment consistency protocol.
+A production workflow should persist the receipt or committed state before optional notification. Notification can have its own retry or cancellation policy, and the returned model can distinguish `ConfirmedButNotificationPending`. The simple function verifies token wiring; it is not a complete payment consistency protocol.
 
 ## Exercise 2: implement two timeout policies {#exercise-02}
 
@@ -118,9 +118,9 @@ operation.SetResult("owned-elsewhere")
 assert (operation.Task.GetAwaiter().GetResult() = "owned-elsewhere")
 ```
 
-The timeout ends this observation, not the operation. Some other owner must retain and observe `operation.Task`.
+The timeout ends this observation, not the operation. Another component must retain and observe `operation.Task`.
 
-### Request that owned work stop {#exercise-02-cancel}
+### Request cancellation of the operation {#exercise-02-cancel}
 
 ```fsharp
 let startCooperating (token: CancellationToken) =
@@ -228,7 +228,7 @@ If both causes matter operationally, catch at a boundary that can preserve them:
 - Recording the exact token tests propagation without a timing race.
 - Cancellation placement must respect irreversible commit points.
 - A deadline signal and caller signal remain distinct before either asks owned work to stop.
-- Abandon-wait requires another owner for continued work and its eventual fault.
+- Abandon-wait requires another component to observe continued work and its eventual fault.
 - Cancel-work waits for cooperative acknowledgement and cleanup.
 - Compiled task `use` waits for `IAsyncDisposable.DisposeAsync` on every body exit.
 - Cleanup failure needs an explicit diagnostic policy when another failure already exists.

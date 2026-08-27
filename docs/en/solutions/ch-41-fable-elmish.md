@@ -6,7 +6,7 @@ translationKey: solutions/ch-41-fable-elmish
 
 # Chapter 41 Solutions {#overview}
 
-These answers choose a first architecture, preserve evidence that can overturn it, and keep target-runtime claims narrower than source-language familiarity.
+These answers choose a starting architecture, state when to reconsider it, and limit runtime claims to what was actually tested on each target.
 
 [Return to Chapter 41](../part-07/ch-41-fable-elmish).
 
@@ -14,7 +14,7 @@ These answers choose a first architecture, preserve evidence that can overturn i
 
 ### Case A: one preference toggle on server-rendered documentation {#exercise-01-case-a}
 
-Start with a tiny isolated enhancement. If the preference can be represented by native HTML and CSS alone, use that. If it needs stored state and event handling and the application already owns a Fable pipeline, plain Fable plus Browser.Dom is the first F# candidate.
+Start with a tiny isolated enhancement. If native HTML and CSS can represent the preference, use them. If it needs stored state and event handling, and the application already uses a Fable build pipeline, plain Fable plus Browser.Dom is the first F# candidate.
 
 Use one model and one typed boundary:
 
@@ -29,17 +29,17 @@ type Message =
     | SystemPreferenceChanged of prefersDark: bool
 ```
 
-The pure transition decides the effective preference. One adapter reads and validates storage, one applies a document attribute, and one owns the media-query listener. Storage failure falls back without making the control unusable. The toggle is a real button or radio group with an accessible name and visible focus.
+The pure transition decides the effective preference. One adapter reads and validates storage, another applies a document attribute, and a third manages the media-query listener and its cleanup. Storage failure falls back without making the control unusable. The toggle is a real button or radio group with an accessible name and visible focus.
 
 Do not add Elmish or React yet. They add a loop, renderer, native npm packages, upgrade pairings, and lifecycle concepts without removing meaningful risk from one island.
 
-Reversal evidence includes a second and third island that must coordinate, duplicated listener/disposal code, URL-owned state, or asynchronous work that makes the local dispatcher inconsistent. Fable itself can also lose: if the page has no Fable toolchain and a few reviewed native JavaScript lines are materially cheaper to own, F# is not a mandatory browser dependency.
+Reconsider this choice when multiple interactive islands must coordinate, listener cleanup is duplicated, the URL becomes the source of state, or asynchronous work makes local dispatch inconsistent. Fable itself can also lose. If the page has no Fable toolchain and a few reviewed JavaScript lines cost much less to maintain, F# need not become a browser dependency.
 
 The acceptance slice covers system/light/dark initialization, invalid stored input, storage denial, keyboard operation, system preference changes, cleanup, a 320-pixel layout, production bundling, and no console or HTTP failures.
 
 ### Case B: a multi-step booking client with coordinated effects {#exercise-01-case-b}
 
-Start with Fable.Elmish core and keep the renderer provisional. The problem has long-lived coordinated state, URL ownership, several fallible effects, retries, and races; those are the conditions under which a message loop can replace custom lifecycle machinery.
+Start with Fable.Elmish core and keep the renderer provisional. The flow has persistent coordinated state, URL state, several fallible external operations, retries, and races. Under those conditions, a message loop can replace custom lifecycle machinery.
 
 Model meaningful states instead of a bag of flags:
 
@@ -54,15 +54,15 @@ type BookingFlow =
     | OutcomeUnknown of PricedDraft * reconciliationId: string
 ```
 
-Availability success must match the active request ID. Payment timeout is not automatically a safe retry: the server contract from Chapters 36–38 must distinguish a known failure from an unknown outcome and support idempotent reconciliation. The browser never owns the authoritative price, capacity, or booking result.
+An availability result must match the active request ID. A payment timeout is not automatically safe to retry: the server contract from Chapters 36–38 must distinguish a known failure from an unknown outcome and support idempotent reconciliation. The server, not the browser, determines the final price, capacity, and booking result.
 
-Commands cover availability, submission, payment/reconciliation, and route effects. Every command returns a success, declared failure, cancellation, or transport-unavailable message. Subscriptions are reserved for truly external streams such as network state or a server event channel, with identity and cleanup.
+Commands cover availability, submission, payment or reconciliation, and route updates. Every command returns a success, declared failure, cancellation, or transport-unavailable message. Reserve subscriptions for external streams such as network state or a server event channel; give each one an identity and cleanup path.
 
-Start with the smallest renderer that meets the actual UI. Choose Feliz/React only if component needs, rendering ergonomics, or an existing React surface repay the additional NuGet/npm graph. Elmish and direct DOM can coexist at a narrow render adapter; the state model should not expose renderer nodes.
+Start with the smallest renderer that meets the actual UI. Choose Feliz and React only when required components, rendering ergonomics, or existing React code justify the added NuGet and npm dependencies. Elmish and direct DOM can coexist behind a narrow rendering adapter; the state model should not expose renderer nodes.
 
-Reversal evidence against Elmish is a representative flow where most state is actually isolated and the loop creates mapping ceremony without simplifying effects. Evidence for a renderer change includes inaccessible or error-prone manual DOM patching, required maintained React components, or measured rendering pressure. The opposite evidence—binding lag, upgrade conflict, or bundle cost—can reject React.
+Reject Elmish if a representative flow shows that most state is isolated and the loop adds mappings without simplifying external operations. Change renderers if manual DOM updates are inaccessible or error-prone, maintained React components are required, or measurement shows rendering pressure. Binding lag, upgrade conflicts, or bundle cost can instead rule out React.
 
-Acceptance includes deep-link/reload/back navigation, invalid drafts, two out-of-order availability checks, duplicate submit, payment known failure versus unknown outcome, cancellation, retry, focus after errors, screen-reader announcements, locked production output, and a real service contract test.
+Acceptance covers navigation through deep links, reload, and Back. It also covers invalid drafts, out-of-order availability results, duplicate submission, known payment failure versus unknown outcome, cancellation, retry, focus after errors, and screen-reader announcements. The locked production output must pass a real service contract test.
 
 ### Case C: five required React components with mostly local state {#exercise-01-case-c}
 
@@ -71,15 +71,15 @@ Start with Feliz plus locked `react` and `react-dom`, and wrap each required com
 For each component, inventory:
 
 - exact native package and peer versions;
-- the F# binding version or locally owned binding surface;
+- the F# binding version or the locally maintained binding API;
 - required props, events, refs, promises, null/undefined, and cleanup;
 - generated module format and production bundler behavior;
 - semantic DOM, focus, keyboard, localization, and error behavior;
-- license, advisory, source-map, bundle, and upgrade ownership.
+- licenses, advisories, source maps, bundle cost, and who handles upgrades.
 
-Introduce `Feliz.UseElmish` or a child Elmish program only where a component contains a real workflow. Introduce a root Elmish program only when cross-component transitions, effects, or routing acquire one clear owner. Fable.Elmish.React is the connector if the chosen program is Elmish and the renderer is React; it is not a substitute for React itself.
+Introduce `Feliz.UseElmish` or a child Elmish program only where a component contains a real workflow. Add a root Elmish program only when cross-component transitions, external operations, or routing need one coordinator. Fable.Elmish.React connects an Elmish program to React; it does not replace React itself.
 
-Reversal evidence is a failed binding/native compatibility matrix, unacceptable accessibility output, production-only errors, prohibitive bundle/runtime cost, or components that can be replaced with platform HTML. A successful storybook-like demo is insufficient without the production Fable/Vite pipeline and target browsers.
+Reject this choice if the binding and native-package matrix fails, accessibility output is unacceptable, errors appear only in production, bundle or runtime cost is too high, or platform HTML can replace the components. A successful storybook-like demo is insufficient without the production Fable/Vite pipeline and target browsers.
 
 ## Exercise 2: model stale search results {#exercise-02}
 
@@ -131,13 +131,13 @@ Success, failure, and cancellation are accepted only when both request ID and qu
 
 Successful nonempty results become `Showing`; zero results become `Empty`; declared failures become `Failed` with a safe message. Cancellation caused by newer input does not overwrite visible content or announce an error. A real user-requested stop may use a distinct message and notice.
 
-### Own timers and AbortController outside the model {#exercise-02-effects}
+### Manage timers and AbortController outside the model {#exercise-02-effects}
 
-A command adapter owns timer handles and `AbortController` instances keyed by generation/request ID. Starting newer work aborts and removes older handles. Completion and disposal also remove them. The model stores serializable identity and state, not browser controller objects.
+A command adapter manages timer handles and `AbortController` instances keyed by generation or request ID. Starting newer work aborts and removes older handles. Completion and disposal also remove them. The model stores serializable IDs and state, not browser controller objects.
 
 Abort is an optimization and lifecycle action, not the correctness rule. The identity guard still rejects a response that won the race with abort or came from a transport that cannot cancel.
 
-A subscription can own the debounce timer if the project consistently uses model-keyed Elmish subscriptions. Its subscription ID includes the active generation; changing or clearing it stops the previous subscription. Do not run both command-timer and subscription-timer designs simultaneously.
+A subscription can manage the debounce timer when the project consistently uses model-keyed Elmish subscriptions. Its ID includes the active generation, so changing or clearing it stops the previous subscription. Do not run both command-timer and subscription-timer designs simultaneously.
 
 ### Test the transitions and accessible output {#exercise-02-tests}
 
@@ -152,7 +152,7 @@ Pure tests cover:
 - accepted completion clears pending work and produces one bounded announcement;
 - ignored stale work does not change content, focus, or announcement.
 
-The browser test types both queries under controlled response gates, completes `fable` first and `fa` last, and proves only `fable` remains. It also checks keyboard input, focus retention, a polite live status that does not announce every keystroke, safe errors, cancellation cleanup, unmount, console/network failures, and the production bundle.
+The browser test types both queries under controlled response gates, completes `fable` first and `fa` last, and verifies that only `fable` remains. It also checks keyboard input, focus retention, a polite live region that does not announce every keystroke, safe errors, cancellation cleanup, unmounting, console or network failures, and the production bundle.
 
 ## Exercise 3: audit a shared library and release {#exercise-03}
 
@@ -177,17 +177,17 @@ Pass time and rules as data. Keep currency explicit and centralize scale/roundin
 
 The server remains authoritative. The browser may calculate a preview for responsiveness, but checkout sends a versioned request and displays the server's priced result. A client bundle can be modified, run with stale rules, or have different numeric behavior.
 
-### Put target effects in separate adapters {#exercise-03-adapters}
+### Put runtime I/O in separate adapters {#exercise-03-adapters}
 
 The server adapter reads approved configuration, obtains a clock instant, loads/validates the JSON rule document at startup, protects secrets, and maps HTTP DTOs through an explicit serializer. It exposes validated `PricingRules` and `DateTimeOffset` to the core.
 
-The browser adapter receives nonsecret public configuration through a versioned HTTP or build artifact, maps Web API time only when the product contract allows client time, and uses an explicit JSON codec compatible with the server wire schema. It never imports the reflection-based server serializer by hope.
+The browser adapter receives nonsecret public configuration through versioned HTTP or a build artifact. It maps Web API time only when the product contract permits client time, and uses a defined JSON codec compatible with the server wire schema. It never assumes that the reflection-based server serializer will work in the browser.
 
-If the browser must evaluate “now,” define whether server time, client wall time, or a monotonic duration owns the rule. For expiry or price authority, use a server-issued instant/version. Client clocks are user-controlled and can drift.
+If the browser must evaluate “now,” define whether the rule uses server time, client wall time, or a monotonic duration. For expiry or authoritative pricing, use a server-issued instant and version. Client clocks are user-controlled and can drift.
 
 The old reflection serializer remains behind the server adapter until contract tests justify replacement. The browser codec must reject malformed, missing, extra, null, number, date, currency, and version cases according to one written compatibility policy.
 
-### Build cross-target semantic evidence {#exercise-03-cross-target}
+### Verify semantics on both targets {#exercise-03-cross-target}
 
 Run the same golden vectors through .NET and Fable-generated JavaScript. Include every currency scale, midpoint rounding, negative/zero/high amounts, quantity boundaries, discounts, tax order, date cutoffs, Unicode identifiers, and invalid combinations. Compare declared money values, errors, and rule versions—not internal object representations.
 
@@ -214,12 +214,19 @@ Deploy server support for the new DTO/rule version before publishing a client th
 
 Observe bounded counts for rule versions, client/server price disagreement, rejected DTO versions, checkout errors, and rollback selection without logging baskets, tokens, or personal data. A disagreement prevents submission or shows the authoritative server price; it never silently charges the client preview.
 
-Delete the original mixed project only after every server caller uses the server adapter, the Fable project compiles only the neutral core, golden tests run on both targets, production no longer loads its file/environment paths from core code, cached clients remain compatible, and rollback no longer requires the old layout.
+Delete the original mixed project only after all of these conditions hold:
+
+- every server caller uses the server adapter;
+- the Fable project compiles only the neutral core;
+- golden tests run on both targets;
+- production no longer loads file or environment paths from core code;
+- cached clients remain compatible; and
+- rollback no longer requires the old layout.
 
 ## Solution review {#solution-review}
 
 - One isolated preference control starts with platform HTML or plain Fable, not an automatic application framework.
-- Coordinated booking state, effects, routes, retries, and unknown outcomes can justify Elmish while leaving the renderer provisional.
+- Coordinated booking state, external operations, routes, retries, and unknown outcomes can justify Elmish while leaving the renderer provisional.
 - Required React components justify Feliz/React bindings before they justify one global Elmish model.
 - Binding and native npm versions, accessibility, production output, and cleanup all need one compatibility matrix.
 - Debounce generations reject old timers; request IDs reject old network completions.
@@ -228,7 +235,7 @@ Delete the original mixed project only after every server caller uses the server
 - Browser controllers belong to an effect adapter, not the serializable model.
 - Shared pricing receives time, rules, and inputs; it does not read target-specific environment.
 - Browser pricing is a preview; the server remains authoritative.
-- Decimal, dates, reflection, and serialization require cross-target evidence rather than source-level confidence.
+- Decimal, dates, reflection, and serialization require cross-target checks rather than source-level confidence.
 - Lock both dependency graphs and execute golden vectors under both CLR and generated JavaScript.
 - Release the server compatibility boundary before the cached static client that consumes it.
 - Rollback includes HTML/assets, API/rule versions, caches, and old-client compatibility.

@@ -1,6 +1,6 @@
 ---
 title: "Chapter 33 Solutions"
-description: "Classify booking values by role, design a seat-change command and fact without crossing boundaries, and choose persistence from stated guarantees."
+description: "Classify booking values by role, design a seat-change command and event within the domain boundary, and choose persistence from stated guarantees."
 translationKey: solutions/ch-33-domain-language-model
 ---
 
@@ -26,7 +26,7 @@ These solutions classify values by when they are meaningful and who has authorit
 
 The decisive distinction is grammatical and temporal. A command points toward possible future work. A validated command narrows malformed input but still asks. An event speaks in the past tense. State says what is true now. A DTO says only what crossed a representation boundary.
 
-The `BookingPlaced` row needs one qualification. The normal production path gives it strong semantic meaning because `Booking.create` protected the payload. Its union case is nevertheless public, so any code already holding a valid `Booking` can wrap it. If provenance itself becomes an invariant, hide event construction behind a signature or internal boundary; do not claim the present type already proves it.
+The `BookingPlaced` row needs one qualification. On the normal production path, `Booking.create` ensures that the payload is valid. The union case remains public, however, so any code holding a valid `Booking` can wrap it. If provenance becomes an invariant, hide event construction behind a signature or internal boundary; the current type alone cannot verify where the event came from.
 
 `AppendEvent` is a record field whose value is a function. The port promises a capability and its operational contract; it does not grant the adapter authority to decide whether placement is legal. The application calls it only after a pure accepted result.
 
@@ -57,7 +57,7 @@ The state-dependent decision can proceed in this order:
 5. Choose and document the equal-count policy. This solution returns `SeatCountUnchanged` rather than emitting a false “changed” fact.
 6. Call one protected `Booking.changeSeats` transition and return `BookingSeatCountChanged updated`.
 
-The proposed `Booking.changeSeats` function should be the sole authority for the booking-local status transition and construction of the updated booking. The aggregate decider owns the activity-wide capacity equation, using reserved seats that exclude this booking's old count, then calls the transition. Each rule still has one authoritative implementation.
+The proposed `Booking.changeSeats` function should be the only place that performs the booking-local status transition and constructs the updated booking. The aggregate decider checks activity-wide capacity after excluding this booking's old count, then calls the transition. Each rule still has one implementation.
 
 On acceptance, `evolve state (BookingSeatCountChanged updated)` should return `Booked updated`. It should not revalidate status or capacity. Tests need exact examples for missing, mismatched, confirmed, cancelled, unchanged, insufficient-capacity, smaller, and larger pending requests, plus a property that total reserved seats never exceed activity capacity.
 
@@ -86,7 +86,15 @@ The 90-day audit requirement does not by itself require event sourcing. It asks 
 
 From only the stated facts, choose versioned current-state persistence plus a transactional audit record. It directly serves the primary query, can recover after restart, and can enforce capacity without introducing replay and projection operations. This is a provisional choice, not a universal claim that event sourcing is unsuitable for bookings.
 
-Revisit the choice if evidence shows that the business must reconstruct state at arbitrary historical instants, explain every decision from its exact inputs, add many independently rebuilt projections, correct past facts without destructive updates, or treat the entire lifecycle history as the legal record. Also measure stream size, rebuild time, storage cost, team operational experience, and failure-recovery drills before committing.
+Revisit the choice if the business needs any of the following:
+
+- reconstruct state at arbitrary historical instants;
+- explain every decision from the inputs available at that time;
+- build many projections independently;
+- correct past facts without destructive updates; or
+- treat the complete lifecycle history as the legal record.
+
+Before committing, also measure stream size, rebuild time, storage cost, the team's operational experience, and recovery drills.
 
 CQRS remains independent. The current-state design can use separate read projections, and an event-sourced design can still expose a simple query surface. Adopt read/write separation only when their workload, security, or representation needs actually diverge enough to pay for synchronization complexity.
 
@@ -99,7 +107,7 @@ CQRS remains independent. The current-state design can use separate read project
 - State describes the current decision context; a DTO describes an external representation.
 - New language should settle policy ambiguities before introducing fields or functions.
 - Independent field errors can accumulate; state-dependent decisions use protected values.
-- One function owns each rule, while `evolve` only projects accepted facts.
+- One function implements each rule, while `evolve` only applies accepted events.
 - Concurrency control belongs to an atomic or versioned commit boundary.
 - A finite audit trail can accompany current-state persistence without becoming its source of truth.
 - Event sourcing adds replay, event evolution, projection, and operational obligations.

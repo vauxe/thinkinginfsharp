@@ -8,22 +8,7 @@ translationKey: part-05/ch-25-objects-interfaces
 
 F# is a .NET language, so classes, members, interfaces, inheritance, and value types are native tools. Functions express behavior, records name data, and discriminated unions close a set of states. Classes become useful when the model needs their specific runtime semantics.
 
-This chapter starts from the meaning a type must preserve. It introduces an object when reference identity, hidden state, construction work, a lifetime, subtype dispatch, or a .NET contract makes that representation useful. The goal is the smallest honest boundary for the problem, using functional and object-oriented tools where their semantics fit.
-
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- choose among a function, record, discriminated union, class, interface, and struct;
-- define a class with a primary constructor, initialization, an additional constructor, properties, and methods;
-- separate invalid object configuration from expected domain rejection;
-- call an explicitly implemented interface through an interface view;
-- use an object expression for a small local implementation;
-- add derived behavior with a type extension without pretending to add stored data;
-- explain reference identity and value-copy semantics;
-- identify zero-initialization as a struct invariant boundary;
-- prefer composition unless an actual base-type contract requires inheritance;
-- treat resource ownership and disposal as part of an object's public contract.
+Start with the meaning a type must preserve. Use an object when reference identity, hidden state, constructor logic, resource lifetime, runtime dispatch, or a .NET member API makes it useful. Choose the simplest accurate representation, whether functional or object-oriented.
 
 ## Choose a representation before choosing syntax {#representation-first}
 
@@ -31,25 +16,25 @@ Ask what callers must know and what the runtime must preserve:
 
 | Need | Usually start with | Why |
 |---|---|---|
-| One transformation or policy | Function | The input-output contract is already the abstraction |
-| Named immutable product data | Record | Fields and structural operations describe the value directly |
-| One of a closed set of shapes or states | Discriminated union | Cases and exhaustive matching expose the alternatives |
-| Related dependencies carried together | Record of functions | Callers can assemble a small explicit capability set |
-| Identity, hidden evolving state, or an owned lifetime | Class | One reference can encapsulate state and resource protocol |
-| Several implementations behind a .NET member contract | Interface | Runtime dispatch and ecosystem consumption are intentional |
-| One local implementation of an existing object contract | Object expression | No reusable named implementation is needed |
+| One transformation or policy | Function | Input-output behavior already defines the abstraction |
+| Immutable data with named fields | Record | Fields and structural operations describe the value directly |
+| One of a closed set of alternatives or states | Discriminated union | Cases and exhaustive matching expose every alternative |
+| Related dependencies carried together | Record of functions | Callers can assemble a small, clear set of operations |
+| Identity, hidden evolving state, or a managed lifetime | Class | One reference can encapsulate state and resource handling |
+| Several implementations behind a .NET member API | Interface | Runtime dispatch and .NET consumption are intentional |
+| One local implementation of an existing interface | Object expression | No reusable named implementation is needed |
 | Small measured value with copy semantics or required interop layout | Struct | Value-type representation is part of the requirement |
 
-Treat these as starting points. Records and unions can have members and implement interfaces, while classes can be immutable. Choose a class when its identity, state, lifetime, or dispatch semantics improve the model; the presence of a member alone supplies little evidence.
+Treat these as starting points. Records and unions can have members and implement interfaces, while classes can be immutable. Choose a class when its identity, state, lifetime, or dispatch behavior improves the model; having a member is not by itself a reason.
 
 Two quick tests expose ceremonial wrappers:
 
-1. If replacing `service.Execute x` with `execute x` loses no identity, lifetime, dispatch, or contract, a function may be the clearer API.
+1. If replacing `service.Execute x` with `execute x` loses no identity, lifetime, dispatch, or API behavior, a function may be clearer.
 2. If a class only stores public constructor arguments and exposes them unchanged, an immutable record may state the same model with less machinery.
 
 ## A class is a .NET reference type {#classes}
 
-The verified chapter example models quote calculation. `Quote` remains a private record representation, errors remain a discriminated union, and only the calculator behavior is represented by a class:
+The example models quote calculation. `Quote` remains a private record, errors remain a discriminated union, and only the calculator behavior uses a class:
 
 ```fsharp:line-numbers [Types.fs]
 namespace ThinkingInFSharp.Ch25
@@ -138,9 +123,9 @@ Constructor parameters are in scope throughout the class. A leading `let` can ke
 
 ### Put each failure in the right channel {#constructor-invariants}
 
-A negative `taxRate` means the calculator itself was configured incorrectly, so construction throws `ArgumentException` through `invalidArg`. A non-positive seat request is an expected input outcome, so `Calculate` returns `Error (NonPositiveSeats actual)`. The syntax does not dictate this split; ownership and recoverability do.
+A negative `taxRate` means the calculator was configured incorrectly, so construction throws `ArgumentException` through `invalidArg`. A non-positive seat request is an expected input outcome, so `Calculate` returns `Error (NonPositiveSeats actual)`. Syntax does not dictate this split; responsibility and recoverability do.
 
-Avoid constructors that perform remote I/O, start unowned background work, or publish `this` before initialization completes. Such work makes creation hard to cancel, retry, test, and dispose. Prefer a small validated constructor plus an explicit factory or start method when acquisition is asynchronous or fallible.
+Avoid constructors that perform remote I/O, start background work with no responsible owner, or publish `this` before initialization completes. Such work makes creation hard to cancel, retry, test, and dispose. When acquisition is asynchronous or fallible, prefer a small validated constructor plus a factory or start method.
 
 ### Identity is not domain equality {#class-identity}
 
@@ -148,16 +133,16 @@ A class instance is a reference. Two separately constructed calculators may hold
 
 Use `obj.ReferenceEquals` only when identity itself matters. For domain equality, compare an explicit stable identifier or model the value as a record/union. Overriding `Equals` also requires a consistent hash code and a clear policy for mutation and inheritance; it should not be added merely to make a test convenient.
 
-## Interfaces are contracts, not dependency-injection decoration {#interfaces}
+## Interfaces define member-based APIs {#interfaces}
 
-An interface declares related abstract members and stores no data. `IQuoteService` is useful when consumers need a .NET-shaped service contract or several implementations must be selected by runtime dispatch. `IDiscountPolicy` is deliberately narrow, but for an F#-only caller its single member could also be a function of type `QuoteRequest -> decimal`.
+An interface declares related abstract members and stores no data. `IQuoteService` is useful when consumers need a member-based .NET API or runtime dispatch must select among implementations. `IDiscountPolicy` is deliberately narrow, but an F#-only caller could use a `QuoteRequest -> decimal` function instead.
 
-| Boundary | Prefer a function or function record when | Prefer an interface when |
+| Consideration | Prefer a function or function record when | Prefer an interface when |
 |---|---|---|
-| Shape | One operation or a small capability bundle is enough | Named related members form one stable object contract |
+| Operations | One operation or a small bundle is enough | Related named members form one stable object API |
 | Consumption | Callers are primarily F# and composition is lexical | Frameworks or other .NET languages expect members/runtime dispatch |
-| State/lifetime | Dependencies are plain values | Implementations own identity, state, or disposal behavior |
-| Evolution | The capability is local and easy to replace together | The public member contract and compatibility policy are deliberate |
+| State/lifetime | Dependencies are plain values | Implementations manage identity, state, or disposal |
+| Evolution | The operation set is local and easy to replace together | The public member API has a deliberate compatibility policy |
 
 F# interface implementations are normally explicit. `PriceCalculator.Calculate` is a class member, but `IQuoteService.Quote` is callable through an interface view:
 
@@ -167,11 +152,11 @@ let service = calculator :> IQuoteService
 let result = service.Quote request
 ```
 
-The upcast is useful evidence: callers using the concrete class see its concrete API, while callers using the interface see only the contract. Keep interfaces cohesive and small. Splitting every function into an `IThing`/`Thing` pair adds names and indirection without necessarily adding a boundary.
+The upcast makes the distinction visible: callers using the concrete class see its full API, while callers using the interface see only its members. Keep interfaces cohesive and small. Splitting every function into an `IThing`/`Thing` pair adds names and indirection without necessarily creating a useful abstraction.
 
-## Object expressions implement a small contract locally {#object-expressions}
+## Object expressions implement a small interface locally {#object-expressions}
 
-An object expression creates an instance of a compiler-generated anonymous object type based on an interface or base class. The example supplies a group-discount policy at the composition root:
+An object expression creates an instance of a compiler-generated anonymous object type based on an interface or base class. The example supplies a group-discount policy where the application's dependencies are assembled:
 
 ```fsharp
 let groupDiscount =
@@ -188,9 +173,9 @@ Give the implementation a name when it has independent invariants, several colla
 
 The example adds `Quote.IsDiscounted` and `Quote.TotalAmount` as derived members inside the auto-open `QuoteExtensions` module. These are optional F# extensions: no field is added to existing values, their runtime representation does not change, and reflection does not report them as properties on `Quote`.
 
-An intrinsic extension is declared in the same file and namespace/module as the type, is compiled as part of that type, and appears through reflection. An optional extension must be in a module; callers bring that module into scope—automatically here because of `[<AutoOpen>]`—and C# or Visual Basic consumers cannot call it. Type extensions cannot add virtual/abstract members or overrides, and a non-extension member wins an ambiguous call.
+An intrinsic extension is declared in the same file and namespace or module as the type. It is compiled as part of that type and appears through reflection. An optional extension must live in a module that callers bring into scope; `[<AutoOpen>]` does that automatically here. C# and Visual Basic callers cannot use optional F# extensions. Extensions cannot add virtual or abstract members or overrides, and a real member wins an ambiguous call.
 
-Use an extension when member-call discoverability improves a stable derived operation, especially around a type you cannot edit. Prefer an ordinary module function when explicit dependencies, pipeline order, cross-language visibility, or avoiding scope-dependent discovery matters more.
+Use an extension when member-call syntax makes a stable derived operation easier to find, especially for a type you cannot edit. Prefer a module function when dependency visibility, pipeline order, cross-language access, or independence from module scope matters more.
 
 ## Structs change semantics, not just allocation {#structs}
 
@@ -212,22 +197,22 @@ Small immutable struct records or unions can be valuable in a proven hot path. A
 
 F# classes can inherit one direct base class and implement multiple interfaces. Use inheritance when the framework contract is genuinely a base class—for example, overriding a UI or hosting type—not merely to share a helper. Modules, function composition, records of capabilities, and contained objects usually make dependencies more visible and avoid fragile base-class state.
 
-If an object owns an `IDisposable` or `IAsyncDisposable` resource, its API must say who disposes it and when methods stop being valid. Chapter 21 and Chapter 23's `use`/`use!` rules still apply. Hiding a handle inside a class does not remove its lifetime; it transfers the responsibility to that class and its caller contract.
+If an object manages an `IDisposable` or `IAsyncDisposable` resource, its API must say who disposes it and when its methods stop being valid. The `use` and `use!` rules from Chapters 21 and 23 still apply. Hiding a handle inside a class does not remove its lifetime; it transfers responsibility to that class and its callers.
 
-Classes with mutable state also need a concurrency policy. “Private” prevents direct field access, not simultaneous member calls. Publish immutability, serialize ownership, or synchronize the whole invariant using Chapter 24's rules.
+Classes with mutable state also need a concurrency policy. “Private” prevents direct field access, not simultaneous member calls. Publish immutable snapshots, serialize access, or synchronize the whole invariant using Chapter 24's rules.
 
-## A compact public-API review {#api-review}
+## Review an object-based public API {#api-review}
 
-Before publishing an object-shaped API, ask:
+Before publishing an object-based API, ask:
 
 - Would a function, record, or union state the same semantics more directly?
 - Does reference identity matter, and is equality behavior explicit?
 - Which constructor arguments are configuration errors, and which method inputs produce typed domain errors?
-- Is every interface member one cohesive contract rather than speculative extensibility?
+- Does every interface member belong to one cohesive API rather than speculative future extensibility?
 - Does an object expression remain local and small?
 - Is a type extension discoverable in the scopes and languages that need it?
 - Is a struct's zero value valid, and has copying/boxing been measured?
-- Who owns disposal, mutation, cancellation, and thread safety?
+- Who handles disposal, mutation, cancellation, and thread safety?
 - Does the public representation suit both current callers and future compatibility constraints?
 
 Chapter 27 will revisit the last question from a C# consumer's view. Chapter 31 will supply measurement before representation-level optimization.
@@ -241,7 +226,7 @@ dotnet run --project Ch25.fsproj --configuration Release
 dotnet test Sample.slnx --configuration Release --filter FullyQualifiedName~Ch25Object
 ```
 
-The program prints class, interface, extension, and struct observations. Focused tests cover both constructors, member validation, the explicit interface view, an object-expression substitute, derived extension members, value copying, distinct boxes, and the invalid zero-initialized revision.
+The program prints results for classes, interfaces, extensions, and structs. Focused tests cover both constructors, member validation, the explicit interface view, an object-expression substitute, derived extension members, value copying, distinct boxes, and the invalid zero-initialized revision.
 
 ## Exercises {#exercises}
 
@@ -249,26 +234,26 @@ The program prints class, interface, extension, and struct observations. Focused
 
 A `SeatRequest` class only stores an identifier and seat count through read-only properties. Replace it with an immutable record. Put expected validation in a module function returning `Result`, and explain what would have justified keeping a class.
 
-### Exercise 2: choose a policy boundary {#exercise-02}
+### Exercise 2: choose a policy representation {#exercise-02}
 
-Implement the same discount rule once as a function and once as an `IDiscountPolicy` object expression. Use both from a calculation, then state which public boundary you would keep for an F#-only library and which condition could justify the interface.
+Implement the same discount rule once as a function and once as an `IDiscountPolicy` object expression. Use both in a calculation, then state which public API you would keep for an F#-only library and what requirement could justify the interface.
 
 ### Exercise 3: audit a struct invariant {#exercise-03}
 
-Create a positive revision struct through a smart constructor, copy it, box both copies, and observe its default value. Then redesign the type so that zero initialization represents an explicit valid state, or document and test rejection at every default-producing boundary.
+Create a positive revision struct through a smart constructor, copy it, box both copies, and observe its default value. Then redesign the type so zero initialization represents a valid named state, or document and test rejection at every source of default values.
 
 [Read the chapter solutions](../solutions/ch-25-objects-interfaces).
 
 ## Model review {#model-review}
 
 - F# object features are native tools, not a required destination for every model.
-- Functions express behavior; records express products; unions express alternatives; classes add reference identity and object protocols.
+- Functions express behavior; records express grouped data; unions express alternatives; classes add reference identity and object protocols.
 - Constructor failure and expected method rejection need different policies.
 - Explicit interface implementations are consumed through an interface view.
 - Object expressions suit small local implementations; size and lifecycle justify a named type.
 - Extensions add callable behavior but no stored state or representation change.
 - Structs copy by value and always have a zero-initialized default representation.
-- Composition is the default; inherit only for a real base-type contract.
+- Composition is the default; inherit only when a real base-type requirement exists.
 - Encapsulation transfers lifecycle and concurrency responsibility—it does not erase it.
 
 ## Sources {#sources}

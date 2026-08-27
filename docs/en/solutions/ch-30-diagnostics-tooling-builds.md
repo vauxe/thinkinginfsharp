@@ -6,7 +6,7 @@ translationKey: solutions/ch-30-diagnostics-tooling-builds
 
 # Chapter 30 Solutions {#overview}
 
-Each solution preserves the failing evidence before changing code. The goal is not to memorize a command list; it is to match one question with one observable and leave a durable repository contract behind.
+Each solution preserves the original failure before changing code. The goal is not to memorize commands. It is to collect the observation that answers each diagnostic question and leave a durable repository check behind.
 
 [Return to Chapter 30](../part-05/ch-30-diagnostics-tooling-builds).
 
@@ -57,7 +57,7 @@ Workflow.decide capacity request
 // Rejected (3, 2)
 ```
 
-This confirms inference, smart construction, and one pure result. It does not prove what values the application supplied or preserve a regression after the session closes.
+This confirms smart construction and the pure function's result for controlled inputs. It does not show what values the application supplied or preserve a regression test after the session closes.
 
 Add a focused example test when this policy is intentional:
 
@@ -72,9 +72,9 @@ let ``three seats do not fit capacity two`` () =
 
 The test is the durable artifact. If the real requirement says capacity should have been four, instead preserve a test at the conversion or caller boundary that currently produces two; do not freeze an incorrect expectation around the pure core.
 
-Set a breakpoint immediately before `Workflow.decide` in the compiled caller. Inspect the validated `SeatCount` and `Capacity`, then the caller stack frame. If the values are 3 and 2, move outward to the capacity source; if they differ but `decide` receives 3 and 2, inspect the boundary conversion. Step inside only after inputs are shown correct.
+Set a breakpoint immediately before `Workflow.decide` in the compiled caller. Inspect the validated `SeatCount`, `Capacity`, and caller stack frame. If the values are 3 and 2, trace the capacity to its source. If earlier values differ but `decide` receives 3 and 2, inspect the boundary conversion. Step inside only after confirming the inputs.
 
-The debugger explains one real execution and its provenance. FSI answers a small model question. The automated test preserves the agreed behavior. Using all three to ask the same question would add ceremony, not evidence.
+The debugger traces one real execution back to its inputs. FSI answers a small model question. The automated test preserves the agreed behavior. Using all three for the same question adds work without increasing confidence.
 
 ## Exercise 3: audit a reproducible build {#exercise-03}
 
@@ -92,7 +92,7 @@ dotnet restore Sample.slnx --locked-mode
 
 The local tool manifest makes `dotnet fantomas` use the declared 7.0.5 command; the teammate's global installation is not the repository contract. If formatting differs, run the pinned formatter deliberately and review its source-only diff.
 
-Locked restore should fail because the project dependency changed without the corresponding lock graph. That failure is desired evidence. Confirm the package change is intentional, review its compatibility and sources, then regenerate deliberately:
+Locked restore should fail because the project dependency changed without the corresponding lock graph. That failure confirms the lock check works. Confirm that the package change is intentional, review its compatibility and sources, then regenerate deliberately:
 
 ```console
 dotnet restore Sample.slnx --force-evaluate
@@ -112,7 +112,7 @@ dotnet test Sample.slnx --configuration Release --no-build
 
 Update the PackageReference and affected lock files in one deliberate dependency change. Update `.config/dotnet-tools.json` only if the formatter upgrade is also intentional; preferably keep its baseline diff separate. `.editorconfig` changes only for a style-policy decision, and `global.json` changes only for an SDK-policy decision.
 
-A warm Debug success proves none of these stages: it may reuse assets, perform implicit restore, omit Release-only compilation, and bypass the pinned formatter. Cleaning is useful here because stale state is part of the stated hypothesis, not because deletion is a universal cure.
+A cached Debug success verifies none of these stages. It may reuse assets, perform an implicit restore, omit Release-only compilation, and bypass the pinned formatter. Cleaning is useful here because stale state is part of the stated hypothesis, not because deletion is a universal cure.
 
 ## Solution review {#solution-review}
 

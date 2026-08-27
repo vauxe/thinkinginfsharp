@@ -6,24 +6,9 @@ translationKey: part-04/ch-20-functional-core-effects
 
 # Chapter 20: Functional Core and Effect Boundaries {#overview}
 
-A function can have no explicit input and still depend on the world. `DateTimeOffset.UtcNow`, a random draw, and an environment lookup each obtain information not present in the function's arguments. Calling them deep inside a pricing or booking rule makes identical apparent inputs produce different results and forces tests to control global process state.
+A function can have no visible parameter and still depend on the world. `DateTimeOffset.UtcNow`, a random draw, and an environment lookup each obtain information absent from the function's arguments. Calling them deep inside a pricing or booking rule can make apparently identical inputs produce different results and force tests to control global process state.
 
-F# functions are values, so the repair can be small. Read an effect once and pass its result as data, or pass a narrow function that performs the effect. The domain core then receives every fact it needs through ordinary arguments. Objects and interfaces remain available when a coherent component contract or lifecycle calls for them.
-
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- identify time, randomness, environment access, and mutation as observable dependencies;
-- distinguish “read the world” orchestration from a pure domain decision;
-- capture one observation as data when a decision needs a consistent snapshot;
-- pass a function value when one operation is the whole required capability;
-- bundle a few internal capabilities without creating a global service locator;
-- use closures to preconfigure dependencies or retain deliberately private state;
-- choose an interface for a coherent stable operation set, object lifecycle, or .NET-facing boundary;
-- build a real system adapter without letting it leak into the core;
-- test behavior and call order with fixed values rather than sleeps or process-global mutation;
-- explain why dependency injection makes effects visible but does not make them pure.
+F# functions are values, so the repair can be small. Perform a side effect once and pass its result as data, or pass a narrow function that performs it. The domain core then receives every fact through ordinary arguments. Objects and interfaces remain useful when related operations form one component or require a lifecycle.
 
 ## Hidden input is still input {#hidden-input}
 
@@ -78,9 +63,9 @@ Passing time as data also states snapshot semantics. Every comparison in this de
 
 Purity is a property of this implementation and its dependencies, not of the `let` keyword or a function-shaped type. A supplied function can still perform I/O or mutate state.
 
-## Capture effects in a thin orchestration step {#capture-effects}
+## Capture side effects in a thin orchestration step {#capture-effects}
 
-The orchestration contract is a record of three named function values:
+The orchestrator receives a record of three named function values:
 
 ```fsharp:line-numbers [ch20-functional-core-effects.fsx]
 type RuntimeEffects =
@@ -108,7 +93,7 @@ let captureCandidate campaign effects =
       Draw = draw
       Region = region }
 ```
-Its shape is:
+The data flow is:
 
 ```text
 UtcNow ───────────────┐
@@ -116,9 +101,9 @@ NextInt ──────────────┼──▶ captureCandidate 
 ReadSetting ──────────┘          effects             data        pure
 ```
 
-`captureCandidate` invokes each capability in a visible order, validates the random provider's promised range, normalizes the optional setting, and constructs data for the core. The function is not pure merely because effects arrive as parameters; it is the explicit effect boundary.
+`captureCandidate` invokes each dependency in a visible order, validates the random provider's promised range, normalizes the optional setting, and constructs data for the core. Passing side-effecting functions as parameters does not make this function pure; this is where orchestration performs the side effects.
 
-The `10_000` bound is part of the call contract. A production `Random.Next(10_000)` obeys it. A broken substitute returning `10_000` is rejected immediately rather than producing a malformed code. This guard protects the adapter contract; it is not a domain rejection returned to an end user.
+The provider must honor the `10_000` bound. A production `Random.Next(10_000)` does so. A broken substitute returning `10_000` is rejected immediately instead of producing a malformed code. This guard checks the adapter, not an end-user domain rejection.
 
 The record is useful here because one small internal orchestrator needs three independent capabilities together. Do not pass it into every domain function. If the bundle grows whenever any code needs a new service, it has become a service locator with an unclear dependency graph; split it by workflow.
 
@@ -135,7 +120,7 @@ let systemEffects (random: Random) =
 Constructing this record does not read time or environment. Each closure performs its operation when `captureCandidate` invokes it:
 
 - `DateTimeOffset.UtcNow` reads the current UTC instant;
-- the supplied `Random` instance owns random-source state and implements the bounded draw;
+- the supplied `Random` instance holds random-source state and implements the bounded draw;
 - `Environment.GetEnvironmentVariable` reads the current process environment and may return null, converted immediately with `Option.ofObj` as established in Chapter 19.
 
 The caller creates and owns the `Random` instance. Creating a fresh seeded generator inside every draw would accidentally change statistical behavior; sharing mutable random state introduces concurrency questions deferred to Chapter 24. `System.Random` is also not a source for security-sensitive tokens; use a cryptographic random-number API for that requirement. This chapter's boundary makes ownership and algorithm choice visible without claiming one lifetime is universally correct.
@@ -170,17 +155,17 @@ let campaignSettings = settingsFrom (Map [ "BOOKING_REGION", "eu-west" ])
 
 The result has only the operation the consumer needs. It does not expose the map or require a new nominal type.
 
-## Choose the smallest dependency shape that tells the truth {#dependency-shapes}
+## Choose the smallest accurate dependency form {#dependency-shapes}
 
 Several representations are valid. Choose by the consumer's need, ownership, and audience:
 
-| Shape | Prefer it when | Watch for |
+| Form | Prefer it when | Watch for |
 |---|---|---|
 | Plain data such as `DateTimeOffset` | One observation should remain consistent throughout a decision | Capture it at the correct moment |
-| One function parameter such as `unit -> DateTimeOffset` | One local operation is the whole capability | The function may still throw or perform effects |
+| One function parameter such as `unit -> DateTimeOffset` | One local operation is the whole capability | The function may still throw or perform side effects |
 | A closure | A function should retain configuration, a client, or deliberately private state | Captured lifetime and mutation remain real |
 | A small record of functions | An internal F# orchestration step needs several named capabilities together | Avoid an ever-growing service locator |
-| An interface | Operations form one coherent stable component, need object lifecycle/state, framework DI, or a .NET-friendly public contract | Do not create a broad interface merely for mocking |
+| An interface | Operations form one coherent stable component, need object lifecycle/state, framework DI, or a .NET-friendly public API | Do not create a broad interface merely for mocking |
 
 ### Function parameter or closure {#function-or-closure}
 
@@ -191,7 +176,7 @@ let captureInstant (utcNow: unit -> DateTimeOffset) =
     utcNow ()
 ```
 
-A closure supplies a configured implementation of that function. The two ideas are complementary: the parameter is the consumer contract; the closure is one possible provider.
+A closure supplies a configured implementation of that function. The two ideas are complementary: the parameter states the function the consumer needs, and the closure is one possible provider.
 
 Prefer the plain value instead when no later read is needed. `decide campaign candidate` is stronger than passing a clock into `decide`, because its type proves the core cannot decide to read time twice.
 
@@ -204,9 +189,9 @@ type IClock =
     abstract UtcNow: unit -> DateTimeOffset
 ```
 
-A one-member interface may be warranted by a host's dependency-injection conventions or a cross-language public API. Inside a small F#-only algorithm, `unit -> DateTimeOffset` is usually less ceremony. For a serializer with related serialize/deserialize operations or a client that must be disposed, an interface can state a more coherent component boundary than unrelated function arguments.
+A one-member interface may be warranted by a host's dependency-injection conventions or a cross-language public API. Inside a small F#-only algorithm, `unit -> DateTimeOffset` is usually less ceremony. For a serializer with related operations or a disposable client, an interface can describe one coherent component better than unrelated function arguments.
 
-Neither shape decides failure policy. A function or interface member can return a value, `option`, `Result`, `Task`, or throw. Choose that result contract separately.
+Neither form decides failure policy. A function or interface member can return a value, `option`, `Result`, or `Task`, or it can throw. Choose the return type and exception policy separately.
 
 ## Deterministic tests observe calls, not elapsed time {#deterministic-tests}
 
@@ -275,15 +260,15 @@ let closedDecision =
 assert (earlyDecision = NotOpen)
 assert (closedDecision = Closed)
 ```
-The assertions prove:
+The assertions verify:
 
 - the captured instant, draw, and trimmed region are exactly the supplied values;
-- the three effect functions are called once in documented order;
-- replaying the pure core on captured data produces the same decision without more effect calls;
-- a missing setting uses the campaign's explicit fallback;
+- the three dependency functions are called once in documented order;
+- replaying the pure core on captured data produces the same decision without more dependency calls;
+- a missing setting uses the campaign's configured fallback;
 - the opening instant is included and the closing instant is excluded according to the code's comparisons.
 
-No test sleeps, changes the process environment, or guesses what `Random` will return for a seed. A seed can make one implementation reproducible, but testing an exact framework-generated sequence can couple a domain test to an algorithm it does not own. The fixed function expresses the actual contract: return this in-range draw.
+No test sleeps, changes the process environment, or guesses what `Random` will return for a seed. A seed can make one implementation reproducible, but asserting the framework's exact sequence couples a domain test to an algorithm the domain does not define. The fixed function states the actual requirement: return this in-range draw.
 
 ## Run the shared example {#run-example}
 
@@ -295,11 +280,11 @@ dotnet fsi --exec ch20-functional-core-effects.fsx
 
 Six deterministic output lines report the captured snapshot, accepted code, fallback region, window boundaries, exact effect order, and replay result. Compare their order and text.
 
-## Effects still need failure contracts {#failure-contracts}
+## Side-effecting dependencies still need failure policies {#failure-contracts}
 
-Making an effect explicit does not say what happens when it fails. `Environment.GetEnvironmentVariable` can return null and has documented exceptions. A clock provider or remote client can throw. A test substitute can violate the range contract.
+Making a side-effecting dependency visible does not say what happens when it fails. `Environment.GetEnvironmentVariable` can return null and has documented exceptions. A clock provider or remote client can throw. A test substitute can violate the required range.
 
-Use the smallest accurate return type. Optional configuration may return `option`; required configuration may return `Result`; an unexpected runtime failure may remain an exception until the boundary can add context. Do not turn every capability into `unit -> Result<_, string>` without identifying expected failures. Chapter 21 develops exception and resource policy.
+Use the smallest accurate return type. Optional configuration may return `option`; required configuration may return `Result`; an unexpected runtime failure may remain an exception until a layer can add context. Do not turn every capability into `unit -> Result<_, string>` without identifying expected failures. Chapter 21 develops exception and resource policy.
 
 Likewise, do not invoke an effect repeatedly merely because it is injected. Decide whether one workflow needs a snapshot, a fresh read per step, or a stream of changing observations, and encode that choice in where the function is called.
 
@@ -313,21 +298,21 @@ Write a deterministic test that supplies a fixed instant, draw, and region. Prov
 
 ### Exercise 2: choose data, function, closure, or interface {#exercise-02}
 
-Choose a dependency shape for each case and justify it:
+Choose a dependency form for each case and justify it:
 
 1. one expiration comparison must use the same instant throughout;
 2. a local retry policy needs to request a new delay after each failure;
 3. a configured formatter needs an immutable culture and prefix;
-4. a cross-language storage client has related read/write operations and owns a disposable connection;
+4. a cross-language storage client has related read/write operations and manages a disposable connection;
 5. one internal workflow needs clock, random draw, and setting lookup, while no domain function needs all three.
 
 State the lifetime and failure behavior even when the chosen type is a function.
 
-### Exercise 3: make boundary failure explicit {#exercise-03}
+### Exercise 3: make adapter failures visible {#exercise-03}
 
 Change setting lookup so a missing `BOOKING_REGION` is an error instead of using a fallback. Define a specific error union and make the capture step return `Result<Candidate, CaptureError>`.
 
-Ensure that a missing setting is distinguishable from an out-of-range random-provider contract violation. Decide whether the latter should remain an exception or become an error case, and justify the choice based on who can recover.
+Ensure that a missing setting is distinguishable from a random provider returning an out-of-range value. Decide whether the latter should remain an exception or become an error case, and justify the choice based on who can recover.
 
 [Read the chapter solutions](../solutions/ch-20-functional-core-effects).
 
@@ -335,14 +320,14 @@ Ensure that a missing setting is distinguishable from an out-of-range random-pro
 
 - Time, randomness, and environment access are inputs even when no parameter names them.
 - Pass a captured value when one consistent snapshot is stronger than an ability to reread.
-- A pure core transforms explicit values and can be replayed without runtime setup.
-- Function injection exposes an effect; it does not purify the invoked function.
+- A pure core transforms supplied values and can be replayed without runtime setup.
+- Function injection makes a side effect visible; it does not purify the invoked function.
 - Closures retain configuration or state, and their purity depends on what they capture and do.
-- Small function records fit local F# orchestration; interfaces fit coherent component and .NET-facing boundaries.
+- Small function records fit local F# orchestration; interfaces fit coherent components and .NET-facing APIs.
 - Keep real runtime calls in composition code and convert their foreign representations immediately.
-- Deterministic substitutes should prove contracts directly, without sleeps, real environment mutation, or assumed random sequences.
+- Deterministic substitutes should verify required behavior directly, without sleeps, real environment mutation, or assumed random sequences.
 
-The next chapter adds exceptions, disposable resources, and file I/O to this boundary while preserving the same functional core.
+The next chapter adds exceptions, disposable resources, and file I/O to this orchestration layer while preserving the same functional core.
 
 ## Sources {#sources}
 

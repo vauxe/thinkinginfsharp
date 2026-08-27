@@ -1,16 +1,16 @@
 ---
 title: "Chapter 43 Solutions"
-description: "Choose proportional UI boundaries, turn the verified Avalonia slice into a desktop release plan, and design an honest mobile project and evidence graph."
+description: "Choose proportional UI boundaries, turn the verified Avalonia slice into a desktop release plan, and design an honest mobile project and verification matrix."
 translationKey: solutions/ch-43-avalonia-desktop-mobile
 ---
 
 # Chapter 43 Solutions {#overview}
 
-These are reference designs, not universal verdicts. Each solution names a first candidate, the boundary that keeps F# useful, evidence that must still be collected, and a condition that would reverse the choice. A team with different controls, skills, devices, support contracts, or distribution channels can reasonably choose differently.
+These are reference designs, not universal verdicts. Each solution names a first candidate, the boundary that keeps F# useful, the checks still required, and a condition that would reverse the choice. Teams with different controls, skills, devices, support contracts, or distribution channels can reasonably choose differently.
 
 ## Exercise 1: choose three UI boundaries {#exercise-01}
 
-The deciding question is not “Which framework shares the most code?” It is “Which boundary gives this product the smallest justified platform surface while keeping the costly decisions testable?”
+The deciding question is not “Which framework shares the most code?” It is “Which boundary minimizes platform-specific code and tooling while keeping important product decisions testable?”
 
 ### A. Windows-only trading workstation {#windows-workstation}
 
@@ -18,18 +18,22 @@ The deciding question is not “Which framework shares the most code?” It is �
 
 The requirements already contain two decisive constraints: Windows-only scope and mature WPF controls. Rewriting those controls in Avalonia would spend risk to remove a platform restriction the product does not want. WinUI may deserve a separate modernization spike when a required Windows feature or vendor roadmap demands it, but it is not automatically an upgrade from a working WPF estate.
 
-Use a narrow object-shaped boundary between the shell and F#:
+Use a narrow object-oriented API between the shell and F#:
 
-- F# owns immutable market snapshots, validated identifiers, pricing functions, commands, outcomes, and cancellation-aware service ports;
+- F# contains immutable market snapshots, validated identifiers, pricing functions, commands, outcomes, and cancellation-aware service ports;
 - the UI adapter converts unions and results into properties, commands, notifications, and observable collection deltas;
-- C# owns XAML code generation, control-vendor integration, window/dispatcher services, and installer-specific hooks;
+- C# handles XAML code generation, control-vendor integration, window and dispatcher services, and installer-specific hooks;
 - serialization and threading contracts receive tests on both sides of the boundary.
 
-**Rejected first alternatives:** Avalonia adds control-replacement risk without a present cross-platform benefit; a browser surface may be unsuitable for existing controls, latency, multi-window, or enterprise integration; direct F# WPF UI is possible to investigate but is not needed to obtain an F# domain.
+**Not first choices:**
 
-**Evidence gap:** representative vendor controls, high-frequency update behavior, UI-thread budget, accessibility, multi-monitor/DPI, authentication, crash recovery, enterprise installer, signed update, and upgrade from the installed estate.
+- Avalonia adds control-replacement risk without a current cross-platform benefit.
+- A browser UI may not suit the existing controls, latency, multi-window workflow, or enterprise integration.
+- A direct F# WPF UI is possible, but an F# domain does not require it.
 
-**Reversal condition:** if WPF controls or supported Windows versions block the required roadmap, or a funded macOS/Linux requirement appears, compare a vertical Avalonia rewrite against another Windows modernization path using the same F# core.
+**Still to verify:** representative vendor controls, high-frequency updates, UI-thread budget, accessibility, multi-monitor and DPI behavior, authentication, crash recovery, the enterprise installer, signed updates, and upgrades from installed versions.
+
+**Reversal condition:** reconsider WPF if its controls or supported Windows versions block the roadmap, or if a funded macOS or Linux requirement appears. Compare one vertical Avalonia slice with another Windows modernization path, using the same F# core.
 
 ### B. Offline cross-platform field tool {#field-tool}
 
@@ -40,14 +44,24 @@ The product needs exactly the desktop platforms Avalonia's desktop host targets 
 Keep these boundaries:
 
 - pure F# state handles document identity, validation, edit history, synchronization state, and retry decisions;
-- a persistence port owns atomic save, backup, migration, and recovery from interrupted writes;
-- platform adapters own pickers, recent-document integration, protocol/file associations, secure credentials, and external links;
-- Avalonia views own layout and input, with compiled binding or an explicit renderer;
-- packaging projects or pipeline stages own each RID, metadata, signing, installer, and update channel.
+- a persistence port defines atomic save, backup, migration, and recovery from interrupted writes;
+- platform adapters handle pickers, recent-document integration, protocol and file associations, secure credentials, and external links;
+- Avalonia views handle layout and input through compiled binding or a defined renderer;
+- packaging projects or pipeline stages handle each RID, metadata, signing, installer, and update channel.
 
-**Rejected first alternatives:** WPF fails macOS/Linux; MAUI does not target desktop Linux and adds mobile-shaped tooling the product does not require; a browser/PWA is plausible only if its offline file, device integration, update, and enterprise deployment evidence beats the desktop package.
+**Not first choices:**
 
-**Evidence gap:** the hardest document and list screen, large data, offline restart, file locking, fonts/locales, keyboard and touch, screen readers, Windows/macOS/Linux native launch, X11/XWayland scope, signed packages, clean install, upgrade, rollback, and field-device performance.
+- WPF cannot cover macOS or Linux.
+- MAUI does not target desktop Linux and adds mobile tooling the product does not require.
+- A browser or PWA is plausible only if its offline files, device integration, updates, and enterprise deployment outperform the desktop package.
+
+**Still to verify:**
+
+- the hardest document and list screen with large data;
+- offline restart and file locking;
+- fonts, locales, keyboard, touch, and screen readers;
+- native launch on Windows, macOS, and named Linux targets, including the chosen X11 or XWayland scope;
+- signed packages, clean install, upgrade, rollback, and field-device performance.
 
 **Reversal condition:** if native document integration, Linux backend behavior, control performance, or packaging cost fails the spike budget, preserve the F# core and compare native shells or a browser surface.
 
@@ -67,15 +81,21 @@ The comparison should measure:
 | F# UI ergonomics | Official Avalonia F# templates; surrounding samples still often C# | F# library is straightforward; official UI/tooling is C#-shaped |
 | Evidence cost | Android/iOS hosts plus every mobile path and desktop host | Two mobile hosts plus a separate viewer boundary |
 
-**Rejected first alternatives:** WPF cannot deliver mobile; a browser-only surface cannot be assumed to satisfy background upload, push, camera, and stores; one codebase claim is not a substitute for device proof.
+**Not first choices:** WPF cannot deliver mobile. A browser-only UI cannot be assumed to support background upload, push, camera, and stores. One codebase does not replace device testing.
 
-**Evidence gap:** denied permissions, capture and upload interruption, notification tap from every lifecycle state, deep links, offline queue, duplicate submission, Android activity recreation, iOS suspend/termination, device accessibility, energy/memory/startup, signing, staged store release, crash symbols, and update compatibility.
+**Still to verify:**
+
+- denied permissions, capture interruption, and upload interruption;
+- notification taps from every lifecycle state, deep links, offline queues, and duplicate submission;
+- Android activity recreation and iOS suspension or termination;
+- device accessibility, energy use, memory, and startup;
+- signing, staged store release, crash symbols, and update compatibility.
 
 **Reversal condition:** choose Avalonia only if the shared UI materially reduces total cost and all critical native paths remain supportable. Choose the C# shell if native integrations, tooling, or platform UX are substantially safer. The F# core survives either result.
 
 ## Exercise 2: turn the desktop sample into a desktop release {#exercise-02}
 
-Begin with the evidence ledger. This chapter shows a locked Avalonia 12.1.1 project, `net10.0` source, AXAML, and pure-state tests. After copying it, run restore, Release compilation, tests, and native launch before claiming they pass. Windows, macOS, Linux, publish output, packages, signing, installation, updates, and accessibility require their own evidence.
+Begin with a verification ledger. This chapter shows a locked Avalonia 12.1.1 project, `net10.0` source, AXAML, and pure-state tests. After copying it, run restore, Release compilation, tests, and native launch before claiming they pass. Windows, macOS, Linux, publish output, packages, signing, installation, updates, and accessibility each require their own result.
 
 ### Restructure without losing the small core {#desktop-structure}
 
@@ -88,14 +108,14 @@ DesktopApp.Core          shared Avalonia views and UI adapters
 DesktopApp.Desktop       AppBuilder, lifetime, platform composition
 DesktopApp.Tests         pure and adapter tests
 DesktopApp.UiTests       headless control/layout/input tests
-packaging/               one owned track per supported OS/package
+packaging/               one maintained track per supported OS/package
 ```
 
 This need not become seven projects immediately. The boundary matters before the physical split. Start by moving `Model`, `Message`, and `Counter.update` out of the window file, then introduce modules or projects only when dependency direction or platform variation justifies them.
 
 ### Add a supervised effect loop {#desktop-effects}
 
-Replace the local mutable counter with an application store that owns the current model, serial message processing, effect execution, and subscription by views. An effect has a cancellation token and reports success, failure, or cancellation as a message. Each request carries an identity so a completion is accepted only when it matches the active model state.
+Replace the local mutable counter with an application store that manages the current model, serial message processing, external operations, and view subscriptions. Each operation receives a cancellation token and reports success, failure, or cancellation as a message. Every request has an ID, so only a completion matching the active model state is accepted.
 
 Use ports for documents, settings, secure credentials, dialogs, external links, update checks, and crash reporting. Keep implementation details in the desktop composition root. Persist only durable application data; rebuild view objects and derived presentation values.
 
@@ -135,9 +155,9 @@ Instrument startup stage, handled/unhandled failure, update state, migration ver
 
 Test clean install; upgrade from every supported predecessor; interrupted download, install, and migration; incompatible downgrade; rollback or forward repair; and uninstall with both “keep user data” and “remove data” policy where offered. A last-known-good package is useful only when its data format can still open the user's state.
 
-### Preserve the native evidence limit {#desktop-evidence-limit}
+### State the limit of native verification {#desktop-evidence-limit}
 
-Rerun the macOS smoke in an unlocked interactive session and record OS, CPU, display, locale, scale, commit, and result. If it passes, the evidence becomes “this build displayed and interacted on this macOS target,” not “all macOS works.” If `-6661` repeats in a valid display session, reduce to the official template and then investigate configuration, dependency, and framework issues with a minimal reproduction.
+Rerun the macOS smoke test in an unlocked interactive session. Record the OS, CPU, display, locale, scale, commit, and result. If it passes, report only: “This build displayed and accepted input on this macOS target.” Do not generalize that result to every macOS system. If `-6661` recurs in a valid display session, reduce the case to the official template. Then investigate configuration, dependency, and framework issues with a minimal reproduction.
 
 Do not close the Windows or Linux rows using macOS results. Release only the matrix rows the team is prepared to support, diagnose, patch, and retire.
 
@@ -187,7 +207,7 @@ Persist the draft after meaningful edits with debounce and at suspend/navigation
 
 ### Define platform ports and outcomes {#mobile-ports}
 
-The shared projects can own ports for:
+The shared projects can define ports for:
 
 - draft storage with atomic replace, migration, corruption recovery, and test fakes;
 - authenticated booking submission and status lookup with cancellation and idempotency identity;
@@ -200,13 +220,13 @@ Android implements activity entry, intents, runtime permissions, document picker
 
 ### Choose host languages pragmatically {#mobile-host-languages}
 
-Start from the official F# Avalonia cross-platform template and build both hosts from the CLI. Keep an F# host when the generated project, IDE, workload, binding, native callback, signing, and device paths remain routine. Use a tiny C# host where platform source generation, examples, or SDK conventions make it materially safer. Neither choice changes ownership of the F# domain and presentation state.
+Start from the official F# Avalonia cross-platform template and build both hosts from the CLI. Keep an F# host when the generated project, IDE, workload, binding, native callback, signing, and device paths remain routine. Use a tiny C# host where platform source generation, examples, or SDK conventions make it materially safer. Either way, the F# projects still contain the domain and presentation state.
 
 Do not rewrite native SDK types into an elaborate language-neutral framework. Keep adapters thin, test their contracts, and allow platform-specific behavior where users expect it.
 
 ### Verify lifecycle and distribution separately {#mobile-evidence-matrix}
 
-| Scenario | Android evidence | iOS evidence |
+| Scenario | Android checks | iOS checks |
 | --- | --- | --- |
 | Build | locked `net10.0-android` workload and target SDK | locked `net10.0-ios` workload and compatible Xcode |
 | Basic runtime | supported emulator plus representative physical devices/architectures | current simulator plus representative iPhone/iPad devices |
@@ -217,26 +237,49 @@ Do not rewrite native SDK types into an elaborate language-neutral framework. Ke
 | Accessibility/input | TalkBack, switch/keyboard/touch, large font | VoiceOver, switch/keyboard/touch, Dynamic Type |
 | Distribution | signed internal track, staged rollout, upgrade, rollback plan | provisioned archive, TestFlight/staged release, upgrade, rollback plan |
 
-Add offline, slow and changing networks; duplicate taps; server timeout after acceptance; clock changes; low storage; localization; memory pressure; startup and interaction budgets; crash symbol upload; privacy disclosures; and telemetry queries. Store review success is distribution evidence, not proof of business correctness.
+Also test:
+
+- offline, slow, and changing networks;
+- duplicate taps and a server timeout after acceptance;
+- clock changes, low storage, localization, and memory pressure;
+- startup and interaction budgets;
+- crash-symbol upload, privacy disclosures, and telemetry queries.
+
+Store review verifies distribution, not business correctness.
 
 Release one immutable backend contract and compatible client sequence. Mobile clients update slowly, so servers must support older app versions during the stated window. Feature flags and minimum-version gates need an offline and failure policy; they must not destroy drafts.
 
 ### State the desktop inference limit {#mobile-inference-limit}
 
-The desktop sample build proves that the shared compiler can build its current desktop project and that its pure counter transitions pass. After extracting a mobile-neutral Domain/Presentation project, those pure tests can become evidence for shared logic.
+The desktop sample build verifies only that the compiler can build the current desktop project and that its pure counter transitions pass. After extracting mobile-neutral Domain and Presentation projects, those pure tests can also verify shared logic.
 
-It proves nothing about `net10.0-android` or `net10.0-ios` restore, workload compatibility, host startup, Activity/scenes, AXAML on those targets, permissions, native services, touch, accessibility, package metadata, signing, physical devices, stores, or lifecycle recovery. Every one of those needs its own row.
+It does not verify any of the following:
 
-**Reversal criteria:** abandon shared Avalonia UI—not the F# core—if critical camera/background/notification integrations lack a supportable path, device UX or accessibility misses product thresholds, platform regressions dominate delivery, packaging/store work exceeds the budget, or the team cannot diagnose native failures. A thin C# or native UI shell remains a planned exit, not a rewrite of business rules.
+- `net10.0-android` or `net10.0-ios` restore and workload compatibility;
+- host startup, Activity or scene lifecycle, and AXAML on those targets;
+- permissions, native services, touch, and accessibility;
+- package metadata, signing, physical devices, stores, and lifecycle recovery.
+
+Each item needs its own matrix row.
+
+**Reversal criteria:** abandon the shared Avalonia UI, but keep the F# core, if any of these conditions holds:
+
+- critical camera, background, or notification integrations lack a supportable path;
+- device UX or accessibility misses product thresholds;
+- platform regressions dominate delivery;
+- packaging and store work exceeds the budget; or
+- the team cannot diagnose native failures.
+
+A thin C# or native UI shell remains a planned exit, not a rewrite of business rules.
 
 ## Solution takeaways {#solution-takeaways}
 
 - Preserve the F# core across framework experiments; do not make the product decision depend on forcing every host into one language.
 - Reuse an existing Windows UI when cross-platform reach has no product value.
-- Avalonia is a strong first candidate for a named cross-platform desktop scope, subject to native and package evidence.
+- Avalonia is a strong first candidate for a named cross-platform desktop scope, subject to native and package verification.
 - Mobile capability and lifecycle paths should decide the mobile shell; shared markup percentage comes later.
 - Grow the desktop sample through supervised effects, persistence, accessibility, headless tests, native smoke, per-RID packages, signing, update, and recovery.
-- Keep the `-6661` attempt as a failed native row until an interactive macOS run replaces it with new evidence.
+- Keep the `-6661` attempt as a failed native row until an interactive macOS run produces a new result.
 - Mobile architecture needs shared Core plus distinct Android/iOS hosts, durable checkpoints, stale-result protection, and idempotent server cooperation.
 - A desktop build proves no mobile workload, device, signing, or store path.
 

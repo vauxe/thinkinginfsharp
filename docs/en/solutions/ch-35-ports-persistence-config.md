@@ -6,7 +6,7 @@ translationKey: solutions/ch-35-ports-persistence-config
 
 # Chapter 35 Solutions {#overview}
 
-These solutions keep compatibility, file replacement, and ownership as separate policies. A migration is not “add a nullable field,” flushing is not a transaction, and dependency injection does not decide who disposes a borrowed client.
+These solutions treat compatibility, file replacement, and resource lifetime as separate policies. A migration is not merely “add a nullable field,” flushing is not a transaction, and dependency injection does not decide who disposes a borrowed client.
 
 [Return to Chapter 35](../part-06/ch-35-ports-persistence-config).
 
@@ -16,7 +16,7 @@ These solutions keep compatibility, file replacement, and ownership as separate 
 
 Keep the current `BookingDto` as the exact version 1 representation. Introduce a separate `BookingDtoV2` with the same existing fields plus `[<JsonPropertyName("customerNote")>] CustomerNote: string | null`. Do not mutate the meaning of `schemaVersion = 1` after files already exist.
 
-Reading now has two phases:
+Reading now proceeds in six steps:
 
 1. Apply the existing byte bound, strict UTF-8 decoding, and JSON depth limit.
 2. Read only the top-level `schemaVersion` with `JsonDocument` or a minimal envelope.
@@ -41,7 +41,7 @@ Upgrade in memory and rewrite only on the next successful business save. A read 
 
 The note's domain policy still needs a requirement. “Optional” answers presence, not maximum length, whitespace normalization, privacy, or whether it belongs in a booking at all. Add a protected type only after those rules are stated.
 
-Contract tests should retain every version 1 snapshot test, add exact version 2 shapes, prove both versions map to the intended protected value, and prove version 3 and unknown members fail at the declared phase.
+Contract tests should retain every version 1 snapshot test and add the exact serialized forms for version 2. Verify that both versions map to the intended validated value. Also verify that version 3 and unknown members fail during the documented phase.
 
 ## Exercise 2: audit every save interruption {#exercise-02}
 
@@ -71,7 +71,7 @@ If the requirement is “the booking and payment authorization commit together,�
 
 ## Exercise 3: change ownership without ambiguity {#exercise-03}
 
-### Split borrowed capabilities from owned lifetime {#exercise-03-borrowed}
+### Separate borrowed capabilities from resources managed here {#exercise-03-borrowed}
 
 Refactor composition to depend on capabilities rather than concrete stubs:
 
@@ -95,16 +95,16 @@ This `.fsi`-style declaration states an interface contract, not code already imp
 
 The host creates long-lived clients, registers them, starts one or more borrowed compositions, and disposes the compositions before disposing the shared clients. If clients implement `IAsyncDisposable`, the host awaits them at its own shutdown boundary. A borrowed composition must never call either disposal interface.
 
-Avoid one ambiguous `ownsClients: bool` flag. Separate constructors or types—such as `startOwnedStubs` for the demo and `startBorrowed` for host clients—make ownership reviewable from the call site.
+Avoid one ambiguous `ownsClients: bool` flag. Use separate constructors or types, such as `startOwnedStubs` for the demo and `startBorrowed` for host clients. The call site then states who must dispose the clients.
 
-Use-after-disposal has two layers:
+Prevent use after disposal at two levels:
 
 1. Each composition still marks itself closed and rejects new port calls.
 2. The host prevents shared clients from being disposed while any borrowing composition remains active.
 
-Tests can keep deterministic behavior by creating `PaymentStub` and `NotificationStub` in the test, passing their `Invoke` functions as borrowed capabilities, and disposing the stubs in the test's outer `use` scope. Assert authorization, decline, exact fault, pre-cancellation without a recorded call, and that disposing the composition does not dispose borrowed stubs.
+Tests can remain deterministic by creating `PaymentStub` and `NotificationStub` inside the test. Pass their `Invoke` functions as borrowed capabilities, then dispose the stubs in the test's outer `use` scope. Check authorization, decline, the specified fault, and pre-cancellation without a recorded call. Also check that disposing the composition does not dispose borrowed stubs.
 
-The caller token must still pass unchanged. Borrowing changes lifetime authority; it does not authorize the composition to replace cancellation, retry, or error policy.
+The caller token must still pass through unchanged. Borrowing changes disposal responsibility; it does not let the composition replace cancellation, retry, or error policy.
 
 ## Solution review {#solution-review}
 
@@ -119,4 +119,4 @@ The caller token must still pass unchanged. Borrowing changes lifetime authority
 - Borrowed capabilities and owned resources need different construction APIs.
 - The creator/host disposes shared clients after every borrower is closed.
 - Deterministic stubs remain useful when passed as borrowed functions in tests.
-- Ownership changes do not change cancellation or failure semantics.
+- Changing disposal responsibility does not change cancellation or failure semantics.

@@ -1,18 +1,18 @@
 ---
 title: "Chapter 27 Solutions"
-description: "Project a leaking F# result into a controlled .NET response, evolve a query with overloads, and isolate serializer requirements in a dedicated DTO."
+description: "Convert an exposed F# result into a controlled .NET response, evolve a query with overloads, and isolate serializer requirements in a dedicated DTO."
 translationKey: solutions/ch-27-fsharp-api-for-csharp
 ---
 
 # Chapter 27 Solutions {#overview}
 
-All three solutions preserve one principle: the domain representation does not compromise for calling technology, and the boundary representation does not require callers to learn the implementation language. The adapter explicitly owns conversion and compatibility costs between them.
+All three solutions follow one principle: the domain model should not bend to a caller's technology, and callers should not need to learn the implementation language. An adapter absorbs the conversion and compatibility costs between the two representations.
 
 [Return to Chapter 27](../part-05/ch-27-fsharp-api-for-csharp).
 
 ## Exercise 1: contain a leaking F# representation {#exercise-01}
 
-### Write the visible surface and state laws first {#exercise-01-surface}
+### Define the public API and its valid states first {#exercise-01-surface}
 
 The internal function's three outcomes can be projected as follows:
 
@@ -60,7 +60,7 @@ type BookingApi private () =
 
         request |> Decision.evaluate capacity |> ResponseAdapter.fromDecision
 ```
-You may separately expose an idiomatic surface for F# callers, perhaps returning an abstract domain result. Do not make that convenience layer the source of the C# contract. Both surfaces should forward to the same internal function.
+You may expose a separate idiomatic API for F# callers, perhaps returning a domain result. That convenience API should not define the C# contract. Both APIs should call the same internal function.
 
 ## Exercise 2: add optional filtering without breaking callers {#exercise-02}
 
@@ -112,7 +112,7 @@ var filtered = BookingSearch.Find(requestId: "REQ-27", attendee: "Ada");
 
 A third independent filter need not immediately produce four overloads. If the filters form one concept, add `BookingSearchOptions` and `Find(BookingSearchOptions options)`, keep the old overloads, and forward from them. Document defaults and combination rules, then use `Obsolete` to supply a migration target rather than suddenly removing bridge members.
 
-Even an additive overload warrants compiling existing C# source: method groups, generic inference, and null arguments can become newly ambiguous. An API baseline tool checks the binary surface; real consumer compilation checks the source surface.
+Even an additive overload warrants recompiling existing C# consumers: method groups, generic inference, and null arguments can become ambiguous. An API baseline tool checks binary compatibility; consumer compilation checks source compatibility.
 
 ## Exercise 3: separate a JSON DTO from the domain request {#exercise-03}
 

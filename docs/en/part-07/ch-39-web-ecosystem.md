@@ -1,6 +1,6 @@
 ---
 title: "Chapter 39: ASP.NET Core and the F# Web Ecosystem"
-description: "Choose among platform-native Minimal APIs, controllers, and functional F# web libraries by boundary shape, team needs, and verified maintenance—not fashion."
+description: "Choose among platform-native Minimal APIs, controllers, and functional F# web libraries by system needs, team fit, and verified maintenance—not fashion."
 translationKey: part-07/ch-39-web-ecosystem
 ---
 
@@ -8,21 +8,7 @@ translationKey: part-07/ch-39-web-ecosystem
 
 F# does not need a separate web server to participate in modern .NET. An F# project can use Kestrel, endpoint routing, dependency injection, configuration, authentication, authorization, logging, metrics, and `TestServer` directly from ASP.NET Core. Several community libraries then add F#-shaped handlers, composition operators, views, or conventions on that same platform.
 
-The practical question is therefore not “Which F# framework wins?” It is “Which boundary shape removes meaningful friction for this system without hiding platform behavior the team still needs to understand?” This chapter builds that decision from one verified platform-native slice and current primary package sources.
-
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- identify which web capabilities come from ASP.NET Core and which come from an F# library;
-- implement a small F# Minimal API without relying on C# source syntax;
-- compare Minimal APIs, controllers, Giraffe, Falco, Oxpecker, and Saturn by problem shape;
-- distinguish an endpoint handler abstraction from the business workflow behind it;
-- evaluate JSON, validation, routing, views, OpenAPI, authentication, and testing separately;
-- read package target frameworks, stable/prerelease versions, and maintenance evidence cautiously;
-- avoid treating download counts, templates, or microbenchmarks as a project decision;
-- run a bounded adoption spike that preserves an executable HTTP contract test;
-- choose the smallest web surface that fits the team and operational requirements.
+The practical question is not “Which F# framework wins?” Ask which API style removes real friction without hiding platform behavior the team must still understand. Begin with a verified platform-native slice, then compare current packages from primary sources.
 
 ## Start with the shared platform {#shared-platform}
 
@@ -68,7 +54,7 @@ type WebSampleErrorDto =
 
 ### Make framework adaptation explicit {#explicit-adaptation}
 
-The handler has the shape `HttpContext -> Task`, then is wrapped in ASP.NET Core's `RequestDelegate`. It checks the media type, uses strict case-sensitive JSON that rejects unknown members, validates the name, and produces only stable error codes and messages.
+The handler has type `HttpContext -> Task` and is then wrapped in ASP.NET Core's `RequestDelegate`. It checks the media type, uses strict case-sensitive JSON that rejects unknown members, validates the name, and produces only stable error codes and messages.
 
 ```fsharp:line-numbers [Program.fs]
 let private greet (context: HttpContext) : Task =
@@ -140,13 +126,13 @@ let map (application: WebApplication) =
 
     application.MapPost("/api/greetings", RequestDelegate greet) |> ignore
 ```
-The mapping style is lower-level than automatic Minimal API parameter binding. That is deliberate for a stable teaching contract, not a general recommendation to deserialize every request by hand. The [.NET 10 Minimal API reference](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis?view=aspnetcore-10.0) documents built-in binding, validation, responses, filters, authorization, and other platform features. Choose automatic binding when its contract matches yours; take control when compatibility or error-shape requirements justify it.
+The mapping style is lower-level than automatic Minimal API parameter binding. That is deliberate for a stable teaching contract, not a general recommendation to deserialize every request by hand. The [.NET 10 Minimal API reference](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis?view=aspnetcore-10.0) documents built-in binding, validation, responses, filters, authorization, and other platform features. Choose automatic binding when its contract matches yours; take control when compatibility or error-response requirements justify it.
 
-### State exactly what the test proves {#sample-evidence}
+### State exactly what the tests cover {#sample-evidence}
 
 Focused `TestServer` cases run the real route and handler:
 
-- one valid body is trimmed and returns the exact success JSON shape;
+- one valid body is trimmed and returns the exact expected success JSON;
 - malformed JSON, absent name, blank name, incorrect property case, and an unknown member fail safely;
 - a non-JSON media type returns `415` rather than entering the handler contract.
 
@@ -158,7 +144,7 @@ Before comparing names, decide what kind of endpoint vocabulary the team wants.
 
 | Level | Typical unit | Composition style | Primary tradeoff |
 |---|---|---|---|
-| platform Minimal API | delegate or `RequestDelegate` mapped to a route | endpoint routing and middleware | direct platform access; some APIs and overloads feel C#-shaped |
+| platform Minimal API | delegate or `RequestDelegate` mapped to a route | endpoint routing and middleware | direct platform access; some APIs and overloads are designed around C# |
 | platform controllers | attributed class/action | filters, model binding, application model | mature extension surface; more object/attribute ceremony in F# |
 | functional micro-framework | F# handler function and combinators | pipelines, lists, or endpoint DSL | idiomatic F# flow; another API and package lifecycle |
 | opinionated application framework | controllers/routers/application builders or generators | conventions and structured modules | faster convention when it fits; larger upgrade and escape-hatch surface |
@@ -181,7 +167,7 @@ Common F# friction includes delegate overload inference, nullability at model-bi
 
 ## Controller-based APIs {#controllers}
 
-Controllers remain a platform-native alternative. Choose them when the required ASP.NET extension point is controller-specific, when an organization standardizes on controller filters and conventions, or when mixed-language teams value a uniform class/action surface more than an F#-functional endpoint DSL.
+Controllers remain a platform-native alternative. Choose them for controller-specific extension points or an organization-wide controller standard. They may also suit mixed-language teams that value a uniform class/action API more than an F# endpoint DSL.
 
 F# can define controller classes, attributes, methods, tasks, and CLR DTOs. The friction is architectural rather than impossible interoperability: inheritance, mutable binding models, attributes, action overloads, and framework conventions may dominate code that would otherwise be functions and explicit data.
 
@@ -200,7 +186,7 @@ Why choose it:
 
 Friction to evaluate:
 
-- the continuation-shaped handler type and operators are concepts the team must learn;
+- the continuation-passing handler type and its operators are concepts the team must learn;
 - handler-specific abstractions can spread into application code if boundaries are not enforced;
 - JSON/view/authorization extension choices add their own compatibility matrix;
 - platform features may require understanding both Giraffe ordering and ASP.NET middleware ordering.
@@ -240,7 +226,7 @@ Why choose it:
 
 Friction to evaluate:
 
-- it is newer, so API evolution and the size of its production evidence differ from older choices;
+- it is newer, so its API lifecycle and production track record differ from older choices;
 - its package target may bind the service to a newer .NET runtime sooner;
 - the broad full-stack family can tempt a team to adopt features it does not need;
 - migration similarity does not mean every Giraffe behavior is identical.
@@ -251,7 +237,7 @@ The checked stable package is [Oxpecker 2.1.1](https://www.nuget.org/packages/Ox
 
 [Saturn](https://github.com/SaturnFramework/Saturn) provides an opinionated server-side functional MVC model over Giraffe, with application, router, and controller conventions. It can reduce assembly work when those conventions match the product, especially in an existing Saturn or SAFE application.
 
-Its maintenance and target evidence require extra caution for a new .NET 10 service. The checked stable package is [Saturn 0.17.0](https://www.nuget.org/packages/Saturn/0.17.0), published in April 2024 with a `net6.0` asset and a dependency on Giraffe 6.4 or later. NuGet computes compatibility with later TFMs, but computed compatibility is not proof that every generator, dependency, authentication path, or deployment behavior is supported on .NET 10.
+A new .NET 10 service should examine Saturn's maintenance status and target-framework fit carefully. The checked stable package is [Saturn 0.17.0](https://www.nuget.org/packages/Saturn/0.17.0), published in April 2024 with a `net6.0` asset and a dependency on Giraffe 6.4 or later. NuGet computes compatibility with later TFMs, but that does not confirm every generator, dependency, authentication path, or deployment behavior on .NET 10.
 
 Therefore do not label Saturn “dead,” and do not select it from an old tutorial without a spike. For an existing system, upgrade evidence and convention value may justify it. For a new system, compare its current issue/release activity, template output, transitive graph, and required features against the simpler alternatives.
 
@@ -280,7 +266,7 @@ Decide whether external JSON mirrors CLR DTOs, uses F# unions through a named co
 
 ### OpenAPI and clients {#openapi-clients}
 
-Generated OpenAPI is evidence only after the document is tested against real routes and error responses. Decide whether annotations, endpoint metadata, or a separate schema is authoritative. Keep at least one consumer test—like the capstone's C# client—because a valid document can still describe an unusable API.
+A generated OpenAPI document is trustworthy only after tests compare it with real routes and error responses. Decide whether annotations, endpoint metadata, or a separate schema is authoritative. Keep at least one consumer test, like the capstone's C# client, because a valid document can still describe an unusable API.
 
 ### HTML, HTMX, or a separate frontend {#html-frontend}
 
@@ -307,7 +293,7 @@ Use these as starting hypotheses to test:
 | existing convention-heavy Saturn/SAFE application | Saturn | upgrade graph or current platform evidence is insufficient |
 | API requires controller-specific application model or OData | controllers | requirements can be met more simply with endpoint routing |
 
-A product may use more than one surface during migration, but do not expose two permanent ways to express the same policy without ownership. Mounting a functional framework beside platform endpoints is technically possible; the cost is duplicated conventions, filters, errors, metadata, and tests.
+A product may use more than one API style during migration, but do not keep two permanent ways to express the same policy without assigning responsibility. Mounting a functional framework beside platform endpoints is technically possible; the cost is duplicated conventions, filters, errors, metadata, and tests.
 
 ## Protect the functional core from framework churn {#framework-boundary}
 
@@ -340,9 +326,9 @@ When comparing frameworks, run the same contract cases against each spike. Other
 
 ## Evaluate performance and security with the actual path {#performance-security}
 
-Framework benchmarks can reveal overhead patterns, but they do not include your JSON shape, authentication, logging, database, provider latency, response size, allocation profile, or failure path. Use Chapter 31's measurement discipline: define a workload and budget, profile the complete candidate, then optimize the measured bottleneck.
+Framework benchmarks can reveal overhead patterns, but they do not include your JSON payloads, authentication, logging, database, provider latency, response size, allocation profile, or failure path. Use Chapter 31's measurement discipline: define a workload and budget, profile the complete candidate, then optimize the measured bottleneck.
 
-Security likewise belongs to the final pipeline. Test body and header limits, malformed encodings, authentication challenge/forbid, authorization metadata, CSRF for cookie-based forms, output encoding, file uploads, redirects, proxy headers, rate limits, timeouts, logs, and response-start failures. Do not infer safety from “functional,” “minimal,” or “typed.”
+Security likewise belongs to the final pipeline. Test body and header limits, malformed encodings, authentication challenge/forbid behavior, and authorization metadata. Cover CSRF for cookie-based forms, output encoding, uploads, redirects, proxy headers, rate limits, timeouts, logging, and failures after a response starts. Do not infer safety from “functional,” “minimal,” or “typed.”
 
 Third-party packages expand the supply-chain and upgrade surface. Pin direct dependencies, retain lock files, inspect transitive changes, read release notes, and rerun contract/security tests. Avoid copying an installation command with `*` into reproducible project setup.
 
@@ -351,7 +337,7 @@ Third-party packages expand the supply-chain and upgrade surface. Pin direct dep
 Time-box a candidate comparison around one representative vertical slice:
 
 - one success request with the real DTO and serializer policy;
-- one validation failure and one unexpected failure with the required error shape;
+- one validation failure and one unexpected failure with the required error response;
 - authentication plus one authorization rule if the product needs them;
 - cancellation through one realistic dependency;
 - OpenAPI/client generation if it is a requirement;
@@ -359,7 +345,7 @@ Time-box a candidate comparison around one representative vertical slice:
 - a Release build, `TestServer` contract, real-process startup, and publish artifact;
 - a short upgrade exercise to the next compatible patch or minor version.
 
-Record implementation size only after recording correctness gaps, unfamiliar concepts, package graph, diagnostic quality, test ergonomics, documentation currency, and ownership. Delete spikes that lose; do not let comparison code become three supported stacks.
+Record implementation size only after correctness gaps, unfamiliar concepts, package graph, diagnostic quality, test ergonomics, documentation currency, and maintenance responsibility. Delete unsuccessful spikes; do not let comparison code become three supported stacks.
 
 ## Avoid common ecosystem mistakes {#common-mistakes}
 
@@ -394,7 +380,7 @@ Select Giraffe, Falco, or Oxpecker and sketch a bounded spike that replaces only
 
 ### Exercise 3: design a reversible migration {#exercise-03}
 
-A 40-endpoint service has handlers, authentication helpers, generated OpenAPI, and integration tests tied to one F# framework. Design an incremental move to platform Minimal APIs or another functional framework. Identify a route-by-route compatibility seam, shared error/DTO policy, authentication ownership, collision prevention, contract comparison, rollout observation, and the condition for removing the old framework package.
+A 40-endpoint service has handlers, authentication helpers, generated OpenAPI, and integration tests tied to one F# framework. Design an incremental move to platform Minimal APIs or another functional framework. Identify a route-by-route compatibility seam, shared error/DTO policy, authentication responsibility, collision prevention, contract comparison, rollout observation, and the condition for removing the old framework package.
 
 [Read the chapter solutions](../solutions/ch-39-web-ecosystem).
 
@@ -405,12 +391,12 @@ A 40-endpoint service has handlers, authentication helpers, generated OpenAPI, a
 - Direct F# Minimal APIs may need explicit delegate and null-boundary adaptation.
 - Giraffe offers mature continuation-style functional handlers over ASP.NET Core.
 - Falco offers a focused endpoint and response toolkit with related markup integrations.
-- Oxpecker uses endpoint routing and a terminal F# handler model with a newer full-stack family.
-- Saturn offers stronger conventions, but a new .NET 10 adoption needs explicit compatibility evidence.
-- Version observations are dated facts, not permanent rankings or proof of production suitability.
+- Oxpecker uses endpoint routing and a terminal F# handler model, with a newer related full-stack family.
+- Saturn offers stronger conventions, but a new .NET 10 adoption needs direct compatibility checks.
+- Version observations are dated facts, not permanent rankings or guarantees of production suitability.
 - JSON, OpenAPI, HTML, authentication, DI, testing, performance, and deployment are separable decisions.
 - Framework-specific types belong at the outer adapter boundary, not in the functional core.
 - Compare candidates with the same vertical slice and the same contract assertions.
 - Choose the smallest surface that reduces demonstrated friction, then pin and test it.
 
-Chapter 40 moves from HTTP boundaries to data access, type providers, analysis, visualization, and machine learning—another area where problem shape matters more than one universal stack.
+Chapter 40 moves from HTTP boundaries to data access, type providers, analysis, visualization, and machine learning—another area where workload characteristics matter more than one universal stack.

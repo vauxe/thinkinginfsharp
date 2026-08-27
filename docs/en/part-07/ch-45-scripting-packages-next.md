@@ -6,28 +6,11 @@ translationKey: part-07/ch-45-scripting-packages-next
 
 # Chapter 45: Scripting, Automation, Packages, and What Comes Next {#overview}
 
-An F# script is not a lesser kind of F# program. It uses the same language, FSharp.Core, and .NET runtime as a compiled project, but chooses a shorter assembly and execution path. That makes `.fsx` an excellent surface for exploration, repository maintenance, data repair, release checks, and small local tools.
+An F# script is not a lesser kind of F# program. It uses the same language, FSharp.Core, and .NET runtime as a compiled project, but has less setup and a shorter execution path. That makes `.fsx` an excellent fit for exploration, repository maintenance, data repair, release checks, and small local tools.
 
 The shorter path does not remove engineering obligations. A script can depend on hidden session state, the caller's working directory, mutable package feeds, unstable traversal order, ambiguous exit codes, or writes that occur on every run. Once other people or CI depend on it, those details are its interface.
 
-This final chapter turns one real script into a reliable local automation boundary. It then explains how to decide whether a package deserves entry into the dependency graph, how to lock the graph that actually ships, when a script should graduate into a project or tool, and how to keep learning F# without chasing every advanced feature at once.
-
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- choose among a REPL submission, `.fsx` script, console project, local .NET tool, and build DSL;
-- run a script in a fresh process and pass explicit command-line arguments;
-- distinguish the process working directory from the script's source directory;
-- use `#load`, `#r`, `#I`, and `#r "nuget: ..."` without hiding their ordering or trust implications;
-- design automation around explicit inputs, deterministic planning, bounded effects, and meaningful exit codes;
-- make a generated file idempotent by comparing desired and existing content before replacement;
-- explain what a SHA-256 manifest detects and what it does not authenticate;
-- evaluate a NuGet package by fit, compatibility, provenance, maintenance, license, vulnerabilities, and exit cost;
-- distinguish an exact direct package version from a locked transitive dependency closure;
-- choose between PackageReference, local tools, FAKE, and Paket from the problem rather than F# identity;
-- recognize quotations, SRTP, flexible types, and byref/Span code without treating them as prerequisites;
-- turn the preceding 44 chapters into a project-based learning loop with evidence and feedback.
+This final chapter turns a real script into reliable local automation. It then covers package selection, locking the graph that ships, and deciding when a script should become a project or tool. The final sections offer a focused route for continuing to learn F#.
 
 ## Choose the smallest execution surface that preserves the contract {#execution-surface}
 
@@ -41,7 +24,7 @@ The right surface is the smallest one that makes the required behavior repeatabl
 | local .NET tool | repository-wide executable with a stable command | tool manifest plus package restore and runtime compatibility | organization-wide distribution or API versioning grows |
 | build DSL such as FAKE | named build targets and dependency graph | DSL/tool version, script dependencies, target graph, and invoked tools | the graph or custom integration justifies another abstraction |
 
-Do not promote a 70-line script merely because projects look more serious. Do promote it when the script has become a product: callers rely on its command syntax, several files form an internal architecture, restore must be locked, unit tests need normal discovery, or deployment needs a self-contained executable.
+Do not promote a 70-line script merely because projects look more serious. Promote it when callers rely on its command syntax or several files form an internal architecture. A locked restore, normal test discovery, or self-contained deployment is also a clear signal.
 
 Likewise, do not compress a real application into one script to avoid an `.fsproj`. File order, public API boundaries, build properties, analyzers, test projects, and publishing are useful constraints once the program needs them.
 
@@ -53,19 +36,19 @@ The session remembers earlier bindings, opened namespaces, loaded files, referen
 
 ### Use a script for a complete, reviewable operation {#script-operation}
 
-A script should state its inputs, outputs, failure behavior, and owned effects as clearly as a small application. It may still be concise. The manifest script has one file, uses only libraries included with .NET, creates no global installation, and can be invoked from the directory containing the example.
+A script should state its inputs, outputs, failure behavior, and possible side effects as clearly as a small application. It may still be concise. The manifest script has one file, uses only libraries included with .NET, creates no global installation, and can be invoked from the directory containing the example.
 
-The useful distinction is not “throwaway versus production.” It is “bounded operation versus growing product.” A one-off data repair may deserve stricter validation, backups, and audit evidence than a long-lived developer convenience.
+The useful distinction is not “throwaway versus production.” It is “bounded operation versus growing product.” A one-off data repair may need stricter validation, backups, and an audit trail than a long-lived developer convenience.
 
 ### Use a project when the build graph becomes part of the answer {#project-promotion}
 
-Move to an F# console project when you need several compiled files, ordinary unit-test discovery, analyzers, generated documentation, project references, controlled target frameworks, `packages.lock.json`, publishing, trimming/AOT checks, or a supported command contract. The pure functions from a script can move almost unchanged; the important change is an explicit build and distribution boundary.
+Move to an F# console project when the build itself needs structure: several compiled files, analyzers, project references, controlled target frameworks, or `packages.lock.json`. Normal test discovery, generated documentation, publishing, trimming/AOT checks, and a supported command contract are also project-level needs. Pure functions can move almost unchanged; the important addition is a defined build and distribution boundary.
 
 If contributors should invoke one versioned command from the repository, a local .NET tool can be appropriate. Commit its `.config/dotnet-tools.json`, restore it with `dotnet tool restore`, and remember that tools run with the user's authority. A versioned tool manifest controls which tool package is requested; it does not make untrusted tool code safe.
 
 ## Understand what FSI executes {#fsi-model}
 
-Microsoft documents the command shape as `dotnet fsi [options] [script-file [arguments]]`. When a script runs, `fsi.CommandLineArgs[0]` is the script path and later elements are its arguments. `--` tells FSI to treat the remaining tokens as script arguments when an argument might otherwise look like an FSI option.
+Microsoft documents the command form as `dotnet fsi [options] [script-file [arguments]]`. When a script runs, `fsi.CommandLineArgs[0]` is the script path and later elements are its arguments. `--` tells FSI to treat the remaining tokens as script arguments when an argument might otherwise look like an FSI option.
 
 The manifest script accepts these forms:
 
@@ -78,9 +61,9 @@ dotnet fsi --exec ch45-scripting-packages-next.fsx check ./artifacts ./artifacts
 
 ### Working directory and source directory answer different questions {#script-paths}
 
-Relative process paths are resolved from the caller's current working directory. That is useful for command arguments such as `./artifacts`, because the caller owns their meaning. It also means a script invoked from another directory must not assume those paths are beside the script.
+Relative process paths are resolved from the caller's current working directory. That is useful for command arguments such as `./artifacts`, because the caller chooses their meaning. It also means a script invoked from another directory must not assume those paths are beside the script.
 
-When a resource belongs to the script itself, anchor it with `__SOURCE_DIRECTORY__`. `__SOURCE_FILE__` identifies the current source file. Use caller-relative paths for caller-owned input, source-relative paths for script-owned assets, and absolute paths at the boundary where work begins. Do not silently mix the two models.
+When a resource belongs to the script itself, anchor it with `__SOURCE_DIRECTORY__`. `__SOURCE_FILE__` identifies the current source file. Use caller-relative paths for inputs supplied by the caller and source-relative paths for assets shipped with the script. Convert both to absolute paths before work begins; do not silently mix the two models.
 
 Environment variables, current culture, time zone, current time, random seeds, network state, and the installed SDK are inputs too. Read them once at the edge, validate them, and pass ordinary values inward when reproducibility matters.
 
@@ -96,11 +79,11 @@ FSI processes script declarations in order. Its main directives are:
 
 These are not ordinary runtime function calls. A missing or incompatible reference prevents later script code from compiling. `#load` also executes the loaded script's top-level effects, so a “helper” that writes files during loading has hidden startup behavior.
 
-Keep reusable loaded scripts effect-free at the top level. Put behavior in named functions and let one entry script own execution. If a growing set of `#load` directives starts recreating project file order, use a project.
+Keep reusable loaded scripts free of top-level side effects. Put behavior in named functions and let one entry script start execution. If a growing set of `#load` directives starts recreating project file order, use a project.
 
 ## The manifest script: generate a stable artifact manifest {#x45}
 
-The manifest script solves a practical local problem: enumerate files beneath an artifact directory, record normalized relative paths, byte lengths, and SHA-256 digests in deterministic JSON, then either update the manifest or verify that it is current.
+The manifest script solves a practical local problem. It enumerates files beneath an artifact directory and writes their normalized relative paths, byte lengths, and SHA-256 digests to deterministic JSON. It can update the manifest or check that the current file matches.
 
 Its contract is deliberately narrow:
 
@@ -111,7 +94,7 @@ Its contract is deliberately narrow:
 - JSON has schema version `1`, UTF-8 without a BOM, and one final newline;
 - unchanged desired content leaves the existing output untouched;
 - replacement uses a uniquely named file in the output directory, then moves it over the destination;
-- no-argument execution owns and removes a unique temporary fixture for its self-test.
+- no-argument execution creates and removes a unique temporary fixture for its self-test.
 
 ### Model observable outcomes, not incidental steps {#manifest-model}
 
@@ -135,7 +118,7 @@ type CheckOutcome =
     | Current of fileCount: int
     | Stale of fileCount: int
 ```
-`ManifestPlan` contains both structured entries and the exact bytes-as-text desired at the boundary. `Updated` and `Unchanged` are not Booleans with undocumented meaning. `Current` and `Stale` make read-only CI behavior a separate contract from mutation.
+`ManifestPlan` contains structured entries and the exact text to write. `Updated` and `Unchanged` replace a Boolean whose meaning would need documentation. `Current` and `Stale` keep read-only CI checks distinct from mutation.
 
 The model remains small because this is local automation. A public tool might add schema compatibility, structured diagnostics, cancellation, logging, and a stable serialized result. Those needs would be promotion signals.
 
@@ -189,7 +172,7 @@ Skipping links avoids accidentally walking outside the selected tree or entering
 
 Opening with `FileShare.Read` prevents cooperating Windows writers from modifying the file while it is hashed. This is not a transactional filesystem snapshot, especially across platforms. If producers may mutate the tree concurrently, first publish an immutable staging directory or use a storage mechanism with snapshot semantics.
 
-SHA-256 lets a later consumer detect whether bytes differ from the recorded bytes. It does not establish who produced the manifest or whether both artifact and manifest were maliciously replaced. Authenticity requires a signature or another trusted channel; release provenance requires still more evidence.
+SHA-256 lets a later consumer detect whether bytes differ from the recorded bytes. It does not identify the producer or detect coordinated replacement of both artifact and manifest. Authenticity requires a signature or another trusted channel; release provenance requires additional records.
 
 ### Separate deterministic planning from applying effects {#manifest-plan}
 
@@ -292,7 +275,7 @@ State the guarantee precisely: the script replaces the destination after a compl
 
 ### Verify idempotence with a real temporary fixture {#script-evidence}
 
-With no arguments, the manifest script creates two files in a unique directory under `Path.GetTempPath()`. It writes once, sets the output timestamp to a sentinel, writes again, checks without mutation, verifies ordinal normalized paths, and removes only that owned directory in `finally`.
+With no arguments, the manifest script creates two files in a unique directory under `Path.GetTempPath()`. It writes once, sets the output timestamp to a sentinel, writes again, checks without mutation, and verifies ordinal normalized paths. In `finally`, it removes only the directory it created.
 
 Run the verified slice from the directory containing the example:
 
@@ -320,7 +303,7 @@ A script may have no assembly API, but it still exposes contracts:
 - command name, argument order, defaults, and help text;
 - accepted path forms and whether paths are caller-relative;
 - standard output for data, standard error for diagnostics, and exit codes;
-- files created, replaced, or deleted and the ownership rule for each;
+- files created, replaced, or deleted and who is responsible for each;
 - ordering, encoding, culture, time, and schema stability;
 - package, SDK, tool, operating-system, and external-command assumptions;
 - behavior under partial failure, cancellation, repeated execution, and concurrent invocation.
@@ -339,7 +322,7 @@ Idempotence is not immunity to wrong inputs. A deterministic script can reliably
 
 Shell scripts are excellent at invoking commands and connecting streams. They become less portable when data parsing, branching, escaping, collections, error models, or filesystem rules dominate. F# gives those decisions types and normal .NET APIs while still invoking external processes when appropriate.
 
-Do not wrap every `dotnet build` in F# merely to say the build uses F#. A short task file may be clearer. Introduce F# where it owns meaningful parsing, planning, validation, concurrency, or reusable policy.
+Do not wrap every `dotnet build` in F# merely to say the build uses F#. A short task file may be clearer. Introduce F# when the task needs meaningful parsing, planning, validation, concurrency, or reusable policy.
 
 When invoking a process, pass an argument list rather than constructing an unescaped shell string, capture exit status and bounded output, propagate cancellation, and decide which environment variables are inherited. Secrets must not appear in command lines or normal logs.
 
@@ -361,17 +344,17 @@ That choice is not anti-package minimalism. A maintained parser, protocol client
 
 For a candidate package, record at least:
 
-| Question | Evidence to inspect | Reject or spike when |
+| Question | What to inspect | Reject or run a spike when |
 |---|---|---|
-| Does its API solve the exact problem? | smallest representative call, error/cancellation model, data ownership | the demo works only after large adapters or hidden global state |
+| Does its API solve the exact problem? | smallest representative call, error/cancellation model, data lifetime | the demo works only after large adapters or hidden global state |
 | Does it support the target? | package target frameworks, runtime/native assets, AOT/browser/platform notes | the shipping target is absent or only assumed compatible |
-| Who owns it? | package owners, source repository, license, release history, issue/review activity | provenance or license cannot be established |
+| Who maintains it? | package owners, source repository, license, release history, issue/review activity | provenance or license cannot be established |
 | What enters transitively? | full dependency graph, build/analyzer/content assets, native binaries | the closure is disproportionate or conflicts with the host |
 | Is its operational model acceptable? | threads, network, files, reflection, generated code, logging, configuration | critical behavior cannot be observed or controlled |
 | Can the team update and leave? | migration notes, API surface used, replacement seam, data formats | removal would require rewriting the domain or stored data |
-| What evidence exists? | focused test on the actual target plus restore/build/runtime checks | only a README snippet or download count supports the decision |
+| What has been verified? | focused test on the actual target plus restore/build/runtime checks | only a README snippet or download count supports the decision |
 
-NuGet's official package-evaluation guidance points to version history, project/source links, owners, license, dependencies, usage, and vulnerability information. These are signals, not proof of future maintenance. A popular package can be wrong for the target; a small package can be excellent when its contract and ownership are clear.
+NuGet's official package-evaluation guidance points to version history, project/source links, owners, license, dependencies, usage, and vulnerability information. These signals cannot predict future maintenance. A popular package can be wrong for the target; a small package can be excellent when its contract and maintainers are clear.
 
 Create a bounded adoption spike. Test the hardest representative behavior, one failure, target compatibility, and removal seam. Record the version and date examined because package state changes.
 
@@ -388,9 +371,9 @@ Omitting the version asks for the highest available non-preview version at resol
 
 The exact version in one `#r` directive does not create a repository `packages.lock.json` for the full transitive graph. It also relies on effective NuGet configuration, package sources, credentials, caches, and network availability. Do not describe a pinned directive as a locked restore.
 
-FSI normally does not consume package build targets. Its documented `usepackagetargets=true` option enables them for packages authored to require that behavior. Enable it only with a understood need: build targets are executable restore/build behavior and widen the trust and compatibility surface.
+FSI normally does not consume package build targets. Its documented `usepackagetargets=true` option enables them for packages authored to require that behavior. Enable it only for a clear, documented need: build targets execute during restore or build and widen the trust and compatibility surface.
 
-For a script whose dependency closure must be reviewed and reproduced in CI, move the automation into a project with PackageReference and a committed lock file, or adopt a dependency manager whose script workflow provides an explicit committed lock. The one-file aesthetic is not worth an unverifiable supply chain.
+If CI must review and reproduce the full dependency closure, move the automation into a project with PackageReference and a committed lock file. Another dependency manager is suitable only if its script workflow also provides a committed lock. A one-file script is not worth an unverifiable supply chain.
 
 ### Lock the graph that runs {#locking}
 
@@ -398,7 +381,7 @@ In an SDK-style application or tool project, specify direct PackageReference ver
 
 A lock file answers resolution, not trust or runtime correctness. It does not prove that a package is safe, licensed for the product, compatible with the target, or behaviorally correct. It also does not force a consuming application's graph to use a library project's private resolution; the top-level consumer resolves its own closure.
 
-Keep SDK and tool versions explicit too. A project can pin the SDK in `global.json`, local tools in `.config/dotnet-tools.json`, NuGet graphs in project lock files, and JavaScript tools in a workspace lock file. Each mechanism covers a different graph; use only the ones the project actually needs.
+Keep SDK and tool versions explicit too. Pin the SDK in `global.json` and local tools in `.config/dotnet-tools.json`. Project lock files cover NuGet dependencies; a workspace lock file covers JavaScript tools. Use only the mechanisms the project needs.
 
 Update intentionally: change one bounded set, regenerate the lock, inspect direct and transitive differences, read relevant release notes, run focused and full tests, and retain rollback. “Latest” is a query result, not a review policy.
 
@@ -412,7 +395,7 @@ Prefer repository-scoped configuration and local tools over undocumented machine
 
 ## Read the F# ecosystem as layers, not a shopping list {#ecosystem-map}
 
-The ecosystem explored in Part VII sits on several ownership layers:
+The ecosystem explored in Part VII spans several responsibility layers:
 
 | Layer | Examples from this book | First compatibility question |
 |---|---|---|
@@ -421,17 +404,17 @@ The ecosystem explored in Part VII sits on several ownership layers:
 | Microsoft platform framework | ASP.NET Core, hosting, containers, Aspire integrations | which supported platform version and deployment model applies? |
 | F# community library | FsCheck, Giraffe/Falco/Oxpecker, FSharp.Data, Elmish | which API value offsets package and maintenance cost? |
 | cross-language UI/toolchain | Fable/npm/browser, Avalonia backends, Unity Editor/IL2CPP | which compiler, host, native tool, and release matrix must agree? |
-| repository automation | scripts, local tools, FAKE, Paket, CI runner | which graph owns ordering, restore, credentials, and evidence? |
+| repository automation | scripts, local tools, FAKE, Paket, CI runner | which tool controls ordering, restore, credentials, and verification? |
 
-F# participates in the entire NuGet ecosystem, not only packages with “FSharp” in their names. Many ordinary .NET libraries work directly. The integration question is API shape: nulls, delegates, tasks, exceptions, mutation, reflection, overloads, serialization, and C#-oriented builders may require a narrow adapter.
+F# participates in the entire NuGet ecosystem, not only packages with “FSharp” in their names. Many ordinary .NET libraries work directly. Inspect how the API represents nulls, delegates, tasks, exceptions, mutation, reflection, overloads, serialization, and C#-oriented builders; a narrow adapter may help.
 
-Conversely, an F#-native package is not automatically the best fit. Check target frameworks, release evidence, transitive assets, and team comprehension exactly as for any other dependency.
+Conversely, an F#-native package is not automatically the best fit. Check target frameworks, release history and tests, transitive assets, and team comprehension exactly as for any other dependency.
 
 ### FAKE and Paket solve different problems {#fake-paket}
 
 [FAKE](https://fake.build/) is an F# build-task DSL with target dependencies and modules for common tools. Choose it when a named target graph, reusable build integrations, or richer orchestration materially clarifies the build. A plain repository task file may remain clearer for four linear commands.
 
-[Paket](https://fsprojects.github.io/Paket/) is an alternative .NET dependency manager with its own dependency and lock model, including script integration. Choose it because that model or an existing repository requires it, not because F# code must use an F#-associated package manager. Do not run NuGet and Paket over the same ownership boundary without an explicit division.
+[Paket](https://fsprojects.github.io/Paket/) is an alternative .NET dependency manager with its own dependency and lock model, including script integration. Choose it because that model or an existing repository requires it, not because F# code must use an F#-associated package manager. Do not let NuGet and Paket manage the same dependency set without a clear division.
 
 Both tools add concepts, bootstrapping, versions, and failure modes. Their value is real when those costs replace greater accidental complexity. Run a spike against the actual CI and developer environments before migration.
 
@@ -452,18 +435,18 @@ Quotations represent expressions; they do not execute themselves. SRTP specializ
 
 ## Continue by building feedback loops, not a feature checklist {#learning-next}
 
-Finishing a book gives you a map, not automatic fluency. Fluency comes from repeated cycles in which the compiler, tests, runtime evidence, and another reader can contradict your first design.
+Finishing a book gives you a map, not automatic fluency. Fluency comes from repeated cycles in which the compiler, tests, runtime results, and another reader can contradict your first design.
 
 Use this loop:
 
 1. choose one real, bounded problem whose failure matters enough to reveal tradeoffs;
 2. model inputs, valid states, expected failure, and effects before choosing a framework;
 3. build the smallest vertical slice through the real boundary;
-4. inspect inferred signatures and make ambiguous ownership explicit;
+4. inspect inferred signatures and assign ambiguous responsibilities;
 5. test pure rules, adapters, failure paths, and the actual target proportionally;
 6. profile or instrument before changing representation for performance;
 7. review the dependency and deployment graph, not just source code;
-8. write down what the evidence proves, what it does not, and what would reverse the choice;
+8. record what was verified, what remains unknown, and what would reverse the choice;
 9. simplify after learning, then repeat with a slightly harder boundary.
 
 ### Choose a project track from the risk you want to learn {#project-tracks}
@@ -473,7 +456,7 @@ Use this loop:
 | language and modeling | CLI that validates and transforms a versioned local format | migration across three schema versions with properties | 7–18, 28–30 |
 | backend and distributed systems | authenticated API around a pure workflow | idempotent persistence, retries, tracing, container release | 20–24, 33–39, 42 |
 | data and analytics | reproducible ingest/clean/report pipeline | schema drift, large data, notebook-to-project promotion | 14–15, 29–31, 40 |
-| browser application | Fable state machine with one real API | URL ownership, cancellation, accessibility, bundle budget | 20, 22–24, 41 |
+| browser application | Fable state machine with one real API | URL state and navigation, cancellation, accessibility, bundle budget | 20, 22–24, 41 |
 | desktop or mobile | Avalonia desktop slice with pure update logic | packaging, platform service, signed target artifact | 25–32, 43 |
 | game and simulation | deterministic F# rules behind a thin host | replay, save migration, frame profile, real IL2CPP Player | 12, 20, 24, 27–31, 44 |
 | tooling and libraries | promote the manifest script into a tested console tool | stable API/CLI, package publication, upgrade compatibility | 16–17, 26–31, this chapter |
@@ -490,7 +473,14 @@ Read unfamiliar F# from types outward: public signatures, domain cases, pure tra
 
 ### Seek feedback that can change the design {#community-feedback}
 
-Ask reviewers a falsifiable question: “Can this state be constructed illegally?”, “Which cancellation owns this task?”, “What happens after the second run?”, or “Which Player evidence supports this package?” A generic request to “review my F#” produces generic approval.
+Ask reviewers one falsifiable question, for example:
+
+- Can this state be constructed illegally?
+- Which token governs cancellation?
+- What happens after the second run?
+- Which Player test validates this package?
+
+A generic request to “review my F#” produces generic approval.
 
 When asking a community, provide a minimal reproduction, full diagnostics, SDK/package versions, target, expected behavior, actual behavior, and what you already ruled out. This respects other people's time and makes the answer useful to the next reader.
 
@@ -537,19 +527,19 @@ Choose one project track from this chapter. Define three four-week increments th
 
 ## Model review {#model-review}
 
-- A REPL answers one question; a script preserves one bounded operation; a project owns a growing build and distribution contract.
+- A REPL answers one question; a script preserves one bounded operation; a project controls a growing build and distribution contract.
 - FSI executes declarations in order, exposes explicit script arguments, and distinguishes caller working directory from source directory.
 - Directives affect compilation and restore; loaded scripts should not hide top-level effects.
 - Reliable automation has explicit inputs, deterministic desired output, bounded effects, meaningful exit codes, and a check mode.
-- The manifest script creates a stable SHA-256 JSON manifest, skips links by policy, writes only on change, and proves idempotence in a real temporary fixture.
+- The manifest script creates a stable SHA-256 JSON manifest, skips links by policy, writes only on change, and verifies idempotence in a real temporary fixture.
 - A digest detects byte differences but does not authenticate provenance; same-directory replacement is not universal crash durability.
 - Add a package for a named capability after testing API fit, target support, provenance, closure, operations, maintenance, and exit cost.
 - An exact `#r "nuget:"` version pins one request but is not a committed transitive lock graph.
-- PackageReference lock files, local tool manifests, FAKE, and Paket solve different ownership problems.
+- PackageReference lock files, local tool manifests, FAKE, and Paket control different dependency or automation concerns.
 - Restore is a supply-chain operation; trusted sources, source mapping, audit, lock review, and rollback are separate controls.
 - The F# ecosystem includes the full .NET ecosystem plus F#-native abstractions and cross-language toolchains.
 - Quotations, SRTP, flexible types, and byref/Span are recognition topics until a concrete problem justifies deeper study.
-- Continued mastery comes from vertical projects, compiler and runtime evidence, review questions, simplification, and repeated release loops.
+- Continued mastery comes from vertical projects, compiler and runtime feedback, review questions, simplification, and repeated release loops.
 
 Part VII is now complete. The appendices turn the book into a working reference: environment setup, syntax, collections, C# migration, compiler diagnostics, terminology, solution review, and the advanced-feature recognition index.
 

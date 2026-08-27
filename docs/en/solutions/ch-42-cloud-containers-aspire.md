@@ -6,7 +6,7 @@ translationKey: solutions/ch-42-cloud-containers-aspire
 
 # Chapter 42 Solutions {#overview}
 
-These solutions make a first decision without pretending it is permanent. Each one names what is known, what remains unproved, and which evidence would justify moving to a more or less elaborate platform.
+These solutions make a starting decision without treating it as permanent. Each one states what is known, what remains unverified, and which conditions would justify moving to a simpler or more elaborate platform.
 
 [Return to Chapter 42](../part-07/ch-42-cloud-containers-aspire).
 
@@ -16,11 +16,11 @@ These solutions make a first decision without pretending it is permanent. Each o
 
 Start with the organization's smallest supported managed application platform. If that path accepts a locked .NET publish artifact and supplies the required runtime, routing, identity, health, logging, and scaling controls, a container adds no immediate business capability.
 
-Choose the managed container variant instead when the organization already promotes image digests, requires an image-based security gate, needs the same artifact on more than one compatible platform, or the code-deployment build contract is too opaque. The difference is artifact and operational ownership, not the F# domain model.
+Choose the managed container variant when the organization already promotes image digests, requires an image-based security gate, needs the same artifact on several compatible platforms, or finds the code-deployment build contract too opaque. The difference lies in artifact and operational responsibilities, not the F# domain model.
 
 Reject Serverless as the first candidate because the API is steady, continuously available, and not naturally one sparse bounded event. A function layer would add trigger/runtime limits and a second hosting contract without a demonstrated scale-to-zero or event-integration benefit.
 
-Reject Kubernetes because there is no cluster-level requirement and no team to own the cluster abstraction. One Deployment and Service YAML file would not account for upgrades, ingress, certificates, policy, capacity, storage, telemetry, tenancy, and incident response.
+Reject Kubernetes because there is no cluster-level requirement and no team to operate the platform. One Deployment and Service YAML file would not cover upgrades, ingress, certificates, policy, capacity, storage, telemetry, tenancy, and incident response.
 
 The first acceptance slice includes:
 
@@ -35,7 +35,7 @@ Move from code deployment to a container if artifact drift, native dependency, p
 
 ### Case B: bursty image metadata events {#exercise-01-case-b}
 
-Start with a Serverless event worker if the exact provider trigger can buffer bursts, each item stays within measured duration/memory/package limits, and scale-to-zero materially reduces idle ownership. The function is a thin adapter around an ordinary F# decision and a rate-limited media-client port.
+Start with a Serverless event worker if the actual provider trigger can buffer bursts, each item stays within measured duration, memory, and package limits, and scale-to-zero materially reduces idle operating cost. The function is a thin adapter around a standalone F# decision and a rate-limited media-client port.
 
 The queue event must carry a stable item/event ID and immutable object version. Persist one processing state per semantic identity. Concurrent duplicates either observe the existing result or contend through an atomic create/compare operation. Never use a fresh invocation ID as the idempotency key.
 
@@ -57,15 +57,15 @@ The platform contract should define:
 
 - approved base images, registries, signatures, SBOM and vulnerability exceptions;
 - namespace/tenant boundaries, service accounts, workload identity, secrets, and network policy;
-- requests, limits, disruption budgets, autoscaling signals, quotas, and capacity ownership;
+- requests, limits, disruption budgets, autoscaling signals, quotas, and responsibility for capacity;
 - startup, liveness, readiness, termination grace, draining, and rollout policy;
 - ingress, certificates, service discovery, egress, data services, backup, and recovery;
 - logs, metrics, traces, audit, alert routing, service objectives, and cost allocation;
 - cluster and workload upgrade cadence, compatibility tests, and incident escalation.
 
-Aspire may improve local topology and emit target artifacts when a current deployment integration is deliberately adopted. It does not replace platform policy, manifest review, cluster credentials, staged apply, or rollback evidence.
+Aspire may improve local topology and emit target artifacts when a current deployment integration is deliberately adopted. It does not replace platform policy, manifest review, cluster credentials, staged apply, or rollback verification.
 
-Serverless can still win for one isolated event edge, and a managed service can still host an independent workload. The answer is not “all twenty must use Kubernetes”; the shared platform is the default only where its controls and ownership reduce total risk.
+Serverless can still win for one isolated event edge, and a managed service can still host an independent workload. The answer is not “all twenty must use Kubernetes.” The shared platform is the default only where its controls and clear responsibilities reduce total risk.
 
 Reverse an individual workload when the platform adds more latency, cost, coupling, or incident load than its policy value. Reverse the platform decision only with migration evidence for the shared regulated controls, not with a cheaper compute quote alone.
 
@@ -73,7 +73,7 @@ Reverse an individual workload when the platform adds more latency, cost, coupli
 
 ### Begin with the exact baseline {#exercise-02-baseline}
 
-Before proposing a release, a copied sample must first prove:
+Before proposing a release, a copied sample must first verify:
 
 - the F# service and C# AppHost restore from locks and build on the checked macOS arm64 environment;
 - the direct service and Aspire-orchestrated service answer the three tested endpoints;
@@ -82,7 +82,7 @@ Before proposing a release, a copied sample must first prove:
 - the base tag is 10.0.10, the image user is 1654, the port is 8080, and the entry point is known;
 - the ordinary package lock remains unchanged after the final container command.
 
-Those local checks still do not prove a running target platform, cloud identity, registry, production probe, telemetry export, load, security policy, rollout, or rollback. The release proposal starts at that line instead of rebranding local evidence.
+Those local checks do not verify the target platform, cloud identity, registry, production probes, telemetry export, load, security policy, rollout, or rollback. The release proposal starts at that boundary instead of relabeling local results.
 
 ### Define one immutable artifact {#exercise-02-artifact}
 
@@ -90,7 +90,7 @@ Choose the managed environment's supported CPU architecture. Build that architec
 
 Push once to a restricted registry. Sign or attest the digest through the organization's approved identity. Promotion records refer to that digest, never just `latest`, branch, or commit. Registry retention must preserve both the active and rollback digests.
 
-The policy gate checks base support, non-root user, no unexpected writable or privileged requirement, port/entry point, native libraries, architecture, secrets, severity exceptions, and signature. A reproducible rebuild is useful evidence but does not replace digest promotion.
+The policy gate checks base support, non-root user, unexpected writable or privileged requirements, port and entry point, native libraries, architecture, secrets, severity exceptions, and signature. A reproducible rebuild is useful, but it does not replace promotion by digest.
 
 ### Make runtime and security contracts explicit {#exercise-02-runtime}
 
@@ -100,19 +100,19 @@ The platform service account receives only the permission required by this sampl
 
 Expose application traffic and probe paths only through intended platform routes. Protect or isolate operational endpoints. Use encrypted authenticated management and telemetry connections; the anonymous loopback dashboard exception is not copied into the deployment.
 
-### Add only owned service defaults {#exercise-02-observability}
+### Add only service defaults the team can support {#exercise-02-observability}
 
 Choose either a small C# Service Defaults adapter callable from F#, or explicit F# registrations for OpenTelemetry and ASP.NET Core health checks. Lock every new package. State the retry and timeout policy rather than accepting template behavior unseen.
 
 Map a cheap liveness check and a readiness check whose dependencies are genuinely required. Configure the managed platform to call them with explicit interval, timeout, threshold, startup allowance, and termination/drain behavior. Test failure and recovery, not only 200 responses.
 
-Send safe logs, request/error/latency metrics, traces, runtime metrics, release digest, and environment identity to the real production telemetry backend from staging. Query them. Trigger a test alert and confirm ownership. Define sampling, personal-data policy, retention, access, and expected ingestion cost.
+From staging, send safe logs, request, error, and latency metrics, traces, runtime metrics, the release digest, and environment identity to the real production telemetry backend. Query them. Trigger a test alert and confirm who responds. Define sampling, personal-data policy, retention, access, and expected ingestion cost.
 
 ### Separate deployment generation from approval {#exercise-02-pipeline}
 
 The simplest proposal may not need Aspire deployment at all: the CI system can deploy the one digest through the managed platform's supported declarative interface. Keep the AppHost for local orchestration.
 
-If Aspire deployment is adopted, pin and install the CLI, add the exact target integration, generate target output with `aspire publish`, review it, and let a protected deployment stage apply it. Use `aspire deploy` only when the stage is intentionally granting Aspire direct apply authority. In either case CI/CD owns approvals, identities, environment protection, logs, and retention.
+If Aspire deployment is adopted, pin and install the CLI, add the selected target integration, generate target output with `aspire publish`, review it, and let a protected deployment stage apply it. Use `aspire deploy` only when that stage intentionally grants Aspire direct apply permission. In either case, CI/CD manages approvals, identities, environment protection, logs, and retention.
 
 Use separate staging and production configuration, but the same digest. A staging gate performs socket/TLS, identity, health, telemetry, restart, resource-limit, and representative load tests. Capture the platform revision and target configuration with the digest.
 
@@ -122,7 +122,7 @@ Release to a small traffic slice or revision. Gate expansion on error rate, tail
 
 Rollback routes traffic to the retained previous digest and compatible configuration. The local cloud sample has no data migration, so reversal is simple; the first persistent dependency must add schema compatibility and forward-fix analysis. Rehearse rollback from a deliberately unhealthy candidate.
 
-After the observation window, retain evidence, remove failed revisions and unused temporary resources, and reconcile registry, telemetry, egress, and compute cost. Cleanup is part of the proposal because abandoned environments are both expense and attack surface.
+After the observation window, retain the release records, remove failed revisions and unused temporary resources, and reconcile registry, telemetry, egress, and compute cost. Cleanup is part of the proposal because abandoned environments are both an expense and an attack surface.
 
 ## Exercise 3: design an idempotent Serverless booking consumer {#exercise-03}
 
@@ -144,7 +144,16 @@ type DeliveryState =
 
 `Accepted` means the provider acknowledged the message. It does not prove human delivery or reading. `OutcomeUnknown` is not `Rejected`. The payload hash prevents the same identity from silently carrying different recipient or content semantics.
 
-The pure core decides among `IgnoreAccepted`, `RejectConflict`, `AcquireAttempt`, `ReconcileUnknown`, `RetryTransient`, and `RejectPermanent`. Provider event, clock, storage version, and email response are explicit inputs; storage and email calls remain ports.
+The pure core returns one of six decisions:
+
+- `IgnoreAccepted`;
+- `RejectConflict`;
+- `AcquireAttempt`;
+- `ReconcileUnknown`;
+- `RetryTransient`;
+- `RejectPermanent`.
+
+Provider events, the clock, storage versions, and email responses are explicit inputs. Storage and email calls remain behind ports.
 
 ### Persist before and after the external effect {#exercise-03-persistence}
 
@@ -160,7 +169,7 @@ On receipt:
 8. conditionally write `Accepted`, `Rejected`, or `OutcomeUnknown` using the lease/version;
 9. acknowledge the source event only after the durable state permits it.
 
-Atomic create/compare prevents concurrent handlers from both owning the same attempt. Lease expiry permits recovery after a crash; fencing prevents a late old worker from overwriting a newer result. Retention must cover the maximum source replay and business audit window.
+Atomic create or compare prevents two concurrent handlers from acquiring the same attempt. Lease expiry permits recovery after a crash; fencing prevents a late old worker from overwriting a newer result. Retention must cover the maximum source replay and business audit window.
 
 There is still a dual-write gap between the email provider and local storage. If the provider accepts the message and the process dies before `Accepted` commits, local state is uncertain.
 
@@ -176,11 +185,11 @@ Partial-batch runtimes report only failed items when supported, so one poison ev
 
 Bound function concurrency and provider calls together. Autoscaling cannot exceed provider quota or storage capacity. Emit queue age and throttling signals so delayed work is visible before retries expire.
 
-### Verify from core to provider {#exercise-03-evidence}
+### Verify every layer from core to provider {#exercise-03-evidence}
 
 Pure tests cover first event, duplicate accepted event, conflicting hash, concurrent lease decisions, transient retry, permanent rejection, stale worker completion, and unknown-outcome reconciliation.
 
-Storage contract tests prove atomic create, conditional update, lease expiry, fencing, and retention. Adapter tests cover exact provider request, idempotency header, status/error mapping, cancellation, timeout after acceptance, and redacted diagnostics. Event fixtures cover missing, extra, null, oversized, old, and future-version input.
+Storage contract tests verify atomic creation, conditional update, lease expiry, fencing, and retention. Adapter tests cover the specified provider request, idempotency header, status and error mapping, cancellation, timeout after acceptance, and redacted diagnostics. Event fixtures cover missing, extra, null, oversized, old, and future-version input.
 
 A target-provider staging test sends duplicate and concurrent events, kills a handler around the external call, observes retry/dead-letter behavior, exercises provider lookup/idempotency, and queries telemetry. Measure cold/warm latency, queue age, scale, downstream rate, and cost.
 
@@ -188,4 +197,4 @@ Deploy one immutable package with locked worker/binding versions, least-privileg
 
 Rollback must keep reading states written by the new version and must not reset notification identities. If a schema or state transition is not backward-compatible, pause consumption and use a forward-compatible repair rather than blindly activating old code.
 
-The final guarantee is deliberately narrow: each semantic notification reaches a terminal recorded state, duplicates are suppressed when the provider contract permits, and uncertainty is visible and reconcilable. Human delivery and exactly-once external effect remain outside the consumer's unilateral control.
+The final guarantee is deliberately narrow: each semantic notification reaches a recorded terminal state, duplicates are suppressed when the provider contract permits, and uncertainty remains visible and reconcilable. Human delivery and exactly-once external delivery remain outside the consumer's unilateral control.

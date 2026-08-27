@@ -24,7 +24,7 @@ These solutions follow the current workflow's observable order rather than colle
 
 Case (a) runs both pure field validators even though the first failed. It never inspects `NotBooked`; changing the state to `Booked existing` would produce the same validation list.
 
-Case (b) reaches creation because both fields are valid and state is empty. `Booking.create` owns the capacity comparison, so the workflow wraps that exact error rather than calculating another integer comparison.
+Case (b) reaches creation because both fields are valid and state is empty. `Booking.create` performs the capacity comparison, so the workflow wraps its error instead of repeating the integer comparison.
 
 Case (c) demonstrates business short-circuiting. The new request's five seats are individually valid, but occupied state means no creation attempt exists to diagnose. Reporting both duplicate and capacity would pretend the rejected creation ran.
 
@@ -36,7 +36,7 @@ Case (e) validates the new command, finds the matching booking, and calls `Booki
 
 ### Extend the constructor one argument at a time {#exercise-02-validation}
 
-The following self-contained extension uses the same shape. It introduces different type names so it does not claim the capstone already has email policy:
+The following self-contained extension uses the same pattern. It introduces different type names so it does not imply that the capstone already has an email policy:
 
 ```fsharp
 open System

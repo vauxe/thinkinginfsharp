@@ -8,21 +8,7 @@ translationKey: part-02/ch-11-generics-constraints
 
 `mapTree` from Chapter 10 never inspects a leaf's concrete type. The compiler therefore inferred one implementation that works for `BookingTree<int>`, `BookingTree<string>`, and many other instantiations. By contrast, sorting leaves needs an ordering operation, and adding quantities needs compatible numeric dimensions. “Generic” does not mean “all operations are available”; it means the definition states exactly which type facts it requires.
 
-This chapter follows those requirements from unconstrained functions, through the value restriction and structural equality/comparison constraints, to units of measure. The goal is not to decorate every signature. It is to read why a type variable is general, why it is constrained, and why the compiler sometimes refuses to generalize a binding.
-
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- read repeated type variables as consistency requirements;
-- explain when F# automatically generalizes a definition;
-- diagnose FS0030 value-restriction errors from binding shape and intent;
-- choose among an annotation, an explicit parameter, and a unit-taking factory;
-- read and write `'T : equality` and `'T : comparison` constraints;
-- explain how record, tuple, list, and union capabilities depend on component types;
-- distinguish ordinary generics from statically resolved parameters and their inline member constraints;
-- use units of measure to reject dimensionally invalid arithmetic at compile time;
-- state what units do not validate and what happens to them at runtime.
+We will trace those requirements through unconstrained functions, the value restriction, structural equality and comparison, and units of measure. The aim is to explain why a type variable is general or constrained—and why the compiler sometimes refuses to generalize a binding.
 
 ## Generality is inferred from independence {#automatic-generalization}
 
@@ -57,7 +43,7 @@ let duplicateExplicit<'T> (value: 'T) : 'T list =
     [ value; value ]
 ```
 
-The explicit version adds no information here and is usually noisier. Let inference expose the most general safe signature, then add annotations when they communicate a public contract or resolve real ambiguity.
+The explicit version adds no information here and is usually noisier. Let inference expose the most general safe signature. Add annotations when they clarify a public API or resolve real ambiguity.
 
 Some simple immutable data terms can also be generalized safely. The empty list contains no value and no mutable element slot, so `genericEmpty` can be instantiated as both `int list` and `string list`. This exception is not permission to assume every expression with an unknown type is a reusable generic value.
 
@@ -133,7 +119,7 @@ printfn
     attendeeBuckets.Length
     (not (LanguagePrimitives.PhysicalEquality integerBuckets anotherIntegerBuckets))
 ```
-Adding `()` changes semantics: each call allocates a new array. That is correct for a factory, not for a singleton cache callers are meant to share. Eta-expanding `alwaysKeep` exposes its data argument but retains its pure transformation meaning. An annotation instead commits a value to one type. Select the remedy from ownership and lifetime, not from whichever edit makes FS0030 disappear.
+Adding `()` changes semantics: each call allocates a new array. That is correct for a factory, not for a shared singleton cache. Eta-expanding `alwaysKeep` exposes its data argument but retains its pure transformation meaning. An annotation instead commits one value to one type. Choose the remedy from the intended sharing and lifetime, not merely to silence FS0030.
 
 Explicit generic value syntax exists for rare cases, but it is not the default repair. A clear ordinary function is easier to call and makes evaluation timing visible.
 
@@ -211,7 +197,7 @@ let inline add left right = left + right
 // The inferred signature is inline and carries a static (+) member constraint.
 ```
 
-In current F#, the simplified syntax for a **statically resolved type parameter** (SRTP) commonly uses apostrophe-prefixed names such as `'T`; older material and some complex explicit dispatch forms use `^T`. Identify SRTP from the combined signals: an `inline` definition, compile-time specialization, and a member constraint such as `static member (+)`. Use it for selected generic numeric and member-based abstractions. Ordinary functions such as `map`, equality checks, and domain rules usually keep ordinary type parameters and avoid the extra specialization contract.
+In current F#, simplified **statically resolved type parameter** (SRTP) syntax commonly uses apostrophe-prefixed names such as `'T`; older material and some complex dispatch forms use `^T`. Identify SRTP by the combination of an `inline` definition, compile-time specialization, and a member constraint such as `static member (+)`. Reserve it for generic numeric or member-based abstractions. Functions such as `map`, equality checks, and domain rules usually need only ordinary type parameters.
 
 The shared measured addition deliberately fixes the representation as `int` and varies only the measure. It needs no custom SRTP machinery. Appendix H provides recognition rules and the advanced official entry point; concrete numeric types are usually clearer for domain APIs.
 
@@ -249,7 +235,7 @@ This diagnostic-only expression fails because its dimensions disagree:
 let invalid = 2<seat> + 3<minute> // FS0001
 ```
 
-Units are compile-time information and are erased at runtime. The underlying numeric representation and reflected runtime value stay unchanged, while serialization and non-F# boundaries carry the plain number. That is why the example output prints ordinary numbers even though the F# compiler checked their measures.
+Units are compile-time information and are erased at runtime. The numeric representation and reflected value stay unchanged, while serialization and non-F# interfaces carry the plain number. The example therefore prints ordinary numbers even though the compiler checked their measures.
 
 At an input boundary, parse and validate the raw number, then restore the trusted measure explicitly:
 
@@ -270,7 +256,7 @@ From the directory containing the example:
 dotnet fsi --exec ch11-generics-constraints.fsx
 ```
 
-The five deterministic lines demonstrate one generalized function at two types, a safe simple generic value, a fresh-value factory that avoids the value restriction, inferred equality/comparison constraints through a generic record, and dimension-checked arithmetic.
+The five deterministic lines demonstrate a generalized function at two types and a safe generic value. They also cover a fresh-value factory, inferred equality and comparison constraints, and dimension-checked arithmetic.
 
 The invalid FS0030 and FS0001 examples remain diagnostic-only so the shared script stays warning-free. Appendix E collects compiler-diagnostic labs separately.
 

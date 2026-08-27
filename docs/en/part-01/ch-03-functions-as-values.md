@@ -10,18 +10,6 @@ A function is an ordinary F# value: `let` can bind it to a name, another functio
 
 This idea connects the first two chapters. Literals produce data values, function values describe computations from inputs to results, and higher-order functions turn behavior itself into composable data. Reading arrow types accurately before learning pipelines prevents `|>` from becoming decorative syntax.
 
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- define, bind, and apply named and anonymous functions;
-- distinguish parameters in a definition from arguments at a call site;
-- read right-associated arrow types correctly;
-- distinguish a curried function from a function that accepts a tuple;
-- use partial application to obtain a function that awaits remaining arguments;
-- write higher-order functions that receive or return functions;
-- read the automatic-generalization intuition represented by type variables such as `'a`.
-
 This chapter uses only simple arithmetic, strings, and minimal tuples. Collection functions such as `map` and `filter`, along with pipelines, arrive in Chapter 5. Chapter 11 handles the value restriction and explicit constraints on generalization.
 
 ## A function binding is still a binding {#function-binding}
@@ -48,13 +36,13 @@ Application associates to the left and binds more tightly than most infix operat
 1. compute the inner `transform value`;
 2. supply that result to the outer `transform`.
 
-Putting comma-separated values in parentheses constructs a tuple and changes the argument shape. The curried `lineTotal` expects two successive arguments, while `lineTotal (19.50m, 3)` supplies one tuple argument and therefore produces a type error.
+Putting comma-separated values in parentheses constructs a tuple and changes the argument form. The curried `lineTotal` expects two successive arguments, while `lineTotal (19.50m, 3)` supplies one tuple argument and therefore produces a type error.
 
 ### A function body produces a result {#body-result}
 
 A function body may contain local `let` bindings and effects, but the final expression still determines the result type. If the last expression is `printfn`, the result is `unit`; if it is the amount calculation, the result is `decimal`.
 
-A function value may be pure or effectful. Its body can read a clock, write a file, or mutate controlled state. A pure design depends only on explicit inputs and produces its observable meaning through the returned value; `let` itself only establishes the binding.
+A function value may be pure or effectful. Its body can read a clock, write a file, or mutate controlled state. A pure function depends only on its inputs and reports its result through the returned value; `let` itself only establishes the binding.
 
 ## An arrow denotes a function type {#function-types}
 
@@ -121,9 +109,9 @@ let finalTotal = addServiceFee totalForThree
 
 printfn "With service fee: %M" finalTotal
 ```
-`addFee` has type `decimal -> decimal -> decimal`. `addFee 2.00m` returns a `decimal -> decimal` function that can still use the supplied `2.00m` later. A function value together with surrounding values it retains forms the semantics of a **closure**. The runtime may optimize its representation, but the captured-value behavior remains.
+`addFee` has type `decimal -> decimal -> decimal`. `addFee 2.00m` returns a `decimal -> decimal` function that can still use the supplied `2.00m` later. A function value together with the surrounding values it retains is a **closure**. The runtime may optimize its representation, but the captured-value behavior remains.
 
-Parameter order is therefore part of API design. Stable configuration that callers may fix in advance often belongs first, while frequently changing data that flows through a computation often belongs last. Chapter 13 treats pipeline-oriented argument order systematically; partial application gives the first evidence here.
+Parameter order is therefore part of API design. Stable configuration that callers may fix in advance often belongs first, while frequently changing data that flows through a computation often belongs last. Chapter 13 treats pipeline-oriented argument order systematically; this partial-application example shows why.
 
 ## Anonymous functions create function values directly {#anonymous-functions}
 
@@ -203,9 +191,9 @@ Identity values: 42, F#
 
 The curried and tupled versions both produce `58.50`, while their signatures and partial-application abilities differ. Verify a function with both its output and its type.
 
-## Debugging: parenthesize the application first {#debugging}
+## Parenthesize the application first {#debugging}
 
-Function diagnostics often arise at an application boundary. Check them in this order:
+Function diagnostics often arise at a call site. Check them in this order:
 
 1. inspect the function value's full signature in FSI;
 2. mentally parenthesize arrow types by right association;
@@ -238,7 +226,7 @@ Call `applyTwice` twice: once with the named function `increment`, and once with
 
 Write the anonymous function, the two results, and the relevant types. Then explain why `applyTwice` cannot directly accept a function that converts an `int` to a `string`.
 
-### Exercise 3: choose a parameter shape {#exercise-03}
+### Exercise 3: choose a parameter form {#exercise-03}
 
 Compare `lineTotal` with `lineTotalTupled`:
 
@@ -249,31 +237,17 @@ Compare `lineTotal` with `lineTotalTupled`:
 
 [Read the chapter solutions](../solutions/ch-03-functions-as-values).
 
-## Summary {#summary}
+## Key takeaways {#summary}
 
 - A function is a value. Defining one establishes a binding; applying one evaluates its body and produces a result.
 - F# applies ordinary functions with spaces; application associates left, while arrow types associate right.
 - A curried function represents successive single-parameter functions, and partial application returns a function awaiting the rest.
-- A tupled function receives one composite value, while a curried function receives successive arguments; their signatures describe different input shapes.
+- A tupled function receives one composite value, while a curried function receives successive arguments; their signatures describe different input forms.
 - An anonymous function uses `fun parameter -> body` to create a function value directly.
 - A higher-order function receives or returns a function; a closure lets a returned function retain values from its definition environment.
 - Automatic generalization uses type variables such as `'a` for definitions independent of a concrete type while preserving consistency among positions.
 
-The next chapter lets function bodies choose. Both `if` and `match` are expressions that produce values, while patterns combine input shape with branch-local bindings.
-
-## Vocabulary {#vocabulary}
-
-- **function:** a value that accepts input and computes a result.
-- **function application:** supplying an argument to a function value and evaluating its body.
-- **parameter:** a name or pattern in a definition that receives input.
-- **argument:** a value or expression actually supplied at a call site.
-- **currying:** representing a multi-parameter computation as successive single-parameter functions.
-- **tuple:** one value combining a fixed number of positional values, with component types joined by `*`.
-- **partial application:** supplying only some arguments to obtain a function awaiting the rest.
-- **anonymous function:** an unnamed function value created directly with `fun ... -> ...`.
-- **higher-order function:** a function that receives or returns a function.
-- **closure:** a function value and the definition-environment values retained for later calls.
-- **automatic generalization:** safely promoting unknown types to instantiable type parameters.
+The next chapter lets function bodies choose. Both `if` and `match` are expressions that produce values, while patterns combine input structure with branch-local bindings.
 
 ## Sources {#sources}
 

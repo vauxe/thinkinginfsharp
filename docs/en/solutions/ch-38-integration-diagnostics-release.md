@@ -26,13 +26,13 @@ The first current claim is still useful: **within one process and one normalized
 
 The second current claim should split in two: **an exact completed operation replays its local result without repeating the modeled stub calls**, and **an ambiguous payment stops for reconciliation rather than charging again**. Neither sentence says what a real provider or notification consumer did.
 
-The third defensible claim, once an application-specific gate has actually passed, is: **the application has a reproducible local acceptance check for its documented topology**. “Production ready” is not a single testable property until a production contract names environment, traffic, security, dependencies, availability, durability, and ownership.
+The third defensible claim, once an application-specific gate has actually passed, is: **the application has a reproducible local acceptance check for its documented topology**. “Production ready” is not a single testable property until a production contract names environment, traffic, security, dependencies, availability, durability, and responsibilities.
 
 ### Rewrite the release note {#exercise-01-rewrite}
 
 A defensible note, after the described acceptance path has run successfully, could read:
 
-> The booking capstone now passes its locked local acceptance gate. The verified topology is one API process using one local snapshot path and controlled payment/notification adapters. Exact completed retries do not repeat those modeled effects, changed payloads conflict, ambiguous payment stops for reconciliation, and a C# HTTP consumer completes the public workflow. Multi-process storage, real provider delivery, security controls, telemetry export, artifact deployment, and production recovery remain outside this release.
+> The booking capstone now passes its locked local acceptance gate. The verified topology is one API process using one local snapshot path and controlled payment/notification adapters. Exact completed retries do not repeat those adapter calls, changed payloads conflict, ambiguous payment stops for reconciliation, and a C# HTTP consumer completes the public workflow. Multi-process storage, real provider delivery, security controls, telemetry export, artifact deployment, and production recovery remain outside this release.
 
 That statement preserves accomplishments while making the next engineering work obvious. It is more useful than either the inflated claim or a vague “nothing is guaranteed.”
 
@@ -51,15 +51,15 @@ Subscribe to the supported ASP.NET Core server instrumentation plus these applic
 
 Keep the existing custom child activity for the first deployment because `booking.outcome` provides a stable application classification independent of raw status. Set an explicit review date. If queries never use the child and the built-in server span plus structured log answer the same questions, remove it to reduce span volume.
 
-Do not sample metrics. Aggregate every request measurement in process and let the metrics pipeline export temporally according to policy. For traces, start with parent-based probabilistic sampling, but retain or separately sample errors according to the collector's documented behavior. A head sampler cannot know a later outcome, so “keep every error” may require tail sampling or another error signal. State the latency, memory, and failure tradeoff rather than promising it for free.
+Do not sample metrics. Aggregate every request measurement in process and let the metrics pipeline export at the configured interval. For traces, start with parent-based probabilistic sampling. Retain or separately sample errors according to the collector's documented behavior. A head sampler cannot know a later outcome, so “keep every error” may require tail sampling or another error signal. State the latency, memory, and failure tradeoff rather than promising it for free.
 
 Use a collector endpoint and credentials from deployment configuration. Enforce TLS and least privilege. Apply attribute allowlists or redaction in both the application and collector, because a collector rule is not a reason to emit known secrets. Bound queue memory, define export timeouts, and decide whether telemetry loss may ever affect request success; in most services it should not.
 
 Microsoft's [.NET tracing guide](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/distributed-tracing-instrumentation-walkthroughs) distinguishes instrument creation from collection. Its [metrics guide](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/metrics-instrumentation) recommends `IMeterFactory` in dependency-injection hosts, matching the tested design here.
 
-### Test value joining and series growth {#exercise-02-tests}
+### Test correlation and series growth {#exercise-02-tests}
 
-Retain the current in-process listener test because it proves the producer independently of a vendor. Add a collector integration test that sends one successful and one invalid request with a controlled valid `traceparent`, then asserts:
+Retain the current in-process listener test because it verifies local signal production without a vendor. Add a collector integration test that sends one successful and one invalid request with a controlled valid `traceparent`, then asserts:
 
 - the response header and completion log use the same trace ID;
 - the custom activity is a child of the server activity when sampled;
@@ -75,7 +75,7 @@ Run this as a load test, not just a source scan. A harmless-looking enrichment p
 
 ### Choose and name one artifact {#exercise-03-artifact}
 
-Assume the target is a framework-dependent Linux container on `linux-x64`. The immutable release identity is an OCI image digest, not a mutable tag. A multi-stage build restores from the lock file, runs the complete acceptance suite, then runs `dotnet publish` for `Booking.Api` in Release and copies only publish output into a pinned, supported ASP.NET Core runtime image.
+Assume the target is a framework-dependent Linux container on `linux-x64`. The immutable release identity is an OCI image digest, not a mutable tag. A multi-stage build restores from the lock file and runs the complete acceptance suite. It then publishes `Booking.Api` in Release and copies only the publish output into a pinned, supported ASP.NET Core runtime image.
 
 Record alongside the digest:
 
@@ -103,7 +103,15 @@ A concrete pipeline is:
 
 The service needs separate liveness and readiness semantics. Liveness should answer whether the process can make progress without depending on every remote system. Readiness should remove an instance when a dependency essential to serving requests is unavailable, while avoiding synchronized flapping. Neither endpoint should reveal credentials, paths, SQL, or provider messages.
 
-Run the process as a non-root user on a read-only base filesystem where practical, inject secrets through the platform rather than the image, restrict outbound destinations, terminate TLS under a documented trust model, and enforce authentication, authorization, request limits, and rate limits. Scan results need an owner and exception expiry; a green scanner alone is not a security design.
+Apply these runtime controls where the platform supports them:
+
+- run as a non-root user on a read-only base filesystem;
+- inject secrets through the platform, not the image;
+- restrict outbound destinations;
+- terminate TLS under a documented trust model; and
+- enforce authentication, authorization, request-size limits, and rate limits.
+
+Scan results need a responsible owner and an expiry for every exception. A green scanner alone is not a security design.
 
 ### Make storage evolution and rollback compatible {#exercise-03-rollback}
 
@@ -117,9 +125,9 @@ Replace the file snapshot before claiming replica safety. Use an event-keyed tra
 
 An application rollback is safe only while the older binary can read the current schema and understand messages already emitted. Otherwise recovery is a forward fix or database restore, each with an explicit data-loss window. Test restore time and data correctness; do not infer RPO or RTO from the existence of backups.
 
-Trigger automated rollout stop on breached error/latency/saturation limits, failed readiness, unexpected payment ambiguity, or outbox backlog growth. Roll back only when the compatibility contract allows it. Preserve correlated evidence and open an incident rather than deleting the failed environment before diagnosis.
+Stop rollout automatically when error, latency, or saturation limits are breached. Also stop for failed readiness, unexpected payment ambiguity, or growing outbox backlog. Roll back only when the compatibility contract allows it. Preserve related logs, traces, and state, then open an incident; do not delete the failed environment before diagnosis.
 
-Local gates can prove deterministic builds, unit and contract behavior, static security policy, and the local smoke. Publish-image execution, real database migrations, provider sandbox behavior, collector export, load, canary routing, backup restore, and rollback require production-like or production control planes.
+Local gates can verify deterministic builds, unit and contract behavior, static security policy, and the local smoke test. Published-image execution, real database migrations, provider sandbox behavior, collector export, load, canary routing, backup restore, and rollback require production-like or production control planes.
 
 ## Solution review {#solution-review}
 
@@ -130,11 +138,11 @@ Local gates can prove deterministic builds, unit and contract behavior, static s
 - Subscribe to stable sources and allowlist attributes before choosing dashboards.
 - Correlation IDs belong in traces and controlled logs, not metric dimensions.
 - Trace sampling and metric aggregation solve different cost problems.
-- Test cardinality with many distinct IDs and inspect the exported backend shape.
+- Test cardinality with many distinct IDs and inspect exported series and attributes.
 - Publish one immutable artifact and promote the same digest through environments.
 - Framework-dependent and self-contained deployment have different runtime patch contracts.
 - Schema compatibility determines whether binary rollback is safe.
-- Security, telemetry, migration, load, canary, restore, and rollback gates require owners and production-like evidence.
+- Security, telemetry, migration, load, canary, restore, and rollback gates require responsible parties and production-like verification.
 
 ## Sources {#sources}
 

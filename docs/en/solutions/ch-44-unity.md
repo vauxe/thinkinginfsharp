@@ -1,12 +1,12 @@
 ---
 title: "Chapter 44 Solutions"
-description: "Choose proportional F#/C# Unity boundaries, promote the managed plug-in sample through an honest IL2CPP evidence plan, and design versioned quest data without hiding AOT risk."
+description: "Choose proportional F#/C# Unity boundaries, verify the managed plug-in sample in IL2CPP, and design versioned quest data without hiding AOT risk."
 translationKey: solutions/ch-44-unity
 ---
 
 # Chapter 44 Solutions {#overview}
 
-These solutions are boundary designs, not claims that one language is best for every Unity subsystem. Each answer names the value F# adds, the Unity-owned surface that remains, the evidence that can reverse the choice, and the exact point at which an automated .NET result stops.
+These designs do not assume that one language suits every Unity subsystem. Each answer explains where F# helps, what Unity and C# still handle, which results could reverse the choice, and what ordinary .NET tests cannot establish.
 
 ## Exercise 1: choose three language boundaries {#exercise-01}
 
@@ -14,66 +14,86 @@ The three products have different dominant risks. Reusing one language split wou
 
 ### A. Turn-based tactics and deterministic replay {#turn-based-tactics}
 
-**First boundary:** an F# simulation/domain assembly behind a thin C# Unity presentation and asset adapter.
+**Initial boundary:** put the simulation and domain rules in an F# assembly. Connect it to Unity through a thin C# presentation and asset adapter.
 
-F# should own:
+The F# assembly should contain:
 
 - validated unit, ability, tile, faction, resource, and effect identifiers;
 - legal action generation, command validation, combat resolution, turn order, victory conditions, and AI evaluation inputs;
-- a deterministic state transition from prior state, command, random stream/seed, and rules version to next state plus events;
+- a deterministic transition from the prior state, command, random source or seed, and rules version to the next state and emitted events;
 - replay serialization as commands, seeds, content version, and checksums rather than scene snapshots;
 - mod content validation as data against a versioned schema and capability policy;
 - property tests for conservation, bounds, turn legality, and replay equivalence.
 
-C# should own scene objects, animation, camera, input, audio, visual effects, addressable assets, Inspector fields, and the mapping from emitted domain events to presentation. Animation completion may send a presentation message, but it must not become the authority for combat outcomes.
+C# should handle scene objects, animation, camera, input, audio, visual effects, addressable assets, Inspector fields, and the mapping from domain events to presentation. An animation-complete callback may send a presentation message, but it must not decide the combat result.
 
-Expose ordinary CLR calls such as `ValidateCommand`, `Apply`, and `TryLoadReplay`, with small DTOs or arrays. Keep F# unions and maps inside. If the simulation state is large, do not marshal the whole graph every frame; turn resolution is an event boundary, so exchange one command and a compact event/result batch.
+Expose conventional CLR methods such as `ValidateCommand`, `Apply`, and `TryLoadReplay`, using small DTOs or arrays. Keep F# unions and maps internal. If the simulation state is large, do not marshal the entire object graph every frame. Turn resolution is an event boundary, so exchange one command and a compact batch of events and results.
 
 **Mod boundary:** accept declarative content, not arbitrary downloaded managed assemblies. Validate identifiers, limits, references, localization keys, deterministic expressions, and rules version before entering a match. Executable mods introduce trust, platform, AOT, signing, store, and anti-cheat problems far beyond an F# language choice.
 
-**Proof matrix:** pure replay/property tests; C# consumer compile; exact plug-in/dependency inspection; Unity import; one scene replay in Play Mode; save/load across reload; Mono diagnostic Player if used; shipping IL2CPP architectures with at least one old replay and malformed mod; checksum agreement with an independent server/tool implementation; target performance and memory.
+**Verification matrix:**
 
-**Rejected first alternatives:** direct F# `MonoBehaviour` components would couple deterministic rules to scenes and Inspector representation; putting combat authority in animation callbacks breaks replay; placing every presentation event in the F# DLL adds engine detail without domain value.
+- run pure replay and property tests, then compile a C# consumer;
+- inspect the exact plug-in dependencies and import them into Unity;
+- replay one scene in Play Mode and save and load across a reload;
+- if Mono ships, run a diagnostic Mono Player;
+- test every shipping IL2CPP architecture with an old replay and a malformed mod;
+- compare checksums with an independent server or tool implementation;
+- measure performance and memory on the target hardware.
 
-**Reversal condition:** reduce the F# boundary if cross-language state conversion dominates the turn budget, debugging is unsupportable, or IL2CPP fails required library paths. Preserve the wire/replay contract so the implementation can move without invalidating saves.
+**Rejected first alternatives:**
+
+- Direct F# `MonoBehaviour` components would couple deterministic rules to scenes and Inspector representation.
+- Letting animation callbacks decide combat outcomes would break replay.
+- Putting every presentation event in the F# DLL would add engine detail without domain value.
+
+**Reversal condition:** reduce the F# boundary if cross-language conversion dominates the turn budget, debugging becomes impractical, or IL2CPP cannot compile a required library path. Preserve the data-transfer and replay contracts so the implementation can move without invalidating saves.
 
 ### B. Console action game with Jobs and Burst {#console-action-game}
 
-**First boundary:** C# owns the frame-critical Unity/DOTS/Burst application. F# is optional for slower metagame rules, build tools, backend-shared validation, or offline analysis—not a required Player dependency on day one.
+**Initial boundary:** keep the frame-critical Unity/DOTS/Burst application in C#. Use F# only where it pays for itself: slower metagame rules, build tools, shared backend validation, or offline analysis. Do not make it a required Player dependency on day one.
 
 The dominant constraints are entity count, data layout, Burst's HPC# subset, scheduling, native platform SDKs, designer workflow, frame time, and console certification. Those are not improved merely by placing the source in another language.
 
-If progression, inventory, economy, mission planning, or matchmaking rules become complex, add a small F# domain plug-in at an event boundary. Exchange flat arrays or compact structs before/after a batch, not callbacks or F# collections inside a job. Let C# jobs own `NativeArray`, component data, attributes, safety handles, scheduling, and Burst compilation.
+If progression, inventory, economy, mission planning, or matchmaking rules become complex, add a small F# domain plug-in at an event boundary. Exchange flat arrays or compact structs before and after a batch, not callbacks or F# collections inside a job. Keep `NativeArray`, component data, attributes, safety handles, scheduling, and Burst compilation in the C# jobs.
 
-**Proof matrix:** representative entity workload in a target development Player; CPU/GPU timeline, `GC.Alloc`, job dependencies, sync points, memory bandwidth, thermal behavior, and frame percentiles; IL2CPP plus Burst AOT on every console architecture; platform SDK callbacks; symbols and crash capture; certification build path. For any F# metagame plug-in, add the dependency/import/AOT rows from Chapter 44.
+**Verification matrix:** run a representative entity workload in a development Player on target hardware. Record CPU/GPU timelines, `GC.Alloc`, job dependencies, synchronization points, memory bandwidth, thermal behavior, and frame-time percentiles. Also verify IL2CPP and Burst AOT on every console architecture, platform SDK callbacks, symbols, crash capture, and the certification build path. For an F# metagame plug-in, add the dependency, import, and AOT checks used elsewhere in this chapter.
 
-**Rejected first alternatives:** an F# wrapper around every job adds interop without moving business decisions; direct F# Burst attribution has no evidence; a large immutable world snapshot copied across the boundary each frame fights the data-oriented design.
+**Rejected first alternatives:**
+
+- An F# wrapper around every job would add interop without moving business decisions.
+- No measured result yet supports applying Burst directly to F# code.
+- Copying a large immutable world snapshot across the boundary every frame would work against the data-oriented design.
 
 **Reversal condition:** add no F# at all if the remaining rules stay thin or the language boundary complicates console support. Move a proven non-hot subsystem to F# only when its model/test leverage exceeds packaging and debugging cost.
 
 ### C. Headless Editor content pipeline {#editor-content-pipeline}
 
-**First boundary:** a Unity-independent F# validation/report library plus a small C# Editor and batch-mode adapter.
+**Initial boundary:** use an F# validation and reporting library that does not depend on Unity. Add a small C# adapter for the Editor and batch mode.
 
-F# should own dialogue graph parsing from stable DTOs, reference checks, cycle/reachability rules, localization coverage, deterministic report rows, severity classification, and pure generation from explicit inputs. Ordinary .NET tests can use small fixtures without starting Unity.
+The F# library should parse dialogue graphs from stable DTOs, check references, detect cycles and unreachable nodes, measure localization coverage, classify severity, and generate deterministic report entries from explicit inputs. Ordinary .NET tests can use small fixtures without starting Unity.
 
-C# should own `AssetDatabase`, import callbacks, GUID/path lookup, `UnityEditor` progress and cancellation, menu/EditorWindow UI, Console diagnostics, and the static batch entry method Unity invokes. It snapshots asset data into detached DTOs before calling F# and maps findings back to asset paths and line/node identifiers.
+The C# adapter should handle `AssetDatabase`, import callbacks, GUID and path lookup, `UnityEditor` progress and cancellation, menu or EditorWindow UI, Console diagnostics, and the static batch entry point that Unity invokes. Before calling F#, it copies asset data into detached DTOs. It then maps each finding back to an asset path and a line or node identifier.
 
-Use one command-line invocation with the exact Editor, `-batchmode`, `-quit`, `-projectPath`, `-executeMethod`, target/profile when a build is involved, and `-logFile`. Return a nonzero process code for validation failure and a distinguishable code for infrastructure failure. Also emit a machine-readable report so CI does not scrape localized Console prose.
+Invoke a specific Editor executable once with `-batchmode`, `-quit`, `-projectPath`, `-executeMethod`, and `-logFile`. Add the target and profile when the command builds a Player. Return a nonzero exit code for validation failures and a different code for infrastructure failures. Also write a machine-readable report so CI does not have to scrape localized Console messages.
 
-**Proof matrix:** pure fixtures; interactive Editor selection and cancellation; import/reimport without recursion; clean project import; batch run on the same commit; deterministic report comparison across two clean runs; malformed and huge graphs; localization encodings; log/report retention; package update; runtime Player exclusion of Editor-only assemblies.
+**Verification matrix:** test pure fixtures, interactive Editor selection and cancellation, import and reimport without recursion, and a clean project import. Run the batch command twice from the same commit and compare the reports. Include malformed and very large graphs, localization encodings, log and report retention, a package update, and confirmation that Editor-only assemblies are absent from the runtime Player.
 
-**Rejected first alternatives:** making the F# library reference `UnityEditor` prevents cheap tests and expands version coupling; running `dotnet` over raw `.meta` files without Unity can misinterpret imported asset state; using Editor UI as the only entry point blocks CI.
+**Rejected first alternatives:**
 
-**Reversal condition:** move a rule into C# if it fundamentally depends on live Editor objects and the DTO mapping is larger than the rule. Move the entire validator outside Unity only when its source format, GUID resolution, and import semantics are genuinely independent.
+- Referencing `UnityEditor` from the F# library would make tests expensive and increase version coupling.
+- Running `dotnet` over raw `.meta` files without Unity could misread imported asset state.
+- Providing only an Editor UI would leave CI without an entry point.
+
+**Reversal condition:** move a rule into C# if it depends on active Editor objects and its DTO mapping is larger than the rule itself. Move the entire validator outside Unity only when the source format, GUID resolution, and import semantics are truly independent of Unity.
 
 ## Exercise 2: promote the managed plug-in sample to an IL2CPP vertical slice {#exercise-02}
 
-The goal is not to add many features. It is to execute every missing boundary once with reproducible evidence.
+The goal is not to add features. It is to exercise every unverified boundary once and retain reproducible results.
 
 ### Proposed project graph {#vertical-slice-graph}
 
-Use two build roots and one copied artifact contract:
+Use two build roots and one contract for the copied artifacts:
 
 ```text
 src/FSharpGameplay/                 # existing locked netstandard2.1 project
@@ -89,60 +109,60 @@ unity/FSharpVerticalSlice/
   ProjectSettings/ProjectVersion.txt and Player settings
 ```
 
-Do not commit `Library`, `Temp`, or local build outputs. Either commit imported plug-in binaries with a documented update command or generate them before Unity import; whichever policy is chosen, CI must compare hashes and reject stale/mixed files.
+Do not commit `Library`, `Temp`, or local build outputs. Either commit the imported plug-in binaries and document their update command, or generate them before Unity imports the project. In either case, CI must compare hashes and reject stale or mixed files.
 
 ### Artifact and assembly contract {#artifact-contract}
 
-Build with the project's chosen .NET SDK and `dotnet restore --locked-mode`, then Release `--no-restore`. Copy exactly:
+Use the project's selected .NET SDK. Run `dotnet restore --locked-mode`, then a Release build with `--no-restore`. Copy only:
 
 - `FSharpGameplay.dll`;
 - the adjacent `FSharp.Core.dll` resolved from package 10.1.301;
 - portable PDBs for diagnostic builds;
 - `UnityAdapter.cs` and `link.xml` from the same commit;
-- a generated manifest containing SHA-256, file size, package version, plug-in assembly identity, FSharp.Core assembly identity, commit, and build command.
+- a generated manifest containing each file's SHA-256 and size, both assembly identities, the package version, commit, and build command.
 
-Fail before launching Unity if a required file or hash differs. Do not copy reference assemblies, `.deps.json` as a resolver, or arbitrary DLLs from the global NuGet cache.
+Fail before launching Unity if a required file is missing or its hash differs. Do not copy reference assemblies, use `.deps.json` as a resolver, or take arbitrary DLLs from the global NuGet cache.
 
 ### Unity assembly and scene boundary {#unity-project-boundary}
 
 Pin `ProjectVersion.txt` to Unity 6000.3.22f1 and install the macOS IL2CPP module on the macOS builder. Set API Compatibility Level to .NET Standard. Keep Validate References and assembly-version validation enabled.
 
-Create a runtime assembly definition for the adapter. Disable plug-in Auto Reference and explicitly reference `FSharpGameplay.dll` and `FSharp.Core.dll` where the selected Unity configuration requires it; ensure tests reference the runtime adapter assembly, not the reverse. Keep Editor tests/code out of the Player.
+Create a runtime assembly definition for the adapter. Disable plug-in Auto Reference and explicitly reference `FSharpGameplay.dll` and `FSharp.Core.dll` where the selected Unity configuration requires it. Tests may reference the runtime adapter assembly; the runtime assembly must not reference the tests. Keep all Editor-only tests and code out of the Player.
 
 Create one scene with a named GameObject and `UnityAdapter`, a visible position marker, and a deterministic test input adapter. The input test sends `-1`, `0`, `1`, and out-of-range values through `SetHorizontal`; it does not depend on a physical controller or project-wide input package.
 
-Edit Mode tests verify DTO/mapping helpers and that expected plug-in types and assembly identities load. Play Mode tests verify `Awake` initialization, positive/negative movement across known fixed steps, disable/reset behavior, no Console exception, scene reload, and the project's chosen domain/scene reload settings.
+Edit Mode tests verify DTO and mapping helpers, plug-in type loading, and assembly identities. Play Mode tests cover `Awake` initialization, positive and negative movement over known fixed steps, disable and reset behavior, Console exceptions, scene reload, and the selected domain-reload and scene-reload settings.
 
-### Performance and stripping proof {#performance-and-stripping-proof}
+### Verify performance and stripping {#performance-and-stripping-proof}
 
-Profile a development Player, not only the Editor. After warm-up, capture fixed-step frames and assert an agreed allocation budget for the adapter/step path. The struct regression prevents a `MotionState` class allocation, but Unity calls, test harnesses, logging, and input can still allocate.
+Profile a development Player, not only the Editor. After warm-up, capture fixed-step frames and check the adapter and step path against an agreed allocation budget. Making `MotionState` a struct avoids one class allocation, but Unity calls, test harnesses, logging, and input may still allocate.
 
-Select and record one explicit managed stripping level. Start with the release's intended setting rather than changing it until the build passes. Exercise both public bridge types and every dynamically found path. Temporarily removing each `link.xml` entry in a negative experiment can show whether it is necessary; keep only roots justified by behavior.
+Select and record one managed stripping level. Start with the intended release setting instead of weakening it until the build passes. Exercise both public bridge types and every dynamically discovered path. To test a `link.xml` entry, remove it temporarily and rerun the relevant behavior. Keep only the roots that a failing negative test shows are necessary.
 
 Build both a diagnostic IL2CPP profile with useful stack trace/symbol settings and a release-like profile. A green diagnostic build alone does not prove optimized stripping behavior.
 
 ### Reproducible build and launch {#build-and-launch}
 
-Invoke the exact Editor executable once for the macOS profile with `-batchmode`, `-quit`, `-projectPath`, `-activeBuildProfile`, and `-logFile`. Do not switch targets inside the method. Treat any unexpected warning under the agreed policy as a failure.
+Invoke the selected Editor executable once for the macOS profile with `-batchmode`, `-quit`, `-projectPath`, `-activeBuildProfile`, and `-logFile`. Do not switch targets inside the build method. Fail on warnings that the project's warning policy does not allow.
 
 After build:
 
-1. verify exit code and parse the structured build result rather than one success string;
+1. verify the exit code and parse the structured build result instead of looking for one success string;
 2. archive Editor log, test XML, build report, plug-in manifest, symbols, and Player hash;
 3. inspect the Player architecture and signing state;
 4. launch the `.app` in a graphical macOS session with a timeout;
 5. wait for a machine-readable ready marker containing build and plug-in identities;
 6. drive or automatically run the representative motion/lifecycle checks;
 7. collect Player log and exit status;
-8. terminate cleanly and retain artifacts for a failed run.
+8. terminate cleanly and retain the artifacts from any failed run.
 
-An automation session without a usable graphical context is an environment failure row, not an application pass or fail. Retry in the intended interactive/CI runner and preserve both results.
+An automation session without a usable graphical context is an environment failure, not an application result. Retry on the intended interactive or CI runner and retain both records.
 
-### Evidence record and failure semantics {#vertical-slice-evidence}
+### Verification record and failure categories {#vertical-slice-evidence}
 
 Record rows independently:
 
-| Row | Pass condition | Failure owner |
+| Check | Pass condition | Responsible area |
 | --- | --- | --- |
 | Locked F# build | Exact SDK/lock, 0 warnings/errors, expected bundle manifest | F# source/package pipeline |
 | Clean Unity import | Exact patch, clean import, references valid, no compiler/import errors | Asset/plugin integration |
@@ -154,17 +174,21 @@ Record rows independently:
 | Player behavior | Representative checks and logs pass | Integrated application |
 | Diagnostics | Deliberate failure symbolizes to useful F# and C# frames | Symbols/crash pipeline |
 
-Only after all rows pass may the statement become: “The managed plug-in sample's representative slice works in a Unity 6000.3.22f1 macOS ARM64 IL2CPP Player under this build profile.” It still says nothing about Windows, mobile, consoles, Web, another stripping level, or the whole game.
+Only after every check passes can you make this statement:
+
+> The representative managed plug-in slice works in a Unity 6000.3.22f1 macOS ARM64 IL2CPP Player under this build profile.
+
+This result does not cover Windows, mobile, consoles, Web, another stripping level, or the entire game.
 
 ## Exercise 3: saves, asynchronous effects, and dynamic content {#exercise-03}
 
-The central move is to separate authoring, validated runtime state, durable storage, and handler discovery.
+Separate authoring data, validated runtime state, durable storage, and handler discovery.
 
-### Four models with explicit ownership {#quest-models}
+### Four models with distinct responsibilities {#quest-models}
 
 Use these boundaries:
 
-| Model | Owner | Shape |
+| Model | Managed by | Representation |
 | --- | --- | --- |
 | Quest authoring DTO | C#/Unity | `[Serializable]` classes/structs, supported fields, asset GUIDs, primitive lists |
 | Validated quest definition/state | F# | private constructors, records/unions/maps internally, no Unity objects |
@@ -173,7 +197,7 @@ Use these boundaries:
 
 The C# adapter reads authoring fields or assets, snapshots them into bridge DTOs, and calls `QuestApi.ValidateDefinitions`. Validation returns all actionable errors with quest/node/field identity; it does not throw on ordinary bad content.
 
-After validation, F# owns impossible-state modeling: a quest ID cannot be blank, a transition targets a known node, completion and cancellation are distinct, rewards are validated, and handler names have passed an allowlist. Unity receives a compact presentation snapshot and emitted commands/events.
+After validation, the F# model enforces its invariants: quest IDs are nonblank, transitions target known nodes, completion and cancellation remain distinct, rewards are valid, and handler names belong to the allowlist. Unity receives a compact presentation snapshot and the emitted commands and events.
 
 ### Version saves through pure migrations {#save-migrations}
 
@@ -187,13 +211,13 @@ Parse into the version-specific DTO, validate size/checksum, migrate one step at
 
 Golden fixtures cover valid v1/v2/v3, missing optional fields, duplicate IDs, unknown quest content, corrupt/truncated data, oversized collections, interrupted replacement, downgrade, and migration idempotence. Run them under ordinary .NET and again through the Unity Player serializer/file adapter actually shipped.
 
-### Model asynchronous delivery as messages {#async-quest-effects}
+### Model asynchronous results as messages {#async-quest-effects}
 
-Give every remote dialogue request an operation ID, quest/content version, and cancellation owner. The F# transition emits `FetchDialogue` and enters a loading state. The C# host performs network work without touching scene objects from a worker and later dispatches one of completed, unavailable, cancelled, malformed, or failed messages.
+Give every remote dialogue request an operation ID, a quest and content version, and a component or session responsible for cancellation. The F# transition emits `FetchDialogue` and enters a loading state. The C# host performs the network request without touching scene objects from a worker thread. It later dispatches one of five messages: completed, unavailable, cancelled, malformed, or failed.
 
 The update accepts completion only when operation ID, quest, content version, and current state match. Scene unload, component disable, a new request, logout, or content update cancels or supersedes the old operation. A late response becomes an ignored diagnostic event, not new UI.
 
-Persist enough identity before a consequential request to reconcile an unknown outcome after process death. Do not persist cancellation tokens, tasks, UnityWebRequest objects, delegates, or GameObjects.
+Before a consequential request, persist enough identifiers to recover an ambiguous outcome after process termination. Do not persist cancellation tokens, tasks, `UnityWebRequest` objects, delegates, or GameObjects.
 
 ### Replace unrestricted reflection with a closed registry {#closed-handler-registry}
 
@@ -203,29 +227,29 @@ Content may name optional handlers, but it must select from a compiled allowlist
 | --- | --- |
 | `grant-item` | validates item ID/count and emits a grant command |
 | `set-flag` | validates flag/value and emits a flag command |
-| `start-timer` | validates duration and emits a timer effect |
+| `start-timer` | validates duration and emits a start-timer command |
 
 Build the registry through explicit calls in reachable code. The public API can accept a handler name and payload DTO, but no arbitrary assembly-qualified type name. Unknown names are validation errors. This is safer for trust, migration, tooling, stripping, and IL2CPP.
 
-If a library internally reflects over known DTO members, select its documented AOT mode, generate metadata at build time where supported, and add only the exact preservation entries it requires. Prove every registered handler and error path in the intended IL2CPP/stripping matrix.
+If a library internally reflects over known DTO members, select its documented AOT mode and generate metadata at build time where supported. Add only the preservation entries it requires. Run every registered handler and error path in the intended IL2CPP and stripping configurations.
 
 When content truly requires arbitrary executable extensions, keep execution on a controlled server/tool process or adopt a deliberately sandboxed, platform-supported data language. Do not smuggle downloaded managed assemblies into a signed IL2CPP Player and call `link.xml` a sandbox.
 
-### Complete evidence matrix {#quest-evidence}
+### Complete verification checklist {#quest-evidence}
 
-The minimum evidence includes:
+At minimum, verify:
 
 - property tests for quest transitions and handler allowlist completeness;
 - golden save migrations plus corrupt, old, future, and huge payloads;
-- C# consumer/API surface reflection tests with no accidental F# types;
+- C# consumer and public-API reflection tests that detect accidental F# types;
 - Unity authoring round-trip across prefab/asset save and script reload;
 - cancellation, timeout, process loss, late response, content version change, and duplicate callback scenarios;
 - clean import with exact dependencies and assembly identities;
 - every handler in Mono if shipped and in each IL2CPP architecture at the explicit stripping level;
-- target allocation, latency, offline, memory, suspend/resume, log, symbol, and crash evidence;
+- target allocation, latency, offline behavior, memory, suspend and resume, logs, symbols, and crash capture;
 - rollback behavior when a new content version or save migration is withdrawn.
 
-**Reversal condition:** if dynamic extension requirements cannot be expressed as a closed, testable AOT surface, move that execution outside the Player. Keep the validated quest protocol and F# domain where useful; do not preserve an unbounded runtime merely to retain one implementation.
+**Reversal condition:** if dynamic extensions cannot fit a closed, testable AOT API, run them outside the Player. Keep the validated quest protocol and F# domain where they remain useful. Do not retain an unbounded extension mechanism merely to preserve one implementation.
 
 ## Solution takeaways {#solution-takeaways}
 

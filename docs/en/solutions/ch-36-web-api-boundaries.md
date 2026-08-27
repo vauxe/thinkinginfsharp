@@ -1,12 +1,12 @@
 ---
 title: "Chapter 36 Solutions"
-description: "Preserve an HTTP contract under automatic binding, reason about ambiguous effects, and assign security controls across deployment topologies."
+description: "Preserve an HTTP contract under automatic binding, reason about ambiguous side effects, and place security controls for two deployment topologies."
 translationKey: solutions/ch-36-web-api-boundaries
 ---
 
 # Chapter 36 Solutions {#overview}
 
-These solutions preserve observable contracts while changing mechanisms. Automatic binding is acceptable only if its failure behavior is controlled; a retry is safe only if durable state explains the last visible effect; deployment middleware is useful only when ownership matches the topology.
+These solutions preserve external behavior while changing implementation mechanisms. Automatic binding is acceptable only when its failures are controlled. A retry is safe only when durable state records the last external operation. Deployment middleware helps only when placed where the necessary information and control exist.
 
 [Return to Chapter 36](../part-06/ch-36-web-api-boundaries).
 
@@ -19,11 +19,11 @@ The refactor must preserve these invariants:
 - accepted JSON media types and exact case-sensitive property names;
 - rejection of unknown members and excessive nesting;
 - an effective 16 KiB byte limit with and without `Content-Length`;
-- `invalid_json` for malformed or shape-incompatible JSON;
+- `invalid_json` for malformed JSON or JSON with the wrong structure;
 - `invalid_request` for a null body or missing DTO field;
 - accumulated domain field errors before any port call;
 - the caller's request-aborted token on every port;
-- every success status, error status, stable code, and response DTO shape.
+- every success status, error status, stable code, and response DTO structure.
 
 Do not begin by deleting the contract tests. They are the specification that lets the mechanism change safely.
 
@@ -46,7 +46,7 @@ The handler can then have a compact conceptual signature:
 PlaceBookingDto -> CancellationToken -> Task<IResult>
 ```
 
-That signature does not prove the public contract. Framework binding runs before the handler. Depending on configuration and host, a binding failure may return a framework-generated body or surface as an exception to `TestServer`. The binding-failure boundary must normalize both paths before they become observable.
+That signature does not define the whole public contract because framework binding runs before the handler. Depending on configuration and host, binding may return a framework-generated error body or throw through `TestServer`. The binding-failure layer must normalize both paths before either reaches the caller.
 
 Do not read the body once in middleware merely to measure it and then ask the binder to read the consumed stream. Either install a genuinely limiting stream wrapper before binding, or buffer only within the same declared small limit and replace the body with a rewound stream. The former avoids a duplicate buffer; the latter is simpler but must dispose its owned buffer after the request.
 
@@ -54,11 +54,11 @@ Do not read the body once in middleware merely to measure it and then ask the bi
 
 Run the existing HTTP cases unchanged. Add two requests without `Content-Length`: one exactly at the limit and one byte over it. Add `application/problem+json` or another valid `+json` media type to prove the content-type policy is intentional.
 
-Assert both the response and the owning boundary: invalid input produces `400` before `LoadBooking`, and cancellation reaches the blocked port before the client task completes as cancelled. Finally, repeat a real Kestrel smoke to cover transport limits and headers outside `TestServer`'s model.
+Assert both the response and the layer responsible for it. Invalid input must produce `400` before `LoadBooking`. Cancellation must reach the blocked port before the client task completes as cancelled. Finally, repeat a real Kestrel smoke test for transport limits and headers outside `TestServer`'s model.
 
 If any status, code, field error, or side-effect count changes, the refactor changed the API. Decide that migration explicitly instead of calling it a binding implementation detail.
 
-## Exercise 2: reason from the last visible effect {#exercise-02}
+## Exercise 2: reason from the last external operation {#exercise-02}
 
 ### Record ambiguity instead of guessing {#exercise-02-table}
 
@@ -72,7 +72,7 @@ The three interruptions produce different facts:
 
 The caller cannot infer durable truth from the presence or absence of an HTTP response. The server also cannot infer whether a provider acted merely because its connection failed after sending a request. Both need identifiers that survive a process and network failure.
 
-### Persist the minimum replay evidence {#exercise-02-evidence}
+### Persist the minimum replay state {#exercise-02-evidence}
 
 Chapter 37 needs a durable record keyed by the normalized request ID. At minimum it must retain:
 
@@ -80,17 +80,17 @@ Chapter 37 needs a durable record keyed by the normalized request ID. At minimum
 - the accepted booking or decision result;
 - a stable payment idempotency key and whether authorization is pending, known accepted, known declined, or ambiguous;
 - whether notification is pending or delivered;
-- enough response data to replay the same completed result without rerunning effects.
+- enough response data to replay the same completed result without repeating external calls.
 
 “Pending” and “ambiguous” are different. Pending means no attempt is known to have begun. Ambiguous means an attempt began but its outcome is unknown; a provider status query or provider-supported idempotency key is required before another charge.
 
-Notification after the local commit suggests a durable outbox-shaped record: commit the booking and “notification pending” together, then deliver and mark completion separately. A deterministic stub can prove the state machine, but it cannot prove a real message broker or email provider's delivery semantics.
+For notification after the local commit, use a durable outbox record. Commit the booking and “notification pending” together, then deliver and mark completion separately. A deterministic stub can verify the state transitions, but it cannot verify a real broker or email provider's delivery semantics.
 
 This is not a distributed transaction. It is an explicit protocol for replay, reconciliation, and at-least-once attempts with deduplication where supported. Compensation, authorization expiry, and provider callbacks require additional business rules not present in this sample.
 
 ## Exercise 3: review two deployment topologies {#exercise-03}
 
-### Put each control where it has trustworthy information {#exercise-03-table}
+### Put each control where the required information is trustworthy {#exercise-03-table}
 
 Use this responsibility table as a starting point, not universal infrastructure policy:
 
@@ -111,22 +111,22 @@ CORS is necessary only for browser origins that must call this API directly. It 
 
 Disabling `Server: Kestrel` reduces passive disclosure but does not repair missing authentication, TLS, or rate limiting. Likewise, moving a credential from source code to a plain environment variable prevents an accidental commit but does not encrypt it.
 
-The release review should name the owner and verification evidence for every required row: configuration test, deployment probe, log sample, or security test. A checked box without a topology or observable result is not a control.
+For every required row, the release review should name the responsible component or team and the verification method. That method may be a configuration test, deployment probe, log sample, or security test. A checked box without a topology and observed result is not a control.
 
 ## Solution review {#solution-review}
 
 - A binding refactor must preserve failures that occur before the handler runs.
 - Kestrel and application-level limits cover different execution environments.
 - Contract tests assert side-effect absence and cancellation, not only status codes.
-- An HTTP response is evidence of observation, not a transaction receipt.
+- An HTTP response records what the caller observed; it is not a transaction receipt.
 - Payment ambiguity needs a durable key and reconciliation before another charge.
 - Post-commit notification needs durable pending/completed state and replay policy.
 - An outbox is a protocol component, not a claim of exactly-once delivery.
-- Edge and proxy deployments assign TLS and forwarded-header authority differently.
+- Edge and proxy deployments assign TLS and forwarded-header responsibilities differently.
 - Authentication and authorization remain required even when a proxy participates.
 - CORS is a browser policy, not caller authentication.
 - Environment variables and a suppressed server header are limited hardening measures.
-- Logging controls require classification, redaction, and evidence at every logging layer.
+- Every logging layer needs classification, redaction, and a verification check.
 
 ## Sources {#sources}
 

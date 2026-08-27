@@ -1,35 +1,20 @@
 ---
-title: "Chapter 38: Integration, Diagnostics, C# Client, and Release Evidence"
+title: "Chapter 38: Integration, Diagnostics, C# Client, and Release Verification"
 description: "Close the booking-system loop with a real composition root, HTTP integration tests, a C# contract client, bounded diagnostics, and reproducible release evidence."
 translationKey: part-06/ch-38-integration-diagnostics-release
 ---
 
-# Chapter 38: Integration, Diagnostics, C# Client, and Release Evidence {#overview}
+# Chapter 38: Integration, Diagnostics, C# Client, and Release Verification {#overview}
 
-The preceding chapters built the booking system from the inside out. A precise domain model became a pure decider, ports and adapters, an HTTP boundary, and finally a consistency protocol. None of those layers alone proves that the executable uses them in the intended order. This chapter closes that gap.
+The preceding chapters built the booking system from the inside out: a precise domain model, a pure decider, ports and adapters, an HTTP API, and finally a consistency protocol. No layer alone verifies that the executable connects them in the intended order. This chapter closes that gap.
 
-The goal is not to add another architectural pattern. It is to connect one composition root, cross the public contract from another .NET language, observe the result without exposing sensitive data, and turn all of that into a command another person can reproduce. The final artifact is still a teaching system. Its value comes partly from saying exactly what it does **not** prove.
+The goal is to connect one composition root, exercise the public contract from another .NET language, and observe results without exposing sensitive data. One reproducible command will verify the complete path. The result remains a teaching system, so the chapter also states exactly what it does **not** verify.
 
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- distinguish component tests, in-process HTTP tests, and separate-process smoke tests;
-- verify that the production entry point selects the intended consistency service;
-- keep transport policy in the endpoint layer and business policy behind a typed port;
-- use a C# client to test the public CLR and JSON contract rather than F# internals;
-- correlate a response, structured log, metric, and trace without using unbounded metric dimensions;
-- explain why an instrumentation point is not the same as a telemetry backend;
-- design logs that help investigation without recording command bodies or secret-bearing values;
-- make a release check deterministic, bounded, and self-cleaning;
-- distinguish `build`, `publish`, deployment, and production readiness;
-- maintain a ledger of proved guarantees, explicit limits, and required next evidence.
-
-## Read the executable as a composition proof {#composition-proof}
+## Verify composition at the executable {#composition-proof}
 
 A composition root answers a concrete question: which implementations will the running process actually use? Beautiful domain functions and strong adapter tests are irrelevant if the executable wires an older workflow around them.
 
-Chapter 37 deliberately left that gap visible. The earlier `BookingEndpoints.map` path accepted `AsyncPorts`; it could not provide aggregate idempotency and capacity guarantees. The final entry point instead constructs `AtomicBookingStore`, the controlled payment and notification adapters, and `IdempotentBookingService`, then exposes only two operations to the HTTP layer.
+Chapter 37 deliberately left this gap visible. The earlier `BookingEndpoints.map` path accepted `AsyncPorts`, so it could not provide aggregate idempotency and capacity guarantees. The final entry point constructs `AtomicBookingStore`, controlled payment and notification adapters, and `IdempotentBookingService`. It exposes only two operations to the HTTP layer.
 
 ```fsharp:line-numbers [Program.fs]
 [<EntryPoint>]
@@ -124,11 +109,11 @@ let mapConsistent (application: WebApplication) (dependencies: ConsistentBooking
 
 That boundary also explains a useful testing seam. An HTTP contract test can provide controlled functions. The executable can provide the real local service. Neither path requires a service locator or mutable global dependency.
 
-## Build an evidence ladder {#evidence-ladder}
+## Build a verification ladder {#evidence-ladder}
 
 “The tests pass” is incomplete unless you can say which boundary each test crosses. This project uses several deliberately overlapping levels:
 
-| Evidence level | Real components crossed | Useful claim | Claim it cannot make |
+| Test level | Real components crossed | Supported conclusion | Unsupported conclusion |
 |---|---|---|---|
 | pure example/property tests | domain values, decider, mappings | rules hold over examples and generated inputs | files, HTTP, and process startup work |
 | adapter contract tests | strict JSON, snapshot files, configuration | local persistence and mapping obey their contracts | concurrent replicas are safe |
@@ -142,7 +127,7 @@ Microsoft's [ASP.NET Core integration-testing guidance](https://learn.microsoft.
 
 The end-to-end fixture builds a real `WebApplication`, selects `TestServer`, registers the same diagnostic middleware, maps the same consistent endpoints, and uses a temporary snapshot. Controlled payment and notification functions increment thread-safe counters.
 
-Focused integration tests establish these facts:
+Focused integration tests show that:
 
 - normalized exact placement replays the same `201` body and does not repeat effects;
 - changed seats under the same operation identity return `409 idempotency_conflict`;
@@ -160,11 +145,11 @@ Concurrency tests elsewhere in the capstone use barriers and task-completion sig
 
 Repetition still has a role: it can detect leaked shared state and nondeterministic cleanup. It is not a substitute for controlling the causal interleaving that defines the bug.
 
-## Prove the public contract from C# {#csharp-contract}
+## Verify the public contract from C# {#csharp-contract}
 
 F# and C# share the CLR, but they do not share identical ergonomics. A public F# API can compile while exposing curried functions, F#-specific unions, options, or generic shapes that are awkward to ordinary C# callers. Chapter 27 designed separate CLR-friendly DTOs; this chapter consumes them from an actual C# executable.
 
-The client directly references only `Booking.Contracts`. It never references `Booking.Domain` or `Booking.Infrastructure`, and it communicates with the service only through `HttpClient` and JSON.
+The client references only `Booking.Contracts`, never `Booking.Domain` or `Booking.Infrastructure`. It communicates with the service exclusively through `HttpClient` and JSON.
 
 ```csharp:line-numbers [Program.cs]
 var place = new PlaceBookingDto
@@ -204,20 +189,20 @@ Require(loaded.Body == confirmed.Body, "GET must return the current confirmed bo
 ```
 This one flow checks four contract properties:
 
-| Step | Contract evidence |
+| Step | Contract check |
 |---|---|
 | place | object initializers can construct the DTO; JSON produces `201` and a pending booking |
 | exact replay | application idempotency returns the same acknowledged status and body |
 | confirm | another DTO crosses the same boundary and produces a representable confirmed response |
 | GET | URL escaping and response DTO deserialization work without F# domain knowledge |
 
-The client deliberately configures strict, case-sensitive deserialization and rejects unmapped properties. That is a compatibility test for the chosen contract, not a rule every consumer must copy. The comparison of raw successful bodies is also narrow: it proves deterministic output in this contract version, not that arbitrary JSON texts with different property order are semantically unequal.
+The client deliberately configures strict, case-sensitive deserialization and rejects unmapped properties. That tests compatibility with the chosen contract; other consumers need not copy the policy. Comparing raw successful bodies confirms deterministic output in this contract version. It does not imply that JSON texts with different property order are semantically unequal.
 
-A successful C# client does not prove binary compatibility with every previous assembly version. That requires retained consumer fixtures or an API-compatibility tool against a declared baseline. It does prove that the current published surface is usable in the most important cross-language path.
+A successful C# client does not establish binary compatibility with every previous assembly version. That requires retained consumer fixtures or an API-compatibility tool against a declared baseline. It does show that the current public surface works for the primary cross-language path.
 
 ## Instrument the boundary, not the secret {#diagnostics}
 
-When a request fails, an operator first needs a small set of answers: which operation boundary ran, when, how long, which outcome class occurred, and which trace connects the evidence? Logging an entire command is a tempting shortcut that can turn diagnostics into a data leak.
+When a request fails, an operator needs a few answers: which operation ran, when, for how long, with which outcome, and which trace links the signals? Logging the entire command is an easy way to turn diagnostics into a data leak.
 
 The booking middleware records a completion event with stable field names:
 
@@ -227,7 +212,7 @@ Booking request completed correlationId=<trace-id> method=<method> endpoint=<rou
 
 It does not record request or response bodies, booking request IDs, confirmation codes, provider transaction text, exception messages, or the snapshot path. The HTTP response receives `X-Correlation-ID`. When an active `Activity` exists, the value is its 32-character W3C trace ID; otherwise the middleware creates a random trace ID of the same bounded form.
 
-### Correlation is a join key, not proof of identity {#correlation}
+### Correlation joins signals; it does not prove identity {#correlation}
 
 The same correlation value appears in the response header, structured completion event, logging scope, and custom activity tag. That lets a client report one value and lets an operator join several diagnostic signals.
 
@@ -260,7 +245,7 @@ The official [.NET tracing guide](https://learn.microsoft.com/en-us/dotnet/core/
 
 Most importantly, `Meter`, `ActivitySource`, and log calls are producers. They do not create a collector, durable store, dashboard, alert, retention policy, or access policy. The sample tests production of signals with `MeterListener` and `ActivityListener`; deployment must separately configure and test collection.
 
-## Turn the proof into one command {#release-check}
+## Put verification behind one command {#release-check}
 
 A real application should expose its acceptance path as one documented command. For a .NET solution, the baseline can be:
 
@@ -268,7 +253,7 @@ A real application should expose its acceptance path as one documented command. 
 dotnet test Sample.slnx --configuration Release
 ```
 
-If acceptance also needs a separate API process and client, an application-specific script should create a uniquely named temporary directory, listen on `127.0.0.1` with an available port, and clean up the exact child process and directory in `finally`. That orchestration belongs to the application, not to this book site.
+If acceptance also needs a separate API process and client, use an application-specific script. It should create a unique temporary directory, listen on an available loopback port, and clean up the exact child process and directory in `finally`. That orchestration belongs to the application, not to this book site.
 
 A robust acceptance command orders its stages deliberately:
 
@@ -293,7 +278,7 @@ Loaded: status=200 same-body=True
 Diagnostics: success=true client-error=true correlation=<32 lowercase hex characters> secrets=false
 ```
 
-This output is a compact witness, not the complete test report. A failure includes bounded tail output rather than allowing a runaway child to consume unlimited memory. Process startup and HTTP calls also have timeouts.
+This output is a compact summary, not the complete test report. A failure includes bounded tail output so a runaway child cannot consume unlimited memory. Process startup and HTTP calls also have timeouts.
 
 ### Reproduce it from a clean state {#clean-state}
 
@@ -322,7 +307,7 @@ Microsoft's [.NET publishing overview](https://learn.microsoft.com/en-us/dotnet/
 
 ### Define the missing production gate {#production-gate}
 
-Before this service handles real bookings, a concrete system would need decisions and evidence for at least:
+Before this service handles real bookings, a concrete system must decide and verify at least:
 
 - authenticated callers, authorization policy, TLS termination, rate limits, and abuse handling;
 - real secret injection, rotation, redaction, and least-privilege access;
@@ -369,7 +354,7 @@ Keeping both halves together prevents a test list from becoming marketing langua
 
 ## Notice what F# contributes to the closure {#fsharp-role}
 
-The final composition still reflects the language's strengths. Domain types prevent arbitrary invalid states; `Result` makes expected failures part of the endpoint match; records of functions create small ports; `task` carries cancellation through HTTP and I/O; pattern matching makes the error-to-status table reviewable; deterministic serialization gives another language a plain contract.
+The final composition still reflects the language's strengths. Domain types prevent arbitrary invalid states, and `Result` makes expected failures part of endpoint matching. Function records create narrow ports; `task` carries cancellation through HTTP and I/O. Pattern matching exposes the error-to-status mapping, while deterministic serialization gives another language a straightforward contract.
 
 F# also makes it comfortable to keep the policy core smaller than the host. The executable is mostly wiring. The C# client demonstrates that this internal style does not require every external consumer to adopt F# representations.
 
@@ -408,17 +393,17 @@ Choose one explicit target, such as a framework-dependent Linux container or a s
 
 ## Chapter review {#chapter-review}
 
-- The composition root is evidence that the executable selects the intended implementations.
+- The composition root confirms which implementations the executable selects.
 - A shared endpoint surface prevents transport policy from drifting between orchestration versions.
 - Pure, adapter, consistency, in-process HTTP, and separate-process tests support different claims.
 - Effect counters make “no duplicate side effect” observable rather than inferred from a response.
-- A C# HTTP client proves the current public DTO path without exposing F# domain internals.
-- Correlation IDs join evidence; they are not caller identity or authorization.
+- A C# HTTP client verifies the current public DTO path without exposing F# domain internals.
+- Correlation IDs join diagnostic signals; they are not caller identity or authorization.
 - Metrics need bounded dimensions, while high-cardinality detail belongs in controlled traces or logs.
 - Instrumentation sources do nothing operational until collection, storage, policy, and ownership exist.
 - One documented acceptance command should own cleanup and fail when any required stage breaks.
-- Build, publish, deploy, and operate are distinct stages with distinct evidence.
-- A guarantee ledger must preserve both proved behavior and explicit limitations.
+- Build, publish, deploy, and operate are distinct stages that require different checks.
+- A guarantee ledger must preserve both verified behavior and explicit limitations.
 - F# makes the policy and boundaries precise; production guarantees still come from real infrastructure and operations.
 
 Part VI is complete. Part VII maps this foundation onto the wider F# and .NET ecosystem without pretending that every useful library belongs in one application.

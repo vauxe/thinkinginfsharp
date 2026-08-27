@@ -8,23 +8,11 @@ translationKey: part-02/ch-07-records-equality
 
 A tuple combines values, but field meaning exists only in position and surrounding context. To the compiler, `("A-1", "Lin", 2)` is merely `string * string * int`; it does not know that the three positions mean event, attendee, and seat count. As data crosses more functions, position quickly becomes a fragile protocol.
 
-A record promotes that protocol into a type. Fields gain names, construction must be complete, and the same data shape can be reused across functions. F# records are immutable by default and automatically receive structural equality, structural comparison, and matching hash behavior when their components support those operations. Yet “two values have equal contents,” “two references point to the same object,” and “two values have the same hash code” are three different claims. This chapter makes code prove each distinction.
+A record turns that convention into a type. Fields gain names, construction must be complete, and functions can reuse the same definition. F# records are immutable by default. They also receive structural equality, comparison, and matching hash behavior when their fields support those operations. Equal contents, reference identity, and equal hash codes are nevertheless three different claims; the examples below distinguish them.
 
-## What you will be able to do {#outcomes}
+## All three forms are product types {#product-types}
 
-By the end of this chapter, you should be able to:
-
-- choose among a local tuple, named record, and anonymous record by purpose;
-- define, construct, access, and deconstruct records;
-- express immutable change with copy-and-update and explain why it is not a deep copy;
-- distinguish an anonymous record's exact shape from a named record's nominal type;
-- separate structural equality, structural comparison, and reference identity;
-- explain why a hash code must agree with equality but cannot replace equality or a business identifier;
-- state business ordering with an explicit key instead of accidentally depending on structural order.
-
-## All three shapes combine values {#product-types}
-
-Tuples, records, and anonymous records all have product shape: one value contains several components at once. The distinction is not how “functional” they are, but their names, reuse boundary, and type identity.
+Tuples, records, and anonymous records are all product types: one value contains several components at once. They differ in naming, reuse scope, and type identity—not in how “functional” they are.
 
 ### Tuples suit short-range positional protocols {#tuples}
 
@@ -56,9 +44,9 @@ let original =
 ```
 `BookingDraft` is a named type. Field labels participate in construction and access, so field order is no longer the caller's only clue to meaning. An ordinary record is a .NET reference type by default, while its fields are not assignable by default. “Reference type” and “mutable object” are not synonyms.
 
-Two separately declared record types remain distinct nominal types even when every field name and type matches. Naming brings domain meaning into the compilation boundary: `BookingDraft` does not automatically become another record merely because its shape looks similar.
+Two separately declared record types remain distinct nominal types even when every field name and type matches. The name creates a compile-time distinction: `BookingDraft` does not become another record type merely because its fields look similar.
 
-### Make type ownership explicit at construction {#construction}
+### Disambiguate the record type at construction {#construction}
 
 A record expression must supply every field. The compiler can infer the record type when labels are distinctive enough. When several types reuse the same labels, add a type annotation or qualify the first label:
 
@@ -74,7 +62,7 @@ let another =
       Seats = 1 }
 ```
 
-The annotation does not repeat every field type; it resolves which type owns the labels. Depending on the most recently declared type with matching labels makes unrelated declaration order affect inference and should be avoided.
+The annotation does not repeat every field type; it tells the compiler which record the labels belong to. Do not rely on the most recently declared type with matching labels, because unrelated declaration order would then affect inference.
 
 A record pattern deconstructs by name:
 
@@ -98,9 +86,9 @@ printfn "Record update: original=%d updated=%d" original.Seats updated.Seats
 
 Copy-and-update performs a shallow structural update: it creates a new outer record and retains every unchanged field value. A reference-valued field can therefore point to the same object from both records. Immutable domain models commonly use immutable nested values as well, making that sharing safe by construction.
 
-Starting with F# 7, a field path can update nested records, but shorter syntax does not change that semantic boundary. First ask whether the nested model is clear, then decide whether to compress several `with` expressions.
+Starting with F# 7, a field path can update nested records. The shorter syntax does not change the shallow-update semantics. First make the nested model clear; then decide whether several `with` expressions are worth compressing.
 
-## Anonymous records are exact temporary named shapes {#anonymous-records}
+## Anonymous records name fields without declaring a type {#anonymous-records}
 
 An anonymous record uses `{| ... |}` and needs no prior type declaration. The shared script projects from a named record and adds a computed field:
 
@@ -111,11 +99,11 @@ let summary =
 
 printfn "Anonymous summary: %s -> %d seats, group=%b" summary.Attendee summary.Seats summary.IsGroup
 ```
-The shape of `summary` is determined by every field label, every field type, and whether it is a reference or `struct` anonymous record. Another anonymous record has the same anonymous record type only when its shape matches exactly. There is no structural subtype meaning “contains at least these fields.”
+Every field label and type helps determine the type of `summary`, as does the choice between a reference and `struct` anonymous record. Two anonymous records have the same type only when all of those details match. “Contains at least these fields” is not a structural subtype relation here.
 
 Anonymous records support field access, structural equality and comparison, and copy-and-update, including adding fields during an update. They currently do not support record pattern matching, so dot access normally reads their fields.
 
-They suit local projections, query results, and short-range adaptation. If a shape has a domain name, crosses a public boundary, centralizes invariants, or appears in many places, a named record is usually clearer. Anonymous does not mean unimportant, and should not be a default escape from naming a real type.
+They suit local projections, query results, and short-range adaptation. Prefer a named record when the data has a domain name, appears in a public API, centralizes invariants, or is reused widely. An anonymous record should not be an escape from naming a real domain type.
 
 ## Structural equality compares contents {#equality}
 
@@ -156,7 +144,7 @@ Although an ordinary record is a reference type by default, domain logic normall
 
 A record's generated structural equality comes with structural hashing. The example asserts only one required direction: two structurally equal records produce the same `hash` result.
 
-Hashing supplies a one-way contract: equal values share a hash code, while different values may collide. A hash collection uses the code to narrow candidates and consistent equality to confirm a match. Ordinary records generate both operations together and preserve that contract.
+Hashing provides a one-way guarantee: equal values share a hash code, but different values may collide. A hash collection uses the code to narrow candidates and equality to confirm a match. Ordinary records generate both operations consistently.
 
 Treat a hash code as a temporary lookup hint within the current runtime. Durable identity needs an explicit database key or request ID, and persisted or transmitted values need a documented stable format. Security-sensitive digests require a dedicated cryptographic algorithm.
 
@@ -189,16 +177,16 @@ Default order fits values that need determinism and whose structural order match
 
 Equality and comparison constraints are not identical either. A type may support equality without having a meaningful total order. Chapter 11 states both constraints precisely, and Chapter 14 explains what ordered `Map` and `Set` versus hash collections require.
 
-## Choose a data shape {#choosing-shape}
+## Choose a representation {#choosing-shape}
 
 | Situation | Usually consider first | Reason |
 | --- | --- | --- |
 | Temporary paired result inside one function | Tuple | Positional meaning is local and obvious; deconstruction is concise |
 | Domain data passed repeatedly | Named record | Fields have names, the type has identity, and it can evolve centrally |
 | Local projection or short-range adaptation | Anonymous record | Avoids an extra declaration while retaining field labels |
-| Several mutually exclusive shapes or states | A discriminated union in the next chapter | One fixed field set cannot say “exactly one of these” |
+| Several mutually exclusive states | A discriminated union in the next chapter | One fixed field set cannot say “exactly one of these” |
 
-Do not optimize only for line count. Record and field names are model vocabulary. Anonymous records and tuples avoid inventing useless public types for shapes that truly remain local.
+Do not optimize only for line count. Record and field names are model vocabulary. Anonymous records and tuples avoid inventing public types for data that remains local.
 
 ## Run the shared example {#run-example}
 
@@ -218,9 +206,9 @@ Hashes agree for equal records: true
 Structural sort: ["A-1:Ada:2"; "A-1:Lin:1"; "B-2:Lin:2"]
 ```
 
-The five lines fix immutable update, anonymous projection, a content-versus-identity counterexample, the required equality-to-hash contract, and structural sorting. Compare them in order. The script does not print a concrete hash integer because that number is not a stable contract.
+The five lines demonstrate immutable update, anonymous projection, content versus identity, the equality-to-hash guarantee, and structural sorting. Compare them in order. The script omits the actual hash integer because its value is not stable across environments.
 
-## Debugging: state what you are comparing {#debugging}
+## State what you are comparing {#debugging}
 
 When “the same data” behaves differently, first identify the layer of the question:
 
@@ -250,26 +238,17 @@ Choose structural equality, reference identity, a domain ID, or an explicit orde
 
 [Read the chapter solutions](../solutions/ch-07-records-equality).
 
-## Summary {#summary}
+## Key takeaways {#summary}
 
 - Tuples combine local values by position; named records bring field vocabulary and type identity into the model.
 - An ordinary record is a reference type with immutable fields by default; it also gains structural equality and comparison when its components support them.
 - Copy-and-update creates a new record but does not recursively clone referenced objects in unchanged fields.
-- An anonymous record's exact field shape determines its type; it suits local projection and does not support record patterns.
+- An anonymous record's complete field set determines its type; it suits local projection and does not support record patterns.
 - Structural equality compares contents; reference identity asks whether two references denote the same runtime object; domain identity may be separate data again.
 - Equal values must have equal hash codes, but equal hash codes prove neither equality nor a permanent identity.
 - Default structural comparison provides deterministic order; important business order should state an explicit key.
 
-The next chapter handles what a record alone cannot express: a booking status is not an arbitrary combination of independent Boolean flags, but should have exactly one of a small number of mutually exclusive shapes.
-
-## Vocabulary {#vocabulary}
-
-- **record:** a product type made of named fields; an ordinary F# record is immutable by default and has structural equality and comparison when its components support them.
-- **anonymous record:** a record value with no separate type name, whose exact field labels and types determine its shape.
-- **structural equality:** equality determined by recursively comparing corresponding components.
-- **structural comparison:** ordering obtained by recursively comparing components in a defined order.
-- **reference identity:** whether two references point to one runtime object.
-- **hash code:** an equality-consistent integer summary used to locate candidates in hash structures, not a unique identity.
+A record alone cannot express the next requirement: a booking must have exactly one of a few mutually exclusive statuses, not an arbitrary combination of Boolean flags.
 
 ## Sources {#sources}
 

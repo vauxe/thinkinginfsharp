@@ -6,7 +6,7 @@ translationKey: solutions/ch-13-composition-pipeline-api
 
 # Chapter 13 Solutions {#overview}
 
-Verify every rewrite by expanding it back to ordinary application. Visual left-to-right flow is useful, but type alignment and actual application order are the proof.
+Verify every rewrite by expanding it into direct function calls. Visual left-to-right flow is useful, but the types and actual call order determine the behavior.
 
 [Return to Chapter 13](../part-03/ch-13-composition-pipeline-api).
 
@@ -31,7 +31,7 @@ let backward = label << normalize << parse
 
 Both have type `string -> string`. In both, `parse` runs first, then `normalize`, then `label`. `>>` lists execution order from left to right; `<<` lists it from final operation back toward the input.
 
-Expanding either application proves the nesting:
+Expanding either application shows the nesting:
 
 ```fsharp
 // forward text expands to:
@@ -104,7 +104,7 @@ let canAcceptPiped capacity request =
     |> fitsWithin (Capacity.value capacity)
 ```
 
-I would choose the first version here. The extraction is short, both quantities appear next to the final relation, and a debugger can inspect each named value. The second version is correct and may fit a surrounding pipeline, but its final pipe adds no transformation stage; it only rotates a binary predicate.
+I would choose the first version here. The extraction is short, both quantities appear next to the final relation, and a debugger can inspect each named value. The second version is correct and may fit a surrounding pipeline, but its final pipe adds no transformation stage; it only reorders a binary predicate's arguments.
 
 If `fitsWithin` instead accepts protected `Capacity` and `SeatCount` directly, the best implementation is smaller still:
 

@@ -1,12 +1,12 @@
 ---
 title: "Appendix C: Collection Choice and Complexity"
-description: "Choose F# and .NET collections by evaluation, update, lookup, ordering, key contracts, and qualified complexity rather than by familiar names."
+description: "Choose F# and .NET collections by evaluation, update, lookup, ordering, key rules, and documented complexity bounds rather than by familiar names."
 translationKey: appendices/c-collections
 ---
 
 # Appendix C: Collection Choice and Complexity {#overview}
 
-A collection type is a behavior contract, not merely an angle-bracket spelling. Ask when elements are produced, who may update storage, how lookup works, what order is observable, and which equality or comparison contract owns keys. Only then use complexity to distinguish plausible choices.
+Choosing a collection means choosing its behavior, not merely its type spelling. Ask when it produces elements, whether anyone may update its storage, how lookup works, what order callers can observe, and how it compares keys. Then use complexity to distinguish the remaining candidates.
 
 The bounds below describe the implementations and official API contracts checked on 2026-08-25. `n` is collection size; `k` is a traversed prefix or index; `m` is another input size. Big O hides allocation, locality, comparer cost, element size, JIT behavior, and I/O. “Expected” and “amortized” are deliberately not “worst case.”
 
@@ -15,7 +15,7 @@ The bounds below describe the implementations and official API contracts checked
 | Need | First candidate | Why | Reconsider when… |
 |---|---|---|---|
 | small/medium immutable ordered data, head-first transformation | `'T list` | persistent singly linked shape; pattern matching and prepend are natural | random indexing, repeated append, or cache locality dominates |
-| fixed-size indexed mutable buffer or dense transformation | `'T array` | contiguous runtime array; O(1) index and length | size changes repeatedly or old versions must remain values |
+| fixed-size indexed mutable buffer or dense transformation | `'T array` | contiguous runtime array; O(1) index and length | size changes repeatedly or earlier versions must remain usable |
 | general enumerable/deferred pipeline | `seq<'T>` | adapts `IEnumerable<'T>` and can produce on demand | repeatability, lifetime, one-shot sources, or materialization must be explicit |
 | growable ordered mutable buffer | `ResizeArray<'T>` / `List<T>` | O(1) index and amortized O(1) append | shared mutation or persistent snapshots are required |
 | immutable sorted unique values | `Set<'T>` | persistent binary tree, comparison order | equality-only keys or hash lookup better fits |
@@ -23,9 +23,9 @@ The bounds below describe the implementations and official API contracts checked
 | mutable key/value lookup | `Dictionary<'Key, 'Value>` | hash table with expected near-O(1) lookup | deterministic sorted order or persistent versions matter |
 | mutable unique membership | `HashSet<'T>` | hash-based set operations | sorted iteration, duplicates, or persistent versions matter |
 
-These are starting points. A ten-element array can be clearer than a list; a map can be preferable to a dictionary because ownership matters more than constant factors. Measure a representative operation only after the semantics fit.
+These are starting points. A ten-element array can be clearer than a list; a map can be preferable to a dictionary when avoiding shared mutation matters more than constant factors. Measure a representative operation only after the behavior fits.
 
-## Separate five contracts {#five-contracts}
+## Answer five questions separately {#five-contracts}
 
 For any collection, record:
 
@@ -33,7 +33,7 @@ For any collection, record:
 2. **Update:** new value with structural sharing, new full copy, or in-place mutation?
 3. **Access:** head, index, scan, comparison tree, or hash lookup?
 4. **Order:** insertion/source order, comparison order, unspecified, or sorted only after an operation?
-5. **Identity:** no key contract, structural equality, generic comparison, or an explicit comparer?
+5. **Keys:** no key rule, structural equality, generic comparison, or an explicit comparer?
 
 `seq<'T>` answers only “can produce an `IEnumerator<'T>`.” It does not answer whether enumeration is cheap, repeatable, finite, thread-safe, pure, or independent of an open resource.
 
@@ -50,7 +50,7 @@ For any collection, record:
 
 “Persistent” here means previous collection values remain valid after an update. It does not mean the data survives process failure or is stored durably.
 
-Arrays are mutable, but `Array.map`, `Array.filter`, and `Array.sort` return arrays according to each function's contract; explicitly named functions such as `Array.sortInPlace` mutate. Read the exact operation rather than transferring one rule to a whole module.
+Arrays are mutable, but `Array.map`, `Array.filter`, and `Array.sort` return arrays according to each function's behavior; explicitly named functions such as `Array.sortInPlace` mutate. Check the exact operation instead of applying one rule to the whole module.
 
 ## Lists: head-oriented persistent chains {#lists}
 
@@ -80,7 +80,7 @@ Structural sharing is not zero allocation: prepending allocates a node; mapping 
 | insert/remove in middle | copy/shift in a new or explicit mutable scheme, O(n) | shifts suffix, O(n) |
 | snapshot copy | O(n) | O(n) |
 
-Amortized append means occasional capacity growth copies existing elements; it does not guarantee each call is O(1). Set an initial capacity when a trustworthy upper estimate avoids material growth, but do not allocate from an untrusted claimed size without a limit.
+Amortized append means that occasional capacity growth copies existing elements; it does not guarantee that every call is O(1). Set an initial capacity when a trustworthy upper estimate will avoid repeated resizing, but never allocate without a limit from an untrusted claimed size.
 
 Dense contiguous storage often improves locality and interop. It also makes aliasing important: two names can refer to the same mutable array or list object. A type exposed as `seq<'T>` may still be backed by a mutable array that changes between enumerations.
 
@@ -116,16 +116,16 @@ For a finite sequence producing `n` elements:
 - a complete scan is O(n) plus producer and callback cost;
 - reaching item `k` is O(k) unless the concrete source exposes a separately used indexer;
 - `Seq.take k` is deferred, but consuming it still asks for up to `k` values;
-- sorting, grouping, reversing, and many set-like operations must buffer material data;
+- sorting, grouping, reversing, and many set-like operations must buffer data;
 - a source may be infinite, throw midway, read live state, perform I/O, or permit only one enumeration.
 
-`Seq.cache` memoizes values as they are requested and avoids reproducing cached prefixes. It also retains cached values and source state; it is an ownership decision, not a universal performance switch. Materialize once with `Seq.toList` or `Seq.toArray` when a bounded snapshot is the real contract.
+`Seq.cache` memoizes values as they are requested and avoids reproducing cached prefixes. It also retains both the cached values and the source state, so it is not a universal performance switch. Materialize once with `Seq.toList` or `Seq.toArray` when you actually need a bounded snapshot.
 
 Do not call `Seq.length` and then enumerate merely to test emptiness. Use a one-pass decision such as `Seq.isEmpty`, or materialize when both count and contents are required and bounded.
 
 ## Map and Set: comparison-ordered persistent trees {#map-set}
 
-FSharp.Core documents `Map` and `Set` as immutable binary-tree collections ordered by F# generic comparison. Their types carry a `comparison` constraint.
+FSharp.Core documents `Map` and `Set` as immutable binary-tree collections ordered by F# generic comparison. Their types have a `comparison` constraint.
 
 ```fsharp:line-numbers [ch14-collections-evaluation.fsx]
 let uniqueSeats = [ 3; 1; 3; 2 ] |> Set.ofList
@@ -147,7 +147,7 @@ printfn "Ordered collections: set=%A map=%A" (Set.toList uniqueSeats) (Map.toLis
 | build via ordinary `ofList`/`ofArray` | O(n log n) documented | repeated tree insertion |
 | filter | O(n log n) documented | result tree is rebuilt |
 
-Enumeration order is key/element comparison order, not insertion order. Changing the comparison contract or the representation that participates in structural comparison can change observable order and lookup identity.
+Enumeration follows key or element comparison order, not insertion order. Changing the comparison rule—or a representation used by structural comparison—can change both the visible order and which keys compare as equal.
 
 The `comparison` constraint is stronger than equality. Functions, types marked `NoComparison`, and equality-only domain keys cannot be used directly. If ordering is not part of the domain, a hash collection with an explicit equality comparer may express the requirement better.
 
@@ -184,17 +184,17 @@ printfn "Hash dictionary: count=%d lookup=%s" recipients.Count recipients[{ Valu
 | enumerate | O(n) | order is not a portable semantic contract |
 | contains value in dictionary | O(n) | values are not the hash key |
 
-Every key must remain stable under the collection's `IEqualityComparer<'T>` for its entire membership. If equality says two keys are equal, their hash codes must agree. Mutating a field that affects equality/hash while the key is stored can make an entry unreachable or corrupt the logical contract.
+Every key must remain stable under the collection's `IEqualityComparer<'T>` while it is stored. If equality says two keys are equal, their hash codes must agree. Mutating a field that affects equality or hashing while the key is stored can make an entry unreachable or make lookup results incorrect.
 
 There is no F# `comparison` constraint on `Dictionary` or `HashSet`; their CLR APIs use a supplied comparer or `EqualityComparer<'T>.Default`. This flexibility moves correctness from a compile-time constraint to the comparer and key design.
 
-`HashSet` explicitly has no particular order. Do not expose current `Dictionary` enumeration behavior as a stable sorted or insertion-order API unless another documented layer creates and tests that order. Sort at the boundary when order is a contract.
+`HashSet` explicitly has no particular order. Do not expose the current `Dictionary` enumeration behavior as a stable sorted or insertion-order API unless another documented layer creates and tests that order. Sort before returning data when callers depend on its order.
 
-Ordinary mutable collections are not automatically safe for concurrent writes. Use ownership/confinement, synchronization, immutable snapshots, or a concurrent collection whose atomic methods match the compound invariant. “Thread-safe method” is not proof that a check-then-act sequence is atomic.
+Ordinary mutable collections are not automatically safe for concurrent writes. Confine a collection to one owner, synchronize access, use immutable snapshots, or choose a concurrent collection whose atomic methods can enforce the whole rule. A “thread-safe method” does not make a multi-step check-then-act sequence atomic.
 
 ## Equality, comparison, and keys {#key-contracts}
 
-| Collection/operation | Required identity contract |
+| Collection/operation | Required equality or ordering rule |
 |---|---|
 | list/array/sequence traversal | none merely to store/enumerate |
 | `List.contains`, `Array.distinct`, grouping, etc. | equality/hash as required by the exact operation |
@@ -204,7 +204,7 @@ Ordinary mutable collections are not automatically safe for concurrent writes. U
 
 Do not derive a key comparer from display formatting, current culture, unstable timestamps, mutable fields, or a lossy normalization. For strings, decide ordinal, ordinal-ignore-case, culture-aware, or domain normalization explicitly. Persisted or cross-process keys also need a versioned representation independent of in-memory hash codes.
 
-Equality can be correct while comparison is unavailable. Chapter 14's `EmailAddress` intentionally uses case-insensitive equality and `NoComparison`, making a dictionary natural and a `Map` rejection useful.
+Equality can be valid even when ordering is unavailable. Chapter 14's `EmailAddress` intentionally uses case-insensitive equality and `NoComparison`: a dictionary fits, while the compiler prevents an unsuitable `Map`.
 
 ## Order is part of an API only when stated {#ordering}
 
@@ -219,7 +219,7 @@ Equality can be correct while comparison is unavailable. Chapter 14's `EmailAddr
 
 Deterministic output often needs a final explicit sort even when internal lookup uses hashing. Stable sorting is a separate promise: equal-key elements preserve input order only when the chosen function documents stability.
 
-## Conversion is a boundary and usually a traversal {#conversion}
+## Conversion usually traverses and allocates {#conversion}
 
 `List.toArray`, `Array.toList`, `Seq.toList`, `Set.ofSeq`, and similar functions allocate/materialize according to the destination. Typical list/array snapshot conversion is O(n); ordinary map/set construction is documented as O(n log n).
 
@@ -231,9 +231,9 @@ A conversion can:
 - reorder by comparison;
 - replace earlier duplicate key bindings;
 - allocate another full representation;
-- move equality/comparison policy.
+- adopt the destination's equality or comparison rules.
 
-Convert once at a real boundary, not repeatedly inside a loop or property. Name why the destination contract is needed.
+Convert once when data enters another layer or API, not repeatedly inside a loop or property. State why the destination collection is needed.
 
 ## Read complexity claims precisely {#complexity-rules}
 
@@ -243,7 +243,7 @@ Convert once at a real boundary, not repeatedly inside a loop or property. Name 
 4. Distinguish pipeline construction from enumeration.
 5. State whether an update mutates, copies fully, or structurally shares.
 6. Include order and duplicate behavior; speed alone does not preserve meaning.
-7. Benchmark a representative size and access pattern only after the semantic contract fits.
+7. Benchmark a representative size and access pattern only after the collection's behavior fits the requirement.
 
 “Dictionary lookup is O(1)” is incomplete. “Expected near-O(1) lookup under a stable, well-distributed equality/hash comparer; O(n) worst case; no sorted-order promise” is actionable.
 

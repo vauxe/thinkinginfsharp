@@ -8,27 +8,13 @@ translationKey: part-03/ch-16-modules-namespaces-projects
 
 脚本可能掩盖一个有用事实：程序存在依赖方向。当领域定义、工作流和启动代码分处不同文件时，F# 要求你用编译顺序声明这个方向。后面的文件可以使用编译器已经见过的定义；前面的文件不能向前引用后面的定义。
 
-这条规则不是编辑器要求的形式，而是可由编译器检查的项目结构。本章的可执行项目中，`Domain.fs` 不知道工作流，`Workflow.fs` 依赖领域，而 `Program.fs` 组合二者。项目文件准确记录了这个顺序。
-
-## 学完后你能够做什么 {#outcomes}
-
-学完本章，你应该能够：
-
-- 把单文件实验转成小型多文件 F# 项目；
-- 把 `<Compile>` 项理解为有语义的依赖顺序；
-- 预测并修复前向引用产生的 `FS0039` 错误；
-- 区分命名空间、模块、项目、解决方案和程序集；
-- 在限定名称与有意的 `open` 声明之间选择；
-- 解释常见 SDK 和编译器设置控制什么；
-- 启用空值检查后，把可空引用输入标为 `T | null`；
-- 让公开包装函数继续传递该标注，而不是关闭诊断；
-- 安排文件顺序，使领域代码不依赖编排或启动代码。
+这不是编辑器规定的形式，而是编译器可以检查的项目结构。示例中，`Domain.fs` 不知道工作流，`Workflow.fs` 依赖领域，`Program.fs` 再组合二者。项目文件准确记录这个顺序。
 
 ## 从脚本走向项目 {#script-to-project}
 
-在探索表达式和 API 时使用 `.fsx` 脚本。当代码需要多个文件、包或项目引用、可复现的编译器设置、测试或可部署输出时，再转向项目。函数内部的语法几乎不变，外围的编译契约则变得明确。
+探索表达式和 API 时使用 `.fsx` 脚本。代码需要多个文件、包或项目引用、可复现编译设置、测试或可部署输出时，再转向项目。函数内部语法几乎不变，但项目会明确记录编译规则。
 
-本章示例的物理布局如下：
+示例的目录布局如下：
 
 ```text
 ./
@@ -50,11 +36,16 @@ namespace ThinkingInFSharp.Ch16
 
 然后，每个文件把定义放入职责集中的模块：
 
-- `Domain` 拥有受保护的标识符、座位数、容量、请求和验证；
-- `Workflow` 拥有决策联合类型和纯决策函数；
-- `Program` 拥有组合逻辑与进程入口点。
+- `Domain` 定义受保护的标识符、座位数、容量、请求和验证；
+- `Workflow` 定义决策联合类型和纯决策函数；
+- `Program` 包含组合逻辑与进程入口点。
 
-由此得到的限定名称同时体现两层，例如 `ThinkingInFSharp.Ch16.Domain.BookingId` 和 `ThinkingInFSharp.Ch16.Workflow.decide`。文件名有助于导航，却不会自动成为任一限定名称的一部分。
+限定名称会同时体现命名空间和模块两层。例如：
+
+- `ThinkingInFSharp.Ch16.Domain.BookingId`；
+- `ThinkingInFSharp.Ch16.Workflow.decide`。
+
+文件名有助于导航，却不会自动进入限定名称。
 
 依赖方向足够小，可以直接看见：
 
@@ -84,11 +75,11 @@ namespace ThinkingInFSharp.Ch16
   </ItemGroup>
 </Project>
 ```
-`<Compile Include="Domain.fs" />` 提供一个编译器输入。下一项可以使用它的定义，再下一项可以使用前面两个文件的定义。重新排列编辑器标签或移动目录中的文件不会改变这个契约；修改 `<Compile>` 顺序才会。
+`<Compile Include="Domain.fs" />` 向编译器提供一个源文件。下一项可以使用其中的定义，再下一项可以使用前两个文件的定义。重新排列编辑器标签或移动目录中的文件不会改变编译顺序；修改 `<Compile>` 顺序才会。
 
-同样的顺序规则也适用于一个源文件内部：定义通常使用更早的定义。F# 为真正的递归提供了显式构造，但普通程序分层应从基础读向组合。
+同样的顺序规则也适用于单个源文件：定义通常只能使用更早的定义。F# 为真正的递归提供了专用语法，但普通程序分层应从基础读向组合。
 
-`Program.fs` 位于最后，因为它依赖另外两个模块，并且含有 `[<EntryPoint>]`。把启动组合留在边缘，也能避免领域代码反过来依赖控制台问题。
+`Program.fs` 位于最后，因为它依赖另外两个模块，并且含有 `[<EntryPoint>]`。把启动组合留在最后一层，也能避免领域代码反过来依赖控制台逻辑。
 
 ### 错误顺序会产生真实的编译错误 {#wrong-order}
 
@@ -158,7 +149,7 @@ open ThinkingInFSharp.Ch16.Domain
 
 在该声明之后，可以把 `Domain` 中可访问的名称写成 `Capacity`、`BookingRequest` 和 `BookingId`，省去完整路径。`open` 只改变后续作用域中的名称查找。项目成员或程序集引用提供定义，编译顺序决定可见时机，访问修饰符继续控制可用名称。
 
-在边界处，限定名称通常更清楚：
+在模块交接处，限定名称通常更清楚：
 
 ```fsharp
 let requested = request |> Domain.BookingRequest.seats |> Domain.SeatCount.value
@@ -186,13 +177,13 @@ let requested = request |> Domain.BookingRequest.seats |> Domain.SeatCount.value
 | 设置 | 回答的问题 |
 |---|---|
 | `global.json` 的 `sdk.version` 与 `rollForward` | 哪个已安装的 .NET SDK 可以运行 CLI/构建工具？ |
-| `<TargetFramework>net10.0</TargetFramework>` | 项目针对哪套目标框架 API 和运行时契约编译？ |
+| `<TargetFramework>net10.0</TargetFramework>` | 项目针对哪套目标框架 API 和运行时编译？ |
 | `<LangVersion>10.0</LangVersion>` | 编译器接受哪个 F# 语言版本？ |
 | `<Nullable>enable</Nullable>` | F# 是否执行选择启用的空值分析？ |
 | `<OutputType>Exe</OutputType>` | 项目是否打包为可执行程序，而不是默认的库？ |
 | `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` | 编译器警告是否必须使构建失败？ |
 
-这些控制项分别负责不同决策：SDK 选择构建工具集，`TargetFramework` 选择 API 与运行时契约，`LangVersion` 选择编译器接受的 F# 语言特性。可复现项目应显式声明每项策略。
+这些设置分别控制不同决策。SDK 选择构建工具集，`TargetFramework` 选择 API 与运行时，`LangVersion` 选择可用的 F# 语言特性。可复现项目应记录每项选择。
 
 共享策略可以放在 `Directory.Build.props` 中；MSBuild 会为其子目录中的项目导入它。较大的代码库可以在那里集中设置 `LangVersion`、空值检查、警告视为错误、可复现构建和锁定包还原。小型独立教学项目应保持自包含；只有多个真实项目共享策略时才值得集中配置。
 
@@ -200,9 +191,9 @@ let requested = request |> Domain.BookingRequest.seats |> Domain.SeatCount.value
 
 ## 可空引用的基本规则 {#nullable-minimum}
 
-启用 F# 空值检查后，`string` 表达非空引用契约，`string | null` 则显式允许 null。该标注指导编译期分析，运行时仍使用普通 .NET 引用表示。来自外部或未检查代码的值仍需在边界验证。
+启用 F# 空值检查后，`string` 表示非空引用，`string | null` 则允许 null。标注用于编译期分析，运行时仍是普通 .NET 引用。来自外部或未检查代码的值仍需验证。
 
-领域边界有意接收可空文本：
+领域构造函数有意接收可空文本：
 
 ```fsharp
 let create (raw: string | null) =
@@ -214,11 +205,11 @@ let create (raw: string | null) =
 
 经过 `null` 分支之后，分析器知道剩余的 `value` 非空。边界先把缺失转换成领域错误，随后才创建受保护的 `BookingId`。内部函数因而可以使用受保护值，无须重复空值检查。
 
-当缺失属于 F# 领域模型时，使用 `option`。当实际的引用契约允许 null 时，尤其在 .NET 互操作边界上，使用 `T | null`。第 19 章会把可空值类型、来自其他 .NET 语言的标注、`Null`/`NonNull` 模式、`option` 与运行时边界验证放在一个完整模型中讨论。
+领域模型中的缺失使用 `option`；外部 .NET 接口确实允许 null 时，使用 `T | null`。第 19 章会把可空值类型、其他 .NET 语言的标注、`Null`/`NonNull` 模式、`option` 与运行时验证放进同一个模型。
 
-### 包装函数必须继续传递可空契约 {#nullable-propagation}
+### 包装函数必须保留可空标注 {#nullable-propagation}
 
-`BookingRequest.create` 会把文本转交给 `BookingId.create`，所以它自己的公开输入也要声明同一契约：
+`BookingRequest.create` 会把文本转交给 `BookingId.create`，所以自己的公共输入也要使用同一可空类型：
 
 ```fsharp
 let create (rawId: string | null) rawSeats =
@@ -229,9 +220,9 @@ let create (rawId: string | null) rawSeats =
         // ...
 ```
 
-若省略 `rawId` 的标注，推断会选择非空 `string` 参数。此时在聚焦测试中传入 `null` 会产生可空性不匹配诊断 `FS3261`。修复方法是描述包装函数的真实边界，而不是关闭空值检查，也不是散布未经检查的转换。
+若省略 `rawId` 的标注，推断会选择非空 `string` 参数。此时测试传入 `null` 会产生可空性不匹配诊断 `FS3261`。应修正包装函数的参数类型，不要关闭空值检查或散布未经检查的转换。
 
-不要“以防万一”而把每个引用都标成可空。这会削弱契约并把检查向内部推移。只在调用方确实可能提供 null 的地方允许它，在那里完成验证，并让核心模型通过构造保持非空。
+不要“以防万一”而把每个引用都标成可空。这会丢失有用的类型信息，并把检查推向内部。只在调用方确实可能提供 null 的位置允许它，就地验证，并让核心模型通过构造保持非空。
 
 ## 用依赖方向引导架构 {#dependency-shape}
 
@@ -247,7 +238,7 @@ I/O 适配器与应用组合
 
 更早的文件通常应该更稳定，并且更少了解基础设施。后面的文件可以依赖它们并负责组合。如果 `Domain.fs` 需要 `Program.fs`，把 `Program.fs` 移到前面也许能消除一个错误，却颠倒了预期架构。此时应移动放错位置的抽象。
 
-让每个项目小到只有一个变化理由，但不要只为制造更多程序集而拆分。新项目会引入真实的引用与部署边界；组织代码时，新模块或新文件可能已经足够。只有独立复用、构建策略、所有权或依赖方向需要该边界时，才使用项目。
+让每个项目小到只有一个变化理由，但不要只为制造更多程序集而拆分。新项目会引入真实的引用与部署边界；仅为组织代码时，新模块或新文件可能已经足够。只有独立复用、构建策略、维护归属或依赖方向需要该边界时，才拆成项目。
 
 ## 构建、运行并测试项目 {#build-test}
 
@@ -287,11 +278,11 @@ let normalize (raw: string) = raw.Trim()
 
 在消费者模块中，分别展示一次使用完整名称的调用，以及一次先写 `open` 声明再调用的代码。准确解释 `open` 改变什么，又不改变什么。
 
-### 练习 3：传递一个可空边界 {#exercise-03}
+### 练习 3：传递一个可空参数 {#exercise-03}
 
-假设 `BookingId.create : (string | null) -> Result<BookingId, BookingIdError>`。编写 `BookingRequest.create`，让它接收同一个可空文本契约，转交输入，并把错误映射为 `InvalidBookingId`。
+假设 `BookingId.create : (string | null) -> Result<BookingId, BookingIdError>`。编写 `BookingRequest.create`，让它接收同一种可空文本，转交输入，并把错误映射为 `InvalidBookingId`。
 
-分别测试 `null` 和非空标识符。解释参数标注为何属于包装函数，以及为什么这种边界类型不能替代领域模型中的 `option`。
+分别测试 `null` 和非空标识符。解释参数标注为何必须出现在包装函数上，以及为什么这种输入类型不能替代领域模型中的 `option`。
 
 [阅读本章答案](../solutions/ch-16-modules-namespaces-projects)。
 
@@ -303,10 +294,10 @@ let normalize (raw: string) = raw.Trim()
 - `open` 允许后续引用使用短名称，但既不加载代码，也不改变可访问性。
 - 项目定义一次编译；解决方案组合项目；普通构建产出程序集。
 - SDK、目标框架、语言版本、空值分析、输出种类与警告策略分别回答不同问题。
-- 启用空值检查后，用 `T | null` 显式允许可空引用，并让包装函数继续传递契约。
+- 启用空值检查后，用 `T | null` 表示可空引用，并让包装函数继续保留该标注。
 - 应用文件顺序揭示单向架构，而不是只把文件重排到构建通过为止。
 
-第 17 章会用签名文件强化这些边界：消费者只能看到组件有意公开的类型和操作。
+第 17 章会用签名文件限制公共 API：调用方只能看到组件有意公开的类型和操作。
 
 ## 资料来源 {#sources}
 

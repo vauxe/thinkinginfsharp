@@ -1,6 +1,6 @@
 ---
 title: "Preface: How to Use This Book"
-description: "Choose a learning route, read F# types, run the evidence, and understand the F# 10 and .NET 10 scope of the book."
+description: "Choose a learning route, read F# types, run the examples, and understand the F# 10 and .NET 10 scope of the book."
 translationKey: preface/index
 ---
 
@@ -10,7 +10,7 @@ This book teaches you to reason in F# from expressions, types, functions, and da
 
 ## Who this book is for and what it covers {#audience}
 
-This book fits you if F# is new to you. Basic programming experience helps, but the early chapters explain every F# idea before relying on it. You may want to:
+This book is for you if F# is new to you. Basic programming experience helps, but the early chapters explain each F# concept before relying on it. You may want to:
 
 - learn functional programming as a practical way to structure software;
 - move from C# or another .NET language while preserving useful platform knowledge;
@@ -18,38 +18,38 @@ This book fits you if F# is new to you. Basic programming experience helps, but 
 - judge F# realistically for web, data, cloud, desktop, automation, or Unity work;
 - progress from scripts to a tested, diagnosable application.
 
-The book is a guided learning path with runnable evidence and decision criteria. For exhaustive syntax, package catalogs, framework recipes, and changing platform contracts, follow the linked official references.
+The book provides a guided learning path with runnable examples and clear decision criteria. For exhaustive syntax, package catalogs, framework recipes, and fast-changing platform behavior, follow the linked official references.
 
 ## What “thinking in F#” means {#fsharp-first}
 
-Thinking in F# means reasoning from values, types, and explicit boundaries. The book repeatedly asks:
+Thinking in F# means starting with values and types, then deciding where each responsibility belongs. The book repeatedly asks:
 
 1. What value does this expression produce?
 2. What does the inferred or public type permit?
 3. Which cases does the data model make explicit?
-4. Which transformation is pure, and where is an effect owned?
-5. What observable evidence would distinguish a correct design from a plausible wrong one?
+4. Which transformation is pure, and which part of the program performs each effect?
+5. What observable result would distinguish a correct design from a plausible but wrong one?
 
-This viewpoint gives objects, mutation, exceptions, tasks, and .NET APIs deliberate boundaries. Mastery means explaining each boundary and its tradeoff, supported by observable evidence as well as syntax knowledge.
+This approach keeps objects, mutation, exceptions, tasks, and .NET APIs in deliberate places. You have mastered the material when you can explain where each responsibility sits, what tradeoff that choice makes, and which observation supports it—not merely recite syntax.
 
 ## Follow one clear learning path {#reading-routes}
 
 Use the [contents](../) as your map. Read Parts I–III in order: they establish expressions and functions, type-driven modeling, and composition. Continue with Part IV for effects and concurrency, Part V for .NET engineering, and Part VI for a complete workflow. Part VII is optional exploration after the language foundations are comfortable.
 
-Use your prediction as the progress signal. Familiar syntax may let you move quickly; a difference between your prediction and compiler output marks a chapter worth studying closely.
+Use predictions as feedback. Familiar syntax may let you move quickly; when the compiler or program disagrees with your prediction, study that chapter closely.
 
 ## Use a chapter as a feedback loop {#chapter-loop}
 
 For each chapter:
 
-1. read the outcome and inspect important type signatures;
+1. identify the opening problem and inspect important type signatures;
 2. predict output, failure, ordering, or ownership before running anything;
 3. copy and run the smallest relevant code block;
 4. explain the result in your own words;
 5. solve all three exercises before opening the solution;
-6. compare contracts and evidence, then revise your answer.
+6. compare the stated constraints with the observed result, then revise your answer.
 
-Closed exercises may have a narrow observable result. Diagnostic and design exercises can have several sound answers. The [solutions and review guide](../appendices/g-solutions-guide) explains the rubric and links to every answer; use each published solution as feedback, then justify your own answer from its contract and evidence.
+Exercises with a fixed answer may have one narrowly defined observable result. Diagnostic and design exercises can have several sound answers. The [solutions and review guide](../appendices/g-solutions-guide) explains the rubric and links to every answer. Use each published solution as feedback, then justify your own answer from the problem's constraints and the result you can verify.
 
 ## Run only as much as you need {#running-examples}
 
@@ -84,11 +84,11 @@ For example, read `values: 'T list -> 'T option` as: the parameter is named `val
 
 When a signature feels dense, name each input and intermediate result instead of guessing from punctuation. [Appendix B](../appendices/b-syntax-reference) is the compact reference, and the [glossary](../glossary) defines the vocabulary used in this edition.
 
-## Understand the version and evidence boundary {#version-scope}
+## Understand the version and verification scope {#version-scope}
 
-The examples were reviewed with F# 10 and .NET 10. Use a currently supported patched SDK and runtime for deployed software, and recheck behavior after upgrading. Platform-specific chapters state where their evidence stops.
+The examples were reviewed with F# 10 and .NET 10. For deployed software, use a currently supported SDK and runtime with current patches, and recheck behavior after upgrading. Platform-specific chapters state exactly what was and was not verified.
 
-F# 10 defines the language scope. The book prioritizes durable fundamentals and introduces version-specific behavior where it changes a real decision. Package, browser, cloud, mobile, and Unity facts are dated because their contracts can change faster than the language core.
+F# 10 defines the language scope. The book prioritizes durable fundamentals and introduces version-specific behavior when it changes a real decision. Package, browser, cloud, mobile, and Unity facts are dated because they can change faster than the language core.
 
 ## When you get stuck {#recovery}
 
@@ -98,4 +98,4 @@ F# 10 defines the language scope. The book prioritizes durable fundamentals and 
 - If a term is unclear, use the [glossary](../glossary).
 - If an advanced feature appears in library code, use [Appendix H](../appendices/h-advanced-index) to decide whether to learn, wrap, or defer it.
 
-Then begin with [Chapter 1](../part-01/ch-01-first-session). Keep your predictions visible: the gap between a prediction and compiler evidence is where the book does its best teaching.
+Then begin with [Chapter 1](../part-01/ch-01-first-session). Keep your predictions visible: the gap between a prediction and the compiler's result is where the book does its best teaching.

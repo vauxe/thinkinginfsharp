@@ -6,7 +6,7 @@ translationKey: solutions/ch-28-testing-boundaries
 
 # Chapter 28 Solutions {#overview}
 
-The solutions state the risk to exclude before choosing participants. A larger runtime scope is more valuable only when it adds real evidence; adding a host, network, or mock setup does not automatically increase confidence.
+The solutions state the risk before choosing which components to run. A broader runtime scope is worthwhile only when it tests something new; adding a host, network, or mock setup does not automatically increase confidence.
 
 [Return to Chapter 28](../part-05/ch-28-testing-boundaries).
 
@@ -22,9 +22,9 @@ The solutions state the risk to exclude before choosing participants. A larger r
 
 The discount rule needs neither workflow nor serializer; adding them only adds unrelated failure sources. The save protocol must execute the workflow, but fixed product and time already provide sufficient control. A real database would not change the evidence about whether save was requested.
 
-The spelling risk comes precisely from the serializer and configuration, so they cannot be replaced. The test can still execute entirely in memory: a “real boundary” does not mean “start a server.” Add an outer test only for a distinct risk such as HTTP content type or database column mapping.
+The spelling risk comes from the serializer and its configuration, so both must run for real. The test can still execute entirely in memory; testing a real boundary does not require starting a server. Add an outer test only for a separate risk, such as HTTP content type or database column mapping.
 
-Each test should first show one trustworthy red light: temporarily use a wrong total expectation, make the failure branch save, or change the naming policy, and confirm the corresponding test fails for the target risk before restoring the implementation.
+First confirm that each test detects its target risk. Temporarily use the wrong total, make the failure branch save, or change the naming policy. Check that the corresponding test fails, then restore the implementation.
 
 ## Exercise 2: write a double test without locking implementation {#exercise-02}
 
@@ -63,7 +63,7 @@ Assert.Equal(0, clockCalls)
 Assert.Empty saved
 ```
 
-The test proves four related facts: the workflow looks up normalized `FSP-BOOK`; it returns `ProductNotFound "FSP-BOOK"`; it does not read time; and it does not save. The last two jointly express “do not execute success effects after decision failure.”
+The test checks four related behaviors: the workflow looks up normalized `FSP-BOOK`; it returns `ProductNotFound "FSP-BOOK"`; it does not read time; and it does not save. The last two enforce “do not run success-path side effects after a failed decision.”
 
 It does not assert the call count of `OrderDecision.decide`, nor know whether the workflow is a pipeline or `match`. The implementation may add a pure cache, rename a helper, or change composition form; while observable result and port protocol remain the same, the test stays green.
 
@@ -85,7 +85,13 @@ Assume `note` is genuinely optional and both absence and null mean “no note.�
 
 The current sample uses `Disallow` for unknown members, so an old reader retaining that policy rejects a new writer's `note`. “Adding an optional JSON field” is therefore not compatible for that consumer relationship. Optionality describes validation in the new DTO; it does not guarantee old parsers accept the field.
 
-Three honest options exist: deploy readers that ignore or recognize `note` before writers emit it; create a versioned message or endpoint; or make the protocol lenient toward unknown fields and accept the cost that spelling mistakes may be ignored. Choose from deployment order and error-detection needs rather than changing one record field in isolation.
+There are three viable options:
+
+1. Deploy readers that ignore or recognize `note` before writers emit it.
+2. Create a versioned message or endpoint.
+3. Allow unknown fields and accept that this may hide spelling mistakes.
+
+Choose according to deployment order and error-detection needs, not by changing one record field in isolation.
 
 The output contract test should parse JSON and prove the existing three fields remain while `note` appears or is omitted by policy. Input tests cover the four payloads above and error types. They need not fix property order or whitespace unless canonicalization is a separate protocol requirement.
 
@@ -98,8 +104,8 @@ Expansion can help migration but can also conceal sender drift. Add tests provin
 ## Solution review {#solution-review}
 
 - Pure calculation, port protocol, and JSON configuration need different real participants.
-- A larger test is worth its cost only when it adds new evidence.
-- Doubles record public effect protocol, not private control flow.
+- A larger test is worth its cost only when it checks an additional risk.
+- Doubles record externally visible calls, not private control flow.
 - Keep one scenario per test; exception mapping belongs to another product decision.
 - Whether a new field is compatible depends on old readers, not only whether it is “optional.”
 - Strict unknown-member policy improves spelling detection but limits forward compatibility.

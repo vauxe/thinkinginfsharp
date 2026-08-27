@@ -6,7 +6,7 @@ translationKey: solutions/ch-03-functions-as-values
 
 # Chapter 3 Solutions {#overview}
 
-Check the type shape before checking the number. Equal output from two calls is not enough to show that they receive arguments in the same way.
+Check the type structure before checking the number. Equal output from two calls does not mean they receive arguments in the same way.
 
 [Return to Chapter 3](../part-01/ch-03-functions-as-values).
 
@@ -45,7 +45,7 @@ Read the equivalent anonymous call as `applyTwice (fun seats -> seats + 1) 3`; i
 
 An `int -> string` function cannot be used directly because the first transformation would produce a `string`, while the second call would still require an `int`. `applyTwice` requires `'a -> 'a`, not `'a -> 'b`. If the domain needs two different transformations in sequence, define a function whose type describes those stages rather than weakening this consistency.
 
-## Exercise 3: choose a parameter shape {#exercise-03}
+## Exercise 3: choose a parameter form {#exercise-03}
 
 The two runnable definitions are:
 
@@ -64,12 +64,12 @@ printfn "Tupled total: %M" tupledTotal
 ```
 The curried version has type `decimal -> int -> decimal` and is called as `lineTotal 19.50m 3`. The tupled version has type `decimal * int -> decimal` and is called as `lineTotalTupled (19.50m, 3)`. Only the former can directly fix the price with `lineTotal 19.50m`, producing `int -> decimal`.
 
-`addServiceFee` retains `2.00m`; its remaining input is a subtotal, so its type is `decimal -> decimal`. Semantically, the function forms a closure. If unit price and seat count are inherently one whole value in the domain, the tupled form writes “only accept a complete pair” into the input shape. Partial application is not the only design criterion.
+`addServiceFee` retains `2.00m`; its remaining input is a subtotal, so its type is `decimal -> decimal`. Semantically, the function forms a closure. If unit price and seat count form one domain value, the tupled input states “accept only a complete pair.” Partial application is not the only design criterion.
 
 ## What to notice {#what-to-notice}
 
 - **Arrow direction is not an evaluation-order diagram:** read a type with right association, then a concrete application with left association.
-- **Visible parameter count does not determine data shape:** two names may be successive parameters or components in one tuple pattern.
+- **Visible parameter count does not determine the call form:** two names may be successive parameters or components in one tuple pattern.
 - **Partial application returns a function:** the final body result does not exist until the remaining arguments arrive.
 - **Generic still means consistent:** `'a` can be instantiated with many concrete types, but positions carrying the same letter must align.
 

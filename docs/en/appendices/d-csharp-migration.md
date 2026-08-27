@@ -6,9 +6,9 @@ translationKey: appendices/d-csharp-migration
 
 # Appendix D: C# to F# Migration and Interop {#overview}
 
-A successful migration preserves behavior while improving the model. It does not replace every C# token with an F# token. Both languages target .NET, so existing assemblies, tests, protocols, and deployment can remain useful while one seam at a time moves to F#.
+A successful migration preserves behavior while improving the model. It does not replace every C# token with an F# token. Both languages target .NET, so existing assemblies, tests, protocols, and deployment can remain useful while you migrate one seam at a time.
 
-Use this appendix as a decision map. First identify the contract and ownership of a piece of code; then choose an F# representation. Keep an adapter when callers need a different vocabulary. If a direct translation makes invalid states, effects, or evaluation less visible, stop and redesign that small boundary.
+Use this appendix as a decision guide. First identify what callers depend on and who controls the state or resources; then choose an F# representation. Keep an adapter when callers need a different API shape. If a direct translation hides invalid states, effects, or evaluation timing, stop and redesign that small interface.
 
 ## The non-goal: line-by-line translation {#non-goal}
 
@@ -58,10 +58,10 @@ Type inference removes repetition, not the type system. Put annotations at publi
 
 Start from the valid states rather than the old declaration keyword:
 
-| Domain shape | F# default candidate | Keep a class/interface when… |
+| Domain structure | F# default candidate | Keep a class/interface when… |
 |---|---|---|
 | all named fields exist together | record | identity, inheritance, encapsulated mutation, or framework construction dominates |
-| exactly one of several cases | discriminated union | a broad .NET public consumer cannot reasonably consume the compiled union shape |
+| exactly one of several cases | discriminated union | a broad .NET public consumer cannot reasonably consume the compiled union representation |
 | one primitive with an invariant | private single-case union plus smart constructor | the wrapper adds no invariant or semantic distinction |
 | optional domain value | `'T option` | the boundary contract uses CLR null or `Nullable<T>` |
 | replaceable capability | function or small interface | lifetime, multiple members, mocking tools, or DI registration favor an object contract |
@@ -84,7 +84,7 @@ Classify failure by what the caller can do:
 | unavailable external resource or corrupted state | exception, possibly mapped at an application boundary | retry, degrade, log, or abort by policy |
 | cancellation | preserve cancellation token and cancellation exception/task state | stop work without reporting an ordinary failure |
 
-Choose the representation from the recovery contract. Allocation failure and a broken invariant normally propagate exceptionally; an expected rejected booking belongs in `Result` or a domain union. When callers routinely branch on an outcome, make that branch visible in the return model.
+Choose the representation by how callers can recover. Allocation failure and a broken invariant normally propagate as exceptions; an expected rejected booking belongs in `Result` or a domain union. When callers routinely branch on an outcome, make that branch visible in the return model.
 
 When adapting a C# API that already uses exceptions, first characterize which exception types are contractual. Catch only exceptions you can interpret, retain the original cause where relevant, and never use a blanket catch to convert cancellation into a generic error.
 
@@ -108,7 +108,7 @@ Accept a `CancellationToken` where callers need cancellation and pass it to oper
 
 | Requirement | Internal F# candidate | Cross-language boundary candidate |
 |---|---|---|
-| immutable head-oriented processing | list | project to an agreed read-only shape or array; do not leak `FSharpList<T>` accidentally |
+| immutable head-oriented processing | list | project to an agreed read-only view or array; do not leak `FSharpList<T>` accidentally |
 | fixed indexed snapshot | array | array only if mutation/ownership is clear; otherwise a read-only abstraction or dedicated result |
 | forward-only/deferred enumeration | `seq<'T>` | `IEnumerable<T>` with lifetime and repeatability documented |
 | growable owned buffer | `ResizeArray<'T>` | keep private; expose only required collection operations or a snapshot |
@@ -117,11 +117,11 @@ Accept a `CancellationToken` where callers need cancellation and pass it to oper
 
 Do not replace every LINQ query with `Seq`: list and array functions are eager, many sequence functions are deferred, and repeated enumeration can repeat I/O or computation. See [Appendix C](./c-collections) for complexity, ordering, and key contracts.
 
-At a public API, choose the least specialized input that still expresses the operation, but do not erase requirements. If indexing, a stable count, or one-pass ownership is required, `IEnumerable<T>` is too weak. Never return `null` for “no elements”; return an empty collection under the documented shape.
+For a public API, choose the least specialized input that still expresses the operation, but do not erase requirements. If callers need indexing, a stable count, or a source that may be traversed only once, `IEnumerable<T>` is too weak. Never return `null` for “no elements”; return an empty collection of the documented type.
 
-## Keep two idiomatic vocabularies at the boundary {#api-boundary}
+## Give each side an idiomatic API {#api-boundary}
 
-An F#-only API can expose records, unions, options, curried functions, and `Async`. A library intended for C#, VB, reflection-heavy frameworks, or mixed teams should normally expose familiar CLR shapes while its internals remain idiomatic F#.
+An F#-only API can expose records, unions, options, curried functions, and `Async`. A library intended for C#, VB, reflection-heavy frameworks, or mixed teams should normally expose familiar CLR types while its internals remain idiomatic F#.
 
 | Internal/F#-facing form | Broad .NET-facing option | Decision note |
 |---|---|---|
@@ -197,7 +197,7 @@ Require(accepted.SuggestedSeats is null, "accepted suggestion must be null");
 Console.WriteLine(
     $"Accepted: outcome={accepted.Outcome} code={accepted.ConfirmationCode} remaining={accepted.RemainingSeats}");
 ```
-The same client uses reflection to assert that exactly `BookingApi`, `BookingOutcome`, `BookingRequest`, and `BookingResponse` are exported; no public signature contains `Microsoft.FSharp.*`; nullability metadata is correct; and XML documentation ships beside the assembly. These assertions test the compiled contract, not an imagined source-level mapping.
+The same client uses reflection to assert that exactly `BookingApi`, `BookingOutcome`, `BookingRequest`, and `BookingResponse` are exported; no public signature contains `Microsoft.FSharp.*`; nullability metadata is correct; and XML documentation ships beside the assembly. These assertions test the compiled API rather than assuming how F# source will appear to C#.
 
 Run the pair from the directory containing the example:
 
@@ -214,10 +214,10 @@ dotnet run --project CSharpClient.csproj --configuration Release --no-build
 4. **Model the core in F#.** Make invalid states harder to represent; isolate time, I/O, randomness, and mutation behind explicit inputs or capabilities.
 5. **Preserve the old call contract.** Keep a thin adapter so existing C# code can compile and behave as before while the core changes behind it.
 6. **Compile real consumers.** Test from C# and inspect metadata, nullability, documentation, exceptions, and collection behavior—not only F# unit tests.
-7. **Expand only with evidence.** Move the next seam when the boundary is simpler and tests remain stable; stop if translation merely moves complexity.
+7. **Expand only after verification.** Move the next seam when the interface is simpler and tests remain stable; stop if translation merely moves complexity.
 8. **Retire bridges deliberately.** Deprecate, version, and document migration before removing a public compatibility layer.
 
-A mixed F#/C# solution is a valid destination, not an unfinished migration. Keep each language where its model and ecosystem fit, and make the shared boundary excellent.
+A mixed F#/C# solution is a valid destination, not an unfinished migration. Keep each language where its model and ecosystem fit, and keep the shared API clear.
 
 ## Review checklist {#review-checklist}
 

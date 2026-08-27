@@ -6,7 +6,7 @@ translationKey: solutions/ch-05-lists-pipelines
 
 # 第 5 章练习答案 {#overview}
 
-先核对每个阶段的形状和顺序。只有最终输出相同，仍可能掩盖多余遍历、状态未封装或效果重复。
+先核对每个阶段的类型和顺序。最终输出相同，仍可能掩盖多余遍历、泄漏的可变状态或重复副作用。
 
 [返回第 5 章](../part-01/ch-05-lists-pipelines)。
 
@@ -22,7 +22,12 @@ printfn "Pipeline labels: %A" pipelineLabels
 ```
 `requests` 与过滤结果都是 `(string * int) list`；前者依次为 Lin 3、Ada 0、Sam 2、Mina -1，后者只保留 Lin 3、Sam 2。映射结果是 `string list`，顺序为 `[ "Lin:3"; "Sam:2" ]`。
 
-不使用管道的等价表达式是先求 `List.filter isValidRequest requests`，再把结果作为 `List.map formatRequest` 的最后实参；嵌套写成 `List.map formatRequest (List.filter isValidRequest requests)`。源列表没有变化。
+不使用管道时，分两步求值：
+
+1. 计算 `List.filter isValidRequest requests`；
+2. 把结果传给 `List.map formatRequest`。
+
+也可嵌套写成 `List.map formatRequest (List.filter isValidRequest requests)`。两种写法都不会改变源列表。
 
 这段执行两个立即求值列表阶段：过滤遍历四项并产生中间列表，映射再遍历两项并产生最终列表。调用次数和元素访问次数不是同一个数字，但确实存在两次列表操作。
 
@@ -81,13 +86,13 @@ let labelsWithWhile source =
 
 `while` 还必须让 `remaining` 从完整列表依次变为各级 `tail`，最后为 `[]`。任何非空路径忘记更新都会让条件一直为真并重复处理同一项。
 
-“打印每个标签”首选 `for` 或 `List.iter`，因为目标是 `unit` 效果。“产生新标签列表”首选 `choose`，因为返回类型直接表达输出；若分析证明这是热路径且需要定制单遍历实现，再比较局部可变循环，而不是先假设。
+“打印每个标签”首选 `for` 或 `List.iter`，因为目标是产生输出副作用。“生成新标签列表”首选 `choose`，因为返回类型直接表达结果。只有性能分析确认这是热点后，才值得比较定制的单遍历可变循环。
 
 ## 应该注意什么 {#what-to-notice}
 
 - **管道不改变求值模型：** 列表阶段仍立即完成，各自产生结果。
-- **顺序是契约的一部分：** 前插高效但反转顺序，需显式恢复。
-- **局部可变性可以被封装：** 外部只看到普通输入与不可变结果，但内部仍需追踪每次更新。
+- **顺序是契约的一部分：** 前插高效但反转顺序，最后需要恢复。
+- **局部可变性可以被封装：** 外部只看到输入与不可变结果，但内部仍需追踪每次更新。
 - **`option` 只表达有无：** 若消费者需要失败原因，`None` 信息不足。
 
 如果你直接用 `@ [ label ]` 在每轮向尾部追加，结果可能相同，但每次都会遍历不断增长的左列表。正确性通过之后仍应检查这种渐进成本。

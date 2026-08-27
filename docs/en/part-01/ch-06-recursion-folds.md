@@ -8,21 +8,9 @@ translationKey: part-01/ch-06-recursion-folds
 
 A list has only two structures: empty `[]`, or nonempty `head :: tail`. Structural recursion lets a definition descend through those cases: the empty structure supplies a base result, while the nonempty structure handles the head and gives the smaller tail to the same rule.
 
-That correspondence explains the shape of the function. Termination, efficiency, and stack safety require separate evidence. This chapter separates “structurally smaller,” “tail position,” and “compiler optimization,” then hands a common linear accumulation pattern to `List.fold`. The goal is to read, verify, and choose recursion deliberately.
+That correspondence determines the function's branches, but it does not prove termination, efficiency, or stack safety. We will separate “structurally smaller,” “tail position,” and “compiler optimization,” then express a common linear accumulation pattern with `List.fold`.
 
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- define a self-referential function with `let rec` and explain the visibility that `rec` adds;
-- derive base and recursive branches from `[] | head :: tail`;
-- explain how a recursive argument becomes structurally smaller and what termination depends on;
-- decide whether work remains after a recursive call;
-- rewrite one linear aggregation as tail recursion with an accumulator;
-- use `[<TailCall>]` to check tail-call intent and state the scope of that evidence;
-- expand the order of `List.fold` and `List.foldBack` and choose an appropriate abstraction.
-
-This chapter handles one recursive path through a singly linked list. Trees and branching structural recursion arrive in Chapter 10. Async and task recursion follow their own execution models and therefore need their own stack-safety analysis.
+Here we follow one recursive path through a singly linked list. Chapter 10 covers trees and branching recursion. Async and task recursion use different execution models, so their stack behavior needs separate analysis.
 
 ## `rec` makes the name visible in its body {#rec-binding}
 
@@ -100,11 +88,11 @@ let rec fibonacci n =
     | 1 -> n
     | value -> fibonacci (value - 1) + fibonacci (value - 2)
 ```
-The ordinary script gate also runs FSI with `--warnaserror+`. The compiled negative fixture specifically demonstrates the `TailCall` diagnostic; code position and the bounded run below provide positive evidence for the shared loops.
+The standard script check also runs FSI with `--warnaserror+`. The compiled negative fixture demonstrates the `TailCall` diagnostic. Source position and the bounded run below check the shared loops from two other angles.
 
-The attribute checks relevant call positions. It leaves the algorithm unchanged and supplies evidence about tail position alone. Eliminating recursive stack growth also depends on cross-function calls, runtime behavior, debug settings, computation expressions, and other execution models. State the conclusion narrowly: this synchronous self-recursive call is in tail position.
+The attribute checks call position; it neither changes the algorithm nor proves termination. Actual stack use can also depend on cross-function calls, runtime behavior, debug settings, computation expressions, and other execution models. The narrow conclusion here is that this synchronous self-call is in tail position.
 
-The shared script counts a 100,000-item list with tail recursion as runtime evidence for this concrete implementation:
+The shared script also runs this implementation against a 100,000-item list:
 
 ```fsharp:line-numbers [ch06-recursion-folds.fsx]
 [<TailCall>]
@@ -122,7 +110,7 @@ Compare implementations through code position, compiler diagnostics, and bounded
 
 ## Tail recursion addresses stack usage {#tail-recursion-limits}
 
-Tail recursion primarily changes stack usage. Time complexity, numeric overflow, effect order, and allocation cost remain separate properties. An exponential algorithm that recomputes the same subproblem stays exponential even when one call sits in tail position.
+Tail recursion primarily changes stack usage. Time complexity, numeric overflow, side-effect order, and allocation cost remain separate properties. An exponential algorithm that recomputes the same subproblem stays exponential even when one call sits in tail position.
 
 An accumulator may also change result order. Chapter 5 built a reversed list with `::` and needed a final `List.rev`. Forget that reversal and a function may be stack-safe but semantically wrong. Multiple recursive branches, exception handling, and construction after a call all need separate analysis.
 
@@ -174,7 +162,7 @@ Use semantic expansion to understand combination order and result meaning. Use t
 
 ## Choose direct recursion or a fold {#choosing-recursion}
 
-| Problem shape | Usually consider first | Reason |
+| Problem structure | Usually consider first | Reason |
 | --- | --- | --- |
 | Linear traversal carrying one state | `List.fold` or a specialized library function | Common traversal is encapsulated and state type is explicit |
 | Sum, length, or another existing operation | `List.sum`, `List.length` | Domain intent is clearer than a custom folder |
@@ -184,7 +172,7 @@ Use semantic expansion to understand combination order and result meaning. Use t
 
 Choose `fold` when one accumulator expresses the state transition clearly. A large opaque accumulator can hide state meaning and update order, so use the form that makes invariants, termination, and result order most visible.
 
-## Costs and boundaries {#costs}
+## Costs and limits {#costs}
 
 For a finite list of length `n`, all three summation versions perform a linear amount of element work when they complete normally. They differ mainly in where control state lives:
 
@@ -194,7 +182,7 @@ For a finite list of length `n`, all three summation versions perform a linear a
 | Accumulator recursion | `O(n)` | Simple self-tail calls can have growth removed by the compiler; the attribute checks intent here | One accumulator |
 | `List.fold` | `O(n)` | Traversal is managed by the FSharp.Core implementation | One accumulated state |
 
-Each implementation still needs separate checks for `int` range overflow and the business meaning of input. Stack safety, arithmetic safety, and domain correctness are distinct properties with distinct evidence.
+Each implementation still needs separate checks for `int` overflow and the business meaning of its input. Stack safety, arithmetic safety, and domain correctness must be verified separately.
 
 ## Run the shared example {#run-example}
 
@@ -216,14 +204,14 @@ Fold order: left=-6 right=2
 
 Empty, singleton, ordinary, and large lists separately verify base behavior, equal semantics, and bounded runtime behavior of this tail-recursive implementation. Compare all five output lines in order.
 
-## Debugging: check decrease before tail position {#debugging}
+## Check decrease before tail position {#debugging}
 
 When recursion fails, ask in order:
 
 1. is there a rule for every input constructor?
 2. does the base rule return the correct identity or terminating result?
 3. is the recursive argument strictly smaller or closer to termination?
-4. does any operation, construction, or effect remain after the recursive call?
+4. does any operation, construction, or side effect remain after the recursive call?
 5. does the accumulator invariant hold at initialization, advance, and completion?
 
 Reversed output usually comes from front accumulation without a final reversal. A `fold` type error often comes from swapping accumulator and element parameters; label `'State` and `'T` from the full signature first.
@@ -258,13 +246,13 @@ Then imagine changing the recursive branch to recurse first and add `head` after
 
 [Read the chapter solutions](../solutions/ch-06-recursion-folds).
 
-## Summary {#summary}
+## Key takeaways {#summary}
 
 - `let rec` makes a function name visible in its own body; the programmer supplies the base case and termination argument.
 - Structural recursion aligns patterns with data constructors and gives a structurally smaller component to the recursive call.
 - A tail call returns its result directly; pending work after a recursive call makes the call non-tail-recursive.
 - An accumulator carries completed work so a simple linear self-call can move into tail position.
-- `[<TailCall>]` checks tail-call intent; termination and stack behavior across execution models require separate evidence.
+- `[<TailCall>]` checks tail-call intent; verify termination and stack behavior separately for each execution model.
 - `List.fold` threads state from the left; `foldBack` combines from the right and reverses folder argument order.
 - Tail recursion, time complexity, arithmetic safety, and domain correctness require separate verification.
 
@@ -279,15 +267,6 @@ dotnet fsi --warnaserror+ --exec booking-basics.fsx
 Its output must distinguish valid from invalid input rows, accept requests that fit, reject the over-capacity request, and finish with the correct booked and remaining capacity. This closes the Part I language path; persistence and concurrency guarantees arrive in later parts.
 
 [Continue to Chapter 7](../part-02/ch-07-records-equality), where records and unions turn more of those implicit rules into types.
-
-## Vocabulary {#vocabulary}
-
-- **recursion:** a function calling itself directly or indirectly to process a smaller problem.
-- **structural recursion:** branching on data constructors and recursively processing a structurally smaller component.
-- **tail call:** a call made as the final operation whose result needs no further processing.
-- **tail recursion:** recursion that places self-calls on recursive paths in tail position.
-- **accumulator:** state carrying completed work from one step to the next.
-- **fold:** a higher-order operation that combines elements into accumulated state in a defined order.
 
 ## Sources {#sources}
 

@@ -6,13 +6,13 @@ translationKey: solutions/ch-12-making-illegal-states-unrepresentable
 
 # 第 12 章练习答案 {#overview}
 
-受保护表示的强度取决于它的全部公开生产者。应检查每个返回受保护类型的函数，而不只是名为 `create` 的函数。
+受保护表示是否可靠，取决于所有公开构造入口。应检查每个返回受保护类型的函数，而不只是名为 `create` 的函数。
 
 [返回第 12 章](../part-02/ch-12-making-illegal-states-unrepresentable)。
 
 ## 练习 1：保护百分比 {#exercise-01}
 
-私有单案例联合会把已验证比例与任意 decimal 区分开：
+私有单分支联合会把已验证比例与任意 decimal 区分开：
 
 ```fsharp
 type FillRateError =
@@ -32,13 +32,13 @@ module FillRate =
 
 两个端点都会被接受，因为题设区间是闭区间。`create -0.1m` 与 `create 1.01m` 会在 `Error` 中保留被拒绝值；预期输入拒绝不需要异常。
 
-使用 `type FillRate = decimal` 时，调用方无需调用验证器就能把 `2m` 标注为 `FillRate`。使用私有联合后，普通外部代码除了模块公开的函数外，没有表达式能够构造 `FillRate`。访问器返回 decimal 供计算或序列化，却不会削弱构造。
+使用 `type FillRate = decimal` 时，调用方无需验证就能把 `2m` 标注为 `FillRate`。改用私有联合后，模块外只能通过公开函数构造 `FillRate`。访问器仍可返回 decimal 供计算或序列化，但不会绕过构造规则。
 
-若算术返回新填充率，它必须调用 `create`，或在可信模块内部实现，并证明范围得到保持。把一个有效比例乘以 `2m` 不会自动仍然有效。
+若算术产生新的填充率，它必须重新调用 `create`；也可以留在可信模块内部，但要能说明结果始终不越界。有效比例乘以 `2m` 后，不一定仍然有效。
 
 ## 练习 2：选择透明或私有外层记录 {#exercise-02}
 
-若完整规则只是“包含一个有效 `EventId` 与一个有效 `SeatCount`”，应倾向公开记录。两个组成部分已经携带证明，所有字段组合都合法，消费者还能从记录构造、复制更新和模式匹配中受益。
+若完整规则只是“包含一个有效 `EventId` 与一个有效 `SeatCount`”，应倾向公开记录。两个字段已经分别通过验证，且所有组合都合法。调用方还能继续使用记录构造、复制更新和模式匹配。
 
 若存在跨字段规则、必须保持同步的派生字段、需要整体执行的规范化，或很可能改变表示且不应破坏消费者，就应倾向私有记录。例如，小组预约策略可能要求 `SeatCount` 超过阈值时必须提供联系人地址。
 
@@ -50,7 +50,7 @@ BookingRequest.eventId : BookingRequest -> EventId
 BookingRequest.seats : BookingRequest -> SeatCount
 ```
 
-`create` 返回普通 `BookingRequest` 是诚实的，因为两个实参已经受保护，而且没有新的拒绝规则。若构造会检查跨字段规则，应改为 `Result<BookingRequest, BookingRequestError>`。若调用方普遍需要某项变换，应公开该操作，而不是泄露记录、迫使它们重新实现策略。
+`create` 直接返回 `BookingRequest` 是准确的，因为两个实参已经受保护，而且没有新的拒绝规则。若构造会检查跨字段规则，应改为 `Result<BookingRequest, BookingRequestError>`。若调用方普遍需要某项变换，应公开该操作，不要泄露记录并迫使各处重写策略。
 
 private 并不会自动更安全：缺少观察操作的不透明类型会迫使调用方采取笨拙变通；构造器不执行任何检查的不透明类型则只是增加仪式。
 
@@ -106,7 +106,7 @@ module AvailableSeats =
 
 `AvailableSeats` 的不变量是“零或正数”，`Capacity` 则保持正数且不变。恰好订满会返回有效的零 `AvailableSeats`；请求超过可用量则返回 `InsufficientSeats`。另一种有效设计是使用 `SoldOut | SeatsRemain of PositiveSeatCount` 联合，让零由具名案例表示。
 
-把这个公开表面放进 `Capacity.fsi`，然后在项目顺序中紧接 `Capacity.fs`，再放消费者文件。`.fs` 实现可以模式匹配并构造隐藏联合案例；后续文件只能看到抽象类型与列出的值。签名中省略的辅助函数仍为实现私有。
+把这组公开 API 放进 `Capacity.fsi`，项目顺序中紧接 `Capacity.fs`，再放调用方文件。`.fs` 实现可以匹配并构造隐藏的联合 case；后续文件只能看到抽象类型与列出的值。签名中省略的辅助函数仍是实现细节。
 
 若保留原签名，实现就只能拒绝恰好订满、撒谎把零作为正数 `Capacity` 返回，或返回未改变的容量而不表示预约状态。类型评审已经正确揭示三种选择都错误。
 

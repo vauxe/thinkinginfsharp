@@ -1,6 +1,6 @@
 ---
 title: "Chapter 41: Fable, Elmish, and Browser Applications"
-description: "Choose a browser architecture from runtime boundaries, state complexity, rendering needs, interoperability, and deployable evidence."
+description: "Choose a browser architecture from runtime constraints, state complexity, rendering needs, interoperability, and deployment verification."
 translationKey: part-07/ch-41-fable-elmish
 ---
 
@@ -9,25 +9,6 @@ translationKey: part-07/ch-41-fable-elmish
 F# remains F# in a Fable project: records, discriminated unions, pattern matching, modules, functions, and type inference still shape the program. The runtime does not remain .NET. For the JavaScript target, Fable translates supported F# and library constructs into JavaScript, then the browser executes that JavaScript with browser security, scheduling, numeric, packaging, and API rules.
 
 That distinction prevents two opposite mistakes. A .NET team must not assume every BCL or NuGet API works in a browser. A JavaScript team must not treat Fable as an isolated platform that replaces npm, bundlers, DOM knowledge, accessibility, or browser diagnostics. The useful question is: “Which logic benefits from F# modeling, which boundary belongs to JavaScript or the browser, and how much state architecture does this interface actually need?”
-
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- explain what Fable compiles and what the browser actually runs;
-- distinguish F# language support from .NET runtime and BCL compatibility;
-- keep browser APIs and JavaScript interoperability behind narrow typed adapters;
-- manage NuGet and npm as separate, locked dependency graphs;
-- read the browser sample's pure `update` function and effectful DOM shell;
-- decide when direct DOM code is enough and when Elmish earns its loop;
-- model asynchronous browser work without accepting stale responses;
-- distinguish Elmish state management from React, Feliz, or another renderer;
-- share pure code across .NET and Fable only after a cross-target compatibility test;
-- protect secrets, HTML, credentials, storage, and HTTP boundaries in client code;
-- test pure transitions, generated JavaScript, production bundles, and real browser behavior at different layers;
-- deploy a static artifact without smuggling server-side assumptions into it;
-- read current package versions without claiming unexecuted stacks are verified;
-- design a reversible browser-stack adoption spike.
 
 ## Fable changes the target, not the source language {#target-runtime}
 
@@ -140,13 +121,13 @@ document.documentElement.setAttribute ("data-fable-ready", "true")
 
 The final attribute is a readiness contract for the browser smoke. It is set only after elements are found, listeners are attached, and the initial model is rendered.
 
-### What the evidence proves—and does not {#sample-evidence}
+### What the checks cover—and do not {#sample-evidence}
 
 The production command performs locked .NET tool/package restore, Fable compilation without cache reuse, and a Vite production build. The current output transforms 15 modules into an HTML entry and a hashed JavaScript asset. The exact file name and size are build outputs, not public application contracts.
 
-The automated smoke serves only `dist`, launches installed Chrome through a locked Playwright client, waits for Fable readiness, verifies `0 -> 3 -> 0`, checks reset state, rejects console warnings/errors, page exceptions, failed requests and HTTP errors, and rejects page-level overflow at 360 pixels. An independent DevTools run also produced 100 for accessibility, best practices, SEO, and agentic browsing.
+The automated smoke serves only `dist` and launches installed Chrome through a locked Playwright client. It waits for Fable readiness, verifies `0 -> 3 -> 0` and reset state, rejects browser or network errors, and checks for page overflow at 360 pixels. An independent DevTools run also produced 100 for accessibility, best practices, SEO, and agentic browsing.
 
-This proves one DOM interaction, one current tool graph, one production mode, and the observed Chrome environment. It does not prove React or Elmish compatibility, every browser, routing, HTTP, offline behavior, authentication, localization, hydration, server-side rendering, long-session memory behavior, or production hosting headers.
+These checks cover one DOM interaction, the current tool graph, a production build, and the observed Chrome environment. They do not cover React or Elmish compatibility, every browser, routing, HTTP, offline behavior, authentication, localization, hydration, server-side rendering, long-session memory behavior, or production hosting headers.
 
 ## Know the supported F# and .NET surface {#compatibility}
 
@@ -175,7 +156,7 @@ shared pure contracts and decisions
   -> browser adapter: DOM, fetch, storage, URL, browser clock
 ```
 
-Compile the shared project for .NET and through Fable, then run the same golden inputs on both targets when semantic equivalence matters. “It has no compile error on .NET” is not cross-target evidence.
+Compile the shared project for .NET and through Fable, then run the same reference inputs on both targets when semantic equivalence matters. A clean .NET compile says nothing about the JavaScript target.
 
 Conditional compilation can isolate a genuinely tiny target difference, but repeated `#if FABLE_COMPILER` branches through business logic usually signal a missing port or a falsely shared module.
 
@@ -190,9 +171,9 @@ Browser applications eventually call Web APIs or JavaScript packages. Fable.Core
 
 `Emit` inserts JavaScript that the F# compiler cannot validate. Scattering it through view and domain code turns refactoring into string editing. Keep it private, test the generated behavior, and expose an ordinary F# function or interface.
 
-### Two package graphs mean two ownership records {#two-package-graphs}
+### Track both package graphs {#two-package-graphs}
 
-NuGet resolves F# source packages and bindings; npm/pnpm resolves bundlers and native JavaScript packages. Some Fable packages require a matching npm dependency, such as React and `react-dom`. A successful NuGet restore does not install that JavaScript runtime, and a successful npm install does not prove the F# binding matches it.
+NuGet resolves F# source packages and bindings; npm or pnpm resolves bundlers and native JavaScript packages. Some Fable packages require matching npm dependencies, such as React and `react-dom`. A successful NuGet restore does not install that JavaScript runtime, and a successful npm install does not verify that the F# binding matches it.
 
 Lock both graphs and record:
 
@@ -201,7 +182,7 @@ Lock both graphs and record:
 - direct npm packages plus the workspace lock;
 - any required pairing between a binding and native JavaScript package;
 - allowed lifecycle scripts and generated code policy;
-- licenses, advisories, target browsers, and upgrade evidence.
+- licenses, advisories, target browsers, and upgrade checks.
 
 Generated JavaScript and bundle output are normally build artifacts. Commit them only when a publishing or audit contract requires it, and then define who regenerates and reviews them.
 
@@ -235,14 +216,14 @@ Test with the accessibility tree and keyboard, not only CSS selectors. A virtual
 
 Use the smallest explicit state model that keeps behavior understandable.
 
-| Problem shape | First candidate | Why it may fit | Evidence that should reverse it |
+| Problem | First candidate | Why it may fit | Signal to reconsider |
 |---|---|---|---|
 | one bounded enhancement with a few elements | plain Fable + Browser.Dom | minimal graph and direct platform semantics | duplicated rendering, tangled transitions, lifecycle leaks |
 | multiple coordinated states, effects, and routes | Elmish core + chosen renderer | one message flow and testable transitions | trivial local state becomes ceremony or update becomes a monolith |
 | React component ecosystem is a hard requirement | Feliz and/or Fable.Elmish.React plus locked React | typed F# view surface over the required ecosystem | binding/native mismatch, bundle or upgrade cost exceeds benefit |
 | mostly server-rendered content with small interactions | server HTML plus isolated Fable islands | preserves simple navigation and payload | islands need shared global state or duplicate large dependencies |
 
-Do not select Elmish because the language is F#, React because the application is “modern,” or direct DOM because the first demo is short. Select from state lifetime, effect concurrency, component interoperability, rendering frequency, team skills, accessibility, and upgrade ownership.
+Do not select Elmish because the language is F#, React because the application is “modern,” or direct DOM because the first demo is short. Base the choice on state lifetime, concurrent side effects, component interoperability, rendering frequency, team skills, accessibility, and upgrade responsibility.
 
 ## Elmish makes the event loop explicit {#elmish-loop}
 
@@ -257,7 +238,7 @@ view Model dispatch -> rendered UI
 
 The model is an immutable snapshot. A message names what happened. `update` decides the next state and describes commands. The runtime executes commands, dispatches later messages, and asks the renderer to update the view.
 
-The browser sample already contains the center of this shape without the library: `Message`, `Model`, and pure `update`. Its hand-written mutable shell performs dispatch and render. Elmish earns its dependency when standard command, subscription, composition, instrumentation, or renderer integration replaces enough custom lifecycle code.
+The browser sample already implements the core of this pattern without the library: `Message`, `Model`, and pure `update`. Its hand-written mutable shell performs dispatch and rendering. Elmish earns its dependency when standard commands, subscriptions, composition, instrumentation, or renderer integration replace enough custom lifecycle code.
 
 ### Commands describe effects; they do not purify them {#commands}
 
@@ -265,7 +246,7 @@ An HTTP command still performs I/O and can fail, time out, complete late, or be 
 
 Give every effect explicit outcome cases. For example, `SearchStarted`, `SearchSucceeded`, `SearchFailed`, and `SearchCancelled` let the view distinguish an empty successful result from a connection failure, while one `SetResults` message collapses those meanings.
 
-### Subscriptions own external event lifecycles {#subscriptions}
+### Subscriptions manage external event lifecycles {#subscriptions}
 
 Timers, WebSockets, browser observers, and global event sources can emit independently of a command. Elmish subscriptions associate those sources with model-dependent identities and start or stop them as the program changes.
 
@@ -285,7 +266,7 @@ type RemoteData<'value> =
 
 When a completion message arrives, `update` accepts it only if its ID still matches the active request. Cancellation through `AbortController` can save work, but the identity check remains necessary because cancellation can race, be unsupported, or arrive after completion.
 
-Model debouncing separately from network state. A timer generation, requested query, active request, visible result, and validation message are different facts; compressing them into `bool isLoading` loses the evidence needed to resolve races.
+Model debouncing separately from network state. Timer generation, requested query, active request, visible result, and validation message are different facts. Compressing them into `bool isLoading` loses the information needed to resolve races.
 
 ## Elmish is not a renderer {#renderers}
 
@@ -304,7 +285,7 @@ These tools solve different problems:
 
 Adding all four is not automatically more functional. For a small isolated component, Feliz hooks may be enough. For application-wide workflows and coordinated effects, Elmish may help. For one counter, the browser sample's direct DOM shell is easier to audit.
 
-The Fable.React package page itself recommends Feliz for new React projects because Fable.React is less actively maintained. Treat that as current maintainer guidance, not a reason to rewrite a stable application without migration evidence.
+The Fable.React package page recommends Feliz for new React projects because Fable.React is less actively maintained. Treat that as current maintainer guidance, not a reason to rewrite a stable application without migration checks.
 
 ### Other renderers and direct bindings {#other-renderers}
 
@@ -314,11 +295,11 @@ Keep renderer values out of domain and application modules. That makes a rendere
 
 ## Scale an Elmish model without creating one giant update {#elmish-composition}
 
-Split by cohesive feature state and message ownership, not by arbitrary “models,” “views,” and “updates” folders. A feature can expose its `Model`, `Msg`, `init`, `update`, and view boundary. A parent wraps child messages and maps child commands back to the parent message type.
+Split by cohesive features and clear message responsibility, not by arbitrary “models,” “views,” and “updates” folders. A feature can expose its `Model`, `Msg`, `init`, `update`, and view boundary. A parent wraps child messages and maps child commands back to the parent message type.
 
-The parent owns cross-feature decisions. A child should not reach sideways into another feature's mutable store. If two features must coordinate, model a parent message or a shared domain transition rather than constructing a hidden event bus.
+The parent coordinates cross-feature decisions. A child should not reach sideways into another feature's mutable store. If two features must coordinate, model a parent message or a shared domain transition rather than constructing a hidden event bus.
 
-Do not put every cached response, text field, modal, route, and transient hover in one global model. Keep state at the narrowest lifetime that needs coordination. Conversely, duplicating authoritative booking state across components creates reconciliation work; choose one owner.
+Do not put every cached response, text field, modal, route, and transient hover in one global model. Keep state at the narrowest lifetime that needs coordination. Conversely, duplicating authoritative booking state across components creates reconciliation work; choose one source of truth.
 
 ### Make impossible UI states difficult to express {#ui-state-modeling}
 
@@ -337,13 +318,13 @@ This model cannot be both submitting and accepted. It also preserves the draft o
 
 Form typing needs restraint. Raw text belongs in editing state because partially typed numbers and dates are not yet domain values. Parse and validate at a deliberate transition; do not force every keystroke into a domain type or postpone all validation until the server responds.
 
-### Let the URL own navigable state {#routing}
+### Let the URL carry navigable state {#routing}
 
-If a state should survive reload, deep link, history navigation, or sharing, decide whether the URL owns it. Parse the route into a validated application case and render unknown routes explicitly. Do not maintain unrelated copies in router state, global model, and component state without a synchronization rule.
+If a state should survive reload, deep links, history navigation, or sharing, decide whether it belongs in the URL. Parse the route into a validated application case and render unknown routes explicitly. Do not maintain unrelated copies in router state, the global model, and component state without a synchronization rule.
 
 Client-side routing requires hosting fallback configuration. The browser sample is an MPA with one entry and deliberately does not verify SPA rewrites. A bundle that works on `/` may still return 404 when a user directly requests `/bookings/42` from static hosting.
 
-## Build a browser evidence ladder {#testing}
+## Test the browser application at several levels {#testing}
 
 Use several layers because each catches a different class of mistake.
 
@@ -351,7 +332,7 @@ Use several layers because each catches a different class of mistake.
 
 Test `update`, validation, routing parsers, reducers, encoders, and derived view data without a browser where possible. Assert next model and emitted effect descriptions for success, invalid input, repeated input, stale messages, retries, and cancellation messages.
 
-If the same source is meant to run on .NET and JavaScript, run it on both targets for semantic hotspots. A .NET-only test proves source logic under the CLR, not the generated JavaScript representation.
+If the same source must run on .NET and JavaScript, test semantic hotspots on both targets. A .NET-only test covers CLR behavior, not the generated JavaScript.
 
 ### Binding and component tests {#binding-tests}
 
@@ -385,7 +366,7 @@ vite build
 vite preview
 ```
 
-After starting the preview server, inspect the production bundle in a real browser and automate that check when the risk justifies it. A development-server path is not evidence for the production bundle.
+After starting the preview server, inspect the production bundle in a real browser and automate the check when risk justifies it. A development-server run does not verify the production bundle.
 
 ### Deploy the artifact, not the development topology {#static-deployment}
 
@@ -429,10 +410,10 @@ Use one representative vertical slice:
 - one authenticated HTTP call with declared error mapping;
 - one accessible keyboard flow and one narrow-screen layout;
 - locked NuGet/npm restore, production bundle, static serve, and Chrome smoke;
-- bundle, interaction, memory, diagnostics, CSP, and source-map evidence;
+- bundle, interaction, memory, diagnostics, CSP, and source-map checks;
 - one dependency upgrade and a documented rollback/deletion path.
 
-Compare plain Fable, Elmish, and the required renderer on the same slice. Count concepts, dependencies, lifecycle code, tests, build steps, and operational ownership—not just view syntax.
+Compare plain Fable, Elmish, and the required renderer on the same slice. Count concepts, dependencies, lifecycle code, tests, build steps, and operational responsibility—not just view syntax.
 
 Adopt the larger stack only when it removes more risk than it adds. Keep the losing spike small enough to delete, and keep domain code free of renderer types so reversal remains credible.
 
@@ -446,13 +427,13 @@ Adopt the larger stack only when it removes more risk than it adds. Keep the los
 - Putting effects inside `update` and then calling the function pure.
 - Modeling load, empty, error, cancelled, and stale states with one Boolean.
 - Cancelling a request without also rejecting late completion by identity.
-- Registering timers, sockets, or listeners repeatedly without disposal ownership.
+- Registering timers, sockets, or listeners repeatedly without a clear cleanup owner.
 - Choosing Elmish for trivial local state or refusing it after custom dispatch code becomes a framework.
 - Treating Elmish, React, Feliz, and Fable.Elmish.React as synonyms.
 - Sharing a server project that reads files, environment, threads, or databases with the browser target.
 - Testing only under the development server or only under .NET.
 - Querying DOM tests by CSS implementation details while missing roles, names, focus, and keyboard behavior.
-- Publishing a static bundle without base-path, direct-route, cache, CSP, MIME, and rollback evidence.
+- Publishing a static bundle without checking base paths, direct routes, caching, CSP, MIME types, and rollback.
 - Reading generated directory size as bundle size instead of measuring production transfer and execution.
 - Claiming a package option is supported because its current version page was reviewed but never built.
 
@@ -489,11 +470,11 @@ A team wants to share a server pricing project with a Fable checkout. It current
 - Client code, storage, configuration, and source maps cannot protect secrets from the user or injected script.
 - Direct DOM is a valid small choice; Elmish earns its loop through coordinated state, effects, subscriptions, and composition.
 - Elmish organizes state transitions; React renders; Feliz supplies a typed React API; Elmish.React connects the loop and renderer.
-- Commands expose effect ownership but do not remove failure, cancellation, or race semantics.
+- Commands expose side-effect responsibility but do not remove failure, cancellation, or race semantics.
 - Reject stale completions by identity even when cancellation exists.
 - Renderer choice does not automate semantic HTML, focus, keyboard behavior, or responsive layout.
 - Test pure logic, bindings, wire contracts, production assets, and real browser behavior at separate layers.
-- Static deployment still owns base paths, route fallback, MIME, caching, security headers, updates, and rollback.
-- Version metadata is dated evidence; only the browser sample plain-DOM slice is executed here.
+- Static hosting must still handle base paths, route fallback, MIME, caching, security headers, updates, and rollback.
+- Version metadata is a dated snapshot; only the browser sample's plain-DOM slice is executed here.
 
 Chapter 42 moves from a static browser artifact to deployed service topology: containers, cloud boundaries, serverless constraints, and .NET Aspire orchestration.

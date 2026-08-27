@@ -65,7 +65,7 @@ module EmailAddress =
     let value (EmailAddress address) = address
 ```
 
-`NormalizedText` is an ordinary implementation declaration, but omission from the matching signature makes it unavailable outside this implementation file. It could additionally be declared `private`; the signature omission is already sufficient for later consumers.
+`NormalizedText` is an implementation declaration, but omission from the matching signature makes it unavailable outside this file. It could also be declared `private`; signature omission is already sufficient for later consumers.
 
 The project order is `EmailAddress.fsi`, `EmailAddress.fs`, then any consuming file. Later files see the error cases, abstract type, `create`, and `value`. They do not see `NormalizedText` or the `EmailAddress` union case.
 
@@ -75,7 +75,7 @@ This example only checks blank text and the presence of `@`; it is not a claim t
 
 ### Replace construction with a workflow {#exercise-02-redesign}
 
-Assume `Capacity` and `SeatCount` are already protected types. The allocation surface can be:
+Assume `Capacity` and `SeatCount` are already protected types. The public allocation API can be:
 
 ```fsharp
 type AllocationError =
@@ -94,7 +94,7 @@ val allocate:
     Result<Allocation, AllocationError>
 ```
 
-There is no `unsafeCreate`. `allocate` is the only published producer, so the implementation can establish `remaining = capacity - requested` and refuse requests above capacity. Returning the protected component types from two accessors retains their existing proofs; returning an `int` for remaining seats is honest because zero is allowed.
+There is no `unsafeCreate`. `allocate` is the only published construction path, so it can establish `remaining = capacity - requested` and refuse requests above capacity. The first two accessors preserve their protected types and validated invariants. Remaining seats is an `int` because zero is valid.
 
 ### Keep the useful error transparent {#exercise-02-error}
 
@@ -148,7 +148,7 @@ let internal traceDecision decision =
 
 Now later files in the assembly can call it, while external assemblies cannot. Merely writing `internal` in `Library.fs` but omitting the value from `Library.fsi` leaves it hidden outside the implementation file, because the signature is the visible inventory.
 
-Do not broaden the helper just to make a white-box test easy. Prefer testing `apply` through its published decisions; widen visibility only when another real implementation consumer owns that dependency.
+Do not broaden the helper just to make a white-box test easy. Prefer testing `apply` through its published decisions. Widen visibility only when other implementation code genuinely depends on the helper.
 
 ## What to notice {#what-to-notice}
 

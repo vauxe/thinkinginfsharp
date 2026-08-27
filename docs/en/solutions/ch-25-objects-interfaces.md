@@ -43,7 +43,7 @@ assert (accepted = Ok { RequestId = "REQ-25"; Seats = 2 })
 assert (rejected = Error(NonPositiveSeats 0))
 ```
 
-The record exposes immutable product data and receives generated structural equality, which is exactly what this request needs. The module owns normalization and expected validation without turning construction into exception control flow.
+The record exposes immutable product data and receives generated structural equality, which is exactly what this request needs. The module handles normalization and expected validation without turning construction into exception control flow.
 
 A class would become justified if each request had reference identity, protected evolving state, an owned disposable resource, required virtual/interface dispatch, or a framework base-class contract. Merely preferring property-call syntax would not be enough.
 
@@ -80,7 +80,7 @@ assert (functionTotal = 45M)
 assert (interfaceTotal = functionTotal)
 ```
 
-For an F#-only library with one stateless operation, `DiscountPolicy` is the smaller public boundary and composes directly. The interface becomes reasonable when an existing .NET framework expects it, other .NET languages need a member-shaped contract, several related operations belong together, or implementations own identity/lifetime and must be selected by runtime dispatch.
+For an F#-only library with one stateless operation, `DiscountPolicy` is the smaller public boundary and composes directly. Use an interface when a .NET framework expects one or other languages need a member-based contract. It also fits related operations or stateful implementations selected through runtime dispatch.
 
 The object expression is local and contains one forwarding member. If the policy acquired collaborators, caches, disposal, or substantial rules, a named implementation would make those responsibilities visible.
 

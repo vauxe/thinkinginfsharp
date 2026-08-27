@@ -6,13 +6,13 @@ translationKey: solutions/ch-23-cancellation-timeouts
 
 # 第 23 章练习答案 {#overview}
 
-这些答案检验所有权决策，而不依赖等待多久。记录的令牌证明传播；显式任务表示调用方和截止信号；异步可释放闩锁证明清理确实被等待。
+这些答案检验取消责任，而不依赖等待时长。记录令牌可以验证传播，受控任务分别表示调用方取消和截止信号，异步可释放闩锁则确认程序确实等待清理。
 
 [返回第 23 章](../part-04/ch-23-cancellation-timeouts)。
 
 ## 练习 1：找到断裂的令牌链 {#exercise-01}
 
-### 记录精确令牌 {#exercise-01-recording}
+### 记录实际传入的令牌 {#exercise-01-recording}
 
 ```fsharp
 open System.Threading
@@ -61,15 +61,15 @@ assert (seen |> Seq.forall (fun (_, token) -> token = owner.Token))
 owner.Dispose()
 ```
 
-上面的 `.Result` 只是紧凑的同步测试边界。在 `confirmBooking` 内部，两个调用都被异步等待，并收到调用方的精确令牌。
+上面的 `.Result` 只是紧凑的同步测试边界。在 `confirmBooking` 内部，两个调用都被异步等待，并收到调用方传入的同一个令牌。
 
 错误版本会把 `CancellationToken.None` 传给 `Notify`。记录测试应断言两个条目都等于 `owner.Token`；第二个条目就会使断言失败。即使替身完成得太快、取消行为无法暴露问题，测试令牌身份仍能发现断开的传播链。
 
 ### 围绕提交点放置检查 {#exercise-01-commit}
 
-如果请求已经放弃就不应开始扣款，应在扣款前检查取消；若支付 API 定义了安全取消，也应传播令牌。提供方一旦确认不可逆扣款，返回整体已取消结果可能会隐藏已经提交的效果。
+若请求已放弃，就不应开始扣款，因此要在扣款前检查取消；若支付 API 支持安全取消，也应继续传递令牌。提供方一旦确认不可逆扣款，再返回整体“已取消”会隐藏已经提交的副作用。
 
-生产工作流应先持久化收据或已提交状态，再处理可选通知。通知可以有自己的重试或取消策略，返回模型也可以区分 `ConfirmedButNotificationPending`。这个简单函数证明令牌接线，并不是完整的支付一致性协议。
+生产工作流应先持久化收据或已提交状态，再处理可选通知。通知可以有自己的重试或取消策略，返回模型也可以区分 `ConfirmedButNotificationPending`。这个简单函数只验证令牌传递，不是完整的支付一致性协议。
 
 ## 练习 2：实现两种超时策略 {#exercise-02}
 
@@ -118,9 +118,9 @@ operation.SetResult("owned-elsewhere")
 assert (operation.Task.GetAwaiter().GetResult() = "owned-elsewhere")
 ```
 
-超时结束的是这次观察，而不是操作。必须有另一个所有者保留并观察 `operation.Task`。
+超时只结束这次等待，不会停止操作。必须由另一个组件保留并观察 `operation.Task`。
 
-### 请求停止拥有的工作 {#exercise-02-cancel}
+### 请求取消该操作 {#exercise-02-cancel}
 
 ```fsharp
 let startCooperating (token: CancellationToken) =
@@ -164,9 +164,9 @@ caller3.SetResult()
 assert (canceled.GetAwaiter().GetResult() = Error CallerCanceled)
 ```
 
-胜出信号会在调用 `operationSource.Cancel()` 前分类，所以类型化原因保持确定。辅助函数会等待协作式操作确认取消后再返回，因此清理位于所拥有的生命周期内。
+程序会先判断哪个信号胜出，再调用 `operationSource.Cancel()`，因此返回原因保持确定。辅助函数会等待协作式操作确认取消后再返回，所以清理仍发生在该函数管理的生命周期内。
 
-真实代码中，应把操作源链接到实际调用方令牌，或显式注册它。应决定调用方取消是否应表现为任务取消，而不是类型化 `Error`；两种契约都可能有效，但不要不可预测地混用。
+真实代码中，应把操作源链接到实际调用方令牌，或主动注册回调。还要决定调用方取消应表现为任务取消，还是类型化 `Error`。两种契约都可能有效，但不能混用得不可预测。
 
 ## 练习 3：审计异步清理 {#exercise-03}
 
@@ -219,16 +219,16 @@ let run
 
 ### 让清理失败可见 {#exercise-03-cleanup-fault}
 
-修改 `DisposeAsync`，让它在闩锁之后抛出 `IOException("dispose-fault")`。主体成功时，调用方会观察到清理故障。主体已经故障时，清理机制通常会让清理故障成为可见异常；请验证你实际交付的构建器与运行时版本的精确行为。
+修改 `DisposeAsync`，让它在闩锁之后抛出 `IOException("dispose-fault")`。主体成功时，调用方会观察到清理故障。主体已经故障时，清理机制通常会让清理故障成为可见异常；请用实际交付的构建器与运行时版本验证具体行为。
 
 如果两个原因对运维都重要，就在能保留两者的边界捕获：清理前记录主体失败，然后把它与清理失败一起记录或聚合。不要盲目重试释放，也不要只返回一条消息字符串。资源契约决定重复释放是否安全。
 
 ## 答案复盘 {#solution-review}
 
-- 记录精确令牌无需时间竞争即可测试传播。
+- 记录实际令牌，无需制造时间竞争即可测试传播。
 - 取消位置必须尊重不可逆提交点。
 - 截止信号与调用方信号在请求停止工作前保持不同。
-- 放弃等待要求另有所有者负责继续运行的工作及其最终故障。
+- 放弃等待后，必须由另一个组件观察继续运行的工作及其最终故障。
 - 取消工作会等待协作式确认与清理。
 - 编译的 task `use` 会在每种主体退出路径上等待 `IAsyncDisposable.DisposeAsync`。
-- 已有另一个失败时，清理失败需要显式诊断策略。
+- 已有另一个失败时，清理失败需要明确的诊断策略。

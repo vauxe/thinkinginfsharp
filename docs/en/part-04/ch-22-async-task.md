@@ -6,24 +6,9 @@ translationKey: part-04/ch-22-async-task
 
 # Chapter 22: `Async<'T>` and `Task<'T>` {#overview}
 
-A booking service asks a remote price provider for a quote. The answer arrives later, but the calling thread should remain available. Two F# values can describe the eventual answer: an F# asynchronous computation, `Async<Quote>`, or a .NET task, `Task<Quote>`. Their result types look similar; their start semantics and ecosystem boundaries are not.
+A booking service asks a remote price provider for a quote. The answer arrives later, but the calling thread should remain available. Two F# values can represent that eventual answer: an F# asynchronous computation, `Async<Quote>`, or a .NET task, `Task<Quote>`. Their result types look similar, but their start behavior and surrounding APIs differ.
 
-This chapter begins with ownership rather than syntax. Who creates the work? When does it start? Who waits for and observes the outcome? Once those answers are explicit, `async {}` and `task {}` become two precise tools instead of interchangeable punctuation.
-
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- read `Async<'T>` as a composable description that needs an explicit start;
-- read the result of an evaluated F# `task {}` expression as an already-started .NET task;
-- avoid the inaccurate shortcut that every possible `Task` is inherently “hot”;
-- use `let!`, `do!`, `return`, and `return!` to sequence later results;
-- distinguish asynchronous waiting from parallel CPU execution;
-- convert `Async<'T>` to `Task<'T>` and await a task from `Async<'T>`;
-- choose one representation at a boundary and avoid conversion ping-pong;
-- keep blocking waits at deliberate process or test boundaries;
-- prove start timing with signals instead of guessed delays;
-- make start and outcome ownership visible in an API.
+Begin with responsibilities rather than syntax. Who creates the work? When does it start? Who awaits and handles the outcome? Once those answers are clear, `async {}` and `task {}` become distinct tools instead of interchangeable punctuation.
 
 ## A later result has more than a value type {#three-questions}
 
@@ -31,7 +16,7 @@ For any operation that completes later, ask three questions:
 
 1. **Description:** is this value a reusable description or a handle for one execution?
 2. **Start:** does construction defer work, or did evaluating the expression start it?
-3. **Observation:** which owner awaits success, failure, or cancellation?
+3. **Observation:** who awaits and handles success, failure, or cancellation?
 
 `Async<'T>` and `Task<'T>` both carry an eventual `'T`, but they answer the first two questions differently:
 
@@ -40,7 +25,7 @@ For any operation that completes later, ask three questions:
 | `async { ... } : Async<'T>` | A description of a computation | A caller uses an `Async` starting function or another workflow starts it |
 | evaluated `task { ... } : Task<'T>` | A handle for that task-expression execution | Evaluation starts it immediately |
 
-This table is deliberately narrow. A .NET `Task` can also be created through lower-level APIs, including a constructor that has not yet been scheduled. The reliable claim is about an F# **task expression**: when evaluated, it starts immediately and runs on the current thread until its first incomplete asynchronous operation.
+This table is deliberately narrow. Lower-level APIs can also create a .NET `Task`, including through a constructor whose task has not yet been scheduled. The stated behavior applies to an F# **task expression**: evaluation starts it immediately, and it runs on the current thread until its first incomplete asynchronous operation.
 
 Neither representation promises a new thread. Asynchrony means the caller need not block while work is pending. Concurrency and parallelism are scheduling choices covered in Chapter 24.
 
@@ -74,11 +59,11 @@ let asyncResult = runningAsync.GetAwaiter().GetResult()
 assert (asyncResult = "async-done")
 printfn "Async result: %s" asyncResult
 ```
-Constructing `deferredAsync` does not set `asyncEntered`. The first assertion therefore observes a fact, not a race. `Async.StartAsTask deferredAsync` is the explicit start boundary and returns a task that represents this execution. Waiting for the entry signal proves the body has begun. The release signal is still closed, so the returned task must remain incomplete.
+Constructing `deferredAsync` does not set `asyncEntered`, so the first assertion observes a fact rather than a race. `Async.StartAsTask deferredAsync` starts the computation and returns a task for this execution. Waiting for the entry signal proves that the body has begun. Because the release signal is still closed, the returned task remains incomplete.
 
-An `Async<'T>` value may be started again. Each start performs a new execution, including its effects. That repeatability is useful for composition, but it is not automatic memoization. If charging a card must happen once, do not expose a freely restartable value without an ownership or idempotency policy.
+An `Async<'T>` value may be started again. Each start creates a new execution and repeats its side effects. That repeatability helps composition, but it is not automatic memoization. If a card must be charged only once, define who may start the work or make the operation idempotent before exposing a restartable value.
 
-Common starting functions have different contracts:
+Common starting functions behave differently:
 
 | Operation | Result | Caller behavior |
 |---|---|---|
@@ -86,11 +71,11 @@ Common starting functions have different contracts:
 | `Async.RunSynchronously work` | `'T` | Starts and blocks the current caller until completion |
 | `Async.Start work` for `Async<unit>` | `unit` | Starts without returning a completion handle |
 
-Prefer an observable handle or structured parent workflow. Fire-and-forget `Async.Start` makes exception observation and lifetime ownership easy to lose. `Async.RunSynchronously` is suitable at a script or executable boundary when blocking is intentional; it should not be sprinkled through a server request path or UI handler.
+Prefer a completion handle or a parent workflow that awaits the operation. Fire-and-forget `Async.Start` makes it easy to lose exceptions and let work outlive its caller. `Async.RunSynchronously` suits a script or program entry point where blocking is intentional; do not scatter it through server request paths or UI handlers.
 
 ## `task {}` starts when the expression is evaluated {#task-start}
 
-The second half uses the same experimental shape:
+The second half uses the same test setup:
 
 ```fsharp:line-numbers [ch22-async-task.fsx]
 let taskEntered = newGate<bool> ()
@@ -133,7 +118,7 @@ let fetchQuote requestId =
 
 A module-level binding such as `let quoteTask = fetchQuote "R-22"` instead stores the one task that was started while the module initialized. Later consumers share that execution and result. Choose a factory or a shared task deliberately.
 
-## Computation-expression syntax sequences context {#workflow-syntax}
+## Computation expressions define operation order {#workflow-syntax}
 
 Inside either computation expression:
 
@@ -143,7 +128,7 @@ Inside either computation expression:
 - `return value` supplies the workflow result;
 - `return! computation` delegates the workflow result to another computation.
 
-For example, a task-native .NET boundary can remain task-native:
+For example, code around a task-based .NET API can stay task-based:
 
 ```fsharp
 let quoteAndReserve fetchQuote reserve request =
@@ -154,11 +139,11 @@ let quoteAndReserve fetchQuote reserve request =
     }
 ```
 
-The second operation starts only after the first produces `quote`; the code is sequential. Syntax that looks top-to-bottom does not automatically make independent calls concurrent. Start only the concurrency the requirement permits, and keep rate limits, partial failure, and cancellation in view.
+The second operation starts only after the first produces `quote`, so this code is sequential. Top-to-bottom syntax does not automatically make independent calls concurrent. Introduce concurrency only where requirements allow it, while accounting for rate limits, partial failure, and cancellation.
 
-Waiting with `let!` yields control according to the workflow and awaited operation. Reading `.Result`, calling `.Wait()`, or using `GetAwaiter().GetResult()` blocks the current thread. The shared script uses the last form only at its top-level test boundary so the process stays alive and can assert results; application workflows should continue with `let!`.
+Waiting with `let!` yields control according to the workflow and awaited operation. Reading `.Result`, calling `.Wait()`, or using `GetAwaiter().GetResult()` blocks the current thread. The shared script uses the last form only in its outer test harness, keeping the process alive for assertions; application workflows should continue with `let!`.
 
-## Interoperate once at the boundary {#interop}
+## Convert once where the two models meet {#interop}
 
 The platform exposes many `Task<'T>` APIs, while existing F# libraries and codebases may expose `Async<'T>`. Conversion is explicit:
 
@@ -176,9 +161,9 @@ printfn "Interop: async-to-task=%d task-to-async=%d" fromAsync fromTask
 ```
 `Async.StartAsTask` both starts the async computation and returns a task. `Async.AwaitTask` returns an async computation that will wait for the supplied task when that async computation is started; it does not rewind or delay a task that is already running.
 
-An F# task expression can also bind an `Async<'T>` directly with `let!`. Use the form that keeps the surrounding workflow coherent. Exception and cancellation details at this bridge are observable contract details, not mere type conversions; Chapter 23 tests them explicitly.
+An F# task expression can also bind an `Async<'T>` directly with `let!`. Choose the form that keeps the surrounding workflow consistent. At this conversion point, exception and cancellation behavior affects callers; it is not merely a type conversion. Chapter 23 tests that behavior.
 
-A useful boundary rule is:
+A useful rule at integration points is:
 
 ```text
 external Task API → adapt once if needed → one internal workflow style
@@ -187,7 +172,7 @@ external Task API → adapt once if needed → one internal workflow style
 
 Repeated `Async` → `Task` → `Async` conversion obscures which call starts work and which cancellation policy is active.
 
-## Choose from the surrounding contract {#choice}
+## Choose for the surrounding API {#choice}
 
 There is no universal winner:
 
@@ -196,13 +181,13 @@ There is no universal winner:
 | ASP.NET Core or a public .NET API | `Task<'T>` / `task {}` | The host and most .NET libraries already exchange tasks |
 | F# code centered on `Async` combinators | `Async<'T>` / `async {}` | Deferred descriptions compose naturally before one explicit start |
 | Existing dependency returns one representation | That representation | Avoid adapters that add no policy |
-| Caller must decide whether work starts | `Async<'T>` or an explicit factory | Construction can remain separate from execution |
+| Caller must decide whether work starts | `Async<'T>` or a factory function | Construction can remain separate from execution |
 | One execution should be shared | A deliberately stored `Task<'T>` | The value names that execution and eventual outcome |
 | CPU-bound calculation | Neither by itself | Measure and choose explicit scheduling or parallel tools |
 
-Task expressions are normally the direct choice for new code that interoperates extensively with task-based .NET APIs. `Async` remains useful when its deferred model, combinators, asynchronous tail calls, or implicit cancellation-token flow is part of the design. Cancellation differences are deferred to the next chapter so the choice is not reduced to a slogan.
+Task expressions are usually the direct choice for new code that works extensively with task-based .NET APIs. `Async` remains useful when the design relies on its deferred model, combinators, asynchronous tail calls, or implicit cancellation-token flow. The next chapter covers cancellation differences so this choice does not collapse into a slogan.
 
-Do not add a wrapper interface merely to hide `Task` or `Async`. Abstract the meaningful operation—such as `QuoteRequest -> Task<Quote>`—when tests or architectures need a port. The eventual-result carrier can stay visible.
+Do not add a wrapper interface merely to hide `Task` or `Async`. When tests or architecture need a replaceable dependency, abstract the meaningful operation, such as `QuoteRequest -> Task<Quote>`. Its eventual-result type can remain visible.
 
 ## Test state transitions, not elapsed time {#deterministic-testing}
 
@@ -224,7 +209,7 @@ From the directory containing the example:
 dotnet fsi --exec ch22-async-task.fsx
 ```
 
-Six deterministic lines prove construction versus start, suspension before completion, eventual results, and both interoperability directions. Compare their exact order.
+Six deterministic lines demonstrate construction versus start, suspension before completion, eventual results, and conversion in both directions. Compare their order.
 
 ## Exercises {#exercises}
 
@@ -250,7 +235,7 @@ val refreshAgain : unit -> Task<Snapshot>
 val prepareRefresh : unit -> Async<Snapshot>
 ```
 
-For each, state whether callers share an execution, create and immediately start one, or create a deferred description. Choose the safest contract for a refresh that may be retried but must not overlap, and describe the missing concurrency policy.
+For each API, state whether callers share an execution, create and immediately start one, or create a deferred description. Choose the safest API for a refresh that may be retried but must not overlap, and describe the concurrency rule still required.
 
 [Read the chapter solutions](../solutions/ch-22-async-task).
 
@@ -262,7 +247,7 @@ For each, state whether callers share an execution, create and immediately start
 - That statement is about task expressions, not every object that inherits `Task`.
 - `let!` waits without intentionally blocking the current thread; `.Result` and `.Wait()` block it.
 - Asynchrony alone guarantees neither a new thread, concurrency, nor CPU parallelism.
-- Convert once at a real boundary and keep start, cancellation, failure, and observation ownership visible.
+- Convert once where APIs meet, and make responsibility for start, cancellation, failure, and observation clear.
 - Deterministic signals prove ordering; arbitrary sleeps only guess.
 
 The next chapter carries these start models into cancellation, timeout, fault propagation, and resource release on every completion path.

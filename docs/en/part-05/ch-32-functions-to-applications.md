@@ -6,26 +6,11 @@ translationKey: part-05/ch-32-functions-to-applications
 
 # Chapter 32: From Functions to Applications {#overview}
 
-A pure function decides what should happen. A running application additionally obtains configuration, calls storage or networks, propagates cancellation, reports outcomes, and releases owned resources. Those responsibilities form a boundary around the functional core.
+A pure function decides what should happen. A running application must also load configuration, call storage or networks, propagate cancellation, report outcomes, and release resources. These responsibilities form the application shell around the functional core.
 
-This chapter builds the smallest useful boundary around the booking workflow developed earlier. The executable console application uses ordinary F# values and one composition root, with explicit construction and local instrumentation. A stronger host earns its place when configuration layering, lifecycle scopes, background workers, or framework integration become demonstrated requirements.
+The example builds the smallest useful shell around the earlier booking workflow. Its console application uses plain F# values, one composition root, direct construction, and local instrumentation. A stronger host becomes worthwhile when the process truly needs layered configuration, lifecycle scopes, background workers, or framework integration.
 
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- distinguish a pure domain workflow, application orchestration, adapters, a composition root, and a process host;
-- derive narrow effect ports from what the workflow needs rather than from a framework;
-- turn untrusted configuration text into validated domain values before starting work;
-- propagate one `CancellationToken` across every cancellable port call;
-- state who owns each `IDisposable` resource and when that ownership ends;
-- emit a structured event, one low-cardinality metric, and one trace activity;
-- distinguish instrumentation from collection, export, storage, dashboards, and alerts;
-- test wiring and observability without making domain decisions impure;
-- recognize what this sample proves and which production guarantees it deliberately lacks;
-- decide when explicit construction is enough and when the .NET Generic Host earns its cost.
-
-## See one application as several boundaries {#application-boundaries}
+## See one application as several layers {#application-boundaries}
 
 “The application” is too coarse a unit for reasoning. Separate responsibilities by the kinds of facts they know:
 
@@ -54,9 +39,9 @@ process input
   -> dispose owned resources
 ```
 
-This is a sequence, not a claim that every step belongs in one function. It exposes the seams at which tests, failures, and ownership can be discussed.
+This sequence does not imply that every step belongs in one function. It shows where to discuss tests, failures, and resource responsibility separately.
 
-## Derive ports from required effects {#derive-ports}
+## Derive dependencies from required side effects {#derive-ports}
 
 Start with the pure workflow's inputs and output. `decidePlaceBooking` needs an `Event`, current `BookingState`, and `PlaceBookingCommand`; it returns `Result<BookingEvent, PlaceBookingError>`. A running application must therefore obtain the current state and persist an accepted event. Those are the two effect capabilities in the sample:
 
@@ -75,15 +60,15 @@ type BookingLog =
 ```
 The record contains functions, not implementation classes. Each signature says something useful:
 
-- `RequestId` is already a validated domain value at the storage boundary;
-- `CancellationToken` is an explicit input to every potentially blocking operation;
-- `Task<'T>` admits asynchronous completion and faults at the .NET boundary;
-- `AppendEvent` returns `Task<unit>` because the application needs completion, not a storage-shaped response;
-- `OwnedResource` makes this sample's ownership transfer visible.
+- `RequestId` reaches storage only after domain validation;
+- every potentially blocking operation receives a `CancellationToken`;
+- `Task<'T>` represents asynchronous completion and .NET faults;
+- `AppendEvent` returns `Task<unit>` because the application needs completion, not storage-specific response data;
+- `OwnedResource` identifies the resource that the application must dispose.
 
-Do not create one port per method merely to imitate an interface-heavy architecture. Group capabilities that share one coherent adapter and lifecycle; split them when callers, failure policies, security boundaries, or lifetimes actually differ. A record of functions is convenient for small F#-facing boundaries and test doubles. An interface may be more appropriate for C# consumers, framework activation, or a stateful protocol.
+Do not create one port per method merely to imitate an interface-heavy architecture. Group operations that share one adapter and lifecycle; split them when callers, failure policies, security requirements, or lifetimes differ. A record of functions is convenient for a small F# API and its test doubles. An interface may suit C# callers, framework activation, or a stateful protocol better.
 
-The domain still owns the rule. A port named `CanBook` would push policy into storage; a port named `LoadBooking` supplies a fact that the pure function can interpret. Likewise, the adapter stores a `BookingEvent` rather than deciding whether a request is acceptable.
+The domain still defines the rule. A port named `CanBook` would push policy into storage; `LoadBooking` instead supplies a fact for the pure function to interpret. Likewise, the adapter stores a `BookingEvent` rather than deciding whether a request is acceptable.
 
 ## Treat configuration as untrusted input {#configuration}
 
@@ -129,24 +114,24 @@ module AppConfig =
 
     let event config = config.Event
 ```
-`AppConfig.load` accepts a lookup function instead of reading `Environment` directly. Production passes an environment lookup; the fixed demo and tests pass deterministic functions. This tiny seam avoids global mutation and does not require a configuration framework.
+`AppConfig.load` accepts a lookup function instead of reading `Environment` directly. Production passes an environment lookup; the fixed demo and tests pass deterministic functions. This injected lookup avoids global mutation without requiring a configuration framework.
 
 The loader accumulates independent errors for `BOOKING_EVENT_ID` and `BOOKING_CAPACITY`. If both are wrong, an operator can repair both before the next start. Parsing an integer is only the representation step; `Capacity.create` enforces the domain rule that capacity must be positive. The private `AppConfig` record prevents later code from constructing an unvalidated configuration record directly.
 
-Configuration policy still needs deliberate choices:
+Configuration still requires several decisions:
 
 - define source precedence instead of relying on accidental call order;
 - fail startup for missing settings required by every request;
 - validate ranges, formats, and cross-field rules, not only parsability;
 - never print secret values in an error, log, metric tag, or trace tag;
-- decide explicitly whether a setting is a startup snapshot or can reload;
+- decide whether a setting is a startup snapshot or can reload;
 - test the effective configuration of the published process.
 
 The broader .NET configuration system unifies providers such as JSON, environment variables, command-line arguments, in-memory values, and secret stores behind `IConfiguration`. Use it when provider layering and framework integration are requirements. It does not replace conversion into domain-specific validated types.
 
 ## Keep construction in one composition root {#composition-root}
 
-A composition root is the outermost place that selects concrete dependencies and establishes ownership. In the sample, the reusable construction function remains deliberately unsurprising:
+A composition root is the outermost place that selects concrete dependencies and assigns cleanup responsibility. In the sample, the reusable construction function remains intentionally simple:
 
 ```fsharp:line-numbers [Composition.fs]
 module Composition =
@@ -155,13 +140,13 @@ module Composition =
 ```
 `Program` performs the remaining process-specific work: choose the lookup, install demo listeners, construct the in-memory store, create the application, run one command, and translate the result to output and an exit code. Domain modules contain none of those choices.
 
-Manual construction is dependency injection in the literal sense: dependencies arrive as arguments. A DI container automates registration, resolution, scopes, and disposal; it is not the source of inversion of control. Keeping a composition root remains valuable even when a container later performs the construction.
+Manual construction is dependency injection in its literal sense: dependencies arrive as arguments. A DI container automates registration, resolution, scopes, and disposal; it does not create inversion of control. A visible composition root remains valuable even when a container later performs the construction.
 
-Avoid resolving dependencies from a global service locator inside domain or application functions. That hides requirements from signatures, makes lifetime ambiguous, and forces tests to recreate ambient state. Explicit arguments make the dependency graph reviewable.
+Avoid resolving dependencies from a global service locator inside domain or application functions. That hides requirements from signatures, makes lifetimes ambiguous, and forces tests to recreate ambient state. Function arguments make the dependency graph visible.
 
 ## Orchestrate effects around the pure decision {#orchestration}
 
-The application method owns sequencing while reusing the existing domain workflow:
+The application method controls sequencing while reusing the existing domain workflow:
 
 ```fsharp:line-numbers [Composition.fs]
 member _.Place(command: PlaceBookingCommand, cancellationToken: CancellationToken) =
@@ -208,7 +193,7 @@ member _.Place(command: PlaceBookingCommand, cancellationToken: CancellationToke
 Read the method in order:
 
 1. Reject use after disposal and start an optional activity.
-2. Observe cancellation before invoking a port.
+2. Observe cancellation before invoking a dependency.
 3. Validate the raw command so storage receives a typed `RequestId`.
 4. Load the current state with the caller's token.
 5. Call `decidePlaceBooking` for the domain decision.
@@ -217,21 +202,21 @@ Read the method in order:
 8. Observe cancellation or an unexpected fault, then rethrow it.
 9. Dispose the activity in `finally`, including every exit path.
 
-The standalone domain function validates the command again. That repeats a cheap pure operation but not the validation rule: both calls use `validatePlaceBooking`. The first obtains a typed key before an effect; the public workflow remains safe when called independently. A later public API could expose a workflow that accepts `ValidPlaceBooking`, but only if that boundary improves the whole model.
+The standalone domain function validates the command again. This repeats a cheap pure operation, not the rule itself: both calls use `validatePlaceBooking`. The first obtains a typed key before a side effect; the public workflow remains safe when called independently. A later API could accept `ValidPlaceBooking`, but only if that change improves the whole model.
 
 Expected business refusal remains `Error PlaceBookingError`. Cancellation remains `OperationCanceledException`, so .NET callers and hosts recognize it as cancellation. An unexpected adapter fault remains a faulted task. Converting all three into one undifferentiated `Result` would erase operational meaning.
 
-The sample does not retry. A retry policy must know whether the operation is transient and whether an append is idempotent. Retrying an ambiguous write without an idempotency key can duplicate an event. Add policy at the boundary only after defining those semantics.
+The sample does not retry. A retry policy must know whether the failure is transient and whether append is idempotent. Retrying an ambiguous write without an idempotency key can duplicate an event. Add retries only after defining those semantics.
 
-## Make lifecycle ownership explicit {#lifecycle}
+## Assign each resource a clear lifetime {#lifecycle}
 
-Every disposable object needs one owner. “It will be collected” is not a lifetime rule: `Dispose` often releases handles, sockets, buffers, subscriptions, or telemetry state that garbage collection does not release promptly.
+Every disposable object needs one component responsible for it. “It will be collected” is not a lifetime rule: `Dispose` often releases handles, sockets, buffers, subscriptions, or telemetry state that garbage collection does not release promptly.
 
-The sample establishes this contract: `Composition.start` receives `BookingPorts`, and the resulting `BookingApplication` owns `ports.OwnedResource`. Disposing the application disposes that resource, its `ActivitySource`, and its `Meter` once. `Program` uses `use app = ...`, so normal completion and exceptions leave the scope through deterministic cleanup.
+Here, `Composition.start` receives `BookingPorts`, and the resulting `BookingApplication` becomes responsible for `ports.OwnedResource`. Disposing the application disposes that resource, its `ActivitySource`, and its `Meter` exactly once. `Program` uses `use app = ...`, so both normal completion and exceptions trigger deterministic cleanup.
 
-That contract is intentionally visible, but it is not universal:
+This lifetime rule is visible, but it is not universal:
 
-| Construction rule | Resource owner | Receiver action |
+| Construction rule | Responsible component | Receiver action |
 |---|---|---|
 | Application explicitly creates an adapter for its own lifetime | Application or enclosing composition root | Dispose after work drains |
 | Caller passes a shared adapter without transferring ownership | Caller | Receiver must not dispose it |
@@ -294,7 +279,7 @@ The activity records low-ambiguity tags and a status. Accepted and rejected deci
 
 Creating an `ActivitySource` supplies instrumentation. A collector such as OpenTelemetry then subscribes, samples, enriches, batches, and exports activities. The local `ActivityListener` proves that one activity stopped; production evidence must separately cover cross-process propagation, backend delivery, retention, and useful trace queries.
 
-## Read the fixed evidence narrowly {#fixed-evidence}
+## Interpret the fixed output narrowly {#fixed-evidence}
 
 Run the deterministic demonstration after the Release build:
 
@@ -312,11 +297,11 @@ trace: name=booking.place outcome=accepted
 lifecycle: store-disposed=true
 ```
 
-This proves that one fixed command passed through configuration, composition, the pure decision, the in-memory append, all three local observable signals, and deterministic disposal. Focused tests additionally prove independent configuration errors accumulate, the same cancellation token reaches both ports, one accepted event is appended, and a pre-canceled token calls no port.
+The output confirms that one fixed command passed through configuration, composition, the pure decision, the in-memory append, all three local signals, and deterministic disposal. Focused tests also show that independent configuration errors accumulate, the same cancellation token reaches both dependencies, one accepted event is appended, and a pre-canceled token calls neither dependency.
 
-This evidence covers in-process wiring only. External-backend delivery, durable storage, and capacity under concurrency each need integration evidence. Because `LoadBooking` and `AppendEvent` are separate operations, two callers can read the same state before either append. The in-memory adapter therefore serves as a wiring demonstration; a production store needs an atomic consistency boundary.
+These results cover only in-process wiring. External delivery, durable storage, and concurrent capacity each require integration tests. Because `LoadBooking` and `AppendEvent` are separate operations, two callers can read the same state before either appends. The in-memory adapter therefore demonstrates wiring; a production store must enforce consistency atomically.
 
-## Test the boundary without retesting the domain {#boundary-tests}
+## Test application responsibilities without retesting the domain {#boundary-tests}
 
 Application tests should observe responsibilities unique to the application layer:
 
@@ -324,16 +309,16 @@ Application tests should observe responsibilities unique to the application laye
 - invalid commands perform no storage effect;
 - accepted decisions append exactly one event;
 - rejected decisions append none;
-- the caller's cancellation token reaches every port;
-- pre-cancellation avoids calling a port and remains cancellation;
+- the caller's cancellation token reaches every dependency;
+- pre-cancellation avoids calling a dependency and remains cancellation;
 - adapter faults remain faults while emitting the chosen terminal signal;
 - each attempt emits exactly one terminal metric/log outcome;
 - an activity is stopped on every path when a listener samples it;
-- the declared owner disposes each owned resource once.
+- the responsible component disposes each resource exactly once.
 
-Keep domain rule examples and properties in domain tests. Boundary tests can use deterministic function records and tracking disposables rather than a real database or telemetry vendor. Separate integration tests should then prove each production adapter's protocol, serialization, and failure behavior.
+Keep domain examples and properties in domain tests. Application tests can use deterministic function records and tracking disposables instead of a real database or telemetry vendor. Separate integration tests should verify each production adapter's protocol, serialization, and failure behavior.
 
-Do not make every test assert every signal. One focused contract test can fix telemetry shape; most orchestration tests should emphasize effects and results. Otherwise an innocent wording change creates noise across the suite.
+Do not make every test assert every signal. One focused contract test can fix the telemetry schema; most orchestration tests should emphasize side effects and results. Otherwise an innocent wording change creates noise across the suite.
 
 ## Know when a stronger host is justified {#stronger-host}
 
@@ -348,58 +333,64 @@ The .NET Generic Host becomes useful when the process needs several standard fac
 - coordinated startup, shutdown signals, and graceful stopping;
 - framework integrations that already expect host services.
 
-For new non-web hosted applications, current .NET guidance recommends `Host.CreateApplicationBuilder`. Web applications normally use `WebApplicationBuilder`, which builds on related hosting facilities. Choosing either does not move domain rules into services or controllers. Preserve the pure workflow, narrow ports, typed configuration, and composition boundary.
+For new non-web hosted applications, current .NET guidance recommends `Host.CreateApplicationBuilder`. Web applications normally use `WebApplicationBuilder`, which builds on related hosting facilities. Choosing either does not move domain rules into services or controllers. Preserve the pure workflow, narrow dependencies, typed configuration, and one composition root.
 
 A container is valuable when it manages a real object graph and scopes. Adding it to resolve three obvious values usually increases indirection without solving a problem. Conversely, hand-building dozens of scoped services and shutdown callbacks can recreate a weaker container badly. Let dependency count, lifetime diversity, framework integration, and operational needs decide.
 
-## Review an application boundary {#review-checklist}
+## Review application wiring {#review-checklist}
 
 Before calling a host complete, ask:
 
 - Can the domain run without environment, network, filesystem, clock, or telemetry globals?
-- Does each effect appear in a port with domain-relevant inputs and explicit cancellation?
+- Does each side effect appear as a dependency with domain-relevant inputs and cancellation support?
 - Are external strings parsed into validated values before long-lived resources start?
 - Is there one visible composition root?
-- Does every disposable have exactly one documented owner?
+- Is one component responsible for disposing each resource?
 - Are business rejection, cancellation, and unexpected fault still distinguishable?
 - Do logs preserve fields and exclude secrets?
 - Are metric tag combinations bounded and operationally meaningful?
 - Can activities be absent without changing behavior?
 - Is instrumentation connected to a real collection/export path in production?
 - Are concurrency, idempotency, retry, and recovery guarantees stated rather than implied?
-- Does a stronger framework remove demonstrated lifecycle work rather than merely relocate it?
+- Does a stronger framework remove real lifecycle work rather than merely relocate it?
 
 ## Exercises {#exercises}
 
-### Exercise 1: derive ports and ownership {#exercise-01}
+### Exercise 1: derive dependencies and lifetimes {#exercise-01}
 
-A pure function `decideDispatch : Inventory -> Order -> Result<Dispatch, DispatchError>` is ready to run in a worker. Derive the minimum ports for loading inventory and committing a dispatch. State the types, cancellation behavior, expected error boundary, and owner of a disposable database session. Do not introduce a container.
+A pure function `decideDispatch : Inventory -> Order -> Result<Dispatch, DispatchError>` is ready to run in a worker. Derive the minimum dependencies for loading inventory and committing a dispatch. State their types, cancellation behavior, expected errors, and who disposes a database session. Do not introduce a container.
 
 ### Exercise 2: design three observable signals {#exercise-02}
 
-For the dispatch attempt, define one structured log event, one metric, and one activity. Choose names, fields or tags, and terminal outcomes. Identify which values are bounded, which are high-cardinality, and which may be sensitive. Explain what a local listener proves and what still needs a collector/exporter test.
+For the dispatch attempt, define one structured log event, one metric, and one activity. Choose names, fields or tags, and terminal outcomes. Identify which values are bounded, high-cardinality, or sensitive. Explain what a local listener verifies and what still requires a collector/exporter test.
 
 ### Exercise 3: choose a hosting level {#exercise-03}
 
-Choose between explicit construction and the Generic Host for: (a) a command that imports one file and exits, (b) a process running three background consumers with graceful shutdown, configuration layering, and logging providers, and (c) an ASP.NET Core API. Justify each choice and name the architectural boundaries that should remain unchanged.
+Choose between direct construction and the Generic Host for each case:
+
+- a command that imports one file and exits;
+- a process that runs three background consumers and needs graceful shutdown, layered configuration, and logging providers;
+- an ASP.NET Core API.
+
+Justify each choice and identify the architectural boundaries that should remain unchanged.
 
 [Read the chapter solutions](../solutions/ch-32-functions-to-applications).
 
 ## Model review {#model-review}
 
-- A functional core decides; an application boundary obtains facts and performs effects.
+- A functional core decides; the application shell obtains facts and performs side effects.
 - Ports describe required capabilities and domain-relevant data, not framework objects.
 - Configuration remains untrusted until parsing and domain validation succeed.
 - Manual construction is dependency injection; a container is optional automation.
-- One composition root makes implementations and ownership visible.
+- One composition root makes implementations and resource responsibilities visible.
 - Cancellation passes unchanged through every cancellable effect.
 - Business rejection, cancellation, and fault carry different operational meanings.
 - Every disposable has one owner; shutdown must drain work before disposal.
 - Logs, metrics, and traces answer different questions.
 - Instrumentation produces signals; listeners, collectors, exporters, storage, and alerts are separate concerns.
 - Metric dimensions must be bounded; per-request identifiers belong in controlled logs or traces, not metric tags.
-- The fixed demo proves wiring, not durability, atomicity, recovery, or backend delivery.
-- A stronger host is justified by real configuration, scope, worker, and shutdown needs.
+- The fixed demo demonstrates wiring, not durability, atomicity, recovery, or backend delivery.
+- Real configuration, scope, worker, and shutdown needs justify a stronger host.
 
 ## Part V checkpoint {#part-checkpoint}
 
@@ -409,7 +400,7 @@ Run the focused composition tests from the directory containing the example:
 dotnet test ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~Ch32CompositionTests
 ```
 
-Passing tests show that configuration errors accumulate, cancellation is observed before a port call, owned resources are disposed, and the sample emits its structured log, metric, and completed activity. They still prove only in-process wiring, not production export or durable delivery.
+Passing tests show that configuration errors accumulate, cancellation is observed before a dependency call, resources are disposed, and the sample emits its structured log, metric, and completed activity. They cover only in-process wiring, not production export or durable delivery.
 
 [Continue to Chapter 33](../part-06/ch-33-domain-language-model), where the capstone is rebuilt as one coherent application path.
 

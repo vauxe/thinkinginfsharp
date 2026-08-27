@@ -8,20 +8,7 @@ translationKey: part-03/ch-13-composition-pipeline-api
 
 Small functions become useful when their outputs fit the next function's inputs. You can write that connection as nested calls, apply one value through a pipeline, or compose a new reusable function. These are not three programming models; they are three views of the same applications.
 
-The shape of those calls also influences API design. A curried function whose primary data parameter comes last is easy to partially apply and pipe. But “always pipe” and “data must always be last” are poor substitutes for reading the call site. Some predicates, constructors, symmetric operations, and .NET methods are clearer as direct calls.
-
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- expand `|>` into ordinary application and `>>`/`<<` into nested calls;
-- distinguish applying a value now from creating a function for later;
-- derive a pipeline from repeated inner-to-outer calls;
-- derive forward and backward composition when intermediate types align;
-- order configuration and transformation parameters to support partial application;
-- identify APIs that require a lambda only because the flowing value is in the wrong position;
-- choose a direct call when a pipeline adds motion but no clarity;
-- avoid custom operators and point-free expressions that hide domain intent.
+The form of those calls also influences API design. A curried function whose primary data parameter comes last is easy to partially apply and pipe. But “always pipe” and “data must always be last” are poor substitutes for reading the call site. Some predicates, constructors, symmetric operations, and .NET methods are clearer as direct calls.
 
 ## Repeated nesting reveals a data path {#repeated-nesting}
 
@@ -67,9 +54,9 @@ The type between stages must fit. If `trimAttendee : BookingDraft -> BookingDraf
 
 Pipelines are ordinary application, not an effect system or automatic error propagation. Piping a `Result` into `Result.bind next` works because that function's final parameter is a result; `|>` itself knows nothing about `Ok` or `Error`.
 
-### Multi-line shape should expose stages {#pipeline-formatting}
+### A multi-line pipeline should expose its stages {#pipeline-formatting}
 
-For more than a very short expression, begin with the value and align one `|>` stage per line, as the shared script does. Name a stage when its lambda becomes long or when a debugger needs a meaningful boundary. A pipeline is readable because its transformations are visible, not because it minimizes characters.
+For more than a very short expression, begin with the value and put one `|>` stage on each line, as the shared script does. Name a stage when its lambda becomes long or you need to inspect it in a debugger. A pipeline is readable because its transformations are visible, not because it minimizes characters.
 
 ## Composition creates a function for later {#composition}
 
@@ -115,7 +102,7 @@ capSeats : int -> BookingDraft -> BookingDraft
 addChannel : string -> BookingDraft -> BookingDraft
 ```
 
-Configuration comes first; the primary flowing value comes last. Partial application turns `capSeats 4` and `addChannel "desk"` into `BookingDraft -> BookingDraft`, exactly the shape a pipeline or composition needs:
+Configuration comes first; the primary flowing value comes last. Partial application turns `capSeats 4` and `addChannel "desk"` into `BookingDraft -> BookingDraft`, exactly the function type a pipeline or composition needs:
 
 ```fsharp:line-numbers [ch13-composition-pipeline-api.fsx]
 let deskLabel =
@@ -137,7 +124,7 @@ A common F#-facing function order is:
 
 FSharp.Core illustrates it: `List.map mapping list`, `List.filter predicate list`, and `Option.defaultValue fallback option`. Supplying the early argument creates a function awaiting the data.
 
-If the draft came first—`capSeatsDataFirst draft maximum`—a pipeline would need `draft |> fun value -> capSeatsDataFirst value 4`. One lambda is not a disaster, but repeated adapter lambdas at every call site are evidence that an F#-facing API may have chosen an inconvenient order.
+If the draft came first—`capSeatsDataFirst draft maximum`—a pipeline would need `draft |> fun value -> capSeatsDataFirst value 4`. One lambda is harmless. Repeated adapter lambdas at every call site, however, suggest an inconvenient argument order for F# callers.
 
 ### Parameter order is not a universal law {#parameter-order-limits}
 
@@ -184,7 +171,7 @@ Before publishing an F# function, write three representative calls:
 2. one partially applied use reused across several values;
 3. one pipeline or composition in the intended workflow.
 
-If the signature makes the common call concise and the unusual call merely possible, it is probably well ordered. If every call needs flips, tuple adapters, or anonymous functions, revise the boundary before consumers depend on it.
+If the signature makes the common call concise and the unusual call merely possible, it is probably well ordered. If every call needs flips, tuple adapters, or anonymous functions, revise the API before consumers depend on it.
 
 Do not invent a custom symbolic operator for an operation that has a good domain name. `Booking.confirm code booking` is easier to search, document, and understand than an unexplained operator. The standard `|>`, `>>`, and `<<` already express application order.
 
@@ -242,7 +229,7 @@ Give a direct version and a pipeline version with one meaningful intermediate na
 - Nested calls, pipelines, and composition can express the same application order.
 - Configuration-first and data-last often make curried F# functions easy to reuse.
 - Type alignment, not operator syntax, determines whether stages compose.
-- Direct calls remain preferable for simple, symmetric, constructor-like, and .NET-shaped operations.
+- Direct calls remain preferable for simple, symmetric, constructor-like operations and established .NET APIs.
 - Representative call sites should drive argument order; custom operators should not hide domain names.
 
 Chapter 14 applies this API reasoning to collections, where the chosen representation also determines evaluation timing, lookup rules, and conversion cost.

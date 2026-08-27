@@ -10,24 +10,6 @@ Chapter 36 made a dangerous interval observable: two requests can both read old 
 
 This chapter adds `AtomicBookingStore` and `IdempotentBookingService`. The first stores the whole activity aggregate and command progress; the second coordinates payment and notification against that progress. The focused tests call this service directly. The Chapter 36 HTTP endpoint still uses its earlier `AsyncPorts` workflow; Chapter 38 will connect the consistent service to the final API. Keeping that staging explicit prevents test evidence below HTTP from being misreported as deployed endpoint behavior.
 
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- distinguish a booking-local invariant from aggregate capacity;
-- exhibit the read-check-write race that causes overselling;
-- choose one atomic boundary that contains every value used by a capacity decision;
-- define which lifecycle states occupy and release seats;
-- distinguish request identity, operation identity, and a normalized payload fingerprint;
-- state when an exact retry replays, resumes, conflicts, or requires reconciliation;
-- persist effect progress without pretending a local file controls a payment provider;
-- explain why notification delivery is at least once rather than exactly once;
-- separate a transient failure from an ambiguous outcome;
-- test concurrency with signals instead of timing guesses;
-- prove recovery with a genuinely separate process;
-- state the single-process, single-path limits of the local adapter;
-- choose a production upgrade only when deployment requirements demand it.
-
 ## Find the invariant's real owner {#aggregate-invariant}
 
 The pure decider from Chapter 34 sees one `BookingState`. It can prove that a request for five seats does not fit an activity whose total capacity is four. It cannot prove that two separate two-seat bookings fit a capacity of three, because neither booking state contains the other.
@@ -93,7 +75,7 @@ The earlier `FileBookingStore` saved one `BookingDto`; saving another request re
 - every current booking keyed by normalized request ID;
 - every command's kind, request ID, payload fingerprint, progress phase, and candidate booking.
 
-Persistence-only CLR DTOs remain separate from protected domain types. On load, strict JSON is mapped back through `BookingMapping`, then checked for duplicate keys, event mismatches, impossible phase/kind combinations, oversized seat counts, broken operation links, multiple unfinished operations for one request, and aggregate overselling.
+Persistence-only CLR DTOs remain separate from protected domain types. On load, `BookingMapping` converts strict JSON back to domain values. Further checks reject duplicate keys, event mismatches, impossible phase/kind combinations, oversized seat counts, broken operation links, multiple unfinished operations for one request, and aggregate overselling.
 
 The persisted event ID and capacity must match the activity supplied by the process. A different restart configuration produces `SnapshotActivityMismatch`; silently interpreting old bookings under a new capacity would make recovery look successful while changing the invariant.
 
@@ -418,7 +400,7 @@ For capacity three and two requests of two seats, the required outcome is:
 
 The duplicate test releases two normalized forms of the same command together. Both receive success, but the counters remain one payment and one notification. Reusing the same operation key for a different seat count yields `IdempotencyConflict` without changing either counter.
 
-Other tests prove that notification failure commits the booking and retries only notification, payment fault becomes unknown and is not charged twice, cancellation frees capacity for a previously refused request, and a separate process replays completion.
+Other tests show that notification failure commits the booking and retries only notification. They also cover an unknown payment without a second charge, capacity released by cancellation, and completed work replayed by a separate process.
 
 The focused tests use a controlled happens-before structure instead of timing sleeps. This does not prove every possible schedule, but causal control is stronger evidence than `Task.Delay(50)` followed by an assertion that merely tends to win.
 
@@ -473,7 +455,16 @@ Extend the progress model without writing code. Add the provider key and the min
 
 ### Exercise 3: turn pending notification into an outbox {#exercise-03}
 
-Design a real outbox for booking notifications. Specify what is saved with the booking, how a worker claims work, how retries and backoff are recorded, how a stable message ID reaches consumers, how consumers deduplicate, and what happens after the retry limit. Distinguish “no lost local intent,” “at least once publish,” and “same observable consumer outcome.”
+Design a real outbox for booking notifications. Specify:
+
+- what is saved with the booking;
+- how a worker claims work;
+- how retries and backoff are recorded;
+- how a stable message ID reaches consumers;
+- how consumers deduplicate;
+- what happens after the retry limit.
+
+Distinguish “no lost local intent,” “at-least-once publication,” and “the same observable consumer outcome.”
 
 [Read the chapter solutions](../solutions/ch-37-consistency-idempotency).
 

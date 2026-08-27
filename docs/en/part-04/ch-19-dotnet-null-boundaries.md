@@ -8,22 +8,7 @@ translationKey: part-04/ch-19-dotnet-null-boundaries
 
 F# does not sit beside .NET; it is a .NET language. A `Uri`, `String.Join`, or `IReadOnlyCollection<'T>` call is ordinary typed F# code. The important question is not how to escape from functional programming, but where a foreign API's construction rules, overloads, exceptions, and absence conventions should stop influencing the rest of the program.
 
-This chapter builds that boundary before performing substantial I/O. We first call constructors, members, overloaded methods, and interfaces. We then distinguish three representations that are often collapsed into the word “nullable”: a nullable reference `T | null`, a nullable value `Nullable<T>`, and an F# domain choice `T option`.
-
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- construct .NET objects and call instance or static members with ordinary F# expressions;
-- use argument types to make overload selection clear;
-- accept an interface when the operation needs only that interface's contract;
-- enable and read F# nullable-reference analysis;
-- narrow `T | null` with `Null` and `NonNull` patterns;
-- convert a nullable .NET return into `option` at the adapter boundary;
-- distinguish `Nullable<T>` from a nullable reference;
-- convert `Nullable<T>` and nullable references to and from `option` deliberately;
-- explain why `option` does not make every possible payload non-null;
-- choose a representation from the producer's contract and the domain meaning of absence.
+We establish that conversion point before performing substantial I/O. First we call constructors, members, overloaded methods, and interfaces. Then we distinguish three meanings often collapsed into “nullable”: a nullable reference `T | null`, a nullable value `Nullable<T>`, and a domain choice `T option`.
 
 ## Read a .NET call as a typed expression {#dotnet-calls}
 
@@ -42,24 +27,24 @@ Each definition is an ordinary function whose result is a value. The capitalized
 
 ### Construction and member access {#construction-members}
 
-`Uri(raw, UriKind.Absolute)` invokes a constructor. The keyword `new` is optional for class construction, so `new Uri(...)` means the same thing here. Constructor arguments appear in parentheses and are comma-separated, matching .NET method-call shape.
+`Uri(raw, UriKind.Absolute)` invokes a constructor. The keyword `new` is optional for class construction, so `new Uri(...)` means the same thing here. Constructor arguments appear in parentheses and are comma-separated, matching .NET method-call syntax.
 
-`uri.Host` reads an instance property. A parameterless .NET method would use parentheses, as in `uri.ToString()`. A property and a method can both compute work; syntax alone does not promise purity or low cost. Read the API contract.
+`uri.Host` reads an instance property. A parameterless .NET method uses parentheses, as in `uri.ToString()`. Properties and methods can both perform work; syntax alone does not promise purity or low cost. Read the API documentation.
 
-The `Uri` constructor can reject malformed input by throwing. The small wrapper intentionally preserves that contract. If malformed URI text is an expected domain outcome, validate with `Uri.TryCreate` or translate the exception at a deliberate boundary. Chapter 21 treats exception policy; this chapter does not silently turn every exception into `None`.
+The `Uri` constructor can reject malformed input by throwing. This small wrapper intentionally preserves that behavior. If malformed URI text is an expected domain outcome, validate with `Uri.TryCreate` or translate the exception in a dedicated adapter. Chapter 21 covers exception policy; we do not silently turn every exception into `None`.
 
 ### Overload selection follows available types {#overloads}
 
 `String.Join` has multiple overloads. In `joinLabels`, the annotation `labels: string array` and the string separator select the overload accepting a string separator and string array. The compiler does not choose an overload from a return type you hope to receive; it uses the statically available argument types and context.
 
-When selection is unclear, add the smallest truthful annotation at the boundary:
+When overload selection is unclear, add the smallest accurate annotation at the call site:
 
 ```fsharp
 let joinLabels (labels: string array) : string =
     String.Join(" / ", labels)
 ```
 
-Do not add arbitrary casts until something compiles. A cast can change the chosen API and hide a modeling error. First inspect the overload signatures, then state which argument representation the caller actually owns.
+Do not add arbitrary casts until something compiles. A cast can select a different API and hide a modeling error. First inspect the overload signatures, then state the type of the argument you actually have.
 
 ### Program to the required interface {#interfaces}
 
@@ -83,7 +68,7 @@ The static upcast operator `:>` is checked by the compiler and is safe at runtim
 
 The following types answer different questions:
 
-| Representation | What it represents | Runtime shape | Typical boundary |
+| Representation | What it represents | Runtime form | Typical use |
 |---|---|---|---|
 | `T | null` | A reference may be the null reference | The reference itself may be null | Nullable .NET annotations and interop |
 | `Nullable<T>` | A value type may have no value | `System.Nullable<T>` with `HasValue` and `Value` | .NET APIs using nullable structs |
@@ -93,7 +78,7 @@ None is a universal replacement for the others. `T | null` applies to reference 
 
 ## Nullable references are compile-time contracts {#nullable-references}
 
-### Opt in and annotate the real boundary {#nullable-opt-in}
+### Opt in and annotate the actual input {#nullable-opt-in}
 
 F# nullable-reference checking is opt-in. The chapter project states:
 
@@ -103,11 +88,11 @@ F# nullable-reference checking is opt-in. The chapter project states:
 
 With checking enabled, `string` means the compiler expects a non-null string, while `string | null` explicitly admits null. The annotation does not wrap the value at runtime. It also cannot prove that reflection, older metadata, unchecked code, deserialization, or another language will always obey its annotation.
 
-Use the narrowest honest contract. Mark an input `T | null` when its producer can actually supply null; do not make every internal reference nullable “just in case.” After conversion, keep the core non-null by construction.
+Use the narrowest accurate type. Mark an input `T | null` only when its producer can supply null; do not make every internal reference nullable “just in case.” After conversion, keep the core non-null by construction.
 
 ### Narrow once with `Null` and `NonNull` {#null-narrowing}
 
-The boundary error and conversion are executable shared code:
+The adapter and its error type are executable shared code:
 
 ```fsharp:line-numbers [NullBoundaries.fs]
 type BoundaryTextError =
@@ -121,9 +106,9 @@ let requireText (raw: string | null) : Result<string, BoundaryTextError> =
     | NonNull value when String.IsNullOrWhiteSpace value -> Error BlankText
     | NonNull value -> Ok(value.Trim())
 ```
-`Null` handles the null reference. In each `NonNull value` branch, analysis narrows `value` to non-null `string`, so `Trim()` is safe under the stated contract. Whitespace is a different invalid fact and receives a different error.
+`Null` handles the null reference. In each `NonNull value` branch, analysis narrows `value` to non-null `string`, so the declared type permits `Trim()`. Whitespace is a different invalid condition and receives a different error.
 
-The literal `null` pattern also works. `Null`/`NonNull` is useful when the narrowed non-null value should be named. `NonNullQuick` instead throws `NullReferenceException` on null; use that only when throwing is the intended contract, not as a shortcut around boundary design.
+The literal `null` pattern also works. `Null`/`NonNull` is useful when the narrowed non-null value should be named. `NonNullQuick` instead throws `NullReferenceException` on null; use it only when throwing is intended, not to avoid handling null deliberately.
 
 ### Convert nullable returns immediately when the domain wants option {#nullable-return}
 
@@ -135,7 +120,7 @@ let tryResolveType (typeName: string) : Type option =
 ```
 `Option.ofObj` maps null to `None` and a non-null reference to `Some value`. Downstream F# code now sees `Type option`, not a nullable reference that must be rechecked everywhere.
 
-The argument `throwOnError = false` means “return null when lookup does not find the type”; the .NET contract documents other conditions that may still throw. Use `option` for this ordinary absence and preserve exceptions that carry other failure causes.
+The argument `throwOnError = false` means “return null when lookup does not find the type”; the .NET documentation lists other conditions that may still throw. Use `option` for ordinary absence and preserve exceptions that carry other failure causes.
 
 ## `Nullable<T>` is a nullable value type {#nullable-values}
 
@@ -154,7 +139,7 @@ present.Value     // 4
 
 Reading `Value` while `HasValue` is false throws `InvalidOperationException`. Check first, use `GetValueOrDefault` only when that default truly means what the caller intends, or convert to an F# representation.
 
-### Convert at the edge, not throughout the core {#nullable-value-conversion}
+### Convert at the .NET interface, not throughout the core {#nullable-value-conversion}
 
 FSharp.Core supplies named conversions:
 
@@ -165,7 +150,7 @@ let optionToNullableInt (value: int option) : Nullable<int> = Option.toNullable 
 ```
 `Option.ofNullable` maps an absent nullable value to `None`; `Option.toNullable` maps `None` back to an empty `Nullable<T>`. For a present value, both preserve the payload. These functions require an appropriate value type.
 
-Keep `Nullable<T>` when an external member explicitly requires or returns it. Prefer `option` after the boundary when absence is part of the F# model. Converting repeatedly inside the core is a sign that the boundary has not been placed clearly.
+Keep `Nullable<T>` where an external member requires or returns it. Prefer `option` once absence enters the F# model. Repeated conversion inside the core signals that interoperation concerns have leaked too far inward.
 
 ## `option` is a domain choice, not a null-proof wrapper {#option-boundary}
 
@@ -184,7 +169,7 @@ The direction should be visible in adapter code:
 - outbound optional domain value: `T option -> T | null` with `Option.toObj` when the .NET API requires null;
 - nullable value type: `Nullable<T> <-> T option` with `ofNullable` and `toNullable`.
 
-Do not use `defaultArg optionValue null` as a vague substitute. Under null checking it often weakens the type, and its intent is less precise than the conversion named for this boundary.
+Do not use `defaultArg optionValue null` as a vague substitute. Under null checking it often weakens the type, and its intent is less precise than the named interoperability conversion.
 
 ### `Some null` is a real counterexample {#some-null}
 
@@ -195,11 +180,11 @@ let someNullText: (string | null) option = Some null
 ```
 The value is `Some`, and its payload is null. Older or unchecked .NET code can also violate assumptions. Therefore the accurate rule is:
 
-> Use `None` for domain absence, keep ordinary option payload types non-null, and normalize foreign null at the boundary.
+> Use `None` for domain absence, keep ordinary option payload types non-null, and normalize foreign null in the adapter.
 
-Do not claim that the runtime representation of `option` makes null impossible. `string option` under null checking gives a useful non-null payload contract; `(string | null) option` deliberately admits the counterexample. Types make the intended distinction reviewable, while boundary tests defend it against foreign inputs.
+Do not claim that the runtime representation of `option` makes null impossible. Under null checking, `string option` requires a non-null payload; `(string | null) option` deliberately permits the counterexample. Types expose the distinction, while adapter tests check foreign inputs.
 
-## Put one conversion membrane around the core {#boundary-placement}
+## Keep conversion outside the core {#boundary-placement}
 
 A practical flow is:
 
@@ -227,13 +212,13 @@ This is not a demand for a large abstraction layer. A two-line function such as 
 | API uses null to signal failure but can also throw | `option` for absence; preserve/translate documented exceptions separately | Absence and failure are different facts |
 | API requires null on output | Convert with `Option.toObj` at the final call | Keeps null out of intermediate domain code |
 
-Choose from the producer's actual contract first, then from the consumer's domain meaning. Habit is not a type-design rule.
+Start with the producer's documented behavior, then consider the consumer's domain meaning. Habit is not a type-design rule.
 
 ### Preserve causes instead of flattening them {#failure-causes}
 
-Nullable checking catches some accidental dereferences at compile time. Whitespace validation, text parsing, URI acceptance, and service availability are separate contracts with their own checks and representations.
+Nullable checking catches some accidental dereferences at compile time. Whitespace validation, text parsing, URI acceptance, and service availability are separate concerns with their own checks and representations.
 
-Use `option` when ordinary absence needs no explanation. Use `Result` when callers need a reason. Let unexpected exceptions retain their diagnostics until a boundary has enough context to translate them. Chapter 18 established validation semantics; Chapters 20 and 21 will add effects and exception/resource policy without changing this null model.
+Use `option` when ordinary absence needs no explanation. Use `Result` when callers need a reason. Let unexpected exceptions retain diagnostics until a layer has enough context to translate them. Chapters 20 and 21 add side effects and exception/resource policy without changing this null model.
 
 ## Run the contract tests {#run-tests}
 
@@ -245,13 +230,13 @@ dotnet test ContractTests.fsproj \
   --filter FullyQualifiedName~Ch19NullTests
 ```
 
-The contract tests compile with nullable checking and warnings as errors. They verify constructor/member/overload/interface calls, null-input narrowing, the real nullable return of `Type.GetType`, both `Nullable<int>` conversion directions, both nullable-reference conversion directions, and the `Some null` counterexample.
+The contract tests compile with null checking and warnings as errors. They verify constructor, member, overload, and interface calls, plus null-input narrowing and the nullable return of `Type.GetType`. They also cover both conversion directions for `Nullable<int>` and nullable references, and the `Some null` counterexample.
 
-These are contract tests, not claims about every .NET library. Always inspect the target framework's current annotations and documented behavior for the API you actually call.
+These tests cover the APIs shown here, not every .NET library. Always inspect the current target-framework annotations and documentation for the API you call.
 
 ## Exercises {#exercises}
 
-### Exercise 1: classify boundary representations {#exercise-01}
+### Exercise 1: classify absence representations {#exercise-01}
 
 For each value below, choose `T | null`, `Nullable<T>`, `T option`, or `Result<T, Error>` at the point where your F# core consumes it. Explain both the producer contract and the domain meaning:
 
@@ -269,7 +254,7 @@ Write `tryResolveType` around `Type.GetType(typeName, throwOnError = false)`. It
 
 Then write the deliberately different `resolveType` returning `Result<Type, ResolveTypeError>`, where a missing type carries its requested name. Explain why catching every possible exception and returning the same error would lose information.
 
-### Exercise 3: audit an option invariant {#exercise-03}
+### Exercise 3: check an option invariant {#exercise-03}
 
 Given this value:
 
@@ -277,7 +262,7 @@ Given this value:
 let suspicious : (string | null) option = Some null
 ```
 
-Show that `Option.isSome suspicious` is true while the payload is null. Write a boundary function that converts `string | null` into `string option` and a second function that rejects null and blank text as distinct `Result` errors.
+Show that `Option.isSome suspicious` is true while the payload is null. Write an adapter that converts `string | null` into `string option`, then another function that rejects null and blank text as distinct `Result` errors.
 
 Explain which function is appropriate for ordinary absence and which is appropriate for required validated input. Do not use `Unchecked` or an exception-catching blanket.
 
@@ -290,11 +275,11 @@ Explain which function is appropriate for ordinary absence and which is appropri
 - `T | null`, `Nullable<T>`, and `T option` have different syntax, runtime representation, and modeling purpose.
 - Nullable-reference analysis is an opt-in compile-time contract, not runtime validation or proof about all foreign code.
 - Narrow nullable references once, then keep the core non-null by construction.
-- Use the conversion pair that matches the boundary: object/null, nullable value, or domain option.
+- Use the conversion pair that matches the source representation: object/null, nullable value, or domain option.
 - `Some null` is possible when the payload type admits null, so `option` must not be advertised as absolute null prevention.
-- `option` describes ordinary absence; `Result` preserves a reason; exceptions require their own boundary policy.
+- `option` describes ordinary absence; `Result` preserves a reason; exceptions require their own policy.
 
-The next chapter will keep this conversion membrane and make time, randomness, and environment access explicit effects rather than hidden inputs.
+The next chapter keeps conversion outside the core and makes time, randomness, and environment access visible dependencies instead of hidden inputs.
 
 ## Sources {#sources}
 

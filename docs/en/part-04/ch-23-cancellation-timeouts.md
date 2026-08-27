@@ -6,35 +6,20 @@ translationKey: part-04/ch-23-cancellation-timeouts
 
 # Chapter 23: Cancellation, Timeouts, Faults, and Disposal {#overview}
 
-An asynchronous booking operation can finish in more ways than “a value arrived.” The caller may request cancellation, its waiting budget may expire, the operation may fault, and resources may need cleanup before any outcome becomes observable. Conflating these paths produces leaked handles, misleading errors, and work that continues after its owner has gone.
+An asynchronous booking operation can finish in more ways than “a value arrived.” The caller may cancel, its waiting time may expire, or the operation may fault. Resources may also need cleanup before the outcome is final. Conflating these paths leaks handles, misreports errors, and leaves work running after its caller has gone.
 
-This chapter treats completion as a protocol. Cancellation is cooperative communication, a timeout is policy, a fault is not cancellation, and cleanup is part of completion. Every claim is tested with explicit signals; no test asks a scheduler to win a race against `sleep`.
-
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- accept and propagate a `CancellationToken` through task-based ports;
-- explain why requesting cancellation does not forcibly terminate work;
-- distinguish canceling an operation from canceling only one caller's wait;
-- choose whether a timeout should stop work or merely stop waiting;
-- keep timeout, caller cancellation, expected rejection, and faults distinct;
-- observe task faults without accidental `AggregateException` wrapping;
-- dispose `CancellationTokenSource` and token registrations;
-- use synchronous `IDisposable` and asynchronous `IAsyncDisposable` cleanup;
-- prove that cleanup completes on success, fault, and cancellation paths;
-- test all paths with completion sources or a controllable time source.
+Treat completion as a set of distinct rules: cancellation requires cooperation, a timeout expresses policy, a fault is not cancellation, and cleanup is part of completion. Controlled signals test each behavior without racing the scheduler against `sleep`.
 
 ## Cancellation is a request carried by a token {#cooperative-cancellation}
 
 .NET cancellation separates roles:
 
-- `CancellationTokenSource` owns the right to request cancellation;
+- `CancellationTokenSource` can issue a cancellation request;
 - `CancellationToken` is the lightweight value passed to listeners;
 - each operation decides where it can observe the request safely;
 - `OperationCanceledException` can report that cooperative cancellation was observed.
 
-Cancellation is cooperative and forward-looking. An operation checks the token at safe points and passes it into cancellation-aware APIs. A payment acceptance or file replacement remains visible after its commit point, so the contract must define the outcome of a cancellation request that arrives afterward.
+Cancellation is cooperative and cannot undo completed work. An operation checks the token at safe points and passes it to cancellation-aware APIs. A payment or file replacement remains visible after its commit point, so the API must define what a later cancellation request means.
 
 F# `task {}` does not implicitly obtain or check a token. Make it an argument and pass the same token down every cancelable call:
 
@@ -49,7 +34,7 @@ let reserve load save request cancellationToken =
     }
 ```
 
-Using `CancellationToken.None` in the middle silently cuts the propagation chain. It is appropriate only when the called operation is deliberately independent of the caller's lifetime.
+Using `CancellationToken.None` midway through the call chain silently stops propagation. It is appropriate only when the called operation is deliberately independent of the caller's lifetime.
 
 The shared example registers a callback that completes a controlled task as canceled with the same token:
 
@@ -83,7 +68,7 @@ assert canceledOperation.IsCanceled
 printfn "Operation cancellation: canceled=%b token=%b" operationCanceled matchingToken
 operationCancellation.Dispose()
 ```
-The task is pending before `Cancel`. After the request, awaiting it raises `OperationCanceledException`, the exception carries the expected token, and the task has `IsCanceled = true`. The registration is held by `use`, so it is removed when the task leaves its scope. The token source is disposed by its owner after the operation is observed.
+The task is pending before `Cancel`. After the request, awaiting it raises `OperationCanceledException`; the exception carries the expected token, and the task has `IsCanceled = true`. A `use` binding removes the registration when the task leaves its scope. The creator disposes the token source after observing the operation.
 
 Cancellation tokens are one-way: once requested, a token remains canceled. Create a new source for a logically new operation; do not attempt to reset and reuse the old request.
 
@@ -123,9 +108,9 @@ assert (underlyingResult = "late-result")
 printfn "Underlying after abandon: result=%s" underlyingResult
 waitCancellation.Dispose()
 ```
-The test cancels the waiter, proves the underlying operation remains pending, then completes the underlying task and observes its result. Every state transition follows an explicit call, so the proof is independent of machine speed.
+The test cancels the waiter, confirms that the underlying operation remains pending, then completes that task and reads its result. Each state transition follows a direct test action, independent of machine speed.
 
-Abandoning a wait is useful when work has another owner—for example, a shared cache refresh—or cannot safely be interrupted. It is dangerous when nobody remains responsible for observing failure, limiting resource use, or preventing a later duplicate effect. State that owner explicitly.
+Abandoning a wait is useful when another component remains responsible for the work, such as a shared cache refresh, or when interruption is unsafe. It is dangerous if nobody will observe failure, limit resource use, or prevent duplicate side effects. Name the responsible component.
 
 ## A timeout is policy, not a synonym for cancellation {#timeout-policy}
 
@@ -137,7 +122,7 @@ A timeout answers “how long will this caller wait?” It does not by itself an
 | Stop waiting for independently owned work | `WaitAsync(timeout)` | Continues unless its own owner cancels it |
 | Distinguish timeout from caller cancellation | separate deadline signal or inspect which source requested | Policy can report `TimedOut` versus cancellation |
 
-`WaitAsync(TimeSpan)` faults its wrapper task with `TimeoutException`; it does not cancel the source task. Overloads accepting `TimeProvider` make time controllable in modern .NET tests. If a timeout should request operation cancellation, create and dispose a linked source, schedule its deadline, and pass its token into the operation.
+`WaitAsync(TimeSpan)` faults its wrapper task with `TimeoutException`; it does not cancel the source task. Overloads that accept `TimeProvider` let modern .NET tests control time. If timeout should also cancel the operation, create and dispose a linked source, schedule its deadline, and pass its token to the operation.
 
 The shared test removes wall-clock time altogether. An injected task represents “the deadline fired”:
 
@@ -176,13 +161,13 @@ timedOperation.SetResult("finished-after-timeout")
 ```
 `Task.WhenAny` identifies the first completed signal. Completing `timeoutSignal` deterministically yields `TimedOut`; the original operation remains pending. A production timer is one adapter that completes such a signal. The pure policy should not depend on a particular clock.
 
-A timeout does not prove the remote side did nothing. Before retrying a timed-out write, define idempotency or reconciliation. Chapter 37 returns to that distributed boundary.
+A timeout does not prove that the remote side did nothing. Before retrying a timed-out write, define idempotency or reconciliation. Chapter 37 returns to this distributed-systems problem.
 
 ## Fault, cancellation, and expected error are different outcomes {#faults}
 
 A task has terminal states for successful completion, fault, and cancellation. Domain rejection such as “capacity exceeded” is normally a successful task whose value is `Error CapacityExceeded`, because the asynchronous mechanism worked and produced an expected business answer.
 
-An unexpected exception thrown inside `task {}` faults the returned task. Awaiting with `let!` or, at a top-level test boundary, `GetAwaiter().GetResult()` surfaces the original exception:
+An unexpected exception inside `task {}` faults the returned task. Awaiting with `let!`, or using `GetAwaiter().GetResult()` in an outer test harness, surfaces the original exception:
 
 ```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
 let faultingTask () : Task<string> =
@@ -204,7 +189,7 @@ printfn "Fault: type=%s message=%s" faultType faultMessage
 ```
 By contrast, `.Wait()` and `.Result` are blocking APIs and commonly wrap task failures in `AggregateException`. Application workflows should use `let!`; tests and process entry points can use the awaiter form when they deliberately must bridge to synchronous code.
 
-Catch only where policy exists. Translate a documented remote rejection into a typed error if callers can act on it. Preserve unknown infrastructure exceptions, their inner causes, and stack traces. Do not turn cancellation into `Error "failed"`, and do not classify any arbitrary `OperationCanceledException` as this operation's cancellation without considering its token and contract.
+Catch only where the code can decide what to do. Translate a documented remote rejection into a typed error if callers can act on it. Preserve unknown infrastructure exceptions, inner causes, and stack traces. Do not turn cancellation into `Error "failed"`, or treat any `OperationCanceledException` as this operation's cancellation without checking its token and API rules.
 
 ## Cleanup is part of asynchronous completion {#cleanup}
 
@@ -212,7 +197,7 @@ Chapter 21 used `use` for `IDisposable`. The same rule applies inside tasks: onc
 
 Some resources can dispose synchronously. Others implement `IAsyncDisposable`; their `DisposeAsync()` returns a `ValueTask` because flushing or closing may itself need asynchronous I/O. An outer task must not report completion until that cleanup completes.
 
-The probes make both protocols observable:
+Test probes expose both disposal paths:
 
 ```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
 type SyncProbe(label: string, disposed: ResizeArray<string>) =
@@ -258,13 +243,13 @@ let usingAsync (resource: IAsyncDisposable) (body: unit -> Task<'T>) =
             return Unchecked.defaultof<'T>
     }
 ```
-In a compiled `.fs` file, a task expression can bind an `IAsyncDisposable` with `use`; the task builder awaits `DisposeAsync`. `use!` first awaits acquisition and then owns the acquired resource. Task-expression `with` and `finally` handlers are synchronous, so use the resource binding instead of placing asynchronous cleanup inside `finally`.
+In a compiled `.fs` file, a task expression can bind an `IAsyncDisposable` with `use`; the task builder awaits `DisposeAsync`. `use!` first awaits acquisition and then manages the acquired resource. Task-expression `with` and `finally` handlers are synchronous, so use a resource binding instead of placing asynchronous cleanup inside `finally`.
 
-### An honest FSI boundary {#fsi-async-disposal}
+### A known FSI limitation {#fsi-async-disposal}
 
 F# 10 supports task `use` with `IAsyncDisposable` in compiled projects. F# Interactive still has an open compiler issue: the same binding in an `.fsx` file can incorrectly require `IDisposable`.
 
-Because the chapter's registered artifact is an FSI script, its asynchronous probe uses a small `usingAsync` adapter. The adapter captures the body outcome, awaits disposal exactly once, then returns the value or rethrows the original failure through `ExceptionDispatchInfo`. This is executable evidence for lifecycle behavior, not a recommendation to replace built-in `use` in normal compiled code.
+Because the chapter example must run as an FSI script, its asynchronous probe uses a small `usingAsync` adapter. The adapter captures the body outcome, awaits disposal exactly once, then returns the value or rethrows the original failure through `ExceptionDispatchInfo`. It demonstrates lifecycle behavior but does not replace built-in `use` in normal compiled code.
 
 ### Prove all six cleanup paths {#all-cleanup-paths}
 
@@ -317,7 +302,7 @@ assert (Seq.toList syncDisposed = [ "success"; "failure"; "cancel" ])
 printfn "Sync dispose: success=%b fault=%b cancel=%b" syncSuccess syncFault syncCanceled
 syncCancellation.Dispose()
 ```
-The exact disposal log is `success`, `failure`, `cancel`. A pre-canceled token is checked only after the resource is acquired, proving that cancellation still leaves through the owned scope.
+The disposal log is exactly `success`, `failure`, `cancel`. A pre-canceled token is checked only after resource acquisition, showing that cancellation still exits through the managed scope.
 
 The asynchronous test starts three operations, one for each body outcome. Every `DisposeAsync` announces entry and waits on a separate release gate:
 
@@ -409,9 +394,9 @@ asyncCancellation.Dispose()
 ```
 All three outer tasks remain incomplete after disposal starts. Only after the corresponding gate is released does each task expose success, the original fault, or cancellation. This proves that disposal is awaited rather than merely invoked.
 
-If cleanup itself fails while a body failure is already in flight, decide how diagnostics retain both. Ordinary language cleanup may expose the cleanup exception and obscure the first one. At infrastructure boundaries, log or aggregate according to an explicit policy; never silently discard a disposal failure.
+If cleanup fails while a body failure is already propagating, decide how diagnostics will retain both. Normal language-level cleanup may expose the cleanup exception and obscure the first one. At infrastructure integration points, log or aggregate them according to a stated policy; never silently discard a disposal failure.
 
-## Own helper resources too {#helper-lifetimes}
+## Manage cancellation helper lifetimes {#helper-lifetimes}
 
 Cancellation machinery has lifetimes:
 
@@ -419,24 +404,24 @@ Cancellation machinery has lifetimes:
 - dispose each `CancellationTokenSource`, including linked and timeout sources;
 - do not dispose a source while operations still depend on callbacks from it;
 - never return a resource whose `use` scope has already ended;
-- when acquisition itself is asynchronous, ownership begins only after acquisition succeeds.
+- when acquisition itself is asynchronous, responsibility begins only after acquisition succeeds.
 
-Cancellation should normally bypass fresh optional work, but it must not bypass cleanup for work already acquired. Avoid passing a canceled token into a cleanup API if doing so could leave mandatory release unfinished; the resource's contract determines whether cleanup cancellation is safe.
+Cancellation should normally skip new optional work, but it must not skip cleanup for resources already acquired. Do not pass a canceled token to cleanup if that could leave required release unfinished; the resource's documented behavior determines whether cleanup may safely be canceled.
 
-## A boundary checklist {#checklist}
+## An asynchronous API checklist {#checklist}
 
-For every asynchronous port, review:
+For every asynchronous API, review:
 
-1. Does the public signature accept a token when the operation is caller-owned and cancelable?
+1. Does the public signature accept a token when the caller controls a cancelable operation's lifetime?
 2. Is that token forwarded to every relevant dependency overload?
-3. Is timeout policy cancel-work or abandon-wait, and who owns continued work?
+3. Does timeout cancel the work or only abandon the wait, and who remains responsible for continued work?
 4. Can expected failure be represented as `Result` without hiding faults?
 5. Who observes a task that outlives the immediate caller?
 6. Which resources are acquired, and is disposal synchronous or asynchronous?
 7. Do success, fault, cancellation, and cleanup failure all have tests?
 8. Are tests driven by signals or controllable time rather than elapsed-time guesses?
 
-This checklist is more useful than a universal helper. A database transaction, shared refresh, payment request, and UI preview have different commit and ownership rules.
+This checklist is more useful than a universal helper. A database transaction, shared refresh, payment request, and UI preview have different commit points and lifecycle rules.
 
 ## Run the shared example {#run-example}
 
@@ -475,7 +460,7 @@ Then make disposal fault. Record which exception reaches the caller and propose 
 - Cancellation is a cooperative request; the operation must receive and observe its token.
 - Canceling `WaitAsync` can stop one wait without stopping the underlying task.
 - A timeout must specify whether work stops, continues under another owner, or needs reconciliation.
-- Expected domain errors, faulted tasks, and canceled tasks are separate contracts.
+- Expected domain errors, faulted tasks, and canceled tasks are distinct outcomes.
 - Await task faults instead of using blocking wrappers in an asynchronous workflow.
 - Once a resource is acquired, success, fault, and cancellation must all pass through cleanup.
 - An outer task is not complete until asynchronous disposal is complete.

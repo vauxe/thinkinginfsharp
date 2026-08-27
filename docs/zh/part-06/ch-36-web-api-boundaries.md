@@ -1,6 +1,6 @@
 ---
 title: "第 36 章：Web API、JSON 与输入边界"
-description: "用小型 F# Minimal API 暴露预约工作流，同时让 JSON、验证、取消、失败与机密停留在显式边界。"
+description: "用小型 F# Minimal API 暴露预约工作流，并明确处理 JSON、验证、取消、失败与机密。"
 translationKey: part-06/ch-36-web-api-boundaries
 ---
 
@@ -8,28 +8,11 @@ translationKey: part-06/ch-36-web-api-boundaries
 
 第 35 章在进程内装配了各项能力。本章通过一个小型 ASP.NET Core Minimal API 加入网络边界。“Minimal”描述宿主模型；边界仍要验证传入字节、把 DTO 映射成领域值、传播可观察的取消，并把已声明失败翻译成稳定响应。
 
-实现让每一步都能看见同一个问题：哪个层有权作出这个决定？HTTP 决定媒体类型与状态码；JSON 契约决定传输形状；DTO 映射决定必需的传输数据是否存在；领域决定业务有效性与状态转换；适配器决定效果；API 只协调这些决定，并且只翻译它们声明过的结果。
-
-## 学完本章，你将能够 {#outcomes}
-
-学完本章后，你应该能够：
-
-- 映射一组很小的命令式路由，同时不暴露领域表示；
-- 区分媒体类型、字节大小、JSON 形状、DTO 存在性与领域验证失败；
-- 为请求和响应边界复用同一份严格 `JsonSerializerOptions` 策略；
-- 即使没有 `Content-Length`，或测试服务器绕过 Kestrel 限制，也能真正限制请求；
-- 把领域拒绝转换为稳定的状态码/代码组合，而不泄露受保护值；
-- 把 `HttpContext.RequestAborted` 传给每一个异步端口；
-- 区分客户端取消与依赖内部取消；
-- 准确解释支付、持久化、通知与响应分别在何时变得可见；
-- 返回安全的运维错误，而不返回异常消息；
-- 加载配置，同时不打印被拒绝的值，也不提交机密；
-- 用 `TestServer` 验证应用管线，并用真实 Kestrel 冒烟验证传输行为；
-- 说明这个教学宿主有意省略了哪些生产关注点。
+每一步都要回答同一个问题：由哪一层决定？HTTP 决定媒体类型与状态码；JSON 契约决定传输格式；DTO 映射检查必需数据；领域决定业务有效性与状态转换；适配器执行副作用；API 只负责协调，并翻译已声明的结果。
 
 ## HTTP 负责解释外部请求 {#outer-interpreter}
 
-请求在产生效果之前会穿过多种表示：
+请求在产生副作用前会穿过多种表示：
 
 ```text
 HTTP 字节
@@ -81,7 +64,7 @@ let mapConsistent (application: WebApplication) (dependencies: ConsistentBooking
         (handleCancelWith execute)
         (handleConsistentGet dependencies)
 ```
-直接使用委托能让本章的边界策略可执行，并由契约测试固定。Minimal API 自动绑定也可以承载同一契约；练习 1 会要求你证明这条替代路径。
+直接使用委托，让本章的处理策略可以执行并接受契约测试。Minimal API 自动绑定也能实现同一契约；练习 1 要求你验证这条替代路径。
 
 ## 只发布四条职责明确的路由 {#route-contract}
 
@@ -94,7 +77,7 @@ API 暴露命令，而不是用一个通用端点接收可辨识联合的序列�
 | `POST /api/bookings/cancel` | `CancelBookingDto` | `200` + `BookingDto` | 验证转换、追加、通知 |
 | `GET /api/bookings/{requestId}` | 路由文本 | `200` + `BookingDto` | 加载键匹配的快照 |
 
-独立路由让允许的命令容易发现，也让每个请求只有一种稳定 JSON 形状。它们还避免把面向编译器的 `BookingCommand` 编码当成公共协议。
+独立路由让允许的命令容易发现，也让每个请求只有一种稳定的 JSON 表示。它们还避免把面向编译器的 `BookingCommand` 编码当成公共协议。
 
 `201 Created` 带有由规范化请求 ID 构造的相对 `Location` 头。去除首尾空白后，ID 需要满足三条规则：
 
@@ -108,7 +91,7 @@ API 暴露命令，而不是用一个通用端点接收可辨识联合的序列�
 
 ## 让响应类型留在边界 {#boundary-dtos}
 
-成功的处理程序通过 `BookingMapping.ofDomain` 投影受保护的 `Booking` 值；它们从不把领域记录或联合交给序列化器。失败的处理程序只返回一种由 API 拥有的形状：
+成功的处理程序通过 `BookingMapping.ofDomain` 投影受保护的 `Booking` 值；它们从不把领域记录或联合交给序列化器。失败的处理程序只返回一种由 API 定义的结构：
 
 ```fsharp:line-numbers [Endpoints.fs]
 [<CLIMutable>]
@@ -149,20 +132,20 @@ type ApiErrorDto =
 
 ### DTO 存在性 {#dto-presence}
 
-JSON `null` 可以反序列化为空 DTO。缺少 `seats` 属性会得到 `Nullable<int>()`。因此命令映射器会把 `MissingBody`、`MissingRequestId`、`MissingSeats` 和相应的命令专属失败报告为 `400 invalid_request`。
+JSON `null` 可以反序列化为空 DTO；缺少 `seats` 属性会得到 `Nullable<int>()`。命令映射器将其报告为 `400 invalid_request`。通用案例包括 `MissingBody`、`MissingRequestId` 和 `MissingSeats`；各命令还有自己的缺失字段案例。
 
 这一层判断传输表示是否提供了形成原始命令所需的数据。`0` 个座位或空白标识符是否合法，则由领域有效性层判断。
 
 ### 领域有效性 {#domain-validity}
 
-现有验证模块拥有请求 ID、非正座位数、空白确认码与空白取消原因。请求 ID 需要满足四条规则：
+现有验证模块负责检查请求 ID、非正座位数、空白确认码与空白取消原因。请求 ID 需要满足四条规则：
 
 - 至少包含一个非空白字符；
 - 最多包含 64 个字符；
 - 只使用 ASCII URI 非保留字符；
 - 完整值为点段 `.` 和 `..` 之外的内容。
 
-字符规则会从路由身份中排除 `/`、`%`、`?` 和 Unicode。API 在 I/O 前完成验证，以取得受保护的存储键，并一次返回全部字段问题。纯决策器接收原始命令时会应用同一项验证。复用领域检查保留了唯一规则权威，HTTP 层则负责执行顺序。
+字符规则会从路由身份中排除 `/`、`%`、`?` 和 Unicode。API 在 I/O 前完成验证，以取得受保护的存储键，并一次返回全部字段问题。纯决策器接收原始命令时会应用同一项验证。复用领域检查，能让规则只保留一个来源；HTTP 层负责执行顺序。
 
 多个领域错误会成为一个 `validation_failed` 响应，其中包含有序字段错误。请求 ID 失败使用稳定字段代码 `blank`、`too_long` 或 `invalid_format`。传输、DTO 或领域验证失败时，不会发生存储、支付或通知调用。
 
@@ -224,7 +207,7 @@ let private deserialize<'dto when 'dto: not struct and 'dto: not null>
 
 ## 协调工作流而不把规则移到外层 {#workflow}
 
-完成映射与验证后，端点拥有原始命令、受保护的请求 ID、可选的受保护支付请求和成功状态码。此时才可以协调外部操作：
+完成映射与验证后，端点取得原始命令、受保护的请求 ID、可选支付请求和成功状态码。此时才可以协调外部操作：
 
 ```fsharp:line-numbers [Endpoints.fs]
 let private executeCommand dependencies prepared (context: HttpContext) =
@@ -294,7 +277,7 @@ let private executeConsistent (dependencies: ConsistentBookingApiDependencies) p
 5. 发送通知；
 6. 序列化最终的预约 DTO。
 
-API 不会查看私有预约字段来重新实现状态转换。它使用 `Decider.decide`、`BookingEvent.booking`、受保护访问器和端口函数。HTTP 拥有排序与翻译，领域模块仍然拥有合法事实。
+API 不会查看私有预约字段来重新实现状态转换。它使用 `Decider.decide`、`BookingEvent.booking`、受保护访问器和端口函数。HTTP 只负责排序与转换，领域模块仍决定哪些事实合法。
 
 ## 根据结果类型映射响应，不要解析字符串 {#error-map}
 
@@ -323,11 +306,11 @@ API 不会查看私有预约字段来重新实现状态转换。它使用 `Decid
 
 底层请求连接中止时，`HttpContext.RequestAborted` 会发出信号。端点把同一个令牌传给请求体读取、加载、支付授权、追加、通知和响应序列化。
 
-在进程内测试中取消客户端拥有的令牌时，阻塞的 `LoadBooking` 会观察到取消，HTTP 任务也保持取消状态。`RequestAborted` 已取消时，错误边界会重新抛出 `OperationCanceledException`；它不会为已经离开的客户端制造 `500` JSON。
+进程内测试取消客户端令牌后，阻塞的 `LoadBooking` 会收到取消，HTTP 任务也保持取消状态。若 `RequestAborted` 已取消，错误处理会重新抛出 `OperationCanceledException`。它不会为已经离开的客户端制造 `500` JSON。
 
 客户端仍连接时，操作也可能自行取消，例如依赖专属截止时间。本例把这种不同情况映射为 `503 dependency_unavailable`。生产系统可以进一步区分依赖超时与离线，但绝不能把两者中的任何一个与客户端断连混为一谈。
 
-取消是停止请求，不是回滚。一旦外部效果或文件替换可见，稍后的取消无法让它撤销。下一节会把这个限制说具体。
+取消只请求停止，不会回滚。一旦副作用或文件替换已经可见，稍后的取消无法撤销它。下一节会具体说明这一限制。
 
 ## 如实描述部分失败 {#partial-failure}
 
@@ -335,14 +318,14 @@ API 不会查看私有预约字段来重新实现状态转换。它使用 `Decid
 
 | 最后完成的步骤 | 已成立的事实 | 当前响应或观察 | 安全结论 |
 |---|---|---|---|
-| 纯决策 | 没有外部效果或快照变化 | 若有则为领域错误 | 重试有效输入尚不会重复效果 |
+| 纯决策 | 没有副作用或快照变化 | 若有则为领域错误 | 重试有效输入尚不会重复副作用 |
 | 支付授权 | 提供商可能已行动；快照仍旧 | 后续追加失败则为 `503` | 盲目重试可能重复授权 |
 | 事件追加 | 预约快照已更新 | 通知失败则为 `503` | 重试可能看到“已存在”，而通知仍缺失 |
-| 通知 | 所有已建模效果完成 | 响应仍可能因取消丢失 | 没有响应并不能证明失败 |
+| 通知 | 所有已建模副作用完成 | 响应仍可能因取消丢失 | 没有响应不代表操作失败 |
 
 这层 HTTP 边界暴露这些事实，而不是用通用 `try/with` 把它们藏起来。第 37 章会加入原子容量与幂等策略，再定义重试和重启行为。在那之前，这个 API 是可运行的边界演示，不是具备一致性安全的商业预约服务。
 
-名为“dependency failures are safe and reveal the post-commit notification window”的测试证明：通知失败会返回安全 `503`，而记录状态已经是 `Booked`。这是问题存在的证据，不是问题已经解决的证据。
+对应测试确认了一个现象：通知失败时返回安全的 `503`，但记录状态已经是 `Booked`。测试揭示了问题，并没有解决问题。
 
 ## 把异常细节留在进程内 {#safe-errors}
 
@@ -387,17 +370,17 @@ let private safely handler (context: HttpContext) =
 ```
 已声明失败沿三条路径处理：
 
-- 适配器把已知的提供方传输或可用性故障包装为 `DependencyUnavailableException`，并把原异常保留在 `InnerException` 中。对应的 `Charge` 或 `Notify` 处理分支再把该信号映射成 `503 dependency_unavailable`。
-- 存储适配器在内部报告类型化 `BookingStoreAdapterException`，HTTP 边界返回 `503 storage_unavailable`。
+- 适配器把已知的提供方传输或可用性故障包装为 `DependencyUnavailableException`。原异常保留在 `InnerException` 中；对应的 `Charge` 或 `Notify` 分支把该信号映射成 `503 dependency_unavailable`。
+- 存储适配器在内部报告 `BookingStoreAdapterException`。HTTP 层只返回 `503 storage_unavailable`。
 - 意外程序缺陷到达最外层处理程序，并成为安全的 `500 internal_error`。
 
 响应头开始后，替换 JSON 会破坏响应。处理程序因此中止连接。本例的 DTO 序列化较为简单，同一规则也能保护以后的响应路径。
 
-第 38 章会先定义显式数据分类，再加入结构化故障诊断。在此之前，本例把未知异常消息留在日志之外。生产服务仍需要职责明确的可观测性策略。
+第 38 章会先定义数据分类，再加入结构化故障诊断。在此之前，本例不会记录未知异常消息。生产服务仍需要职责明确的可观测性策略。
 
 ## 加载配置而不披露它 {#configuration-secrets}
 
-宿主读取 `BOOKING_STORE_PATH`，以及可选的 `BOOKING_EVENT_ID` 和 `BOOKING_CAPACITY`，然后构造受保护的配置与领域值。被拒绝的设置只产生 `invalid_booking_store`、`invalid_event_id` 或 `invalid_capacity`；原始值不会被打印。
+宿主读取 `BOOKING_STORE_PATH`，还可读取 `BOOKING_EVENT_ID` 和 `BOOKING_CAPACITY`。随后，它构造经过验证的配置与领域值。无效设置只产生 `invalid_booking_store`、`invalid_event_id` 或 `invalid_capacity`，不会打印原始值。
 
 ```fsharp:line-numbers [Program.fs]
 [<EntryPoint>]
@@ -452,9 +435,9 @@ Kestrel 的 `Server` 头已关闭，以减少无必要的实现披露。这是�
 
 聚焦用例覆盖：
 
-- 精确成功 JSON、`Location`、查询、确认与取消；
+- 成功 JSON 的具体格式、`Location`、查询、确认与取消；
 - 格式错误 JSON、属性大小写错误、未知属性、缺失字段、空请求体与错误媒体类型；
-- 在任何效果前累积领域验证；
+- 在任何副作用前累积领域验证；
 - 在 JSON 解析前执行 16 KiB 上限；
 - 重复、缺失、容量与支付结果；
 - 提交前支付故障与提交后通知故障；
@@ -524,7 +507,7 @@ curl -i \
 {"code":"invalid_json","message":"The request body is not valid JSON for this endpoint.","errors":[]}
 ```
 
-删除显式临时快照之前应先停止宿主。以后使用同一路径启动时会恢复已保存状态；这个事实会用于第 37 章的重启测试。
+删除指定的临时快照前，应先停止宿主。以后使用同一路径启动时会恢复已保存状态；第 37 章的重启测试会用到这一行为。
 
 ## 了解生产边界 {#production-boundary}
 
@@ -543,7 +526,7 @@ curl -i \
 - 把每种拒绝都映射成 `400`，会抹去客户端可以安全采取的下一步。
 - 返回 `exception.Message`，可能披露路径、提供商详情或实现名称。
 - 把客户端取消捕获成 `500`，同时歪曲请求和服务器状态。
-- 在支付或通知结果不明确后重试，可能重复效果。
+- 在支付或通知结果不明确后重试，可能重复副作用。
 - 假设内存服务器会复现 Kestrel 传输行为，会留下验证缺口。
 - 把生产凭据放入环境变量，并不等于加密或访问控制。
 - 在分类与脱敏前启用请求体日志，可能让诊断变成数据泄漏。
@@ -553,9 +536,9 @@ curl -i \
 
 ### 练习 1：改变绑定但不改变契约 {#exercise-01}
 
-把一个命令路由重新设计为使用 Minimal API 自动参数绑定。保留完全相同的严格 JSON 策略、16 KiB 有效上限、`ApiErrorDto` 形状、取消传播和全部状态码/代码组合。指出哪些行为属于配置、端点过滤器或中间件，以及处理程序。给出能够阻止框架默认值改变公共响应的契约测试。
+把一个命令路由重新设计为使用 Minimal API 自动参数绑定。保留完全相同的严格 JSON 策略、16 KiB 有效上限、`ApiErrorDto` 表示、取消传播和全部状态码/代码组合。指出哪些行为属于配置、端点过滤器或中间件，以及处理程序。给出能够阻止框架默认值改变公共响应的契约测试。
 
-### 练习 2：从最后可见效果开始推理 {#exercise-02}
+### 练习 2：从最后可见的副作用开始推理 {#exercise-02}
 
 针对每个中断——支付授权后追加失败、追加成功后通知失败、通知成功后客户端断连——说明提供商、快照、调用方与一次重试分别能观察什么。提出第 37 章必须持久化的最小幂等信息。不要声称存在分布式事务。
 
@@ -568,18 +551,18 @@ curl -i \
 ## 模型回顾 {#model-review}
 
 - HTTP 负责解释外部请求，不负责决定领域规则。
-- 四条显式路由只接收和返回边界表示。
+- 四条独立路由只接收和返回外部表示。
 - 媒体类型、大小、语法、DTO 存在性与领域有效性是不同检查。
 - 真正的上限即使没有 `Content-Length` 也会计数字节。
 - 一份严格 JSON 策略可防止传输与持久化漂移。
 - 稳定错误代码是公共数据；异常与提供商消息不是。
-- `RequestAborted` 贯穿每个异步效果与响应写入。
-- 取消不会回滚已经可见的效果。
+- `RequestAborted` 贯穿每个异步副作用与响应写入。
+- 取消不会回滚已经可见的副作用。
 - 支付先于追加、通知晚于追加，造成不同的重试风险。
-- `TestServer` 证明管线；回环 Kestrel 证明选定的传输行为。
+- `TestServer` 验证管线；回环 Kestrel 验证选定的传输行为。
 - 配置拒绝从不需要打印被拒绝值。
 - 环境变量避免提交，但不是加密的机密存储。
-- 请求体日志需要显式分类与脱敏。
+- 请求体日志需要事先分类与脱敏。
 - 关闭服务器头部是加固，不是授权系统。
 - 当前宿主可运行、可测试，但还不具备一致性安全或生产完整性。
 

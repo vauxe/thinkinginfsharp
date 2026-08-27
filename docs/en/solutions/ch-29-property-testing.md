@@ -6,7 +6,7 @@ translationKey: solutions/ch-29-property-testing
 
 # Chapter 29 Solutions {#overview}
 
-These are model answers, not the only valid properties or generators. Each answer states the requirement before code, preserves domain validity during generation and shrinking, and separates temporary reproduction data from the permanent regression contract.
+These are reference solutions, not the only correct properties or generators. Each one states the requirement before showing code, keeps generated and shrunk values valid, and separates temporary reproduction data from permanent regression tests.
 
 [Return to Chapter 29](../part-05/ch-29-property-testing).
 
@@ -43,7 +43,7 @@ This property comes from the declared streaming semantics rather than reproducin
 
 Keep capacity 5 with requests `[2; 4; 3]` as an exact example: it documents that the allocator accepts 2, rejects 4, accepts 3, and reaches zero. The property establishes prefix stability over many inputs but does not communicate that concrete policy nearly as clearly.
 
-An alternative correct property is to replay decisions with a small verifier: each `Accepted n` must fit the then-current remainder and subtract `n`; each `Rejected n` must exceed that remainder. That model is useful if written independently and named as the policy, but avoid sharing the production folder.
+Another valid property replays decisions with a small verifier: each `Accepted n` must fit the current remainder and subtract `n`; each `Rejected n` must exceed that remainder. This model is useful when written independently and named after the policy, but it should not reuse the production fold function.
 
 ## Exercise 2: design generation and shrinking {#exercise-02}
 

@@ -39,9 +39,9 @@ let nextAttendeeCount = attendeeCount + 1
 
 printfn "Next attendee count: %d" nextAttendeeCount
 ```
-`rawAttendeeCount` 是 `string`，而整数加法的另一侧是 `int`；F# 不会把任意文本隐式解释为整数。`int rawAttendeeCount` 显式产生 `int` 值，所以 `attendeeCount` 与 `nextAttendeeCount` 都是 `int`，最终输出为 `Next attendee count: 25`。
+`rawAttendeeCount` 是 `string`，而整数加法的另一侧是 `int`；F# 不会自动把任意文本解释为整数。`int rawAttendeeCount` 先把文本转换为 `int`，因此 `attendeeCount` 与 `nextAttendeeCount` 都是 `int`。最终输出为 `Next attendee count: 25`。
 
-这里仍有一个刻意保留的风险：文本不是有效整数时，`int` 转换会抛出异常。本题的边界契约假设输入有效；在真实输入边界，后续章节会用显式失败类型或受控异常转换表达这个分支。不要把本例误读为“所有解析都应该直接调用 `int`”。
+这里仍有一个刻意保留的风险：文本不是有效整数时，`int` 转换会抛出异常。本题假设输入有效；在真实输入边界，后续章节会用失败类型或受控异常转换表达这个分支。不要把本例误读为“所有解析都应该直接调用 `int`”。
 
 ## 练习 3：追踪遮蔽 {#exercise-03}
 

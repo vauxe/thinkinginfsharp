@@ -6,9 +6,9 @@ translationKey: appendices/b-syntax-reference
 
 # Appendix B: Syntax and Operator Quick Reference {#overview}
 
-This appendix is a lookup surface for syntax already explained in the chapters. It is not a substitute for the type checker, the F# Language Reference, or the problem-specific discussion. When unfamiliar code is dense, read its inferred or declared types first; punctuation becomes easier once the data flow is known.
+This appendix is a quick reference for syntax already explained in the chapters. It does not replace the type checker, the F# Language Reference, or the chapter that explains a specific problem. When unfamiliar code looks dense, read its inferred or declared types first; punctuation becomes easier once you know the data flow.
 
-The complete F# blocks below are self-contained examples you can copy into FSI or a small project. Tiny forms inside tables show syntax shapes rather than complete programs.
+The complete F# blocks below are self-contained examples you can copy into FSI or a small project. Short table entries illustrate syntax; they are not complete programs.
 
 ## Read a type from the outside inward {#read-types}
 
@@ -47,24 +47,25 @@ Parentheses group a value; they do not define invocation syntax. `f (x, y)` pass
 
 ### Decode a higher-order signature {#higher-order-signature}
 
-Read this common shape one arrow at a time:
+Read this common signature one arrow at a time:
 
 ```text
 List.fold : ('State -> 'T -> 'State) -> 'State -> 'T list -> 'State
 ```
 
-It accepts:
+It takes three arguments:
 
 1. a folder from current state and one element to next state;
 2. an initial state;
-3. a list of elements;
-4. and returns the final state.
+3. a list of elements.
+
+It returns the final state.
 
 The parentheses around the folder matter because that whole function is the first argument. Type names such as `'State` and `'T` describe relationships: the initial, intermediate, and final state must agree; every list element has one element type.
 
 ## Bind values and return expressions {#bindings-expressions}
 
-`let` binds a name to the value of an expression. It is not a statement terminator or a promise of mutability.
+`let` binds a name to the value of an expression. It is not a statement terminator, and it does not make the value mutable.
 
 ```fsharp:line-numbers [ch02-values-bindings-expressions.fsx]
 let eventName = "Functional Foundations"
@@ -132,7 +133,7 @@ let capacityBand remaining =
 
 printfn "Capacity bands: %s, %s, %s, %s" (capacityBand 0) (capacityBand 1) (capacityBand 4) (capacityBand 8)
 ```
-Match cases run top to bottom. Prefer structural cases before a final wildcard, and let compiler exhaustiveness feedback expose new domain states.
+Match cases run from top to bottom. Put structural cases before a final wildcard, and use the compiler's exhaustiveness warning to catch new domain states.
 
 | Pattern | Meaning |
 |---|---|
@@ -159,7 +160,7 @@ A lowercase identifier in a pattern usually **binds**; it does not compare again
 |---|---|
 | `type Person = { Name: string; Age: int }` | named product: all fields exist together |
 | `{ old with Age = old.Age + 1 }` | record copy/update; creates a new record |
-| `{| Name = "Ada"; Age = 36 |}` | anonymous record, often local or boundary-shaped |
+| `{| Name = "Ada"; Age = 36 |}` | anonymous record, often used locally or at an API/serialization boundary |
 | `type Status = Pending | Confirmed of string` | named alternatives with case-specific data |
 | `type UserId = private UserId of string` | single-case union hiding unchecked construction |
 | `type Alias = string` | abbreviation only; not a distinct domain type |
@@ -185,7 +186,7 @@ let descriptions = statuses |> List.map describeStatus
 
 printfn "Statuses: %A" descriptions
 ```
-Use records for simultaneous facts and unions for alternatives. Do not reproduce a union with independent Boolean flags unless contradictory combinations are genuinely valid.
+Use records for facts that exist together and unions for alternatives. Do not simulate a union with independent Boolean flags unless the contradictory combinations are genuinely valid.
 
 ## Recognize collection syntax {#collections}
 
@@ -201,15 +202,15 @@ Use records for simultaneous facts and unions for alternatives. Do not reproduce
 | `[ for x in source do yield f x ]` | list comprehension |
 | `[ start..finish ]` | inclusive range under the element type's range rules |
 
-`List`, `Array`, and `Seq` modules expose similarly named functions but preserve different storage and evaluation contracts. Appendix C compares those contracts; this table only identifies surface syntax.
+`List`, `Array`, and `Seq` modules expose similarly named functions, but each keeps its own storage and evaluation behavior. Appendix C compares that behavior; this table only identifies the syntax.
 
 ## Recognize effects and computation expressions {#effects-computation-expressions}
 
-| Form | Boundary |
+| Form | Meaning |
 |---|---|
 | `try expression with | pattern -> handler` | translate selected exceptions |
 | `try expression finally cleanup` | always run synchronous cleanup |
-| `use x = acquire ()` | lexical `IDisposable` ownership |
+| `use x = acquire ()` | dispose an `IDisposable` when the lexical scope ends |
 | `raise exception` | raise an exception expression |
 | `async { ... }` | F# async workflow built by `async` |
 | `task { ... }` | .NET task workflow built by `task` |
@@ -219,7 +220,7 @@ Use records for simultaneous facts and unions for alternatives. Do not reproduce
 | `yield value` / `yield! values` | builder-defined emission / delegated emission |
 | `use! x = operation` | builder-defined asynchronous acquisition plus disposal scope |
 
-The identifier before `{ ... }` selects a builder. The keywords with `!` therefore get meaning from that builder; braces alone do not guarantee concurrency, laziness, cancellation, exception translation, or rollback. Read the resulting type and the builder's contract.
+The identifier before `{ ... }` selects a builder. Keywords with `!` get their meaning from that builder; braces alone do not guarantee concurrency, laziness, cancellation, exception translation, or rollback. Check the resulting type and the builder's rules.
 
 Outside a computation expression, an F# function returns its final expression—there is no general `return` statement.
 
@@ -237,7 +238,7 @@ Outside a computation expression, an F# function returns its final expression—
 | `null` / `Type | null` | nullable .NET reference boundary under null checking |
 | `Nullable<'T>` | .NET nullable value wrapper; distinct from `'T option` |
 
-Member overloads, optional parameters, delegates, events, attributes, and null annotations come from the exposed .NET API. Add a type annotation at the narrow boundary when inference cannot select the intended overload; do not spread annotations through otherwise clear pure code.
+Member overloads, optional parameters, delegates, events, attributes, and null annotations come from the exposed .NET API. Add a type annotation at the call site when inference cannot select the intended overload; do not spread annotations through otherwise clear pure code.
 
 ## Decode common operators and symbols {#operators-symbols}
 
@@ -260,7 +261,7 @@ Member overloads, optional parameters, delegates, events, attributes, and null a
 | `#load`, `#r`, `#if` | script/compiler directive | flexible type syntax `#Base` |
 | `<@ expression @>` | typed quotation | ordinary execution |
 
-Reference-cell `!cell` and `cell := value` forms produce advisories in current F#; prefer `cell.Value` and `cell.Value <- value` when a reference cell is the intentional state container.
+The reference-cell forms `!cell` and `cell := value` trigger deprecation warnings in current F#. When a reference cell is the right state container, prefer `cell.Value` and `cell.Value <- value`.
 
 ## Use precedence as a warning, not a memory contest {#precedence}
 
@@ -288,7 +289,7 @@ Whitespace also matters. Write binary subtraction as `x - 1` and unary negation 
 
 `open` only shortens name lookup. Project references make assemblies available; file entries compile source; `#load` is an FSI/script mechanism. They solve different problems.
 
-## Route the question back to the chapter {#chapter-map}
+## Find the relevant chapter {#chapter-map}
 
 | If the confusing surface is… | Return to… |
 |---|---|

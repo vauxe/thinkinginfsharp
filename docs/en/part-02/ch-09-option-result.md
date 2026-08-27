@@ -6,23 +6,11 @@ translationKey: part-02/ch-09-option-result
 
 # Chapter 9: Absence and Expected Failure {#overview}
 
-A search may legitimately find no booking. A booking request may instead be found but fail because it asks for too many seats. Both computations lack a normal value, but they do not communicate the same thing. In the first, absence is the whole answer. In the second, a caller needs the reason.
+A search may legitimately find no booking. A seat request may fail because it asks for too many seats. Neither computation returns a normal value, but they mean different things: absence fully answers the search, while the failed request needs a reason.
 
-F# gives those two meanings different types. `'T option` says “there may be a `'T`.” `Result<'T, 'TError>` says “there is either a successful `'T` or a modeled `'TError`.” Both are discriminated unions, so callers must handle their cases rather than rely on a sentinel value or undocumented exception.
+F# gives those meanings different types. `'T option` says “there may be a `'T`.” `Result<'T, 'TError>` says “the result is either a successful `'T` or a typed error.” Both are discriminated unions. Callers handle their cases instead of relying on a sentinel value or undocumented exception.
 
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- choose `option` when absence needs no further explanation;
-- choose `Result` when an expected failure reason matters;
-- consume both types safely with pattern matching and defaults;
-- distinguish `map` from `bind` by the return type of the next function;
-- compose validation steps while preserving the first error;
-- attach context with `Result.mapError` without changing success values;
-- explain why `Some null` is possible and why it should usually be normalized at a boundary.
-
-The chapter stays synchronous and uses explicit functions. Computation expressions arrive in Chapter 18, nullable-reference interoperation in Chapter 19, and exception boundaries in Chapter 21.
+We stay with synchronous code and ordinary functions here. Chapter 18 introduces computation expressions, Chapter 19 covers nullable-reference interoperation, and Chapter 21 handles exceptions.
 
 ## Absence should be a case, not a secret value {#absence-as-data}
 
@@ -67,7 +55,7 @@ let lookupMessage bookingId =
 
 When a genuine fallback is enough, `Option.defaultValue fallback option` collapses the two cases at that boundary. `Option.defaultWith` delays computing an expensive fallback until it is needed.
 
-Avoid treating `.Value` or `Option.get` as the normal way to unwrap an option. Both throw for `None`, discarding the safety expressed by the type. They are reasonable only when the proof of `Some` is local and obvious; a match usually records that proof more clearly.
+Avoid treating `.Value` or `Option.get` as the normal way to unwrap an option. Both throw for `None`, discarding the safety expressed by the type. Use them only when nearby code has already established `Some`; a match usually makes that fact clearer.
 
 ## `map` changes a present value; `bind` continues a search {#option-composition}
 
@@ -121,7 +109,7 @@ type Result<'T, 'TError> =
     | Error of 'TError
 ```
 
-`Ok value` carries the successful value. `Error error` carries a reason chosen by the domain. A discriminated union is usually better than a bare error string because each failure shape remains machine-readable:
+`Ok value` carries the successful value. `Error error` carries a reason chosen by the domain. A discriminated union is usually better than a bare error string because each failure case remains available to program logic:
 
 ```fsharp:line-numbers [ch09-option-result.fsx]
 let validateAttendee request =
@@ -167,7 +155,7 @@ printfn
 
 ### Transform success and error independently {#result-transformations}
 
-The module operations keep the two tracks explicit:
+The module operations handle success and failure separately:
 
 - `Result.map` transforms only the value inside `Ok`;
 - `Result.mapError` transforms only the value inside `Error`;
@@ -199,7 +187,7 @@ match contextualFailure with
 ```
 `addRequestContext` changes only the error type. An `Ok request` passes through untouched; an `Error BookingError` becomes `Error RequestFailure`. Code farther out can log `RequestId`, translate `Cause`, or map the domain failure into an HTTP response without parsing text.
 
-Do not attach every possible detail at the deepest function. Give each layer the error facts it owns, then add request, file, or endpoint context as the value moves outward. This keeps core domain functions reusable and avoids losing diagnostic identity in strings.
+Do not attach every possible detail in the deepest function. Let each layer add only the facts it knows, then add request, file, or endpoint context as the error moves outward. This keeps core domain functions reusable and preserves diagnostic fields instead of flattening them into strings.
 
 ## `bind` preserves the first failure, not every failure {#short-circuiting}
 
@@ -212,7 +200,7 @@ printfn "Short circuit: %s" (validate 4 doublyInvalidRequest |> describeResult)
 ```
 That behavior is correct for dependent steps: seat validation may make sense only after earlier data is valid. It is not an accumulating validator. If a form should display all independent errors at once, collect those results explicitly or use an applicative validation design; Chapter 18 returns to that distinction.
 
-An `Error` should describe a failure the caller can reasonably inspect or handle. Do not catch every exception and turn it into a vague `Error "failed"`; that destroys stack and cause information. Bugs, cancellation, resource failure, and domain rejection have different boundaries. Chapter 21 develops that policy.
+An `Error` should describe a failure the caller can reasonably inspect or handle. Do not catch every exception and turn it into a vague `Error "failed"`; that destroys stack and cause information. Bugs, cancellation, resource failures, and domain rejections need different treatment, as Chapter 21 explains.
 
 ## Choosing the smallest truthful type {#choosing-a-type}
 
@@ -222,12 +210,12 @@ Use the question a caller must answer:
 | --- | --- | --- |
 | A lookup may have no match, and no-match is enough | `'T option` | present or absent |
 | Parsing or validation may fail for useful known reasons | `Result<'T, 'Error>` | success or a modeled reason |
-| A value is guaranteed by the function contract | `'T` | a value, with no advertised alternate case |
-| A failure is unexpected or cannot be handled locally | not automatically `Result` | preserve the appropriate exception/cancellation boundary |
+| The function guarantees a value | `'T` | a value, with no advertised alternate case |
+| A failure is unexpected or cannot be handled locally | not automatically `Result` | preserve exception or cancellation semantics |
 
 Do not return `Result<'T, unit>` merely to imitate option; use option when the error carries no information. Conversely, do not compress meaningful errors into `None` merely to make a signature shorter.
 
-Nested shapes can be honest. `Result<'T option, 'Error>` can mean “the operation itself may fail; on success, a value may still be absent.” The two dimensions should be flattened only when the domain says they are the same fact.
+Nested types can be accurate. `Result<'T option, 'Error>` can mean “the operation itself may fail; on success, a value may still be absent.” Flatten the two dimensions only when the domain treats them as the same fact.
 
 ## `Some null` is still possible {#some-null}
 
@@ -245,7 +233,7 @@ printfn "Some null: isSome=%b payloadIsNull=%b" riskyPayload.IsSome payloadIsNul
 ```
 This produces three representable states: `None`, `Some null`, and `Some "Lin"`. That is usually accidental complexity. At a .NET boundary, normalize a nullable result into `None` or reject it before core code receives the value.
 
-The annotation `(string | null) option` makes the nullable payload explicit under F# nullness checking. This chapter needs only the warning: `Some` does not prove a reference payload is non-null. Chapter 19 explains `T | null`, `Nullable<T>`, legacy .NET annotations, and boundary conversion in full.
+Under F# nullness checking, `(string | null) option` states that the payload may be null. For now, remember that `Some` does not prove a reference payload is non-null. Chapter 19 explains `T | null`, `Nullable<T>`, legacy .NET annotations, and conversion at .NET interfaces.
 
 ## Run the shared example {#run-example}
 

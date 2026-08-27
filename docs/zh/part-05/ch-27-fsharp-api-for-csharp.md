@@ -6,9 +6,9 @@ translationKey: part-05/ch-27-fsharp-api-for-csharp
 
 # 第 27 章：为 C# 设计 F# API {#overview}
 
-F# 和 C# 共享 CLR、程序集与大部分基础类型。两种语言的惯用表达经过程序集边界后，会呈现不同形状：
+F# 和 C# 共享 CLR、程序集与大部分基础类型。但惯用的 F# 类型经过程序集公开后，在 C# 中会呈现不同形式：
 
-| F# 源码形式 | C# 看到的 API 形式 |
+| F# 源码形式 | C# 看到的内容 |
 |---|---|
 | `Result<_,_>` | `FSharpResult` |
 | 可辨识联合 | 联合案例类型与辅助成员 |
@@ -16,26 +16,13 @@ F# 和 C# 共享 CLR、程序集与大部分基础类型。两种语言的惯用
 | 柯里化函数 | `FSharpFunc` |
 | `Async<_>` | `FSharpAsync` |
 
-这些都是有效的 CLR 形状。一旦公开，它们的表示就会进入调用方代码与版本兼容契约。
+这些都是有效的 CLR 表示。但一旦公开，调用方就会依赖它们，它们也随之成为版本兼容的一部分。
 
-稳定的库因此维护两套含义准确的词汇：内部使用最能表达领域的 F# 类型，程序集边界提供调用方熟悉的 .NET 契约。两者之间的适配代码保持小巧、明确且可测试。
-
-## 学完本章你将能够 {#outcomes}
-
-学完本章后，你应该能够：
-
-- 从真实 C# 调用点评审 F# 编译后的公共 API；
-- 决定记录、联合、`option`、函数、异步、集合与元组是否需要投影；
-- 按 .NET 约定设计命名空间、类型、属性、方法、参数和重载；
-- 同时发布可空元数据并执行运行时参数检查；
-- 区分调用者错误、预期业务拒绝与系统故障；
-- 生成并验证公开 API 的 XML 文档；
-- 把领域模型、C# 公共模型和 JSON/数据库模型分开演进；
-- 识别源码、二进制、行为与传输格式兼容性风险。
+稳定的库因此维护两套清楚的表达：领域内部使用表达力强的 F# 类型，对外提供符合 .NET 习惯的 API。两者之间的适配代码应保持小巧并且可以测试。
 
 ## 先写调用代码，再设计公共 API {#consumer-first}
 
-先写最小 C# 契约客户端。它能暴露 API 是否要求调用者理解 F#，也能把命名参数、可空性、构造方式和返回形状变成编译证据：
+先写一个最小的 C# 调用程序。它能暴露 API 是否要求调用方理解 F#，还可以让编译器检查命名参数、可空性、构造方式和返回类型：
 
 ```csharp:line-numbers [Program.cs]
 var accepted = BookingApi.Evaluate(
@@ -53,25 +40,25 @@ Require(accepted.SuggestedSeats is null, "accepted suggestion must be null");
 Console.WriteLine(
     $"Accepted: outcome={accepted.Outcome} code={accepted.ConfirmationCode} remaining={accepted.RemainingSeats}");
 ```
-这个调用只出现普通命名空间、枚举、密封类、构造函数、静态方法、属性、`string?` 与 `int?`。C# 调用者无需知道内部存在联合和 `option`。命名参数也说明 `capacity`、`request`、`requestId` 等参数名是可被源码依赖的契约，不只是实现注释。
+这个调用只使用命名空间、枚举、密封类、构造函数、静态方法、属性、`string?` 与 `int?`。C# 调用方无须知道内部存在联合和 `option`。命名实参也说明，`capacity`、`request`、`requestId` 等参数名会成为源码依赖，而不只是实现注释。
 
-“C# 能调用”只是最低门槛。还应询问：IDE 是否给出自然补全？可空分析是否准确？错误是否能按预期分支？API 升级后，旧二进制能否继续运行？
+“C# 能调用”只是最低门槛。还要检查：IntelliSense 是否自然？可空分析是否准确？调用方能否按预期错误分支处理？API 升级后旧二进制能否继续运行？
 
-## 一个含义，三个使用边界 {#three-surfaces}
+## 一个含义，三层表示 {#three-surfaces}
 
-同一个预约请求会经过三个面向不同用途的边界，但业务规则不能因此复制三份：
+同一个预约请求可以有三层表示，但业务规则只能保留一份：
 
-| 边界 | 为谁优化 | 合适的形式 | 不应负责 |
+| 层 | 主要面向 | 合适的表示 | 不应定义 |
 |---|---|---|---|
 | F# 领域核心 | 领域推理与穷尽匹配 | 私有联合、记录、`option`、`Result`、纯函数 | C# 便利性、序列化构造规则 |
 | .NET 公共 API | C#、VB 与反射工具 | 命名空间、类、枚举、成员、可空标注、Task、委托 | JSON 字段名、ORM 布局 |
-| 传输格式/存储 DTO | JSON、消息或数据库适配器 | 显式字段、版本与序列化属性 | 领域不变量的唯一实现 |
+| 传输格式/存储 DTO | JSON、消息或数据库适配器 | 明确的字段、版本与序列化属性 | 领域不变量的唯一实现 |
 
-规则只在领域核心中决定。公共 API 和 DTO 解码输入、调用核心，再投影结果。它们可以拥有不同形状与发布节奏，因为程序集签名、JSON 模式和数据库模式是不同契约。
+业务规则只由领域核心决定。公共 API 和 DTO 负责解码输入、调用核心，再转换结果。三层可以采用不同表示和版本节奏，因为程序集签名、JSON 模式和数据库模式的兼容规则各不相同。
 
 ### 让联合留在核心 {#internal-union}
 
-样例用封闭联合精确表示两种领域结果；建议席位只在拒绝时存在：
+示例用封闭联合只表示两种领域结果；建议席位仅在拒绝时存在：
 
 ```fsharp:line-numbers [Library.fs]
 type internal Decision =
@@ -96,9 +83,9 @@ module internal Decision =
 ```
 这里的模式匹配仍然穷尽，非法组合不会进入核心。`internal` 防止 C# 或另一个程序集依赖案例的编译表示，也给库作者留下增加内部案例或改变载荷的空间。
 
-### 在边界投影一次 {#boundary-projection}
+### 在公共 API 中转换一次 {#boundary-projection}
 
-下面是常见的跨语言投影，而不是机械的一一替换：
+下面是常见的跨语言映射，并非机械地一一替换：
 
 | 内部 F# 表示 | 常见 .NET 公共表示 | 选择依据 |
 |---|---|---|
@@ -107,7 +94,7 @@ module internal Decision =
 | `'T option` 参数 | 清楚的重载，偶尔为有明确 null 语义的可空参数 | 避免要求 C# 构造 `FSharpOption<T>` |
 | `'T -> 'U` | `Func<T,U>`、`Action<T>` 或有名称的委托 | C# lambda 与工具支持 |
 | `Async<'T>` | `Task<T>`，通常接收 `CancellationToken` | .NET 异步约定 |
-| F# `list`/`Map`/`Set` | 与语义匹配的 .NET 集合接口 | 枚举、索引、查找与可变性契约 |
+| F# `list`/`Map`/`Set` | 与行为匹配的 .NET 集合接口 | 枚举、索引、查找与可变性语义 |
 | 有领域含义的元组 | 有名称的结果类型 | 让字段含义和演进位置稳定 |
 
 公开请求使用普通构造函数和只读属性：
@@ -142,7 +129,7 @@ type BookingRequest(requestId: string, attendee: string, seats: int) =
     /// <summary>Gets the requested seat count.</summary>
     member _.Seats = seats
 ```
-公开响应把引用缺失投影为可空 `string`，把值缺失投影为 `Nullable<int>`。构造函数是程序集内部的，因此调用者不能制造“接受但没有确认码”的响应：
+公开响应把缺失的引用映射为可空 `string`，把缺失的值映射为 `Nullable<int>`。构造函数只在程序集内部可见，因此调用方无法构造“已接受但没有确认码”的响应：
 
 ```fsharp:line-numbers [Library.fs]
 /// <summary>A C#-friendly projection of the internal F# booking decision.</summary>
@@ -194,11 +181,11 @@ module internal ResponseAdapter =
 
             BookingResponse(BookingOutcome.Rejected, null, Nullable<int>(), message, suggestion)
 ```
-即使公开签名不含 `Microsoft.FSharp.*`，F# 编译的程序集通常仍在运行时依赖 `FSharp.Core`。目标是消除调用方的 F# 表示知识，不是假装实现不由 F# 编写；正常的项目或 NuGet 依赖解析会传递运行时依赖。
+即使公开签名不含 `Microsoft.FSharp.*`，由 F# 编译的程序集通常仍在运行时依赖 `FSharp.Core`。目标是让调用方无须理解 F# 表示，而不是隐藏实现语言。正常的项目或 NuGet 依赖解析会自动传递这项依赖。
 
-## 把公共成员设计成 .NET API {#dotnet-shape}
+## 用 .NET 习惯呈现公共成员 {#dotnet-shape}
 
-面向普通 .NET 语言的 API 优先使用命名空间、类型和成员；实现函数可以留在非公开模块。样例用抽象且密封、构造函数私有的类型承载一组静态操作：
+面向其他 .NET 语言的 API 优先使用命名空间、类型和成员；实现函数可以留在非公开模块。示例定义一个抽象且密封、构造函数私有的类型，用来组织一组静态操作：
 
 ```fsharp:line-numbers [Library.fs]
 /// <summary>Provides the stable .NET entry point for booking decisions.</summary>
@@ -218,41 +205,41 @@ type BookingApi private () =
 
         request |> Decision.evaluate capacity |> ResponseAdapter.fromDecision
 ```
-这不是要求每个 F# 模块都改成类。只有跨语言公共边界需要改成调用方熟悉的形式；面向 F# 的 API 仍可自然地公开模块、函数和联合。
+这不是要求把每个 F# 模块都改成类。只有跨语言公共 API 需要采用调用方熟悉的形式；面向 F# 的 API 仍可自然地公开模块、函数和联合。
 
-### 名称也是兼容性契约 {#names}
+### 名称属于源码兼容性 {#names}
 
 公共命名空间、类型、方法和属性使用 `PascalCase`，参数使用 `camelCase`；布尔属性采用肯定式 `IsAccepted` 或 `CanRetry`。避免只靠大小写区分名称，也不要把内部缩写传播给所有调用者。
 
-F# 成员用括号内的元组式参数声明，编译成普通多参数 CLI 方法，所以 C# 得到 `Evaluate(int capacity, BookingRequest request)`。参数名值得认真选择：C# 命名实参会把它写进源码，重命名会破坏该源码，即使二进制签名仍相同。
+F# 成员用括号内的元组式参数声明，编译后会成为常规的多参数 CLI 方法。因此 C# 看到的是 `Evaluate(int capacity, BookingRequest request)`。参数名要谨慎选择：C# 命名实参会把名称写进源码，重命名会破坏该源码，即使二进制签名没有变化。
 
-`[<CompiledName>]` 能给编译后的值或函数另一个名称，适合确实需要 F# 与 CLI 两套惯用名称的小型 API。它不是修补混乱命名的默认工具；先让公共词汇本身一致，并用 C# 编译器查看最终形式。
+`[<CompiledName>]` 可以给编译后的值或函数另一个名称，适合确实需要 F# 与 CLI 两套惯用名称的小型 API。它不是修补混乱命名的通用工具。应先统一公共词汇，再用 C# 编译器检查最终 API。
 
 ### 属性、方法与重载表达不同承诺 {#members-overloads}
 
-属性适合便宜、稳定、像状态观察的值；会执行工作、接收参数、可能耗时或有明显失败的操作应是方法。不要把网络或磁盘 I/O 藏进看似字段读取的属性。
+属性适合读取成本低且稳定的状态值；需要参数、可能耗时或可能明显失败的操作应使用方法。不要把网络或磁盘 I/O 藏进看似字段读取的属性。
 
-可选行为通常用重载表示，例如同时提供 `Find(requestId)` 与 `Find(requestId, attendee)`，两者委托给同一实现。按参数数量重载通常比按相近类型重载更清楚。不要仅为未来可能性预先制造组合爆炸；当选项开始成组增长时，改用有名称的 options 类型。
+可选行为通常用重载表示，例如同时提供 `Find(requestId)` 与 `Find(requestId, attendee)`，两者都委托给同一实现。按参数数量重载通常比按相近类型重载更清楚。不要为假设中的未来选项预先建立所有组合；当选项成组增长时，改用具名 options 类型。
 
-公开回调使用 `Func`、`Action` 或领域委托；公开异步方法返回 `Task`/`Task<T>`，按协议接收 `CancellationToken`。内部仍可立即把委托转成 F# 函数、把任务工作流映射回领域操作。
+公开回调使用 `Func`、`Action` 或领域委托；公开异步方法返回 `Task` 或 `Task<T>`，并在调用方可以取消时接收 `CancellationToken`。内部仍可立即把委托转成 F# 函数，把任务工作流映射回领域操作。
 
-### 集合与元组必须保留语义 {#collections-tuples}
+### 集合与元组必须保留行为 {#collections-tuples}
 
-不要只把 `list<'T>` 换成 `IEnumerable<T>` 就宣称完成设计。若结果是单次流，`IEnumerable<T>` 合适；若承诺稳定索引和计数，可选 `IReadOnlyList<T>`；键查找则使用相应字典接口。仍需说明它是实时视图还是快照，因为只读接口不保证背后不可变。
+不要只把 `list<'T>` 换成 `IEnumerable<T>` 就认为设计完成。顺序枚举适合 `IEnumerable<T>`；需要稳定索引和计数时可用 `IReadOnlyList<T>`；键查找则使用相应的字典接口。还要说明返回的是实时视图还是快照，因为只读接口并不能证明底层存储不可变。
 
-两个短暂且无领域名称的结果偶尔可用元组；如果 `Item1`、`Item2` 会让 C# 调用者猜含义，或未来可能增加成员，就返回有名称的类型。边界处增加少量固定代码，可以换来更清楚的契约。
+两个短暂且没有领域名称的结果偶尔可以使用元组。如果 `Item1`、`Item2` 会让 C# 调用方猜测含义，或将来可能增加成员，就返回具名类型。少量适配代码可以换来清楚得多的 API。
 
 ## 正确表达 null、缺失与失败 {#absence-failure}
 
-边界设计首先区分三件事：调用者违反参数契约、业务上可预期的拒绝，以及基础设施故障。把它们全部编码为 `null`、全部抛异常或全部塞进一个字符串都会丢失信息。
+公共 API 设计首先要区分三件事：调用参数无效、业务上可预期的拒绝，以及基础设施故障。把三者全部编码为 `null`、全部抛成异常或全部塞进一个字符串，都会丢失信息。
 
-### 可空标注不能代替运行时防卫 {#null-contract}
+### 可空标注不能代替运行时检查 {#null-contract}
 
-F# 9 及以上启用 nullable 检查后，`string` 与 `string | null` 表达不同静态契约。对非 null 的公开输入，样例既发出 `NotNull` 元数据，又在入口调用 `ArgumentNullException.ThrowIfNull`；因为未启用分析的 C#、反射和其他运行时调用仍能传入 null。
+F# 9 及以上启用 nullable 检查后，`string` 与 `string | null` 具有不同的静态含义。对于不可为 null 的公开输入，示例既生成 `NotNull` 元数据，也在入口调用 `ArgumentNullException.ThrowIfNull`。未启用可空分析的 C# 代码、反射和其他运行时调用仍然可能传入 null。
 
 预期缺失的引用输出使用 `string | null`，预期缺失的值输出使用 `Nullable<int>`。`Nullable<T>` 只适用于值类型；F# 中没有值时构造 `Nullable<T>()`，C# 将其视为 `T?` 且 `is null` 为真。
 
-C# 契约客户端通过反射检查这些承诺，并检查公开签名没有泄露 F# 专用类型：
+C# 测试客户端通过反射检查这些约定，并确认公开签名没有泄露 F# 专用类型：
 
 ```csharp:line-numbers [Program.cs]
 var publicTypes = typeof(BookingApi).Assembly.GetExportedTypes();
@@ -294,21 +281,21 @@ var documentation = File.ReadAllText(documentationPath);
 Require(documentation.Contains("BookingApi.Evaluate", StringComparison.Ordinal), "Evaluate XML documentation");
 Console.WriteLine("XML docs: evaluate=true");
 ```
-反射测试是元数据证据，不替代真实调用。样例同时编译并运行接受、拒绝、无效值、null 输入和范围错误路径。
+反射测试可以验证元数据，却不能替代真实调用。示例还会编译并运行接受、拒绝、无效值、null 输入和范围错误等路径。
 
-### 枚举需要合法的零值和未知值策略 {#enum-contract}
+### 枚举需要合法的零值与未知值规则 {#enum-contract}
 
 CLR 枚举的默认值是零，任意底层整数也能被转换成枚举。`BookingOutcome.None = 0` 因而让默认值有名称；库本身只由受控构造器产生 `Accepted` 或 `Rejected`。若枚举来自不可信输入，仍应验证已定义值或在 `switch` 中保留默认分支，不能把类型声明误当成运行时封闭集合。
 
 枚举适合稳定、无载荷的粗粒度标签，不等同于可辨识联合。案例各有不同数据时，让枚举选择响应解释，而不要建立多个互相矛盾的公开布尔标志。
 
-### 预期拒绝是数据，契约错误是异常 {#error-policy}
+### 预期拒绝是数据，API 使用错误是异常 {#error-policy}
 
-样例把座位不足和业务字段无效返回为 `BookingResponse`，因为调用者预计会展示或处理它们。null 请求和负容量违反 API/配置契约，因此抛 `ArgumentNullException` 或 `ArgumentOutOfRangeException`。意外 I/O、取消和程序错误继续遵循相应 .NET 异常/Task 规则。
+示例把座位不足和业务字段无效返回为 `BookingResponse`，因为调用方预计会展示或处理它们。null 请求与负容量都属于无效的 API 或配置输入。前者抛出 `ArgumentNullException`，后者抛出 `ArgumentOutOfRangeException`。意外 I/O、取消和程序错误继续遵循相应的 .NET 异常与 Task 规则。
 
-这不是普遍规定某个错误永远属于哪类。关键是先按调用者能采取的动作分类，再让 F# 核心使用 `Result` 或联合表达预期分支，让公共适配器投影为清楚、稳定的 .NET 结果。
+错误类别并非在所有应用中都固定不变，应根据调用方可以采取的动作来分类。F# 核心使用 `Result` 或联合表达预期分支，公共适配器再把它们转换成清楚、稳定的 .NET 结果。
 
-## XML 文档也是公共 API 的一部分 {#xml-documentation}
+## XML 文档会随公共 API 发布 {#xml-documentation}
 
 所有公开类型、构造函数、属性与方法都应有简短 XML 文档；参数防卫还应记录异常条件。`<summary>`、`<remarks>`、`<param>`、`<returns>` 与 `<exception>` 会进入 IDE 和文档工具。
 
@@ -328,15 +315,15 @@ CLR 枚举的默认值是零，任意底层整数也能被转换成枚举。`Boo
   </ItemGroup>
 </Project>
 ```
-客户端还断言程序集同目录下存在 XML 文档文件，并且包含 `BookingApi.Evaluate`。这不会判断文字是否清楚，但能确保注释确实随程序集生成。API 稳定后可再引入 `.fsi` 文件，把公共签名与文档集中成可审阅清单。
+客户端还会断言程序集同目录下存在 XML 文档文件，并且包含 `BookingApi.Evaluate`。这无法判断文字质量，却能发现没有随程序集生成的注释。API 稳定后，可以用 `.fsi` 文件把公共签名与文档集中到一份便于评审的清单中。
 
 ## 不要让 JSON 或数据库反向设计领域 {#wire-boundary}
 
-序列化器可能偏好公开无参构造函数、可写属性、特定字段名或属性标注。`[<CLIMutable>]` 会为 F# 记录生成默认构造函数及属性 getter/setter；这正适合确有此要求的边界 DTO，却也允许先产生 null、零和部分初始化状态。
+序列化器可能要求公开无参构造函数、可写属性、特定字段名或属性标注。`[<CLIMutable>]` 会为 F# 记录生成默认构造函数和属性 getter/setter。它适合确有这类要求的集成 DTO，但也允许出现 null、零和部分初始化状态。
 
 因此不要为了一个序列化器给领域记录随手添加 `[<CLIMutable>]`。建立专用 DTO，把可空和默认值视为未验证输入，再通过智能构造函数或解码器转成领域类型。反向投影同样集中在适配器。这样 JSON 字段重命名、版本兼容或 ORM 要求不会迫使领域联合和不变量一起改变。
 
-C# 公共类型也不应自动成为 JSON 模式。进程内调用者、跨网络消费者和持久数据拥有不同兼容期限；只有确认它们确实是同一契约时才复用表示。
+C# 公共类型也不应自动成为 JSON 模式。进程内调用方、网络消费者和持久数据按不同节奏演进。只有确认它们确实具有相同的兼容要求时，才复用同一表示。
 
 ## 兼容性不只有“还能编译” {#compatibility}
 
@@ -349,13 +336,13 @@ C# 公共类型也不应自动成为 JSON 模式。进程内调用者、跨网�
 | 行为兼容性 | 程序运行时 | 从返回拒绝改为抛异常；改变比较、顺序或默认值 |
 | 传输格式兼容性 | 读取消息/存储数据时 | 改 JSON 字段名、枚举编码或必需字段 |
 
-“只是增加”也未必安全：新重载可能让旧源码的方法组或 `null` 调用变得歧义；给接口增加成员会破坏已有实现者；给公开联合增加案例会使 F# 调用者原先穷尽的匹配不再覆盖；改变可空标注可能给重新编译者新增警告或错误。
+“只是增加”也未必安全。新重载可能让现有方法组或 `null` 调用产生歧义；给接口增加成员会破坏已有实现；给公开联合增加用例，会使原本穷尽的 F# 匹配不再完整。改变可空标注也可能在调用方重新编译时新增警告或错误。
 
-优先新增成员或重载，把旧成员保留为转发桥；需要迁移时用 `[<Obsolete("Use Evaluate(...)")>]` 提供明确替代和期限。不要在原位改签名来“简化”API。跨主要版本也应记录行为和传输格式迁移，而不只依赖语义版本号。
+优先新增成员或重载，并保留旧成员转发到新实现。迁移期间可用 `[<Obsolete("Use Evaluate(...)")>]` 指出替代项与期限。不要为了“简化”API 就直接修改原签名。跨主要版本时还应记录行为与传输格式迁移，不能只依赖语义版本号。
 
-让 C# 契约客户端进入 CI，并保存已发布程序集或包作为 API 基线。NuGet 包可以启用 package validation 和 baseline version；也可用 `Microsoft.DotNet.ApiCompat.Tool` 比较程序集。工具能发现许多签名差异，行为与序列化兼容仍需针对性测试。
+让 C# 测试客户端进入 CI，并保存已发布的程序集或包作为 API 基线。NuGet 包可以启用 package validation 和 baseline version。也可以用 `Microsoft.DotNet.ApiCompat.Tool` 比较程序集。这些工具能发现许多签名差异，但行为与序列化兼容仍需专项测试。
 
-## 运行共享契约样例 {#run-example}
+## 运行共享 API 示例 {#run-example}
 
 从示例所在目录构建并运行真实 C# 调用方：
 
@@ -364,11 +351,11 @@ dotnet build CSharpClient.csproj --configuration Release --no-restore
 dotnet run --project CSharpClient.csproj --configuration Release --no-build
 ```
 
-客户端断言业务结果、参数防卫、四个导出类型、公开签名、可空元数据和 XML 文档，而不只打印演示输出。修改公开 API 后，先让这个消费者重新编译，再运行已有二进制兼容性与行为测试。
+客户端会断言业务结果、参数检查、四个导出类型、公开签名、可空元数据和 XML 文档，而不只是打印演示输出。修改公共 API 后，先重新编译这个调用程序，再运行旧二进制兼容性测试与行为测试。
 
 ## 练习 {#exercises}
 
-### 练习 1：封装泄露的 F# 表示 {#exercise-01}
+### 练习 1：隐藏泄露的 F# 表示类型 {#exercise-01}
 
 一个库公开 `decide : int -> BookingRequest -> Result<(string * int), string * int option>`。为 C# 调用者设计公共类型和方法，但保留这个函数作为内部核心。写出成功、拒绝与缺失建议的对应关系，并说明哪些构造必须受控。
 
@@ -384,10 +371,10 @@ dotnet run --project CSharpClient.csproj --configuration Release --no-build
 
 ## 模型复盘 {#model-review}
 
-- 共享 CLR 不等于共享惯用 API；从调用点和元数据评审最终 API 形式。
+- 共享 CLR 不等于共享惯用 API；应从调用点和元数据评审最终的公共 API。
 - F# 核心应保留联合、`option`、`Result`、函数与纯组合的表达力。
-- 边界只投影一次，公共签名不泄露调用者不需要理解的 F# 表示。
-- 类型、成员、参数名、可空性、异常和文档都是契约。
+- 只在公共 API 中转换一次，不让签名泄露调用方无须理解的 F# 表示。
+- 类型、成员、参数名、可空性、异常和文档都是 API 约定。
 - 可空标注帮助静态分析；公开入口仍需运行时防卫。
 - 业务拒绝、调用者错误和系统故障应支持不同的调用者动作。
 - 领域模型、.NET 公共模型与传输格式 DTO 可以共享含义，但不必共享表示。

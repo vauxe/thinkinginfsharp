@@ -1,12 +1,12 @@
 ---
 title: "Chapter 20 Solutions"
-description: "Expose hidden runtime inputs, select the smallest honest dependency shape, and preserve expected boundary failures without flattening contract violations."
+description: "Expose hidden runtime inputs, choose the smallest honest dependency interface, and preserve expected boundary failures without flattening contract violations."
 translationKey: solutions/ch-20-functional-core-effects
 ---
 
 # Chapter 20 Solutions {#overview}
 
-Expose the smallest capability a consumer needs, and prefer captured data when the consumer does not need the power to observe again. Injection makes acquisition visible; the pure core begins only after acquisition has finished.
+Expose the smallest capability a consumer needs. Prefer captured data when it should not read the source again. Injection makes acquisition visible; the pure core begins only after acquisition has finished.
 
 [Return to Chapter 20](../part-04/ch-20-functional-core-effects).
 
@@ -86,10 +86,10 @@ The mutable counter is test instrumentation. Both decisions use the same facts a
 
 | Case | Choice | Reason |
 |---|---|---|
-| One expiration comparison uses one instant | Capture `DateTimeOffset` data | The consumer should not have power to reread time |
+| One expiration comparison uses one instant | Capture `DateTimeOffset` data | The consumer should not be able to reread time |
 | Retry policy requests a new delay after each failure | Function such as `int -> TimeSpan` | Each attempt intentionally asks for another value |
 | Formatter retains immutable culture and prefix | Closure | Configuration is captured once behind one formatting operation |
-| Cross-language storage client owns disposable connection and related read/write operations | Interface extending or exposing disposal policy | Operations, identity, and lifecycle form one component contract |
+| Cross-language storage client manages a disposable connection and related read/write operations | Interface extending or exposing disposal policy | Operations, identity, and lifecycle form one component contract |
 | One internal workflow needs clock, draw, and setting lookup | Small workflow-specific record of functions | Named local capabilities travel together; domain functions receive only captured data |
 
 The retry function's lifetime must cover the retry operation and its failure contract must say whether producing a delay can fail. The formatter closure is pure only if formatting and captured values are pure. The storage interface does not make I/O pure; it gives the effectful component a stable boundary and lifecycle.

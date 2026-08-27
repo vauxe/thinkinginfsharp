@@ -49,7 +49,7 @@ This order is invalid:
 
 Compilation reaches `Pricing.fs` before `Domain.fs`. `FS0039` appears at its `open` declaration or first qualified use of the missing `Domain` module or one of its types. The exact location depends on which unavailable name is encountered first; the cause is the same forward reference.
 
-Folders do not participate in F# name resolution or compiler input order. Moving `Domain.fs` into a `Core` folder changes only its path until you also update the project item; it does not make the compiler see the file earlier and does not add `Core` to the namespace. Source declarations establish names, and `<Compile>` items establish order.
+Folders do not participate in F# name resolution or compiler input order. Moving `Domain.fs` into `Core` changes only its path; the project item must change too. The folder neither moves the file earlier nor adds `Core` to its namespace. Source declarations establish names, and `<Compile>` items establish order.
 
 ## Exercise 2: repair scope and choose qualification {#exercise-02}
 
@@ -149,8 +149,8 @@ Without `(rawId: string | null)`, inference makes the wrapper accept non-null `s
 ## What to notice {#what-to-notice}
 
 - Write source files in provider-before-consumer order.
-- Treat an `FS0039` caused by forward reference as dependency evidence, not a warning-policy problem.
-- A namespace gives the path; a module owns values and functions.
+- Treat an `FS0039` caused by a forward reference as a dependency-order signal, not a warning-policy problem.
+- A namespace gives the path; a module contains values and functions.
 - `open` changes how later references are spelled, not what code exists or is accessible.
 - A wrapper's parameter type is its own public contract, even when it immediately delegates.
 - Nullable reference annotations belong at real nullable boundaries; validated domain values remain non-null.

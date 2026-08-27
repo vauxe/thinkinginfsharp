@@ -1,12 +1,12 @@
 ---
 title: "Chapter 26 Solutions"
-description: "Decode object input once, own an event subscription, and prove a custom dictionary comparer obeys its equality and hash contract."
+description: "Decode object input once, manage an event subscription, and check that a custom dictionary comparer follows its equality and hash contract."
 translationKey: solutions/ch-26-dotnet-runtime-boundaries
 ---
 
 # Chapter 26 Solutions {#overview}
 
-Each solution keeps runtime protocol at one edge. The resulting domain code sees a union, an explicitly owned subscription, or a dictionary whose key policy is fixed at construction.
+Each solution confines a runtime protocol to one edge. Domain code then sees a union, a subscription with assigned cleanup responsibility, or a dictionary whose key policy is fixed at construction.
 
 [Return to Chapter 26](../part-05/ch-26-dotnet-runtime-boundaries).
 
@@ -56,7 +56,7 @@ Only `decode` knows about `objnull`, `:?`, and `GetType`. Downstream functions c
 
 Whether null and unsupported types are one or two error cases is domain policy. Keeping `System.Type` in boundary diagnostics is useful; letting reflection decide business behavior after this adapter is not.
 
-## Exercise 2: own an event subscription {#exercise-02}
+## Exercise 2: manage an event subscription {#exercise-02}
 
 ### Make disposal observable {#exercise-02-subscription}
 
@@ -95,9 +95,9 @@ publisher.SetSeats 1
 assert (observed |> Seq.toList = [ (5, 3) ])
 ```
 
-The composition scope that creates `subscription` owns it. In an application that scope should bind it with `use`, store it in an owning component that implements disposal, or transfer the responsibility explicitly. The test disposes in the middle only to prove the lifetime boundary.
+The composition scope that creates `subscription` is responsible for disposing it. In an application, that scope should bind the subscription with `use`, store it in a component that implements disposal, or explicitly transfer the responsibility. The test disposes midway only to verify the lifetime boundary.
 
-The publisher owns event triggering and its current capacity, but it does not own arbitrary subscriber lifetimes. A longer-lived publisher retaining an unremoved handler is the leak risk.
+The publisher manages event triggering and its current capacity, not subscriber lifetimes. A longer-lived publisher that retains an unremoved handler can cause a leak.
 
 ## Exercise 3: define dictionary key meaning {#exercise-03}
 
@@ -151,7 +151,7 @@ These assertions sample the laws but cannot prove them for every string. Chapter
 
 - Decode runtime alternatives once and return a closed typed result.
 - Keep `System.Type` for diagnostics, not repeated domain dispatch.
-- Treat event subscription disposal as an ownership assertion.
+- Assign responsibility for disposing every event subscription.
 - The creator of a subscription must dispose it or transfer that obligation.
 - Build dictionary equality and hashing from the same immutable projection and comparison rule.
 - Equal keys require equal hashes; hash collisions do not imply equality.

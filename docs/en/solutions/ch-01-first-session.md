@@ -6,7 +6,7 @@ translationKey: solutions/ch-01-first-session
 
 # Chapter 1 Solutions {#overview}
 
-Complete your own reasoning before comparing it with the process below. Matching the output is not enough: you should be able to say where every value came from and when each output effect happened.
+Complete your own reasoning before comparing it with the process below. Matching the output is not enough: you should be able to trace every value and say when each line was printed.
 
 [Return to Chapter 1](../part-01/ch-01-first-session).
 

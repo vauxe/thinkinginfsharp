@@ -6,28 +6,13 @@ translationKey: part-03/ch-17-signatures-encapsulation
 
 # Chapter 17: Signatures, Access Control, and F#-Facing APIs {#overview}
 
-An implementation contains everything needed to make a component work. A consumer should usually depend on less: stable domain names, safe construction paths, useful observations, and operations whose types explain their outcomes. An F# signature file turns that smaller view into a compiler-checked contract.
+An implementation contains everything needed to make a component work. A consumer should usually depend on less: stable domain names, safe construction paths, useful observations, and operations whose types explain their outcomes. An F# signature file turns that smaller view into a compiler-checked public API.
 
-`Library.fs` answers “how does this work?” Its matching `Library.fsi` answers “what may code outside this implementation file know?” The compiler checks that the implementation fulfills the signature and hides declarations the signature omits. This is more than generated documentation and more precise than a naming convention.
-
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- read a paired `.fsi` signature and `.fs` implementation;
-- place the signature immediately before its implementation in project order;
-- declare values and functions with `val` rather than implementation bodies;
-- expose a type name while hiding its union cases or record fields;
-- deliberately expose error union cases that consumers should match;
-- distinguish signature omission from `private`, `internal`, and `public`;
-- predict common signature/implementation mismatches;
-- design a small F#-facing API with modules, curried functions, and typed outcomes;
-- test a library from a separate consumer assembly without coupling to representation;
-- decide when signature-file maintenance is valuable and when it is premature.
+`Library.fs` answers “how does this work?” Its matching `Library.fsi` answers “what may code outside this implementation file know?” The compiler checks the implementation against the signature. Declarations omitted from the signature remain hidden, which is stronger than generated documentation or a naming convention.
 
 ## The signature is the consumer's view {#signature-as-view}
 
-The chapter library uses this compilation shape:
+The example library has this compilation structure:
 
 ```text
 Library.fsi  ── constrains ──▶  Library.fs
@@ -37,9 +22,9 @@ Library.fsi  ── constrains ──▶  Library.fs
 
 The signature contains namespaces, modules, type declarations, and value signatures, but no function bodies. The implementation contains representations and executable code. Every declaration exposed in the signature must be supplied compatibly by the implementation; extra implementation declarations remain hidden from code outside that implementation file.
 
-This is an information boundary, not a runtime call layer. Calling `Capacity.value` does not dispatch through the `.fsi` file. The signature has already influenced compilation and emitted visibility; the runtime executes the implementation.
+This is a compile-time visibility rule, not a runtime call layer. Calling `Capacity.value` does not dispatch through the `.fsi` file. The signature affects compilation and emitted visibility; the runtime executes the implementation.
 
-## A paired file occupies one compilation boundary {#paired-files}
+## A signature and implementation occupy one position {#paired-files}
 
 The project records the pair explicitly:
 
@@ -56,15 +41,15 @@ The project records the pair explicitly:
   </ItemGroup>
 </Project>
 ```
-The signature has the same base name as the implementation and appears immediately before it: `Library.fsi`, then `Library.fs`. Reversing them makes the compiler process an implementation before its contract; separating the pair with dependent code gives that code the wrong boundary.
+The signature has the same base name as the implementation and appears immediately before it: `Library.fsi`, then `Library.fs`. Reversing them makes the compiler process the implementation too early; inserting dependent code between them breaks the pair's intended compilation position.
 
 One implementation file may have at most its matching signature in this form. A signature is not a header that several unrelated `.fs` files append to, and a later file cannot reopen the implementation to reach declarations that were omitted.
 
-Chapter 16's provider-before-consumer rule still applies. The pair acts as one provider: the signature states its visible shape, the implementation satisfies it, and later files consume only that shape.
+Chapter 16's provider-before-consumer rule still applies. The pair acts as one provider: the signature states its public declarations, the implementation satisfies them, and later files see only those declarations.
 
 ## Read a signature from the outside in {#read-signature}
 
-Here is the complete public contract used by the tests:
+Here is the complete public API used by the tests:
 
 ```fsharp:line-numbers [Library.fsi]
 namespace ThinkingInFSharp.Ch17
@@ -108,9 +93,9 @@ Read it in layers:
 
 The `val` keyword introduces the type of a value or function. Parameter labels such as `raw`, `capacity`, and `requested` appear in tooling and public metadata, so they should describe meaning rather than merely mirror local variable names.
 
-No caller needs to know whether `Capacity` is implemented as a union, record, class, or something else. Callers can store it, pass it to `allocate`, and observe it through `Capacity.value`. That is an abstract representation: the type remains usable while its shape does not become a dependency.
+No caller needs to know whether `Capacity` is implemented as a union, record, class, or something else. Callers can store it, pass it to `allocate`, and observe it through `Capacity.value`. The type remains usable without exposing its storage layout.
 
-## Hide proof-carrying values; expose actionable alternatives {#selective-exposure}
+## Hide validated values; expose actionable errors {#selective-exposure}
 
 The signature makes different choices for different types:
 
@@ -130,11 +115,11 @@ Likewise, `AllocationError` exposes `InsufficientCapacity(requested, available)`
 remaining = capacity − requested
 ```
 
-Its observation functions reveal exactly what consumers need without offering record construction or copy-and-update. This connects to Chapter 12's smart-constructor pattern, but the protection is now explicit across files and assemblies.
+Its observation functions reveal exactly what consumers need without offering record construction or copy-and-update. This extends Chapter 12's smart-constructor pattern across files and assemblies.
 
-Do not hide every union or record. A public union is ideal when its complete set of cases is the domain vocabulary consumers should construct and exhaustively match. A public record is ideal when transparent data composition is the intended API. Hide a representation when construction carries proof, fields must remain synchronized, or representation evolution should not rewrite consumer code.
+Do not hide every union or record. A public union is ideal when consumers should construct and exhaustively match its complete case set. A public record is ideal when transparent data composition is intended. Hide a representation when construction establishes invariants, fields must remain synchronized, or implementation changes should not rewrite consumer code.
 
-## The implementation may be richer than the contract {#implementation}
+## The implementation may be richer than the public API {#implementation}
 
 The implementation supplies the hidden cases, record fields, and function bodies:
 
@@ -192,7 +177,7 @@ module SeatAllocation =
         else
             Error(InsufficientCapacity(requestedSeats, available))
 ```
-Inside `Library.fs`, the `Capacity` and `SeatCount` union cases are available, and `Allocation` can be constructed as a record. Outside the implementation file, the matching `.fsi` removes those shapes from the visible API even though the `.fs` declarations themselves do not use `private` representation modifiers.
+Inside `Library.fs`, the `Capacity` and `SeatCount` union cases are available, and `Allocation` can be constructed as a record. Outside that file, the matching `.fsi` hides those representations even though the `.fs` declarations do not use `private` modifiers.
 
 This separation permits a later implementation to store a different numeric type, cache a derived value, or replace the allocation record, provided the published types and behavior remain compatible. The signature does not prove behavioral equivalence; tests still protect invariants and semantics.
 
@@ -225,7 +210,7 @@ The compiler rejects the pair before a consumer can use it. It also uses paramet
 
 The compiler can generate an initial signature view, and F# Interactive prints inferred signatures for entered definitions. Treat generated output as inventory, not design: remove helpers, choose abstraction deliberately, improve parameter names, add documentation, then let the compiler keep both files synchronized.
 
-## Access control has several distinct boundaries {#access-control}
+## Access control protects several distinct scopes {#access-control}
 
 Signatures complement ordinary access modifiers:
 
@@ -239,7 +224,7 @@ Signatures complement ordinary access modifiers:
 
 F# does not use a `protected` keyword for declarations authored in F#. Also remember the placement distinction from Chapter 12: `type private T = ...` hides the type, while `type T = private ...` exposes the type but hides its representation.
 
-An `internal` smart-constructor bypass is available to every file in the assembly, so it is not a strong invariant barrier within that assembly. If only `Library.fs` should use a helper, omit it from the signature or make it private to the enclosing module. If another implementation file genuinely needs it, expose it as `internal` in both signature and implementation and accept the wider trust boundary.
+An `internal` smart-constructor bypass is available to every file in the assembly, so it cannot protect an invariant from that code. If only `Library.fs` needs a helper, omit it from the signature or make it private. If another implementation file needs it, expose it as `internal` in both files and accept the wider trusted scope.
 
 Accessibility cannot be inconsistent. A public function cannot reveal a less-accessible parameter or return type: consumers would see an API they could not name. Start from intended consumers and make every type in a published signature at least as accessible as the value that exposes it.
 
@@ -252,7 +237,7 @@ The example is intentionally F#-facing. Its surface uses:
 - same-named type modules such as `Capacity.create` and `Capacity.value`;
 - curried functions that support partial application and pipelines;
 - `Result` plus transparent error unions for expected rejection;
-- abstract representations for values whose constructors carry proof.
+- abstract representations for values whose constructors establish invariants.
 
 These choices let consumer code stay direct:
 
@@ -265,7 +250,7 @@ Do not contort an F# API around hypothetical C# callers. F# unions, options, cur
 
 Before freezing a signature, write representative successful, failure, pipeline, and pattern-match call sites. A compact surface is not automatically usable: hiding every observation forces consumers toward reflection or duplicated work, while exposing every helper prevents implementation change. Publish the smallest complete vocabulary for real tasks.
 
-## Test through the same boundary consumers see {#consumer-tests}
+## Test through the public API consumers see {#consumer-tests}
 
 The chapter tests live in another project and reference the library assembly. They can construct values only through `Capacity.create` and `SeatCount.create`, allocate through the public function, and observe results through the published modules. They cover both smart constructors, successful allocation, and insufficient capacity.
 
@@ -279,32 +264,32 @@ open ThinkingInFSharp.Ch17.SeatAllocation
 module Consumer =
     let invalidCapacity = Capacity 0
 ```
-`Capacity 0` attempts to use the implementation union case. The public signature contains only the abstract type name, so F# 10 rejects the expression with `FS0800`. The test does not use reflection to inspect private layout because layout is precisely what a consumer contract should ignore.
+`Capacity 0` attempts to use the implementation union case. The public signature contains only the abstract type name, so F# 10 rejects the expression with `FS0800`. The test does not inspect private layout with reflection because the public abstraction deliberately hides it.
 
 Compile-time opacity and behavioral tests answer different questions:
 
-| Evidence | Proves |
+| Check | Establishes |
 |---|---|
 | `.fsi`/`.fs` pair builds | Implementation satisfies the declared API |
 | External consumer builds | Public surface is usable without hidden names |
 | Invalid consumer fails | Hidden representation cannot be used by ordinary compiled callers |
 | Behavioral tests pass | Published operations preserve the stated outcomes and invariants |
 
-None of these claims protection against hostile reflection, unsafe code, corrupted persistence, or bugs inside the trusted implementation. State the boundary honestly.
+None of these checks protects against hostile reflection, unsafe code, corrupted persistence, or bugs inside the trusted implementation. State the scope of the guarantee accurately.
 
 ## Treat signature edits as API edits {#evolution}
 
-Changing only hidden implementation details can leave consumer source unchanged. Changing a line in the signature changes the contract:
+Changing only hidden implementation details can leave consumer source unchanged. Changing a line in the signature changes the public API:
 
 - renaming parameter labels affects metadata and tooling; reordering changes call meaning and may change inferred types;
-- changing curried/tupled shape or a type breaks calls;
+- changing curried/tupled form or a type breaks calls;
 - exposing representation lets consumers acquire dependencies that are difficult to retract;
 - adding a case to a public union changes the set consumers must handle;
 - removing or narrowing a value breaks consumers directly.
 
 An added function is usually source-compatible, but it still expands the supported surface and can introduce name collisions for code that broadly opens modules. Compatibility is a property to evaluate, not something the `.fsi` extension provides automatically.
 
-Place XML documentation on the public declarations consumers see. A signature becomes a concise review page for naming, parameter order, error shape, and missing observations. The implementation remains the place to explain algorithms and local decisions.
+Place XML documentation on the public declarations consumers see. A signature becomes a concise review page for naming, parameter order, error types, and missing observation functions. The implementation remains the place to explain algorithms and local decisions.
 
 ## Add signatures at the right time {#when-to-use}
 
@@ -318,7 +303,7 @@ Explicit signature files are valuable when:
 
 They may be premature for a short experiment, rapidly changing private application code, or a file whose ordinary access modifiers already express the needed boundary. Maintaining both files costs attention, and frequent harmless implementation edits can become noisy if the surface has not stabilized.
 
-Generate or write a signature after representative call sites reveal the right API—not before exploration has named the problem. Once adopted, keep the pair adjacent, build with warnings treated seriously, and review its diff as a public contract.
+Generate or write a signature after representative call sites reveal the right API—not before exploration has named the problem. Once adopted, keep the pair adjacent, treat build warnings seriously, and review signature changes as public API changes.
 
 ## Build and verify the example {#build-test}
 
@@ -335,13 +320,13 @@ The focused suite passes. This command is intentionally expected to fail and is 
 dotnet build Ch17HiddenRepresentation.fsproj -c Release
 ```
 
-Its required `FS0800` diagnostic guards the representation-hiding claim. A successful build of that invalid consumer would be a regression, not a passing example.
+Its required `FS0800` diagnostic verifies that the representation is hidden. A successful build of that invalid consumer would be a regression, not a passing example.
 
 ## Exercises {#exercises}
 
 ### Exercise 1: design an email-address pair {#exercise-01}
 
-Design `EmailAddress.fsi` and `EmailAddress.fs`. Public callers need an abstract `EmailAddress`, a transparent `EmailAddressError` with `Blank` and `MissingAtSign` cases, `EmailAddress.create`, and `EmailAddress.value`. The implementation also needs a normalization helper that callers must not see.
+Design `EmailAddress.fsi` and `EmailAddress.fs`. The public API needs an abstract `EmailAddress` and a transparent `EmailAddressError` with `Blank` and `MissingAtSign` cases. It also needs `EmailAddress.create` and `EmailAddress.value`; keep the implementation's normalization helper hidden.
 
 Write the public signature, sketch the implementation, and state the project order. Explain which declarations may be used by a later file.
 
@@ -360,7 +345,7 @@ val unsafeCreate: capacity: int -> requested: int -> remaining: int -> Allocatio
 
 Redesign it so consumers cannot create inconsistent fields. Include the minimum construction/workflow and observation functions, and decide whether the insufficient-capacity error cases should remain visible. State one requirement that would instead justify a transparent record.
 
-### Exercise 3: repair arity and choose a helper boundary {#exercise-03}
+### Exercise 3: repair arity and choose helper visibility {#exercise-03}
 
 A signature declares:
 
@@ -384,7 +369,7 @@ The implementation defines `let apply (policy, request) = ...` and a `traceDecis
 - External positive tests prove usability; a compiler-failing consumer can prove opacity.
 - Signature edits are API edits, so add explicit signatures when that deliberate stability is worth their maintenance cost.
 
-Chapter 18 uses this bounded public vocabulary to compose larger workflows, contrasting first-error `Result` sequencing with accumulation of independent validation errors.
+Chapter 18 composes these public types and operations into larger workflows. It contrasts first-error `Result` sequencing with accumulation of independent validation errors.
 
 ## Sources {#sources}
 

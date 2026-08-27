@@ -6,7 +6,7 @@ translationKey: solutions/ch-18-workflow-validation
 
 # Chapter 18 Solutions {#overview}
 
-Validation design is dependency design. Make raw facts valid together, then use the resulting typed values in dependent domain and effectful phases.
+Validation design follows dependencies. Validate independent raw fields together, then pass the typed values to dependent domain checks and effectful work.
 
 [Return to Chapter 18](../part-03/ch-18-workflow-validation).
 
@@ -113,7 +113,7 @@ assert (
 )
 ```
 
-`Error []` would say that validation failed but provide no failure, contradicting this API's intended evidence. A list cannot prevent that state. If callers or custom combinators might manufacture errors directly, define a non-empty list type and use it as the error parameter; if only these small trusted functions construct results, a tested convention may be sufficient.
+`Error []` says validation failed but supplies no reason, contradicting the API contract. A list cannot prevent that state. If callers or custom combinators can construct errors, use a non-empty list as the error type. A tested convention may suffice when only these small, trusted functions construct results.
 
 ## Exercise 3: audit computation-expression claims {#exercise-03}
 

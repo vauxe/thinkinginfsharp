@@ -6,21 +6,9 @@ translationKey: part-01/ch-04-branching-patterns
 
 # Chapter 4: Branching and Basic Patterns {#overview}
 
-Imperative languages often describe branching as “choose which statement executes next.” A more useful starting point in F# is that both `if` and `match` are expressions, so the selected branch must produce the result of the whole expression. A branch changes control flow and is also responsible for a result type.
+Imperative languages often describe branching as “choose which statement executes next.” In F#, both `if` and `match` are expressions: the selected branch supplies the result of the whole expression. Their branch results must therefore have compatible types.
 
 An `if` selects between two results from a Boolean condition. A `match` compares one value with an ordered series of **patterns**. A pattern can recognize the shape of input and bind names to its components in the successful branch. Type checking and exhaustiveness checking can therefore participate in branch design.
-
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- read `if...then...else` as an expression with one unified result type;
-- write explicit Boolean conditions;
-- trace a `match` in top-to-bottom rule order;
-- use literal, variable, wildcard, tuple, and list patterns;
-- use a `when` guard for a Boolean constraint beyond pattern shape;
-- understand the value of basic exhaustiveness and redundant-rule diagnostics;
-- choose `if` or `match` based on a simple Boolean choice versus structural decomposition.
 
 This chapter uses tuples and lists only to build pattern intuition. Records and discriminated unions make exhaustiveness a domain-modeling tool in Chapters 7 and 8. List transformations wait until the next chapter.
 
@@ -90,7 +78,7 @@ A lowercase variable pattern such as `value` matches any value and creates a new
 
 ## A guard adds a Boolean constraint {#guards}
 
-A numeric range is not a simple literal shape. Bind the value with a variable pattern, then check it in a `when` guard:
+A numeric range is not one literal pattern. Bind the value with a variable pattern, then check it in a `when` guard:
 
 ```fsharp:line-numbers [ch04-branching-patterns.fsx]
 let capacityBand remaining =
@@ -140,7 +128,7 @@ let describeQueue queue =
 
 printfn "Queues: %s | %s | %s" (describeQueue []) (describeQueue [ "Lin" ]) (describeQueue [ "Lin"; "Ada"; "Sam" ])
 ```
-`[ only ]` matches only a list of length one. `first :: second :: _` associates to the right as `first :: (second :: _)`: take the first item, then the second, while wildcard `_` accepts the remaining list without binding it. It therefore matches any list with at least two elements.
+`[ only ]` matches only a list of length one. `first :: second :: _` associates to the right as `first :: (second :: _)`. It takes the first item and then the second; the wildcard `_` accepts the rest without binding it. The pattern therefore matches any list with at least two elements.
 
 Use `[ first; second ]` for a list of exactly two elements. Use `first :: second :: _` for the first two elements of a longer-or-equal list. The next chapter covers construction and transformation, and Chapter 6 uses `head :: tail` for structural recursion.
 
@@ -165,7 +153,7 @@ A wildcard can also be too broad. When a later union type has a finite set of na
 Use the form that exposes the basis of the decision:
 
 - for one direct Boolean condition choosing between two results, `if` is usually shortest;
-- when branching by a literal, tuple, or list shape and binding components, `match` is natural;
+- when branching by literal, tuple, or list structure and binding components, `match` is natural;
 - several mutually exclusive structural rules fit `match`;
 - a long `match` consisting only of numeric ranges can still be readable, but its order must be clear;
 - keep a clear `if` when the decision is one Boolean choice.
@@ -191,7 +179,7 @@ Queues: empty | one: Lin | next: Lin, then Ada
 
 Compare each output line in order. Each branch function returns data and output is kept outside the function, so decision and display can be verified separately.
 
-## Debugging: simulate each rule {#debugging}
+## Simulate each rule {#debugging}
 
 When a result enters the wrong branch, record one input and execute mechanically:
 
@@ -201,7 +189,7 @@ When a result enters the wrong branch, record one input and execute mechanically
 4. if it fails, how does the next rule handle the same original input?
 5. what type and value does the first successful right side produce?
 
-When a type error points to a right side, compare every branch result type. When an exhaustiveness warning appears, identify the missing shape and give it an explicit result. A blanket `_ -> failwith ...` merely moves the omission to runtime.
+When a type error points to a right side, compare every branch result type. When an exhaustiveness warning appears, identify the missing case and give it an explicit result. A blanket `_ -> failwith ...` merely moves the omission to runtime.
 
 If you cannot tell where a variable came from, check whether a pattern established it as a new local binding. Domain names such as `requested` are usually easier to trace than `x`.
 
@@ -235,7 +223,7 @@ Write a `classifyRequest` function that examines remaining and requested seats t
 
 [Read the chapter solutions](../solutions/ch-04-branching-patterns).
 
-## Summary {#summary}
+## Key takeaways {#summary}
 
 - Both `if` and `match` are expressions. The selected branch becomes the result, and branch types must unify.
 - An `if` condition has type `bool`; a two-branch form returns a unified result type, while the one-branch form returns `unit`.
@@ -246,16 +234,6 @@ Write a `classifyRequest` function that examines remaining and requested seats t
 - A wildcard is useful for an open value space but can hide future cases in a finite domain model.
 
 The next chapter moves from list shape to list transformation. `map`, `filter`, `choose`, and pipelines will compose branch functions into readable data flow and be compared honestly with loops and mutable state.
-
-## Vocabulary {#vocabulary}
-
-- **pattern:** a rule that tests input shape, decomposes components, and establishes local bindings.
-- **pattern matching:** checking a value against ordered patterns and choosing the first successful branch.
-- **guard:** a `when` Boolean condition evaluated only after its pattern matches.
-- **exhaustiveness:** the property that rules cover every possible shape of the input type.
-- **wildcard pattern:** `_`, which matches any input without binding a name.
-- **tuple:** one value that combines several fixed positions.
-- **list:** an ordered immutable singly linked collection of elements of one type.
 
 ## Sources {#sources}
 

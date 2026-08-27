@@ -6,7 +6,7 @@ translationKey: solutions/ch-03-functions-as-values
 
 # 第 3 章练习答案 {#overview}
 
-先核对类型形状，再核对数值。两个调用输出相同，不足以证明它们接收实参的方式相同。
+先核对类型结构，再核对数值。两个调用输出相同，不代表它们以同样方式接收实参。
 
 [返回第 3 章](../part-01/ch-03-functions-as-values)。
 
@@ -21,7 +21,7 @@ translationKey: solutions/ch-03-functions-as-values
 
 `applyTwice` 也可逐个位置读成 `('a -> 'a) -> 'a -> 'a`：先给变换，再给值，最后得值。右结合让最后两个位置构成返回的 `'a -> 'a` 函数。相同 `'a` 要求一次实例化中的所有位置一致；它不是“这里可以各自放任意类型”。
 
-`lineTotal` 的第一个实参必须是 `decimal`，第二个必须是 `int`。提供第一个后得到 `standardLineTotal` 形状的函数，而不是金额。
+`lineTotal` 的第一个实参必须是 `decimal`，第二个必须是 `int`。只提供第一个实参时，得到一个与 `standardLineTotal` 类型相同的函数，而不是金额。
 
 ## 练习 2：传入行为 {#exercise-02}
 
@@ -41,11 +41,11 @@ let incrementedTwice = applyTwice increment 3
 
 printfn "Applied twice: %d" incrementedTwice
 ```
-等价的匿名调用可按同一形状读作 `applyTwice (fun seats -> seats + 1) 3`，结果同样为 `5`。匿名函数与 `increment` 都是 `int -> int`，`applyTwice` 在这次调用中把 `'a` 实例化为 `int`。
+等价的匿名调用写作 `applyTwice (fun seats -> seats + 1) 3`，结果同样为 `5`。匿名函数与 `increment` 都是 `int -> int`，因此 `applyTwice` 在这次调用中把 `'a` 实例化为 `int`。
 
 一个 `int -> string` 函数不能直接使用，因为第一次变换产生 `string`，第二次调用却仍要求输入 `int`。`applyTwice` 的约束是 `'a -> 'a`，不是 `'a -> 'b`。若业务真的要连续不同变换，需要另一个明确描述两阶段类型的函数，而不是削弱这里的一致性。
 
-## 练习 3：选择参数形状 {#exercise-03}
+## 练习 3：选择参数形式 {#exercise-03}
 
 两个可运行定义分别是：
 
@@ -64,12 +64,12 @@ printfn "Tupled total: %M" tupledTotal
 ```
 柯里化版本类型为 `decimal -> int -> decimal`，调用 `lineTotal 19.50m 3`；元组版本类型为 `decimal * int -> decimal`，调用 `lineTotalTupled (19.50m, 3)`。只有前者能直接用 `lineTotal 19.50m` 固定单价，得到 `int -> decimal`。
 
-`addServiceFee` 保留 `2.00m`，剩余输入是小计，所以类型为 `decimal -> decimal`。语义上这个函数形成闭包。如果单价与座位数在领域中本来就是一个整体值，元组版本会把“只接受完整一对”直接写进输入形状；是否需要部分应用不是唯一设计标准。
+`addServiceFee` 保留 `2.00m`，剩余输入是小计，所以类型为 `decimal -> decimal`；这个函数形成了闭包。如果单价与座位数在领域中本来就是一个整体，元组输入能直接表达“只接受完整一对”。是否需要部分应用，不是唯一设计标准。
 
 ## 应该注意什么 {#what-to-notice}
 
 - **箭头方向不等于求值顺序图：** 先按右结合读类型，再按左结合读具体应用。
-- **形参数量不决定数据形状：** 两个名称可能是连续形参，也可能是一个元组模式中的两项。
+- **形参数量不决定调用形式：** 两个名称可能是连续形参，也可能是一个元组模式中的两项。
 - **部分应用返回函数：** 在剩余实参到达前，最终主体结果尚未产生。
 - **泛型仍有一致性：** `'a` 可被多种具体类型实例化，但相同字母出现的位置必须对齐。
 

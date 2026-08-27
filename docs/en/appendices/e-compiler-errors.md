@@ -1,12 +1,12 @@
 ---
 title: "Appendix E: Common Compiler Diagnostic Index"
-description: "Diagnose frequent F# 10 compiler messages by evidence, root-cause questions, and the smallest semantically correct repair."
+description: "Diagnose frequent F# 10 compiler messages from observed evidence, root-cause questions, and the smallest semantically correct repair."
 translationKey: appendices/e-compiler-errors
 ---
 
 # Appendix E: Common Compiler Diagnostic Index {#overview}
 
-A compiler code identifies a diagnostic category, not a unique root cause. `FS0039` can mean a typo, a scope error, a missing reference, or the wrong F# file order. `FS0001` can be reported where a type conflict becomes impossible even though an earlier expression introduced the decisive constraint.
+A compiler code identifies a diagnostic category, not a unique root cause. `FS0039` can mean a typo, a scope error, a missing reference, or the wrong F# file order. `FS0001` can appear where two type constraints finally contradict each other even though an earlier expression introduced the decisive constraint.
 
 This index is a triage aid for F# 10 under .NET SDK 10.0.301, not a replacement for the complete message. Every listed code was produced by that locked compiler on 2026-08-25. Diagnostic wording, locations, severity defaults, and occasionally codes can evolve; reproduce a problem with the project's selected SDK before searching or changing code.
 
@@ -16,7 +16,7 @@ This index is a triage aid for F# 10 under .NET SDK 10.0.301, not a replacement 
 2. Re-run the narrowest real command: FSI for an isolated expression, or the actual project build for files, references, generated code, and compiler settings.
 3. Inspect the inferred or declared types on both sides of the reported point. The highlighted token is where the compiler proved a conflict, not necessarily where the mistaken assumption began.
 4. Fix one root cause, then rebuild. Later messages may be cascades from a missing type, delimiter, or provider file.
-5. Reduce only while preserving SDK, language/nullability settings, references, file order, and the diagnostic code.
+5. When reducing the reproduction, preserve the SDK, language and nullability settings, references, file order, and diagnostic code.
 6. Turn a useful negative case into an expected-error fixture that requires failure with the intended code; never make it pass by suppressing the lesson.
 
 A typical line has this anatomy:
@@ -25,7 +25,7 @@ A typical line has this anatomy:
 path/File.fs(12,9): error FS0039: The value or constructor 'name' is not defined.
 ```
 
-Warnings retain their `FS` identity when `--warnaserror+` or `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` promotes them to build failures. A formatter can normalize valid syntax; it cannot decide the intended program or repair invalid syntax.
+Warnings retain their `FS` code when `--warnaserror+` or `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` promotes them to build failures. A formatter can normalize valid syntax; it cannot decide the intended program or repair invalid syntax.
 
 ## Fast index {#fast-index}
 
@@ -42,7 +42,7 @@ Warnings retain their `FS` identity when `--warnaserror+` or `<TreatWarningsAsEr
 | `FS0072` | member lookup occurs before the receiver type is known | What is the receiver contract at this function boundary? | annotate the receiver or expose an operation instead of an unknown member |
 | `FS0748` | `return` appears outside a computation expression | Is this an ordinary function or a builder-controlled workflow? | use the final expression, or enter the intended computation expression |
 | `FS0764` | record construction omits a required field | Is this a new complete value or an update of an existing one? | supply all fields, or use record copy-and-update intentionally |
-| `FS0800` | a type name is used as though hidden construction were public | Does an `.fsi` or access modifier hide the representation? | call the public constructor/smart constructor; do not pierce abstraction |
+| `FS0800` | code tries to construct a value through a hidden representation | Does an `.fsi` or access modifier hide the representation? | call the public constructor/smart constructor; do not pierce abstraction |
 | `FS3261` | nullable analysis rejects null for a non-null type | Is null truly permitted at this boundary? | declare `| null` and narrow/guard, or remove the invalid null |
 
 Start with the code and full message, then use the sections below. Do not add a cast, wildcard, `mutable`, `#nowarn`, or nullability opt-out merely because it silences the line.
@@ -99,7 +99,7 @@ Adding `()` is not punctuation; it changes lifetime and allocation. [Chapter 11]
 
 `FS0025` reports a valid value not covered by a pattern match. With warnings treated as errors, adding a union case makes incomplete decision code fail before it silently chooses behavior. Add an explicit branch and decide its rule. A wildcard is appropriate only when the remaining cases truly share one stable policy; otherwise it discards future compiler help.
 
-Active patterns and guarded patterns can make coverage analysis conservative, so distinguish “compiler cannot prove coverage” from “domain case was forgotten.” Restructure a complex match or add an explicit final policy when proof is impractical.
+Active patterns and guarded patterns can make coverage analysis conservative. Distinguish “the compiler cannot prove coverage” from “the code forgot a domain case.” Restructure a complex match or add an explicit final policy when proof is impractical.
 
 `FS0764` says construction of a named record omitted a field; the locked probe omitted `Age` from `Person`. A record value is complete. Supply every field for a new value, or start from a known value with `{ existing with Field = value }` when the meaning is an update. Do not add meaningless defaults merely to satisfy construction.
 

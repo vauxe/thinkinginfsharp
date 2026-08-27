@@ -8,23 +8,12 @@ translationKey: part-07/ch-44-unity
 
 Unity does not need to compile F# source in order to execute code written in F#. F# compiles to managed .NET assemblies, and Unity can import managed plug-ins. That technical fact is useful, but it is only the first link in a longer chain.
 
-A library that builds under `dotnet` may still fail Unity's reference validation. A plug-in that imports may still fail when a scene loads. Play Mode may work while an IL2CPP Player fails during ahead-of-time compilation, stripping, native linking, startup, or one device-only path. The right question is therefore not “Does Unity support F#?” but “Which F# boundary can this exact Unity version, platform, scripting backend, and release pipeline prove?”
+A library that builds under `dotnet` may still fail Unity's reference validation. A plug-in that imports may still fail when a scene loads. Play Mode may work while an IL2CPP Player fails during ahead-of-time compilation, stripping, native linking, startup, or one device-only path. The useful question is not “Does Unity support F#?” but “Which F# boundary has this exact Unity version, platform, scripting backend, and release pipeline validated?”
 
-This chapter uses the managed plug-in sample as a deliberately small answer: keep game rules in a normal F# library, publish a C#-friendly surface, and let a thin C# component own Unity-specific behavior. It also explains when a direct F# component deserves a spike, when F# adds little value, and how to avoid turning a successful class-library build into an imaginary Player result.
-
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- map the evidence chain from F# compilation and managed plug-in import through Editor runtime, Mono Player, and IL2CPP Player;
-- choose an F# boundary from domain complexity, frame budget, Unity tooling, team skills, and platform risk;
-- ship the full dependency closure and expose a C#-friendly API while keeping Unity serialization and engine objects outside the reusable domain model;
-- map lifecycle and input into explicit values, respect main-thread ownership, and measure frame-loop allocations before optimizing;
-- explain IL2CPP, AOT, stripping, and preservation rules while treating Burst and the Job System as a separate HPC# contract;
-- pin the Unity patch and build profile, then extend evidence from ordinary tests to a launched and stripped Player on target hardware.
+The deliberately small design keeps game rules in a normal F# library, publishes a C#-friendly API, and puts Unity-specific behavior in a thin C# component. It also shows when to test a direct F# component, when F# adds little value, and why a successful class-library build says nothing about a Player build.
 
 ::: tip Two reading passes
-For a first pass, follow the [integration stack](#unity-contract-stack), [decision map](#decision-map), and [managed plug-in slice](#x44-verified-slice). Use the serialization, game-loop, IL2CPP, evidence, and release sections when preparing a representative Player build.
+For a first pass, follow the [integration stack](#unity-contract-stack), [decision map](#decision-map), and [managed plug-in slice](#x44-verified-slice). When preparing a representative Player build, return to the sections on serialization, the game loop, IL2CPP, verification, and release.
 :::
 
 ## Unity integration is a stack of contracts {#unity-contract-stack}
@@ -45,7 +34,7 @@ Each arrow can fail independently. The first two are ordinary .NET work. The mid
 
 Use a precise verb for every result:
 
-| Claim | Minimum evidence |
+| Result you want to report | Minimum check |
 | --- | --- |
 | The F# code compiles | Locked restore and Release build of the stated target framework |
 | The plug-in is complete | Main DLL and every runtime dependency are present and references inspect correctly |
@@ -61,19 +50,19 @@ Use a precise verb for every result:
 
 F# is most valuable where the game contains rules worth naming and testing independently of frames, GameObjects, scenes, and asset state. It is less valuable when most code is a thin sequence of engine calls or must live inside a Unity-specific compiler pipeline.
 
-| Candidate boundary | Strong fit | Main friction | First proof |
+| Candidate boundary | Strong fit | Main friction | First validation |
 | --- | --- | --- | --- |
 | Pure F# domain plug-in plus C# adapter | Economy, combat resolution, quests, dialogue state, inventory, procedural rules, save migration, server-shared validation | DLL/dependency packaging and language boundary | One rule through `dotnet` tests, Unity import, Play Mode, and representative IL2CPP Player |
-| F# service/tool library used by Editor code | Import validation, content checks, deterministic generators, build metadata | `UnityEditor` ownership, asset database lifecycle, batch mode, diagnostics | One real asset pipeline in interactive and batch Editor modes |
-| Direct F# `MonoBehaviour` in a managed plug-in | Team accepts external F# builds and needs a very small component | UnityEngine reference versioning, Inspector/serialization shape, component discovery, debugging | Compile against exact Editor assemblies; import, attach, serialize, reload, build Player |
-| C# Unity application with no F# | Logic is mostly engine orchestration, visual scripting, shaders, packages, Jobs/Burst, or designers own the workflow | Less F# domain leverage | Compare the simplest C# vertical slice against the F# boundary, not against language preference |
+| F# service/tool library used by Editor code | Import validation, content checks, deterministic generators, build metadata | `UnityEditor` coupling, asset database lifecycle, batch mode, diagnostics | One real asset pipeline in interactive and batch Editor modes |
+| Direct F# `MonoBehaviour` in a managed plug-in | Team accepts external F# builds and needs a very small component | UnityEngine reference versioning, Inspector and serialization compatibility, component discovery, debugging | Compile against exact Editor assemblies; import, attach, serialize, reload, build Player |
+| C# Unity application with no F# | Logic is mostly engine orchestration, visual scripting, shaders, packages, Jobs/Burst, or designer-led workflows | Few domain rules that benefit from F# | Compare the simplest C# vertical slice against the F# boundary, not against language preference |
 | Separate F# backend or tooling process | Authoritative simulation, matchmaking, analytics, content build, or offline tools do not need to run in the Player | Network/process contracts and deployment | Keep Unity client thin; verify wire/version behavior independently |
 
 ### The low-friction default {#recommended-boundary}
 
-For a new experiment, start with a Unity-independent F# library and a thin C# host. This preserves the most useful F# properties—explicit types, pure transitions, property tests, and ordinary .NET tooling—while leaving Unity's strongest workflows in their native shape.
+For a new experiment, start with a Unity-independent F# library and a thin C# host. This preserves the most useful F# properties—explicit types, pure transitions, property tests, and ordinary .NET tooling—while keeping Unity workflows in their established C# form.
 
-The C# layer should own:
+The C# layer should handle:
 
 - `MonoBehaviour`, `ScriptableObject`, custom inspectors, and Unity attributes;
 - serialized scene and prefab fields;
@@ -82,13 +71,13 @@ The C# layer should own:
 - input packages, platform APIs, coroutines, Unity logging, and Unity-specific async adapters;
 - mapping between Unity values and domain values.
 
-The F# layer should own decisions that remain meaningful without the engine: validated identifiers, rules, deterministic state transitions, save schemas and migrations, random seeds supplied as inputs, and ports for effects that the host performs.
+The F# layer should contain decisions that remain meaningful without the engine. These include validated identifiers, rules, deterministic state transitions, save schemas and migrations, input-supplied random seeds, and ports for host-run effects.
 
 ### Direct F# components are possible, not free {#direct-fsharp-components}
 
 Unity's managed plug-in model is based on .NET assemblies, not source-language identity. A precompiled type derived from `MonoBehaviour` can in principle be attached like another managed plug-in type. An F# project can also reference Unity assemblies from a particular Editor installation.
 
-That does not make the direct path the default. The build now depends on exact Unity assembly locations and versions. Generated F# representation may not match Inspector expectations. Unity examples, source generators, analyzers, package setup, debugger workflows, and Editor callbacks are C#-shaped. Every claim still needs import, attach, serialization, reload, and Player evidence.
+That does not make the direct path the default. The build now depends on exact Unity assembly locations and versions. Generated F# representation may not match Inspector expectations. Unity examples, source generators, analyzers, package setup, debugger workflows, and Editor callbacks center on C#. Every result still needs import, attach, serialization, reload, and Player validation.
 
 Use direct F# only when the vertical slice is simpler after measuring those costs. A ten-line C# component around a stable F# core is not a defeat; it is an adapter at the tool-owned boundary.
 
@@ -96,11 +85,11 @@ Use direct F# only when the vertical slice is simpler after measuring those cost
 
 Do not introduce an F# DLL merely to wrap calls such as `transform.Translate`, play an animation, or forward one collision callback. The extra compiler, package, import, symbols, and interop surface must buy testable domain value.
 
-Likewise, do not push a frame-critical Burst kernel through F# because the rest of the game uses F#. Burst documents an HPC# subset and a Unity IL post-processing pipeline. Keep such kernels in the supported C# data-oriented shape unless an exact F# experiment proves the required package, attributes, IL, Editor, AOT, performance, and Player behavior.
+Likewise, do not push a frame-critical Burst kernel through F# because the rest of the game uses F#. Burst documents an HPC# subset and a Unity IL post-processing pipeline. Keep such kernels in the supported C# data-oriented form unless an exact F# experiment validates the package, attributes, IL, Editor, AOT, performance, and Player behavior.
 
 ## The managed plug-in sample: one verified managed plug-in boundary {#x44-verified-slice}
 
-The managed plug-in sample implements one horizontal-motion rule. The rule is intentionally too small to justify a production architecture by itself; its purpose is to make the build, API, dependency, host, allocation, linker, and evidence boundaries inspectable.
+The managed plug-in sample implements one horizontal-motion rule. It is intentionally too small to justify a production architecture. Its purpose is to expose the build, API, dependency, host, allocation, linker, and verification boundaries.
 
 ### The project contract and dependency output {#project-contract}
 
@@ -192,7 +181,7 @@ The state is a struct. An earlier implementation used a class and therefore allo
 
 The transition clamps directional input, rejects non-finite values and negative time or speed, calculates velocity, and returns a new state. It has no `UnityEngine` reference, no current time lookup, and no mutation. Tests can supply every input directly.
 
-### A thin Unity-owned adapter {#csharp-adapter}
+### A thin Unity adapter {#csharp-adapter}
 
 ```csharp:line-numbers [UnityAdapter.cs]
 using ThinkingInFSharp.UnitySample;
@@ -238,13 +227,13 @@ namespace ThinkingInFSharp.UnityHost
     }
 }
 ```
-The file and public `MonoBehaviour` class share the name `UnityAdapter`, preserving Unity's ordinary script/component workflow. The Inspector owns one primitive `speed` field. `OnValidate` protects authoring-time configuration, while the F# boundary still validates runtime calls.
+The file and public `MonoBehaviour` class share the name `UnityAdapter`, preserving Unity's ordinary script/component workflow. The Inspector exposes one primitive `speed` field. `OnValidate` protects authoring-time configuration, while the F# boundary still validates runtime calls.
 
-`Awake` creates runtime state from the current transform. `FixedUpdate` supplies the input value, configured speed, and Unity's fixed delta time, then maps the returned position back to a `Vector3`. This is a transform sample, not a physics recommendation; a Rigidbody-owned object needs the corresponding physics API and tests.
+`Awake` creates runtime state from the current transform. `FixedUpdate` supplies the input value, configured speed, and Unity's fixed delta time, then maps the returned position back to a `Vector3`. This is a transform sample, not a physics recommendation; an object controlled by a Rigidbody needs the corresponding physics API and tests.
 
-`SetHorizontal(float)` deliberately avoids choosing the legacy Input Manager or the Input System package. A separate input adapter can call it. This keeps package choice and callback shape out of the rule assembly.
+`SetHorizontal(float)` deliberately avoids choosing the legacy Input Manager or the Input System package. A separate input adapter can call it. This keeps package choice and callback form out of the rule assembly.
 
-The C# file is illustrative because the book site does not include UnityEngine assemblies. Copy it into a real Unity project and compile it there; inventing fake engine types would only prove a fake host.
+The C# file is illustrative because the book site does not include UnityEngine assemblies. Copy it into a real Unity project and compile it there; mock engine types would validate only the mock host.
 
 ### Narrow linker roots {#linker-roots}
 
@@ -258,15 +247,15 @@ The C# file is illustrative because the book site does not include UnityEngine a
 ```
 Direct calls from the C# adapter should be visible to static reachability analysis. The managed plug-in sample still includes two explicit roots to make the intended cross-assembly bridge visible and to provide a concrete stripping artifact for the chapter.
 
-The file does not preserve all of `FSharp.Core`. Broad preservation can hide missing reflection design, enlarge the Player, and increase IL2CPP work. Add a type or member only because an actual dynamic path needs it, then prove the relevant stripping level.
+The file does not preserve all of `FSharp.Core`. Broad preservation can hide missing reflection design, enlarge the Player, and increase IL2CPP work. Add a type or member only when an actual dynamic path needs it, then test the relevant stripping level.
 
 Copy `link.xml` under the Unity project's `Assets` tree. A source file next to the external `.fsproj` has no effect until it becomes a Unity asset.
 
-### Read the evidence ledger literally {#evidence-ledger}
+### Record exactly what has been verified {#evidence-ledger}
 
-The chapter provides the design; an adopting Unity project must fill in this evidence ledger:
+The chapter provides the design; an adopting Unity project must complete this verification record:
 
-| Layer | Required evidence | What it proves |
+| Layer | Required check | What it verifies |
 | --- | --- | --- |
 | Locked .NET restore | Run in the copied project | The `netstandard2.1` graph resolves to the chosen FSharp.Core package |
 | Release plug-in build | Run in the copied project | F# source compiles with the selected SDK |
@@ -284,9 +273,9 @@ Unity 6 exposes .NET Standard 2.1 and a broader .NET Framework profile in Player
 
 ### An API profile is only a compile-time ceiling {#profile-not-runtime}
 
-`.NET Standard 2.1` describes a set of APIs. It does not say that Unity embeds the same CoreCLR version as the machine running `dotnet test`, uses the same garbage collector, permits JIT on every platform, or supports every implementation detail of a library that happens to compile against the profile.
+`.NET Standard 2.1` describes a set of APIs. It does not identify Unity's CoreCLR version or garbage collector, nor does it promise JIT on every platform. A library can compile against the profile and still rely on an unsupported implementation detail.
 
-Avoid `net10.0`, `netcoreapp`, operating-system-specific target frameworks, dynamic code generation, and accidental platform APIs in the Player plug-in. If one library needs a broader host, keep it outside the Player or add a target-specific adapter with explicit evidence.
+Avoid `net10.0`, `netcoreapp`, operating-system-specific target frameworks, dynamic code generation, and accidental platform APIs in the Player plug-in. If one library needs a broader host, keep it outside the Player or add a target-specific adapter and test it separately.
 
 Compile against the smallest honest profile, then test on every scripting backend and platform that ships. Compatibility is an intersection:
 
@@ -322,13 +311,13 @@ Copy managed plug-ins under `Assets`, select their platform compatibility, and k
 
 Auto Reference is convenient for a spike, but it makes every eligible script assembly see the plug-in and increases recompilation and accidental coupling. In a larger project, disable it and use assembly definitions with explicit precompiled references. Keep Editor-only adapters in Editor-only assemblies and exclude Player-incompatible plug-ins from Player platforms.
 
-Never fix a reference problem by disabling assembly version validation before understanding the mismatch. If multiple plug-ins demand incompatible `FSharp.Core` versions, rebuild them onto one tested version, isolate a process, or reject the combination; a single load context cannot honestly contain two files with the same assembly identity.
+Never fix a reference problem by disabling assembly version validation before understanding the mismatch. If plug-ins require incompatible `FSharp.Core` versions, rebuild them against one tested version, isolate them in separate processes, or reject the combination. One load context cannot load two files with the same assembly identity as different assemblies.
 
 ## Design a boundary that is natural from C# {#design-csharp-boundary}
 
 The F# implementation can remain idiomatic internally. The exported surface should follow the consumer's conventions.
 
-### Prefer ordinary CLR shapes {#clr-shaped-api}
+### Prefer ordinary CLR types and calls {#clr-shaped-api}
 
 Good Unity-facing choices include:
 
@@ -338,9 +327,9 @@ Good Unity-facing choices include:
 - `System.Action` or `System.Func` only when a callback is truly the right contract;
 - explicit factory methods when construction must enforce invariants.
 
-Keep F# lists, maps, options, results, discriminated unions, curried functions, and units of measure behind the boundary unless the C# consumer deliberately accepts their compiled forms. They are valid .NET types, not forbidden types; the issue is consumer friction, representation coupling, AOT surface, and maintenance.
+Keep F# lists, maps, options, results, discriminated unions, curried functions, and units of measure behind the boundary unless the C# consumer deliberately accepts their compiled forms. They are valid .NET types. The tradeoffs are caller complexity, representation coupling, AOT coverage, and maintenance.
 
-Units of measure are erased in emitted .NET signatures. A C# float cannot prove whether it represents seconds, meters, or meters per second. Preserve the meaning with method names, DTO fields, validation, or distinct wrapper types.
+Units of measure are erased in emitted .NET signatures. A C# float does not express whether it represents seconds, meters, or meters per second. Preserve the meaning with method names, DTO fields, validation, or distinct wrapper types.
 
 ### Translate outcomes once {#errors-and-outcomes}
 
@@ -348,7 +337,7 @@ Do not throw on every expected gameplay branch. Model domain outcomes internally
 
 Reserve exceptions for broken contracts and failures the current call cannot represent. The managed plug-in sample rejects NaN, infinity, negative speed, and negative delta time because they indicate an invalid boundary call. The C# adapter prevents ordinary authoring errors before reaching it.
 
-For asynchronous work, do not leak an F# `Async<'T>` into Unity. Publish `Task`, `ValueTask`, a C#-friendly polling handle, or a message interface according to the host. Define cancellation ownership and which thread receives completion. Unity object access still belongs to the main thread even if pure computation or I/O runs elsewhere.
+For asynchronous work, do not leak an F# `Async<'T>` into Unity. Publish `Task`, `ValueTask`, a C#-friendly polling handle, or a message interface according to the host. Define who can cancel and which thread receives completion. Unity object access still belongs to the main thread even if pure computation or I/O runs elsewhere.
 
 ### Separate durable data from engine objects {#units-and-data}
 
@@ -366,7 +355,7 @@ A serializable field is public or marked `[SerializeField]`, is not static, cons
 
 Properties are not the normal persistence surface. Dictionaries, multidimensional or jagged arrays, and nested containers need an explicit representation or serialization callback. `[SerializeReference]` changes reference and polymorphism behavior but adds its own identity, migration, and type-name risks.
 
-F# records usually expose properties and compiler-generated representation. Unions, options, lists, maps, and closures are not Unity field formats merely because they are managed objects. Some shape may appear to work in one Editor path and still fail prefab persistence, domain reload, stripping, or Player builds.
+F# records usually expose properties and compiler-generated representation. Unions, options, lists, maps, and closures are not Unity field formats merely because they are managed objects. A representation may work in one Editor path and still fail prefab persistence, domain reload, stripping, or Player builds.
 
 ### Map; do not teach the serializer F# {#map-dont-teach}
 
@@ -386,9 +375,9 @@ Trying to make one generated type satisfy Inspector editing, impossible-state mo
 
 Unity can reload scripts and assemblies, recreate components from serialized fields, enter Play Mode with configurable domain/scene reload behavior, unload scenes, disable objects, and destroy native objects while managed references still exist.
 
-Treat `Awake` or another explicit composition point as construction from serialized configuration. Use `OnEnable` and `OnDisable` to pair subscriptions and cancellation. Do not assume a private managed cache survives reload, or that a non-null-looking `UnityEngine.Object` still owns a live native object.
+Treat `Awake` or another explicit composition point as construction from serialized configuration. Use `OnEnable` and `OnDisable` to pair subscriptions and cancellation. Do not assume a private managed cache survives reload, or that a non-null-looking `UnityEngine.Object` is still backed by a live native object.
 
-The managed plug-in sample reconstructs `MotionState` in `Awake` and resets input in `OnDisable`. It does not claim save-game persistence or domain-reload evidence; those belong in a larger Unity project test.
+The managed plug-in sample reconstructs `MotionState` in `Awake` and resets input in `OnDisable`. It does not validate save-game persistence or domain reload; those require a larger Unity project test.
 
 ## Respect the game loop and allocation budget {#game-loop}
 
@@ -404,7 +393,7 @@ Pass time explicitly into pure logic. That makes pause, replay, slow motion, det
 
 ### Measure allocations; do not argue from style {#allocation-budget}
 
-F# pipelines, closures, sequences, records, unions, arrays, and interface calls have different allocation behavior depending on representation and use. “Functional” is neither a proof of allocation nor a proof of zero allocation.
+F# pipelines, closures, sequences, records, unions, arrays, and interface calls allocate differently according to their representation and use. The label “functional” alone tells you nothing about allocation.
 
 Profile a development Player on the target device. Use the CPU Profiler's `GC.Alloc` column and call stacks, then confirm with representative workload and build configuration. Editor measurements include Editor-only behavior and can differ from a Player.
 
@@ -426,7 +415,7 @@ Copy or map the required values on the main thread, perform bounded work with ca
 
 Immutability describes the copied F# value only. A `Transform`, asset, or destroyed Unity object still follows the engine's main-thread and lifetime contract, so worker code should consume detached values and return detached results.
 
-## IL2CPP changes the proof obligation {#il2cpp-and-aot}
+## IL2CPP expands the required verification {#il2cpp-and-aot}
 
 IL2CPP is not “Mono with a different optimizer.” It changes when and how executable code is produced.
 
@@ -455,7 +444,7 @@ Ahead-of-time compilation cannot wait until runtime to generate arbitrary new co
 - callbacks found only by native code, strings, attributes, or external data;
 - platform invokes and native libraries with wrong signatures or architectures.
 
-The remedy is not “avoid generics” or “preserve everything.” Prefer static, explicit calls; instantiate required closed generic paths; use AOT-supported library modes; add narrow roots or callback attributes where required; and run the exact Player path.
+The remedy is not “avoid generics” or “preserve everything.” Prefer static calls and instantiate the required closed generic paths. Use AOT-supported library modes, add narrow roots or callback attributes where required, and run the exact Player path.
 
 Record negative cases too. A loader that handles only the happy save type may pass while an older polymorphic save, error subtype, localized resource, or rare callback has been stripped.
 
@@ -471,7 +460,7 @@ Preservation prevents removal; it does not make an unsupported API, runtime code
 
 Burst documents HPC#, a restricted high-performance C#/.NET subset built around unmanaged values, Unity collections, jobs or function pointers, attributes, and IL post-processing. Managed objects, many runtime services, and ordinary exception behavior are outside that kernel model.
 
-The managed plug-in sample is a managed F# plug-in and contains no Burst or Job System evidence. Do not add `[BurstCompile]` to an F#-produced method and infer support from the attribute's presence.
+The managed plug-in sample is a managed F# plug-in and does not validate Burst or the Job System. Adding `[BurstCompile]` to an F#-produced method does not establish support.
 
 When profiling justifies Burst, a practical boundary is:
 
@@ -483,9 +472,9 @@ F# rules and orchestration
   -> F# decision layer
 ```
 
-Measure conversion cost, scheduling overhead, determinism, safety checks, Editor compilation, Player AOT, and target performance. If the hot kernel dominates the architecture, C# may appropriately own more of that subsystem.
+Measure conversion cost, scheduling overhead, determinism, safety checks, Editor compilation, Player AOT, and target performance. If the hot kernel dominates the architecture, C# may appropriately handle more of that subsystem.
 
-## Build an evidence ladder {#testing-ladder}
+## Verify each layer in increasing cost order {#testing-ladder}
 
 Use the cheapest test that can disprove the claim, then climb only as far as the release requires:
 
@@ -508,7 +497,7 @@ Unity is part of the compiler and asset pipeline. Version it like one.
 
 ### Pin the Editor, modules, packages, and plug-in {#pin-editor}
 
-Record the full Editor patch, not only “Unity 6.3.” The managed plug-in sample selects 6000.3.22f1 because it was the current 6.3 LTS patch when checked on 2026-08-25; that is a review target, not an installed-tool claim.
+Record the full Editor patch, not only “Unity 6.3.” This sample selects 6000.3.22f1, the current 6.3 LTS patch when checked on 2026-08-25. It is a review target, not a claim about an installed tool.
 
 Lock Unity packages and the F# NuGet graph. Build the F# DLL once from a clean locked restore, copy the exact dependency set into the Unity project, and hash or otherwise identify the imported artifacts. Avoid rebuilding the plug-in differently inside each platform job unless platform-specific output is intentional.
 
@@ -553,7 +542,7 @@ Before committing a production Unity codebase to F#, time-box one vertical slice
 - clean CI import, command-line Player build, launch, logs, symbols, package, and signing path;
 - onboarding, IDE/debugger friction, dependency updates, and a documented exit path to a C# host.
 
-Adopt only the boundary that passes. The result may be “F# owns the entire deterministic simulation,” “F# owns offline rules but not frame code,” “F# stays on the server and tools,” or “C# is simpler here.” All are valid engineering outcomes.
+Adopt only the boundary that passes. F# may handle the entire deterministic simulation, only offline rules, or only server and tool code. C# may also be simpler for the whole subsystem; each is a valid engineering outcome.
 
 ## Avoid common Unity mistakes {#common-mistakes}
 
@@ -563,7 +552,7 @@ Adopt only the boundary that passes. The result may be “F# owns the entire det
 - Treating a NuGet lock file or `.deps.json` as something Unity automatically restores.
 - Disabling reference or assembly-version validation to silence an unexplained mismatch.
 - Exposing F# functions, lists, options, or unions to C# accidentally and then writing adapters at every call site.
-- Asking Unity to serialize generated F# representations, properties, or arbitrary graphs without prefab/reload/Player evidence.
+- Asking Unity to serialize generated F# representations, properties, or arbitrary graphs without prefab, reload, and Player tests.
 - Storing scene objects, assets, or open resources inside durable domain state.
 - Reading Unity objects from a worker thread because the surrounding F# value is immutable.
 - Sampling frame-edge input only in `FixedUpdate` and losing events.
@@ -589,20 +578,20 @@ Evaluate these products separately:
 2. A console action game concentrates risk in thousands of physics-like entities, Jobs/Burst performance, platform SDKs, and designer-authored behaviors.
 3. A Unity Editor content pipeline validates dialogue graphs, generates localization reports, and runs headlessly in CI.
 
-For each product, record the first F# boundary, rejected alternatives, proof matrix, and reversal condition. The three products may lead to different language splits.
+For each product, record the first F# boundary, rejected alternatives, verification matrix, and conditions for changing direction. The three products may lead to different language splits.
 
 ### Exercise 2: turn the managed plug-in sample into a Unity vertical slice {#exercise-02}
 
-Design the smallest Unity project and evidence record that could promote the managed plug-in sample from “managed DLL builds” to “representative macOS ARM64 IL2CPP Player works.” Organize the record into four groups:
+Design the smallest Unity project and verification record that could move the sample from “managed DLL builds” to “representative macOS ARM64 IL2CPP Player works.” Organize the record into four groups:
 
 - **Assembly import:** artifact copying, `FSharp.Core` identity, assembly definitions, and Validate References.
 - **Editor behavior:** scene and input setup, Edit/Play Mode tests, reload behavior, and allocation profiling.
 - **Player build:** stripping level, `link.xml`, the command-line build profile, launch, logs, and symbols.
-- **Evidence status:** the exact command, result, artifact, and failure meaning for every row.
+- **Verification status:** the exact command, result, artifact, and failure meaning for every row.
 
 Keep each unrun row marked as unrun until the corresponding step actually executes.
 
-### Exercise 3: add saves, asynchronous effects, and dynamic content {#exercise-03}
+### Exercise 3: add saves, asynchronous operations, and dynamic content {#exercise-03}
 
 Extend the architecture for a quest system whose rules are F#, configuration is authored in Unity, saves migrate across three versions, remote dialogue arrives asynchronously, and content names optional quest handlers.
 
@@ -611,7 +600,7 @@ Cover four boundaries:
 - **Authored and saved data:** authoring DTOs, validated domain types, save DTOs, and migrations.
 - **Public behavior:** the C# API plus cancellation and stale-result messages.
 - **AOT discovery:** handler registration that avoids unrestricted runtime code generation, plus narrow preservation rules.
-- **Proof:** malformed and old-content tests plus Mono and IL2CPP evidence.
+- **Runtime verification:** malformed and old-content tests plus Mono and IL2CPP results.
 
 Place any feature whose safe AOT discovery remains unproven outside the Player.
 
@@ -620,24 +609,24 @@ Place any feature whose safe AOT discovery remains unproven outside the Player.
 ## Chapter review {#chapter-review}
 
 - Unity can execute imported managed F# assemblies, but source-language compatibility is only the first contract.
-- Separate .NET build, dependency closure, Unity import, Editor runtime, Mono Player, IL2CPP Player, and release evidence.
+- Verify .NET build, dependency closure, Unity import, Editor runtime, Mono Player, IL2CPP Player, and release separately.
 - The default low-friction boundary is a pure F# library behind a thin C# Unity adapter.
-- Direct F# components are possible managed plug-ins but need exact Unity assembly, Inspector, reload, and Player proof.
+- Direct F# components are possible managed plug-ins but need exact Unity assembly, Inspector, reload, and Player tests.
 - Target `netstandard2.1` for Unity's cross-platform API profile; do not confuse it with CoreCLR or JIT behavior.
 - Ship the exact locked `FSharp.Core.dll` and every runtime/native dependency; Unity does not restore the `.fsproj` graph.
-- Publish ordinary CLR-shaped methods and values to C# while keeping idiomatic F# types inside.
+- Publish CLR-friendly methods and values to C# while keeping idiomatic F# types inside.
 - Keep Unity serialization fields, engine objects, and lifecycle callbacks in the adapter; map into validated domain state.
 - Reconstruct runtime state deliberately across reload, enable/disable, scene, and process lifetimes.
-- Pass input, time, randomness, and effects explicitly to pure logic.
+- Pass input, time, and randomness into pure logic explicitly; return descriptions of external operations.
 - Measure frame code in a target Player; functional style neither guarantees nor forbids allocation.
 - The managed plug-in sample uses a small struct state after a regression test exposed a per-step class allocation.
 - IL2CPP strips managed code, converts IL to C++, invokes a native toolchain, and creates a platform package.
-- Reflection, runtime generation, dynamic generics, callbacks, and native libraries enlarge the AOT proof surface.
-- Use narrow, tested preservation rules; preservation is not compatibility or behavior evidence.
+- Reflection, runtime generation, dynamic generics, callbacks, and native libraries enlarge the AOT verification surface.
+- Use narrow, tested preservation rules; preservation does not verify compatibility or behavior.
 - Burst/Jobs use a separate HPC# contract and are not verified by the managed plug-in sample.
 - Pin the exact Unity patch, modules, packages, build profile, backend, stripping level, tools, and artifacts.
 - Keep logs, PDBs, native symbols, hashes, and launch results so failures remain attributable.
 - The chapter shows a managed F# plug-in design, dependency output contract, pure rule, and CLR-facing API.
-- Only a real Unity project can prove Editor import, Play Mode, stripping, and a target IL2CPP Player.
+- Only a real Unity project can verify Editor import, Play Mode, stripping, and a target IL2CPP Player.
 
 Chapter 45 returns to ordinary .NET tooling: scripts, automation, package evaluation, lock discipline, and a practical map for continuing to learn F#.

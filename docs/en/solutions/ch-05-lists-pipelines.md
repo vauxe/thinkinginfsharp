@@ -6,7 +6,7 @@ translationKey: solutions/ch-05-lists-pipelines
 
 # Chapter 5 Solutions {#overview}
 
-Check every stage's shape and order first. Equal final output can still hide excess traversals, uncontained state, or repeated effects.
+Check every stage's type and order first. Equal final output can still hide excess traversals, escaping mutable state, or repeated side effects.
 
 [Return to Chapter 5](../part-01/ch-05-lists-pipelines).
 

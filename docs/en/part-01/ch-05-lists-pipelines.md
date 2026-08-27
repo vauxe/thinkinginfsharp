@@ -6,25 +6,13 @@ translationKey: part-01/ch-05-lists-pipelines
 
 # Chapter 5: Lists, Pipelines, and Data Flow {#overview}
 
-When processing a group of values, start by asking, “what input shape does each stage receive, and what output shape does it produce?” The F# List module expresses frequent stages as higher-order functions: `filter` selects elements, `map` transforms them, and `choose` selects and transforms together. The pipeline `|>` then places stages in data-flow order.
+Before chaining collection operations, write the input and output type of each stage. The F# `List` module provides common stages as higher-order functions: `filter` selects elements, `map` transforms them, and `choose` selects and transforms together. The pipeline operator `|>` places those stages in data-flow order.
 
-F# supports both immutable transformations and the imperative tools `for`, `while`, and `let mutable`. We will compare three implementations of one problem, seeing where each style communicates intent most directly and which traversal and allocation costs matter before optimization.
-
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- construct lists and understand the basic costs of `[]`, `::`, and `@`;
-- read the type signatures of `List.map`, `List.filter`, and `List.choose`;
-- reduce `x |> f` to the ordinary application `f x`;
-- trace a pipeline's input, output, order, and eager evaluation stage by stage;
-- understand the minimal `Some`/`None` selection protocol used by `choose`;
-- write `for` and `while` loops whose bodies return `unit`;
-- compare a local mutable implementation with immutable list transformations by clarity and cost.
+F# supports both immutable transformations and the imperative tools `for`, `while`, and `let mutable`. We will compare three implementations of one problem, see where each style communicates intent most directly, and identify what to measure before optimizing.
 
 The lists here are small and already in memory. Arrays, lazy `seq`, `Map`, `Set`, and repeated enumeration wait until Chapter 14. Recursion and `fold` arrive in the next chapter.
 
-## A list is a persistent immutable structure {#list-foundations}
+## A list is immutable and preserves earlier versions {#list-foundations}
 
 The shared script's input is a list of pairs:
 
@@ -36,11 +24,11 @@ Each element contains a guest name and requested seat count, and every element h
 
 An F# list is an immutable singly linked structure. `item :: list` creates a new front node whose tail shares the old list and is normally constant time. `left @ right`, or `List.append left right`, must rebuild the left spine, so its cost is proportional to the length of `left`. Repeated tail append inside a loop can therefore become quadratic; accumulating at the front and calling `List.rev` once is a common alternative.
 
-Immutability still describes the structure boundary. List nodes are not changed in place, but if elements are objects with mutable internals, lists sharing those objects can still observe object changes. Chapter 14 separates collection choice from element semantics.
+The list nodes themselves are immutable, but their elements may not be. If two lists contain the same mutable object, both can observe changes inside that object. Chapter 14 separates collection behavior from element behavior.
 
 ## Three core transformations {#core-transformations}
 
-First, inspect only the type shapes:
+First, inspect only the function signatures:
 
 ```text
 List.map    : ('a -> 'b)        -> 'a list -> 'b list
@@ -66,23 +54,33 @@ For example, `(string * int) -> string` function `formatRequest` turns every boo
 
 `List.choose chooser source` asks each input to produce `Some value` or `None`. A `Some value` contributes the transformed value, while `None` contributes no result item, expressing selection and transformation together.
 
-For now, treat `option` as a minimal protocol: `Some x` carries a value, while `None` represents absence. Chapter 9 covers absence modeling, composition, and the `Some null` boundary. Use `Result` later when the caller needs error information.
+For now, read `Some x` as “a value is present” and `None` as “no value.” Chapter 9 covers absence modeling, composition, and the `Some null` case. Use `Result` later when the caller needs an error reason.
 
 When filtering and mapping share one decision and the intermediate list has no independent meaning, `choose` can express “each input yields at most one output” more directly. When each stage has a domain name or must be observed separately, keeping `filter` and `map` can be clearer.
 
-## A pipeline puts the final argument back into data flow {#pipelines}
+## A pipeline passes data as the final argument {#pipelines}
 
 The pipe operator has a small core equivalence:
 
 ```text
 value |> functionValue
 
-equivalent to / 等价于
+equivalent to
 
 functionValue value
 ```
 
-Therefore, `requests |> List.filter isValidRequest` is `List.filter isValidRequest requests`. The parameter order from Chapter 3 puts the list last, allowing the predicate to be partially applied before the pipeline supplies data.
+For example:
+
+```text
+requests |> List.filter isValidRequest
+
+equivalent to
+
+List.filter isValidRequest requests
+```
+
+The parameter order from Chapter 3 puts the list last. The predicate can therefore be partially applied before the pipeline supplies the data.
 
 ### Read one stage at a time {#pipeline-stages}
 
@@ -157,7 +155,7 @@ Use `map` to produce data. Use `iter` or `for` to perform an effect for every it
 
 `let mutable name = initial` creates a mutable storage location, and `name <- next` updates it. `=` remains binding or equality syntax; it does not perform updates.
 
-Mutable state adds time order: understanding `name` at one line requires knowing which earlier paths executed `<-`. Keeping state inside one small function and not exposing a reference to it can contain that reasoning cost. Both imperative implementations in the shared script follow that boundary.
+Mutable state adds a timeline: to know the value of `name`, you must know which earlier paths executed `<-`. Keep that state inside one small function and do not expose a reference to it; the two imperative implementations here follow this rule.
 
 ### The `for` version: the language manages enumeration {#for-version}
 
@@ -195,22 +193,22 @@ let labelsWithWhile source =
 
     List.rev reversedLabels
 ```
-A `while` repeats its `unit` body while the condition is `true`. This code must maintain `remaining` manually and update it to `tail` on each nonempty match. Forgetting that update causes an infinite loop. The empty-list rule remains because the compiler does not erase a possible type shape based on the outer loop condition.
+A `while` repeats its `unit` body while the condition is `true`. This code must maintain `remaining` manually and update it to `tail` on each nonempty match. Forgetting that update causes an infinite loop. Even though the loop condition checks for a nonempty list, `remaining` still has a list type, so the inner match must handle the empty case.
 
 The version works and mutates only two local bindings, but it exposes more mechanical state than `for` or `choose`. A `while` is more appropriate when whether to continue genuinely depends on changing state and no existing collection traversal expresses the problem, such as some low-level API interactions.
 
 ## How to choose among the three {#choosing-style}
 
-The shared script uses structural equality to show that all three implementations produce the same labels in the same order. Choose from the problem's shape and evidence:
+The shared script uses structural equality to show that all three implementations produce the same labels in the same order. Choose according to the required result and measured cost:
 
 | Goal | Usually consider first | Reason |
 | --- | --- | --- |
 | Produce a new collection from a collection | `map`, `filter`, `choose`, later `fold` | The result type directly expresses transformation |
 | Perform an effect for every item | `List.iter` or `for` | The `unit` intent is explicit and no unused result is built |
 | Continue according to explicit changing state | Small `while` plus local `mutable` | A state machine may be clearer than a distorted transformation |
-| Reduce traversals or allocations on a hot path | Measure, then merge stages or choose another collection | Evidence and a clear baseline beat guesses |
+| Reduce traversals or allocations on a hot path | Measure, then merge stages or choose another collection | A clear baseline and measurements beat guesses |
 
-Either style can carry avoidable costs: a functional version may allocate too many intermediate lists, while an imperative version may become quadratic through mistaken tail appends. Establish equal results, order, and boundaries, then benchmark or profile real costs.
+Either style can carry avoidable costs: a functional version may allocate too many intermediate lists, while an imperative version may become quadratic through mistaken tail appends. First establish the same results, ordering, and externally visible behavior; then benchmark or profile the real costs.
 
 ## Run the shared example {#run-example}
 
@@ -231,7 +229,7 @@ Iteration order: Lin:3 Sam:2
 
 Compare all four lines in order, including equality across three implementations and effect iteration order. Source `requests` never changes; every result is a new list value.
 
-## Debugging: pause at every pipeline boundary {#debugging}
+## Check every pipeline stage {#debugging}
 
 Do not read a failing pipeline as one chain:
 
@@ -247,7 +245,7 @@ When an effect happens twice, check whether validation calls an effectful mappin
 
 ## Exercises {#exercises}
 
-Write stage types and intermediate values before running each exercise. An equal final list is not the only evidence; compare source data, order, and effects too.
+Write stage types and intermediate values before running each exercise. An equal final list is not enough; compare source data, ordering, and effects too.
 
 ### Exercise 1: trace a pipeline stage by stage {#exercise-01}
 
@@ -275,7 +273,7 @@ For `labelsWithFor` and `labelsWithWhile`:
 
 [Read the chapter solutions](../solutions/ch-05-lists-pipelines).
 
-## Summary {#summary}
+## Key takeaways {#summary}
 
 - An F# list is an ordered immutable singly linked structure. Front cons with `::` is normally constant time; append traverses the left side.
 - `map` yields one item per input, `filter` retains original items, and `choose` uses `Some`/`None` for zero-or-one output.
@@ -286,15 +284,6 @@ For `labelsWithFor` and `labelsWithWhile`:
 - A `while` loop requires manual progress and fits truly state-driven problems; collection functions express standard traversal directly.
 
 The next chapter generalizes “accumulate at the front and reverse” into recursion and accumulators, then rewrites a class of explicit recursion with `fold` while describing tail-call boundaries accurately.
-
-## Vocabulary {#vocabulary}
-
-- **list:** an ordered immutable singly linked collection of elements of one type.
-- **pipeline:** using `|>` to supply a value as a function's final argument.
-- **eager evaluation:** completing computation when an operation is called rather than delaying until enumeration.
-- **option:** a type whose `Some value` means presence and whose `None` means absence.
-- **effect:** observable behavior such as output or state modification not described by the return value alone.
-- **mutable binding:** storage introduced with `let mutable` and updated with `<-`.
 
 ## Sources {#sources}
 

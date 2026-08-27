@@ -6,24 +6,9 @@ translationKey: part-04/ch-21-exceptions-resources-io
 
 # Chapter 21: Exceptions, Resources, and I/O {#overview}
 
-File I/O combines three concerns that pure code does not have: an operation can fail outside its return path, an acquired handle must be released, and partial work may already be observable. Treating all three as “return `Result`” hides important differences. Treating everything as an exception pushes ordinary recoverable outcomes onto every caller.
+File I/O adds three concerns that pure code does not have: an operation can throw instead of returning, an acquired handle must be released, and partial work may already be visible. Treating all three as “return `Result`” hides important differences. Treating everything as an exception forces callers to catch ordinary, recoverable outcomes.
 
-This chapter keeps the boundaries separate. `use` owns a disposable resource for a lexical scope. `try/with` translates only exceptions the caller can act on. Domain parsing remains an ordinary typed function after bytes or text have been acquired. The result is explicit without inventing a universal error wrapper.
-
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- read `try/with` as an expression whose first matching handler returns the result;
-- catch specific .NET exception types in inheritance-safe order;
-- let unhandled failures propagate without destroying their stack information;
-- use `use` to dispose an `IDisposable` value on success and exception paths;
-- distinguish resource lifetime from exception translation;
-- inject resource acquisition for testing while keeping ownership unambiguous;
-- translate selected file-system failures into an actionable error union;
-- preserve an unexpected I/O exception as a cause instead of reducing it to a string;
-- clean a task-owned temporary directory with `try/finally`;
-- choose consistently among `option`, `Result`, validation accumulation, and exceptions.
+Keep these concerns separate. `use` disposes a resource when its lexical scope ends. `try/with` translates only exceptions the caller can act on. Once bytes or text have been read, domain parsing remains an ordinary typed function. This design states each responsibility clearly without inventing a universal error wrapper.
 
 ## Exceptions interrupt normal expression evaluation {#exception-flow}
 
@@ -42,17 +27,17 @@ If `operation` completes, the `try` branch supplies the value. If it raises, han
 
 Type-test patterns such as `:? IOException as cause` work with ordinary .NET exceptions. An exception pattern also follows inheritance: `FileNotFoundException` is an `IOException`. Therefore a broad `IOException` handler placed first would consume the more specific case.
 
-An exception object contains failure information and stack context. It is not merely a message string. Decide at a boundary whether a known exception means an expected application outcome. Do not catch first and decide what it meant later after its type, cause, and stack have been discarded.
+An exception object contains failure information and stack context; it is not merely a message string. At the point where an exception enters application logic, decide whether it represents an expected outcome. Do not catch it first and interpret it later, after discarding its type, cause, and stack.
 
-### Raise only when exceptional flow is the contract {#raise-reraise}
+### Raise only when the API calls for exceptional flow {#raise-reraise}
 
 `raise cause` starts exception propagation. Helpers such as `invalidArg`, `nullArg`, and `failwith` create particular exceptions, but a named domain union is usually clearer for an expected rejection.
 
 Inside a `with` handler, `reraise()` propagates the currently handled exception while preserving its existing stack. Writing `raise cause` there throws that object from the current point and changes the reported throw site. Often no catch is better than a catch whose only purpose is to rethrow.
 
-Represent ordinary domain states such as “booking is closed” with an explicit return branch. Preserve exceptional propagation for out-of-memory conditions, broken invariants, and unexpected library faults. Each representation then gives callers the recovery contract they need.
+Represent ordinary domain states such as “booking is closed” with a return branch. Let out-of-memory conditions, broken invariants, and unexpected library faults propagate as exceptions. Callers can then see which failures they are expected to handle.
 
-## Resource lifetime is a separate contract {#resource-lifetime}
+## Resource lifetime is a separate concern {#resource-lifetime}
 
 `StreamReader` implements `IDisposable` and owns an underlying stream. Prompt disposal releases that resource. F# expresses ownership with `use`:
 
@@ -64,7 +49,7 @@ let read path =
 
 The binding behaves like `let` while the containing block runs, then calls `Dispose` when control leaves the scope. This includes normal return and exception unwinding after acquisition succeeds. Multiple `use` bindings in one scope are disposed in reverse declaration order.
 
-`use` answers “who releases this value, and when?” It does not catch an exception from opening, reading, user code, or disposal. Exception policy remains a separate layer. If acquiring the value itself throws, no value was bound for `use` to dispose.
+`use` answers “who releases this value, and when?” It does not catch exceptions from opening, reading, user code, or disposal. Error handling remains separate. If acquisition itself throws, no value was bound for `use` to dispose.
 
 The `using resource operation` function expresses a similar lifetime around one function call. Prefer `use` when lexical scope already communicates ownership. Use `try/finally` for cleanup that is not represented by one `IDisposable`, such as removing a task-owned temporary directory.
 
@@ -72,7 +57,7 @@ The `using resource operation` function expresses a similar lifetime around one 
 
 The runtime attempts `Dispose`; the implementation itself can throw. If body execution and disposal both fail, preserving both failures requires an explicit policy rather than assuming `use` can report two exceptions. Good resource implementations make repeated disposal safe, but consumers should still own each resource clearly and dispose it once.
 
-For asynchronous resources, the applicable computation-expression builder controls `use!`/asynchronous disposal behavior. Chapters 22 and 23 cover that contract. This chapter's `StreamReader` is synchronous `IDisposable`.
+For asynchronous resources, the computation-expression builder determines how `use!` and asynchronous disposal behave. Chapters 22 and 23 cover those rules. This chapter uses the synchronous `IDisposable` implementation of `StreamReader`.
 
 ## Make ownership reusable without hiding it {#with-reader}
 
@@ -83,7 +68,7 @@ let withReader (openReader: string -> StreamReader) path operation =
     use reader = openReader path
     operation reader
 ```
-The contract is approximately:
+Its behavior is approximately:
 
 ```text
 (string -> StreamReader) -> string -> (StreamReader -> 'T) -> 'T
@@ -125,15 +110,15 @@ Several choices are deliberate:
 - more specific handlers appear before `IOException`;
 - there is no catch-all `ex -> Error ...` branch.
 
-The result says that these I/O outcomes are expected at this adapter. It does not claim file reading is pure. The operation still consults external state, can race with another process, and can encounter an exception not covered by this policy.
+The result marks these I/O outcomes as expected cases for this adapter; it does not make file reading pure. The operation still reads external state, can race with another process, and may encounter exceptions outside this policy.
 
-Holding an exception inside an internal error value preserves useful cause and stack data. If the error crosses a process or serialization boundary, expose a stable transport error and log or otherwise retain the cause on the service side; do not expose arbitrary exception objects as a public wire contract.
+Holding an exception inside an internal error value preserves useful cause and stack data. Across a process or serialization boundary, expose a stable transport error instead of an arbitrary exception object. Log or otherwise retain the cause on the service side.
 
 ### Catch at the layer that can add meaning {#catch-layer}
 
 A low-level helper often lacks enough context to decide whether “not found” is normal, a configuration error, or a security signal. Let the exception reach an adapter named for the operation. That adapter can attach the path and translate only the cases its caller understands.
 
-Do not log the same exception at every layer. A common policy is either handle it and record the resulting outcome, or propagate it to a boundary that owns logging. Repeated log-and-rethrow creates duplicate incidents without adding information.
+Do not log the same exception at every layer. Either handle it and record the outcome, or propagate it to the layer responsible for logging. Repeated log-and-rethrow creates duplicate incidents without adding information.
 
 ## Test both completion paths with real resources {#resource-tests}
 
@@ -209,13 +194,13 @@ finally
 ```
 Two opener functions retain reader references solely for test observation. After the success operation returns, calling `Peek` on the retained reader raises `ObjectDisposedException`. A second operation reads the file and then raises `InvalidDataException`; after the exception is caught outside `withReader`, that reader is disposed too.
 
-This is direct evidence for both control paths. It is stronger than asserting that a `use` keyword appears in source, and more portable than attempting to delete an open file—Unix-like systems and Windows have different open-file deletion behavior.
+This directly tests both control paths. It proves more than checking for a `use` keyword in source and is more portable than deleting an open file, which behaves differently on Unix-like systems and Windows.
 
-The outer `try/finally` owns directory cleanup. The directory name contains a fresh GUID, the target is a specific child of the platform temporary directory, and deletion occurs only for that resolved task-owned path. The final assertion confirms it no longer exists.
+The outer `try/finally` handles directory cleanup. The directory name contains a fresh GUID, and deletion targets only that resolved child of the platform temporary directory. The final assertion confirms that the directory no longer exists.
 
 Testing with real temporary files proves the .NET boundary. Pure parsing tests should still use in-memory strings; they do not need a filesystem fixture.
 
-## I/O has more than a success value {#io-contract}
+## Review more than the success value {#io-contract}
 
 For a read operation, review at least:
 
@@ -237,13 +222,13 @@ The chapter fixture uses `File.WriteAllText` and `ReadToEnd` because its file co
 | Situation | Representation | Why |
 |---|---|---|
 | Lookup has no value and no explanation is needed | `option` | `None` is the complete ordinary outcome |
-| One expected operation can fail and caller needs a reason | `Result<'T, 'Error>` | The error is part of the typed contract |
+| One expected operation can fail and caller needs a reason | `Result<'T, 'Error>` | The error is part of the function's type |
 | Several independent pure input checks should all report | Accumulating validation | Combination policy preserves multiple failures |
 | A dependent workflow step fails | First-error `Result.bind` or explicit match | Later work lacks a valid prerequisite |
 | A .NET API reports a recoverable condition by exception | Catch that specific exception at an adapter and translate | Aligns a foreign convention with caller policy |
-| A programmer contract or invariant is broken | Exception, assertion, or process failure according to ownership | Ordinary callers usually cannot recover as a domain branch |
-| An unexpected infrastructure failure occurs | Propagate with cause until an operational boundary can handle it | Avoid false, information-poor domain errors |
-| A disposable resource is acquired | `use`/`using` plus a separate success/failure contract | Lifetime and result semantics are different axes |
+| A programmer error or invariant violation occurs | Exception, assertion, or process failure according to responsibility | Ordinary callers usually cannot recover through a domain branch |
+| An unexpected infrastructure failure occurs | Propagate with its cause until the responsible operational layer can handle it | Avoid false, information-poor domain errors |
+| A disposable resource is acquired | `use`/`using` plus separate success/failure handling | Lifetime and result semantics are different concerns |
 
 These choices compose. A function may use `use` internally and return `Result`; disposal still happens when either branch is produced. A validator may return `Result<_, Error list>` without any I/O. An exception adapter may return `option` when the only translated condition is ordinary absence.
 
@@ -251,7 +236,7 @@ Avoid APIs such as `Result<'T, string>` by default. Strings are appropriate pres
 
 ## Keep parsing after acquisition {#parse-after-read}
 
-A useful boundary sequence is:
+A useful I/O sequence is:
 
 ```text
 open + read + dispose
@@ -261,9 +246,9 @@ parse text with pure functions
 map both into a workflow error union
 ```
 
-Do not parse while deliberately keeping the file open unless streaming is required. A short lifetime reduces resource pressure and makes pure parser tests trivial. When streaming is required, the consumer must remain inside the resource scope, and its exception/cancellation behavior becomes part of that scope's contract.
+Do not keep the file open during parsing unless streaming requires it. A short lifetime reduces resource pressure and keeps pure parser tests simple. With streaming, the consumer must stay inside the resource scope, so its exception and cancellation behavior also applies within that scope.
 
-Map errors at the workflow boundary rather than flattening both into “invalid file.” A missing file, denied access, malformed syntax, and violated domain rule may require different user messages, retry choices, and telemetry.
+Map errors where the workflow combines reading and parsing; do not flatten both into “invalid file.” Missing files and denied access may need different messages or retry choices. Malformed syntax and violated domain rules may need different telemetry.
 
 ## Run the shared example {#run-example}
 

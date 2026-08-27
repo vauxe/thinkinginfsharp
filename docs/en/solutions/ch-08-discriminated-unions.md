@@ -6,7 +6,7 @@ translationKey: solutions/ch-08-discriminated-unions
 
 # Chapter 8 Solutions {#overview}
 
-A union-modeling answer should do more than compile. It should identify which combinations disappear and which policy remains in functions.
+A union-modeling answer should do more than compile. It should identify which combinations disappear and which transition rules remain in functions.
 
 [Return to Chapter 8](../part-02/ch-08-discriminated-unions).
 
@@ -23,7 +23,7 @@ type NotificationTarget =
     | Disabled of reason: string
 ```
 
-Every constructed value now selects exactly one target: an email address, an SMS number, or a disabled reason. Smart constructors or validation can add the remaining string-format guarantees while preserving this three-case shape.
+Every constructed value now selects exactly one target: an email address, an SMS number, or a disabled reason. Smart constructors or validation can add string-format guarantees without changing these three cases.
 
 ## Exercise 2: prove exhaustiveness {#exercise-02}
 
@@ -61,4 +61,4 @@ Returning only `BookingStatus` prevents callers from distinguishing “cancelled
 - **Case data still needs its own invariants:** `Email ""` remains constructible here and needs later protection.
 - **Exhaustiveness diagnostics support evolution:** a new case forces explicit matches to revisit policy.
 - **A wildcard denotes the remaining set:** use it only when that set genuinely shares one rule.
-- **Legal state is not legal transition:** unions protect shape; return types such as `Result` express transition failure.
+- **Legal state is not legal transition:** unions limit representable states; return types such as `Result` express transition failure.

@@ -14,7 +14,7 @@ State the dominant operation, the required semantics, and the conversion boundar
 
 ### 1. Immutable head/tail command processing {#exercise-01-list}
 
-Start with `Command list`. The batch is modest, already available, immutable, and consumed according to the list's recursive shape. Prepending and head/tail matching fit the representation.
+Start with `Command list`. The batch is modest, already available, immutable, and consumed according to the list's recursive structure. Prepending and head/tail matching fit the representation.
 
 If the input arrives as `seq<Command>`, materialize once after validating any size limit:
 
@@ -33,7 +33,7 @@ let occupied = Array.create capacity false
 occupied[seatIndex] <- true
 ```
 
-Keep this mutation inside a narrow owner. At an outward boundary, return a copied array, an immutable summary, or domain events according to the API contract; exposing the working array would let callers mutate internal state.
+Keep this mutation inside one component. At its public boundary, return a copied array, an immutable summary, or domain events according to the API contract. Exposing the working array would let callers mutate internal state.
 
 ### 3. First ten candidate allocations {#exercise-01-sequence}
 
@@ -67,7 +67,7 @@ let attendees = HashSet<string>(StringComparer.OrdinalIgnoreCase)
 attendees.Add("Lin@example.com") |> ignore
 ```
 
-No total ordering is required. If an alphabetic report is needed only at output, project to strings and sort there. If the set crosses an ownership boundary, copy it or expose a read-only result rather than sharing mutable state.
+No total ordering is required. If an alphabetic report is needed only at output, project to strings and sort there. If the set leaves its managing component, copy it or expose a read-only result rather than sharing mutable state.
 
 ## Exercise 2: predict demand and caching {#exercise-02}
 
@@ -96,7 +96,7 @@ Choose the exposed meaning deliberately:
 - **cached replay:** use `Seq.cache` when deferred prefix consumption and replay of the same produced values are both required;
 - **complete snapshot:** use `Seq.toList` or `Seq.toArray` at the boundary when all work should complete once and later traversal must be predictable.
 
-For an effectful or resource-backed source, “fresh enumeration” requires an explicit source contract. The type `seq<'T>` alone is insufficient evidence.
+For a source with side effects or external resources, “fresh enumeration” requires a defined source contract. The type `seq<'T>` alone does not specify replay behavior.
 
 ## Exercise 3: order versus equality {#exercise-03}
 
@@ -131,11 +131,11 @@ The mandatory hash rule is one-way:
 if comparer.Equals(left, right), then comparer.GetHashCode(left) = comparer.GetHashCode(right)
 ```
 
-Unequal values may share a hash code. A collision can reduce performance, but equality still distinguishes the values. Never use a hash code itself as proof of identity or as a sorting key.
+Unequal values may share a hash code. A collision can reduce performance, but equality still distinguishes the values. Never use a hash code itself as an identity or a sorting key.
 
 ## What to notice {#what-to-notice}
 
-- **Representation follows repeated operations:** one unusual call should not dictate the whole data shape.
+- **Representation follows repeated operations:** one unusual call should not dictate the whole data structure.
 - **Materialization communicates meaning:** it is often a useful snapshot boundary, not an automatic failure of functional style.
 - **Caching is incremental:** an already produced prefix is replayed and a later traversal can continue producing the remainder.
 - **Comparison and hashing are different contracts:** an ordered tree needs a stable total order; a hash table needs compatible equality and hash codes.

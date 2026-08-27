@@ -79,7 +79,7 @@ let (|SeatCount|_|) raw =
     | Error _ -> None
 ```
 
-This pattern fits a multi-format recognizer where “not a seat-count token” merely means “try the next token shape.” It does not fit an HTTP request, form submission, or command-validation path that must tell the caller how to repair input; those call `parseSeatCount` and retain `Error`.
+This pattern fits a multi-format recognizer: a non-match simply tries the next token format. It does not fit HTTP, form, or command validation that must explain how to repair the input. Those paths should call `parseSeatCount` and retain `Error`.
 
 The conversion loses both the error case and its payload:
 

@@ -1,18 +1,18 @@
 ---
 title: "Chapter 32 Solutions"
-description: "Derive narrow dispatch ports and ownership, design bounded observable signals, and choose an application host from concrete lifecycle requirements."
+description: "Derive narrow dispatch ports and resource responsibilities, design bounded telemetry, and choose an application host from concrete lifecycle requirements."
 translationKey: solutions/ch-32-functions-to-applications
 ---
 
 # Chapter 32 Solutions {#overview}
 
-These solutions keep domain policy in a pure function and make process responsibilities visible at its edge. The exact names can vary; the important properties are narrow capabilities, explicit cancellation and failure meaning, one owner per resource, and observable fields with controlled cardinality.
+These solutions keep domain policy in a pure function and expose process responsibilities at its edge. Names may vary, but four requirements remain: narrow capabilities, defined cancellation and failure semantics, one party responsible for each resource, and telemetry fields with bounded cardinality.
 
 [Return to Chapter 32](../part-05/ch-32-functions-to-applications).
 
-## Exercise 1: derive ports and ownership {#exercise-01}
+## Exercise 1: derive ports and resource responsibilities {#exercise-01}
 
-### Begin with the facts and commitments {#exercise-01-ports}
+### Start from required data and operations {#exercise-01-ports}
 
 Assume the worker receives a validated `Order` and inventory is identified by a validated `Sku`. A minimal first boundary can be:
 
@@ -29,7 +29,7 @@ type DispatchPorts =
 
 `VersionedInventory` adds a storage version to the domain `Inventory`. That version is not a dispatch rule; it lets the commit reject a stale read. Without it, separate load and commit calls provide no protection against two workers consuming the same stock.
 
-The orchestration has the shape:
+The workflow is:
 
 ```fsharp
 task {
@@ -47,23 +47,23 @@ task {
 }
 ```
 
-The same caller token reaches both effects. Pre-cancellation should avoid the first call. Cancellation thrown by either adapter remains cancellation; an unexpected database exception remains a faulted task. `DispatchError` remains an expected business refusal. `CommitError`, such as `VersionConflict`, is a persistence/concurrency outcome and should not be disguised as a domain rule.
+The same caller token reaches both I/O calls. Pre-cancellation should prevent the first call. Cancellation from either adapter remains cancellation, while an unexpected database exception leaves the task faulted. `DispatchError` is an expected business refusal. `CommitError`, such as `VersionConflict`, comes from persistence or concurrency and should not be disguised as a domain rule.
 
 This model does not automatically retry a version conflict. The caller may reload and decide again only if the operation has a defined retry limit, the order identity is stable, and commit is idempotent. Reusing the earlier domain result after inventory changes would be incorrect.
 
-For ownership, distinguish the long-lived client from a per-operation session:
+Assign cleanup separately for the long-lived client and each per-operation session:
 
-- the composition root creates the database client or connection pool and transfers ownership to the process/application owner;
-- the owner stops new work, drains outstanding calls, then disposes that client at shutdown;
+- the composition root creates the database client or connection pool, and the process becomes responsible for it;
+- at shutdown, the process stops new work, drains outstanding calls, and then disposes the client;
 - the adapter creates a session or transaction for one operation and disposes it with `use` or `use!` inside that operation;
 - the pure function never sees either resource;
-- if a caller supplies a shared client without ownership transfer, the application must not dispose it.
+- if a caller supplies a shared client and retains disposal responsibility, the application must not dispose it.
 
-If load and commit must share one database transaction, the shown two-call port is insufficient. Redesign the adapter boundary to execute the load, pure decision, and conditional commit inside one owned transaction, or use the store's compare-and-swap facility. Do not imply atomicity merely by placing two calls next to each other.
+If load and commit must share one database transaction, the shown two-call port is insufficient. Redesign the adapter to create one transaction, run the load and pure decision, conditionally commit, and dispose the transaction. Alternatively, use the store's compare-and-swap operation. Two adjacent calls are not automatically atomic.
 
-A container is unnecessary to express any of these rules. Constructor/function arguments expose dependencies, and `use` exposes local ownership. A container may later automate long-lived registration and scopes without changing the domain workflow.
+A container is unnecessary to express these rules. Constructor or function arguments expose dependencies, and `use` marks a local cleanup scope. A container may later automate long-lived registrations and scopes without changing the domain workflow.
 
-## Exercise 2: design three observable signals {#exercise-02}
+## Exercise 2: design three telemetry signals {#exercise-02}
 
 ### Give each signal one job {#exercise-02-signals}
 
@@ -85,9 +85,9 @@ Increment the counter exactly once after each terminal attempt. A counter report
 
 Start the activity around application orchestration and dispose it in `finally`. Treat a `null` activity as normal. Put the bounded outcome on the activity and use status consistently: an expected refusal can complete successfully at the protocol level, while an unexpected exception is an error. Record cancellation separately rather than rewriting it as a fault.
 
-A local `MeterListener` proves the process published a named measurement with the expected value and tags. A local `ActivityListener` proves a sampled activity was started, tagged, and stopped. Capturing the logging callback proves the structured record was produced.
+A local `MeterListener` verifies that the process published the expected named measurement, value, and tags. A local `ActivityListener` verifies that a sampled activity started, received tags, and stopped. Capturing the logging callback verifies that the structured record was produced.
 
-Those listeners do not prove aggregation, sampling policy, propagation headers, batching, export, authentication, backend ingestion, retention, dashboards, or alerts. Add an integration or staging smoke test for the real OpenTelemetry/provider pipeline, plus a backend query or health signal appropriate to its operational importance.
+Those listeners do not verify aggregation, sampling policy, propagation headers, batching, export, authentication, backend ingestion, retention, dashboards, or alerts. Test the real OpenTelemetry or provider pipeline in integration or staging. Add a backend query or health signal when its operational importance warrants one.
 
 ## Exercise 3: choose a hosting level {#exercise-03}
 

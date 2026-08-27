@@ -1,18 +1,18 @@
 ---
 title: "第 27 章练习答案"
-description: "把泄露的 F# 结果投影为受控 .NET 响应，用重载演进查询，并用专用 DTO 隔离序列化要求。"
+description: "把暴露出的 F# 结果转换为受控 .NET 响应，用重载演进查询，并用专用 DTO 隔离序列化要求。"
 translationKey: solutions/ch-27-fsharp-api-for-csharp
 ---
 
 # 第 27 章练习答案 {#overview}
 
-三份答案都保留一个原则：领域表示不为调用技术妥协，边界表示也不要求调用者学习内部语言。适配器明确承担两者之间的转换和兼容性成本。
+三份答案遵循同一原则：领域模型不迁就调用方技术，调用方也不必学习实现语言。两种表示之间的转换与兼容成本由适配器承担。
 
 [返回第 27 章](../part-05/ch-27-fsharp-api-for-csharp)。
 
 ## 练习 1：封装泄露的 F# 表示 {#exercise-01}
 
-### 先写可见表面和状态规律 {#exercise-01-surface}
+### 先定义公开 API 及其合法状态 {#exercise-01-surface}
 
 内部函数的三个结果可投影如下：
 
@@ -60,7 +60,7 @@ type BookingApi private () =
 
         request |> Decision.evaluate capacity |> ResponseAdapter.fromDecision
 ```
-可以另为 F# 调用者公开一个惯用表面，例如返回抽象的领域结果；不要让这个便利层成为 C# 契约的实现来源。两个表面都应转发到同一个内部函数。
+可以另为 F# 调用者提供惯用 API，例如直接返回领域结果。但这个便利 API 不应定义 C# 契约；两套 API 都调用同一个内部函数。
 
 ## 练习 2：增加可选筛选而不破坏调用方 {#exercise-02}
 
@@ -99,7 +99,7 @@ assert (BookingSearch.Find("REQ-27") |> Seq.toList = [ "REQ-27" ])
 assert (BookingSearch.Find("REQ-27", "Ada") |> Seq.toList = [ "REQ-27:Ada" ])
 ```
 
-C# 调用保持普通：
+C# 调用方式保持自然：
 
 ```csharp
 var all = BookingSearch.Find(requestId: "REQ-27");
@@ -110,9 +110,9 @@ var filtered = BookingSearch.Find(requestId: "REQ-27", attendee: "Ada");
 
 ### 让选项增长触发一次有意迁移 {#exercise-02-evolution}
 
-第三个独立筛选不必立刻导致四个重载。如果筛选项形成一个概念，新增 `BookingSearchOptions` 和 `Find(BookingSearchOptions options)`，保留旧重载并让它们转发。文档注明默认值和组合规则，再用 `Obsolete` 给出迁移目标，而不是突然删除桥接成员。
+第三个独立筛选不必立刻导致四个重载。若多个筛选项共同构成查询条件，可新增 `BookingSearchOptions` 和对应的 `Find` 方法。保留旧重载并转发到新实现。文档注明默认值与组合规则，再用 `Obsolete` 指明迁移目标，不要突然删除桥接成员。
 
-即使新重载是加法，也要编译已有 C# 源码；方法组、泛型推断和 null 实参可能出现新歧义。API 基线工具检查二进制表面，真实消费者编译检查源码表面。
+即使只是新增重载，也要重新编译已有 C# 消费方；方法组、泛型推断和 null 实参都可能产生歧义。API 基线工具检查二进制兼容性，消费方编译检查源码兼容性。
 
 ## 练习 3：把 JSON DTO 与领域请求分开 {#exercise-03}
 
@@ -191,9 +191,9 @@ match DomainRequest.ofDto valid with
 ## 答案复盘 {#solution-review}
 
 - 先写公共状态规律，再选类、枚举、可空值和受控构造。
-- 让公开成员与 F# 惯用表面共享内部实现，而不是互相实现业务规则。
+- 让公开成员与惯用的 F# API 共享内部实现，不要让二者互相实现业务规则。
 - 重载可以保留旧签名，但仍需用真实源码检查解析歧义。
 - 选项形成概念时，用命名 options 类型和转发桥收束重载。
 - `CLIMutable` 属于确有构造要求的 DTO，不属于领域不变量本身。
 - DTO 解码器接收不完整状态；领域工作流只接收验证后的类型。
-- 程序集、行为和传输格式是不同兼容性表面，分别测试和迁移。
+- 程序集、行为和传输格式属于不同的兼容性层面，应分别测试和迁移。

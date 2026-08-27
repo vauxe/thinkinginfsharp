@@ -33,4 +33,4 @@ scripts/check-book.mjs        最小双语一致性检查
 .github/workflows/            GitHub Pages 部署
 ```
 
-代码示例直接写在书页中。Markdown 书稿及其内嵌示例是事实源，Node 检查负责验证这套自包含的书稿结构。
+代码示例直接写在书页中。Markdown 书稿及其内嵌示例是内容的唯一来源；Node 检查确认书稿无需依赖外部示例文件。

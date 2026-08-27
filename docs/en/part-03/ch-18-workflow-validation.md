@@ -10,21 +10,6 @@ translationKey: part-03/ch-18-workflow-validation
 
 Both policies can return `Result`. The difference is not the container's name but the combining function. This chapter implements both policies with ordinary functions so evaluation and error order remain visible. Computation-expression syntax is discussed only after the behavior exists without it.
 
-## What you will be able to do {#outcomes}
-
-By the end of this chapter, you should be able to:
-
-- classify checks as dependent, independent, or effectful boundary work;
-- explain `Result.bind` as first-error short-circuiting;
-- compose dependent steps without invoking a later function after failure;
-- evaluate independent field checks and accumulate every error;
-- preserve a deterministic error order;
-- construct the protected result only after every component succeeds;
-- extract a reusable ordinary accumulation function;
-- avoid running database or network work merely because checks are logically independent;
-- explain why FSharp.Core does not provide a built-in `result` or validation computation expression;
-- treat `and!` behavior as a contract of a particular computation-expression builder.
-
 ## Ask whether the next check needs the previous value {#dependency-question}
 
 Before choosing syntax, draw the data dependencies:
@@ -37,7 +22,7 @@ raw attendee ─────▶ validate name ────┼──▶ construct
 raw seat text ─────▶ validate seats ──┘
 ```
 
-The capacity comparison depends on a parsed, positive `SeatCount`. By contrast, all three field branches can read the raw request independently. Here “independent” describes data requirements; execution remains sequential unless the program explicitly introduces parallelism.
+The capacity comparison depends on a parsed, positive `SeatCount`. By contrast, all three field branches can read the raw request independently. Here “independent” describes data requirements; execution remains sequential unless the program introduces parallelism.
 
 Use the following starting rule:
 
@@ -45,7 +30,7 @@ Use the following starting rule:
 |---|---|---|
 | Later step requires earlier success | Short-circuit | There is no valid input for the later step after failure |
 | Checks inspect independent data already in hand | Accumulate when callers need all failures | Every check can provide useful feedback |
-| Check performs I/O or changes state | Keep it in an explicit effectful phase | Cost, faults, cancellation, and staleness need their own policy |
+| Check performs I/O or changes state | Keep it in a separate effectful phase | Cost, faults, cancellation, and staleness need their own policy |
 
 Do not accumulate by reflex. A command-line tool may intentionally report only the first syntax error, and a security boundary may avoid revealing several details. Choose from the consumer requirement.
 
@@ -171,9 +156,9 @@ If every result is `Ok`, the match constructs one `ValidBooking`. Otherwise, `er
 [missing-request-id; missing-attendee; seats-not-integer:oops]
 ```
 
-This is validation accumulation: evaluate independent checks and combine their failures under an explicit ordering rule. The code executes sequentially in ordinary F# evaluation order, but no check is skipped because another field failed.
+This is validation accumulation: evaluate independent checks and combine their failures in a stated order. The code executes sequentially in ordinary F# evaluation order, but no check is skipped because another field failed.
 
-Keep error order deterministic. Request ID, attendee, then seats matches the input layout here. A stable ordering makes tests, UI focus, logs, and client behavior predictable. A `Set` would deduplicate and sort according to comparison rather than preserve field order; that would be a different contract.
+Keep error order deterministic. Request ID, attendee, then seats matches the input layout here. A stable ordering makes tests, UI focus, logs, and client behavior predictable. A `Set` would deduplicate and sort by comparison instead of preserving field order, which would change the observable behavior.
 
 ### Accumulation is not “keep going after anything” {#accumulation-limits}
 
@@ -183,7 +168,7 @@ Likewise, do not construct a half-valid domain record and patch it later. Keep s
 
 ## Extract the combining rule as an ordinary function {#reusable-accumulation}
 
-The explicit three-way match is easy to audit. When the pattern repeats, factor only the combination mechanics:
+The direct three-way match is easy to audit. When the pattern repeats, factor only the combination mechanics:
 
 ```fsharp:line-numbers [ch18-workflow-validation.fsx]
 let applyValidation valueResult functionResult =
@@ -247,7 +232,7 @@ let observeDependentValidation rawSeats =
 | `"5"` with capacity 4 | `ExceedsCapacity(5, 4)` | 1 |
 | `"3"` with capacity 4 | `Ok(SeatCount 3)` | 1 |
 
-The zero is direct evidence of short-circuiting. It is not an optimization assertion based on timing. The count is test instrumentation; correctness must not depend on it.
+The zero directly demonstrates short-circuiting; it is not a timing-based optimization claim. The count is test instrumentation, and correctness must not depend on it.
 
 A real booking workflow commonly uses both policies:
 
@@ -265,7 +250,7 @@ One label such as “validation” should not flatten these different semantics.
 
 An email-format check over a string in memory can join field accumulation. “Email is unique in the database” is different: it has latency, can fault, needs cancellation, and can become stale immediately after the query. Running three such checks just to collect messages may multiply cost and reveal inconsistent snapshots.
 
-First accumulate cheap deterministic facts already in hand. Then execute necessary external decisions under an explicit policy. The final write must still enforce concurrency-sensitive rules atomically; a prior validation query is not a lock.
+First accumulate cheap deterministic facts already in hand. Then execute necessary external decisions under a stated policy. The final write must still enforce concurrency-sensitive rules atomically; a prior validation query is not a lock.
 
 This separation also keeps tests honest. Pure accumulation needs only input and expected values. Effectful work needs ports, controlled substitutes, and later cancellation/resource tests.
 
@@ -292,17 +277,17 @@ validation {
 }
 ```
 
-The bindings cannot depend on one another within that group. Never describe `and!` alone as “accumulate errors” or “run in parallel”; state the builder and its `MergeSources` contract. Custom builders can be excellent once a codebase repeats a proven workflow, but they introduce another API and debugging translation. The ordinary functions in this chapter remain the semantic baseline.
+The bindings cannot depend on one another within that group. Never describe `and!` alone as “accumulate errors” or “run in parallel”; state the builder and what its `MergeSources` does. Custom builders can be useful once a codebase repeats a proven workflow, but they introduce another API and debugging translation. The ordinary functions here remain the semantic baseline.
 
 ## Choose the smallest honest composition {#selection-rule}
 
 | Need | Prefer |
 |---|---|
-| Next step requires the previous successful value | `Result.bind` or an explicit match |
+| Next step requires the previous successful value | `Result.bind` or a direct match |
 | Return one prioritized failure | Ordered first-error composition |
-| Return all independent pure input errors | Explicit accumulation or a small tested apply/map function |
-| Perform an external check | A later explicit effectful workflow step |
-| Repeated stable syntax with an agreed team/library contract | A documented computation-expression builder |
+| Return all independent pure input errors | Direct accumulation or a small tested apply/map function |
+| Perform an external check | A later effectful workflow step |
+| Repeated stable syntax with agreed team/library conventions | A documented computation-expression builder |
 | One unusual combination | Direct pattern matching rather than new abstraction |
 
 Types state possible results; combining functions state evaluation policy. Review both.
@@ -315,13 +300,13 @@ From the directory containing the example:
 dotnet fsi --exec ch18-workflow-validation.fsx
 ```
 
-Seven deterministic lines and assertions prove first-error output, three- and two-error accumulation, agreement on valid input, and capacity-check counts for invalid, excessive, and accepted seat text. Compare their exact order.
+Seven deterministic lines and assertions verify first-error output, three- and two-error accumulation, agreement on valid input, and capacity-check counts for invalid, excessive, and accepted seat text. Compare their exact order.
 
 ## Exercises {#exercises}
 
 ### Exercise 1: draw two validation phases {#exercise-01}
 
-A booking command must check a request ID, attendee name, integer seat text, capacity, and request-ID uniqueness in a database. Classify each check as independent pure input validation, dependent domain validation, or effectful boundary work.
+A booking command must check a request ID, attendee name, integer seat text, capacity, and request-ID uniqueness in a database. Classify each check as independent pure input validation, dependent domain validation, or external effectful work.
 
 Draw an execution order that reports useful input errors together without querying the database for structurally invalid input. State where short-circuiting is required and where accumulation is useful.
 
@@ -367,9 +352,9 @@ Run the focused workflow tests from the directory containing the example:
 dotnet test ExampleTests.fsproj --configuration Release --filter FullyQualifiedName~BookingWorkflowTests
 ```
 
-Passing tests show that independent command errors accumulate in field order, valid commands produce events, and existing state short-circuits later capacity work. They exercise ordinary functions, so the evidence does not depend on an unstated computation-expression builder.
+Passing tests show that independent command errors accumulate in field order, valid commands produce events, and existing state short-circuits later capacity work. They exercise ordinary functions, so the result does not depend on an unstated computation-expression builder.
 
-[Continue to Chapter 19](../part-04/ch-19-dotnet-null-boundaries), where external .NET values first cross an explicit boundary.
+[Continue to Chapter 19](../part-04/ch-19-dotnet-null-boundaries), where external .NET values enter through a dedicated adapter.
 
 ## Sources {#sources}
 
