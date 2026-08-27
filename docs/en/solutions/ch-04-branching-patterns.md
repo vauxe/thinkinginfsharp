@@ -14,7 +14,7 @@ The important part of a branch answer is not the final string but the first succ
 
 The shared definition is:
 
-```fsharp:line-numbers [ch04-branching-patterns.fsx]
+```fsharp:line-numbers
 let availability remaining =
     if remaining > 0 then "available" else "full"
 
@@ -42,7 +42,7 @@ Move the wildcard first and it matches every input before the other rules, makin
 
 The definition is:
 
-```fsharp:line-numbers [ch04-exercise-03.fsx]
+```fsharp:line-numbers
 let classifyRequest (remaining, requested) =
     match remaining, requested with
     | _, requested when requested <= 0 -> "invalid"
@@ -57,7 +57,7 @@ Order matters: if the acceptance rule came first, `(0, 0)` would satisfy `0 <= 0
 
 The queue definition is:
 
-```fsharp:line-numbers [ch04-branching-patterns.fsx]
+```fsharp:line-numbers
 let describeQueue queue =
     match queue with
     | [] -> "empty"

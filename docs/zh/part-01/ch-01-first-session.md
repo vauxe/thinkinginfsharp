@@ -73,7 +73,7 @@ dotnet run --project HelloFSharp
 
 先看每个表达式产生什么值，以及这些值如何进入后续计算。暂时不熟悉的符号会在后文逐一解释。
 
-```fsharp:line-numbers [ch01-first-session.fsx]
+```fsharp:line-numbers
 let eventName = "Functional Foundations"
 let capacity = 40
 let booked = 18
@@ -113,24 +113,6 @@ printfn "Printing returned: %A" printResult
 示例先执行 `printfn "%s" summary`，因此屏幕出现摘要；随后名称 `printResult` 绑定到返回值 `()`。最后一行把这个值打印出来。C# 的 `void` 表示缺少可用返回值；F# 的 `unit` 则是具有唯一值的普通类型。
 
 这个区别以后会很重要。类型签名以 `unit` 结尾，通常说明调用的目的在于产生副作用，例如写文件、发送响应或记录日志。返回类型本身不能说明副作用是否完成或失败；这些结果要由测试和明确的错误类型验证。
-
-## 运行示例 {#run-example}
-
-把前面的代码块复制到 `ch01-first-session.fsx`，然后运行：
-
-```console
-dotnet fsi --exec ch01-first-session.fsx
-```
-
-应得到：
-
-```text
-Functional Foundations: 22 seats remaining
-Seats available: true
-Printing returned: ()
-```
-
-FSI 在交互模式下会主动显示提交的值和类型；以 `--exec` 运行脚本时，上面这些行都来自脚本显式调用 `printfn`，因此重复运行文件会得到相同的有序输出。
 
 ## 先检查代码如何运行 {#debugging}
 

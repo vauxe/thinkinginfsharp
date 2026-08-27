@@ -28,7 +28,7 @@ The goal is not “effects are forbidden.” A useful program must interact with
 
 The example models only facts needed by a campaign decision:
 
-```fsharp:line-numbers [ch20-functional-core-effects.fsx]
+```fsharp:line-numbers
 type Campaign =
     { OpensAt: DateTimeOffset
       ClosesAt: DateTimeOffset
@@ -47,7 +47,7 @@ type Decision =
 ```
 `Campaign` contains policy. `Candidate` contains observations already captured for one attempt. `Decision` names every pure outcome. The decision function is correspondingly direct:
 
-```fsharp:line-numbers [ch20-functional-core-effects.fsx]
+```fsharp:line-numbers
 let decide campaign candidate =
     if candidate.SubmittedAt < campaign.OpensAt then
         NotOpen
@@ -67,7 +67,7 @@ Purity is a property of this implementation and its dependencies, not of the `le
 
 The orchestrator receives a record of three named function values:
 
-```fsharp:line-numbers [ch20-functional-core-effects.fsx]
+```fsharp:line-numbers
 type RuntimeEffects =
     { UtcNow: unit -> DateTimeOffset
       NextInt: int -> int
@@ -111,7 +111,7 @@ The record is useful here because one small internal orchestrator needs three in
 
 The system adapter is small:
 
-```fsharp:line-numbers [ch20-functional-core-effects.fsx]
+```fsharp:line-numbers
 let systemEffects (random: Random) =
     { UtcNow = fun () -> DateTimeOffset.UtcNow
       NextInt = fun upperExclusive -> random.Next upperExclusive
@@ -131,7 +131,7 @@ Only application composition should know `systemEffects`. The domain file should
 
 A closure is a function value together with values captured from its definition scope. The deterministic providers are tiny closures:
 
-```fsharp:line-numbers [ch20-functional-core-effects.fsx]
+```fsharp:line-numbers
 let fixedClock instant = fun () -> instant
 
 let fixedDraw draw =
@@ -197,7 +197,7 @@ Neither form decides failure policy. A function or interface member can return a
 
 The script uses fixed dependencies plus a mutable `ResizeArray` only as test instrumentation:
 
-```fsharp:line-numbers [ch20-functional-core-effects.fsx]
+```fsharp:line-numbers
 let instant = DateTimeOffset(2026, 9, 1, 12, 0, 0, TimeSpan.Zero)
 
 let campaign =
@@ -269,16 +269,6 @@ The assertions verify:
 - the opening instant is included and the closing instant is excluded according to the code's comparisons.
 
 No test sleeps, changes the process environment, or guesses what `Random` will return for a seed. A seed can make one implementation reproducible, but asserting the framework's exact sequence couples a domain test to an algorithm the domain does not define. The fixed function states the actual requirement: return this in-range draw.
-
-## Run the shared example {#run-example}
-
-From the repository root:
-
-```console
-dotnet fsi --exec examples/scripts/ch20-functional-core-effects.fsx
-```
-
-Six deterministic output lines report the captured snapshot, accepted code, fallback region, window boundaries, exact effect order, and replay result. Compare their order and text.
 
 ## Side-effecting dependencies still need failure policies {#failure-contracts}
 

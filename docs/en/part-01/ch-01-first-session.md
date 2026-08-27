@@ -73,7 +73,7 @@ The project file records the target framework, source-file order, package depend
 
 Read the example first and focus on the flow; the symbols will become familiar through use.
 
-```fsharp:line-numbers [ch01-first-session.fsx]
+```fsharp:line-numbers
 let eventName = "Functional Foundations"
 let capacity = 40
 let booked = 18
@@ -113,24 +113,6 @@ Inference removes repetitive annotations while preserving static types. Subtract
 The example first evaluates `printfn "%s" summary`, so the summary appears on screen. The name `printResult` is then bound to the returned value `()`. A later line prints that value. C#'s `void` denotes the absence of an available result; F#'s `unit` is an ordinary type with one value.
 
 This distinction matters later. A signature ending in `unit` usually means that the call matters because it performs an effect, such as writing a file, sending a response, or recording a log. The return type alone cannot say whether that effect completed or failed; tests and an explicit error model must check those outcomes.
-
-## Run the example {#run-example}
-
-Copy the preceding code block into `ch01-first-session.fsx`, then run:
-
-```console
-dotnet fsi --exec ch01-first-session.fsx
-```
-
-You should see:
-
-```text
-Functional Foundations: 22 seats remaining
-Seats available: true
-Printing returned: ()
-```
-
-In interactive mode, FSI proactively displays the values and types of submissions. Under `--exec`, every line above comes from an explicit `printfn` call in the script, so rerunning the file reproduces the same ordered output.
 
 ## Check how the code is being run first {#debugging}
 

@@ -37,7 +37,7 @@ let attendee = draft.Attendee
 
 共享定义可以直接用于预测：
 
-```fsharp:line-numbers [ch07-records-equality.fsx]
+```fsharp:line-numbers
 let equalCopy =
     { EventId = "A-1"
       Attendee = "Lin"

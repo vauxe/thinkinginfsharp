@@ -330,27 +330,19 @@ Use several layers because each catches a different class of mistake.
 
 ### Pure transition tests {#pure-tests}
 
-Test `update`, validation, routing parsers, reducers, encoders, and derived view data without a browser where possible. Assert next model and emitted effect descriptions for success, invalid input, repeated input, stale messages, retries, and cancellation messages.
-
-If the same source must run on .NET and JavaScript, test semantic hotspots on both targets. A .NET-only test covers CLR behavior, not the generated JavaScript.
+Test `update`, validation, routing, reducers, encoding, and derived view data without a browser. Assert next state and effects for invalid, repeated, stale, retried, and cancelled work. If source runs on .NET and JavaScript, test semantic hotspots on both targets; CLR results do not prove generated JavaScript behavior.
 
 ### Binding and component tests {#binding-tests}
 
-Test local bindings against the exact JavaScript package version. Exercise optional members, callback `this`, promise rejection, event cleanup, null/undefined, module format, and production minification. Type declarations can be wrong or lag the runtime.
-
-Component tests should query roles, names, labels, text, and state as users perceive them. CSS class selectors couple tests to rendering details and can miss an inaccessible UI.
+Test bindings against the exact JavaScript package, including optional members, callback `this`, promise rejection, cleanup, null/undefined, module format, and minification; type declarations can lag runtime. Query components by user-visible roles, names, labels, text, and state rather than CSS details.
 
 ### Contract and browser tests {#browser-tests}
 
-Mock transport only for narrow deterministic cases. Keep server contract fixtures for success and every declared error, then run at least one real HTTP slice when a browser client and service must agree on credentials, CORS, serialization, and status mapping.
-
-Production browser smoke must use built assets, not only a development server. Capture console errors, page exceptions, failed and error responses, initial readiness, one meaningful interaction, keyboard/accessibility semantics, and narrow-screen overflow. Add browser/version matrices only when product support requires them.
+Keep server fixtures for success and declared errors, and run a real HTTP slice for credentials, CORS, serialization, and status mapping. Production smoke must use built assets and cover console/page failures, readiness, one meaningful interaction, keyboard semantics, and narrow-screen overflow. Add browser matrices only when support policy requires them.
 
 ### Diagnose generated and bundled code {#diagnostics}
 
-Read generated JavaScript when an interop or size question demands it, but debug from F# through source maps when policy permits. Inspect the browser network panel, accessibility tree, event listeners, performance trace, storage, and bundle graph. A successful F# compilation cannot show a missing asset, CSP rejection, stale service worker, hydration mismatch, or inaccessible name.
-
-Do not publish source maps containing sensitive source or paths without an explicit access policy. If production diagnostics upload maps to a service, separate upload from public artifact exposure.
+Use source maps and browser diagnostics for interop, bundle, network, accessibility, event, storage, and performance failures that compilation cannot reveal. Keep sensitive source maps private; separate diagnostic upload from public artifacts.
 
 ## Keep development and production pipelines distinct {#build-deploy}
 
@@ -401,17 +393,13 @@ These are dated observations, not a preapproved stack:
 
 ## Run a reversible browser-stack spike {#adoption-spike}
 
-Use one representative vertical slice:
+Use one representative vertical slice covering:
 
-- one route or embedded island with real navigation constraints;
-- one form containing raw, valid, invalid, and server-rejected states;
-- one overlapping asynchronous request that completes out of order;
-- one JavaScript package or Web API behind a typed adapter;
-- one authenticated HTTP call with declared error mapping;
-- one accessible keyboard flow and one narrow-screen layout;
-- locked NuGet/npm restore, production bundle, static serve, and Chrome smoke;
-- bundle, interaction, memory, diagnostics, CSP, and source-map checks;
-- one dependency upgrade and a documented rollback/deletion path.
+- real navigation and a form with raw, valid, invalid, and rejected states;
+- an out-of-order asynchronous request and a typed JavaScript/Web API adapter;
+- authenticated HTTP with declared errors, keyboard access, and narrow layout;
+- locked restore, production bundle, static serve, and browser smoke;
+- bundle/runtime diagnostics, one dependency upgrade, and a rollback/deletion path.
 
 Compare plain Fable, Elmish, and the required renderer on the same slice. Count concepts, dependencies, lifecycle code, tests, build steps, and operational responsibility—not just view syntax.
 
@@ -419,23 +407,15 @@ Adopt the larger stack only when it removes more risk than it adds. Keep the los
 
 ## Avoid common browser mistakes {#common-mistakes}
 
-- Calling Fable “.NET in the browser” and assuming arbitrary assemblies work.
-- Treating `netstandard` compatibility as Fable and browser compatibility.
-- Forgetting that npm peer/native packages are separate from NuGet bindings.
-- Exposing secrets in generated JavaScript, browser configuration, storage, or source maps.
-- Spreading `Emit`, dynamic values, raw DOM casts, or renderer nodes through domain code.
-- Putting effects inside `update` and then calling the function pure.
-- Modeling load, empty, error, cancelled, and stale states with one Boolean.
-- Cancelling a request without also rejecting late completion by identity.
-- Registering timers, sockets, or listeners repeatedly without a clear cleanup owner.
-- Choosing Elmish for trivial local state or refusing it after custom dispatch code becomes a framework.
-- Treating Elmish, React, Feliz, and Fable.Elmish.React as synonyms.
-- Sharing a server project that reads files, environment, threads, or databases with the browser target.
-- Testing only under the development server or only under .NET.
-- Querying DOM tests by CSS implementation details while missing roles, names, focus, and keyboard behavior.
-- Publishing a static bundle without checking base paths, direct routes, caching, CSP, MIME types, and rollback.
-- Reading generated directory size as bundle size instead of measuring production transfer and execution.
-- Claiming a package option is supported because its current version page was reviewed but never built.
+- Calling Fable “.NET in the browser,” treating `netstandard`/NuGet compatibility as browser evidence, or ignoring the separate npm peer/native graph.
+- Exposing secrets in generated code, configuration, storage, or source maps.
+- Spreading dynamic interop or renderer types into the domain, or effects into `update`.
+- Collapsing load, empty, error, cancelled, and stale states into a Boolean; cancellation must also reject late results by identity.
+- Registering timers, sockets, or listeners without a cleanup owner.
+- Choosing Elmish for trivial state, rejecting it after custom dispatch becomes a framework, or confusing it with React/Feliz bindings.
+- Sharing server-only APIs with the browser target, or testing only on .NET/development server.
+- Testing DOM by CSS details or publishing without accessibility, routing, caching, CSP, MIME, and rollback checks.
+- Judging bundle or package support from source size/version pages instead of production measurement and builds.
 
 ## Exercises {#exercises}
 

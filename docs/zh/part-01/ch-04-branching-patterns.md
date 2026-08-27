@@ -14,9 +14,9 @@ translationKey: part-01/ch-04-branching-patterns
 
 ## `if` 选择一个结果 {#if-expression}
 
-共享脚本先把剩余容量映射成文本：
+示例先把剩余容量映射成文本：
 
-```fsharp:line-numbers [ch04-branching-patterns.fsx]
+```fsharp:line-numbers
 let availability remaining =
     if remaining > 0 then "available" else "full"
 
@@ -80,7 +80,7 @@ match input with
 
 数值范围无法用单个字面量模式表示。可以先用变量模式取得值，再用 `when` 守卫检查：
 
-```fsharp:line-numbers [ch04-branching-patterns.fsx]
+```fsharp:line-numbers
 let capacityBand remaining =
     match remaining with
     | value when value <= 0 -> "full"
@@ -100,7 +100,7 @@ printfn "Capacity bands: %s, %s, %s, %s" (capacityBand 0) (capacityBand 1) (capa
 
 第 3 章把元组作为一个组合实参。本章进一步看到，模式可以在函数参数或 `match` 中拆开它：
 
-```fsharp:line-numbers [ch04-branching-patterns.fsx]
+```fsharp:line-numbers
 let bookingSummary (guest, seats) =
     let noun = if seats = 1 then "seat" else "seats"
     $"{guest} requested {seats} {noun}"
@@ -117,9 +117,9 @@ printfn "Booking: %s" (bookingSummary ("Lin", 3))
 
 F# 列表是由同类型元素组成的有序、不可变、单向链式集合。这里只学习识别列表结构所需的语法。`[]` 表示空列表，`[ a; b ]` 表示恰好两项，`head :: tail` 把非空列表拆成首项和剩余列表。
 
-共享示例覆盖空、一项和至少两项：
+示例覆盖空、一项和至少两项：
 
-```fsharp:line-numbers [ch04-branching-patterns.fsx]
+```fsharp:line-numbers
 let describeQueue queue =
     match queue with
     | [] -> "empty"
@@ -159,25 +159,6 @@ printfn "Queues: %s | %s | %s" (describeQueue []) (describeQueue [ "Lin" ]) (des
 - 一个布尔选择已经表达清楚时，继续使用 `if`。
 
 两者都产生值。选择时应看哪种写法最容易展示所有可能输入、规则优先级和遗漏情况。
-
-## 运行共享示例 {#run-example}
-
-在仓库根目录执行：
-
-```console
-dotnet fsi --exec examples/scripts/ch04-branching-patterns.fsx
-```
-
-应得到：
-
-```text
-Availability: available
-Capacity bands: full, last seat, limited, available
-Booking: Lin requested 3 seats
-Queues: empty | one: Lin | next: Lin, then Ada
-```
-
-请按顺序比较每行输出。每个分支函数返回数据，输出集中在函数外部，因此可以分别验证决策与显示。
 
 ## 按规则逐项模拟 {#debugging}
 

@@ -36,9 +36,9 @@ translationKey: part-03/ch-18-workflow-validation
 
 ## 为每个成功字段赋予类型 {#model}
 
-共享脚本把原始文本与成功检查后的值分开：
+示例把原始文本与成功检查后的值分开：
 
-```fsharp:line-numbers [ch18-workflow-validation.fsx]
+```fsharp:line-numbers
 type ValidationError =
     | MissingRequestId
     | MissingAttendee
@@ -64,7 +64,7 @@ type ValidBooking =
 
 错误联合类型保留事实，而不是格式化后的 UI 消息。每个字段验证器返回 `Result<'Value, ValidationError list>`：
 
-```fsharp:line-numbers [ch18-workflow-validation.fsx]
+```fsharp:line-numbers
 let validateRequestId raw =
     if String.IsNullOrWhiteSpace raw then
         Error [ MissingRequestId ]
@@ -101,7 +101,7 @@ match input with
 
 第一种策略嵌套了三个依赖的延续：
 
-```fsharp:line-numbers [ch18-workflow-validation.fsx]
+```fsharp:line-numbers
 let validateFirstError (raw: RawBooking) =
     validateRequestId raw.RequestId
     |> Result.bind (fun requestId ->
@@ -127,7 +127,7 @@ let validateFirstError (raw: RawBooking) =
 
 累积策略会先求值三个字段函数，然后才判断是否能构造结果：
 
-```fsharp:line-numbers [ch18-workflow-validation.fsx]
+```fsharp:line-numbers
 let errorsOf result =
     match result with
     | Ok _ -> []
@@ -170,7 +170,7 @@ let validateAccumulating (raw: RawBooking) =
 
 直接写出的三路匹配很容易审计。当这种模式重复出现时，只提取组合机制：
 
-```fsharp:line-numbers [ch18-workflow-validation.fsx]
+```fsharp:line-numbers
 let applyValidation valueResult functionResult =
     match functionResult, valueResult with
     | Ok mapping, Ok value -> Ok(mapping value)
@@ -195,7 +195,7 @@ let validateAccumulatingWithApply (raw: RawBooking) =
 - 两边都失败时，从左到右追加错误；
 - 只有一边失败时，保留那一份错误列表。
 
-柯里化的 `createBooking` 从 `Ok` 内开始。每次应用提供一个独立计算出的组件。共享脚本断言，这次重构与直接匹配返回完全相同的错误、顺序和成功值。
+柯里化的 `createBooking` 从 `Ok` 内开始。每次应用提供一个独立计算出的组件。示例断言，这次重构与直接匹配返回完全相同的错误、顺序和成功值。
 
 函数先接收下一个值结果，使包含构造函数的 `Result` 可以通过 `|>` 继续传递。这只是为了让当前 F# API 便于使用，不代表通用命名规则。
 
@@ -205,7 +205,7 @@ let validateAccumulatingWithApply (raw: RawBooking) =
 
 座位数一旦存在，与容量比较就是依赖性的业务检查：
 
-```fsharp:line-numbers [ch18-workflow-validation.fsx]
+```fsharp:line-numbers
 let ensureWithin capacity (SeatCount requested as seats) =
     if requested <= capacity then
         Ok seats
@@ -292,16 +292,6 @@ validation {
 
 类型声明可能的结果；组合函数声明求值策略。两者都需要评审。
 
-## 运行共享示例 {#run-example}
-
-在仓库根目录运行：
-
-```console
-dotnet fsi --exec examples/scripts/ch18-workflow-validation.fsx
-```
-
-七行输出与断言验证首错结果、三项和两项错误累积、有效输入时两种策略一致，以及无效、超量和接受的座位文本各自对应的容量检查次数。请比较确切顺序。
-
 ## 练习 {#exercises}
 
 ### 练习 1：画出两个验证阶段 {#exercise-01}
@@ -334,13 +324,7 @@ result {
 
 ## 第三部分检查点 {#part-checkpoint}
 
-在仓库根目录运行已校验的工作流示例：
-
-```console
-dotnet fsi --warnaserror+ --exec examples/scripts/ch18-workflow-validation.fsx
-```
-
-七行输出展示了独立错误按字段顺序累积、有效输入成功，以及无效输入会跳过后续容量查询。示例直接调用普通函数，因此结果不依赖未声明的计算表达式构建器。
+沿上述普通函数追踪两种输入。结构无效时，应按字段顺序累积独立错误且不查询容量；输入有效时，应进入依赖性查询并构造请求。结果不能依赖未声明的计算表达式构建器。
 
 [继续阅读第 19 章](../part-04/ch-19-dotnet-null-boundaries)，通过专门的适配层接收外部 .NET 值。
 

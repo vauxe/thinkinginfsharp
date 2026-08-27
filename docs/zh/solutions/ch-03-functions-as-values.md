@@ -27,15 +27,15 @@ translationKey: solutions/ch-03-functions-as-values
 
 命名函数和匿名函数如下：
 
-```fsharp:line-numbers [ch03-functions-as-values.fsx]
+```fsharp:line-numbers
 let increment seats = seats + 1
 let incrementAnonymous = fun seats -> seats + 1
 
 printfn "Named and anonymous: %d, %d" (increment 3) (incrementAnonymous 3)
 ```
-共享脚本中的命名调用是：
+示例中的命名调用是：
 
-```fsharp:line-numbers [ch03-functions-as-values.fsx]
+```fsharp:line-numbers
 let applyTwice transform value = transform (transform value)
 let incrementedTwice = applyTwice increment 3
 
@@ -49,14 +49,14 @@ printfn "Applied twice: %d" incrementedTwice
 
 两个可运行定义分别是：
 
-```fsharp:line-numbers [ch03-functions-as-values.fsx]
+```fsharp:line-numbers
 let lineTotal unitPrice seats = unitPrice * decimal seats
 let standardLineTotal = lineTotal 19.50m
 let totalForThree = standardLineTotal 3
 
 printfn "Curried total: %M" totalForThree
 ```
-```fsharp:line-numbers [ch03-functions-as-values.fsx]
+```fsharp:line-numbers
 let lineTotalTupled (unitPrice, seats) = unitPrice * decimal seats
 let tupledTotal = lineTotalTupled (19.50m, 3)
 

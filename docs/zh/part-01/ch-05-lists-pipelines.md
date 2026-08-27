@@ -14,7 +14,7 @@ F# 同时支持不可变变换与 `for`、`while`、`let mutable` 这些命令�
 
 ## 列表不可变，并保留旧版本 {#list-foundations}
 
-共享脚本的输入是一个二元组列表：
+示例的输入是一个二元组列表：
 
 ```text
 (string * int) list
@@ -86,7 +86,7 @@ List.filter isValidRequest requests
 
 共享管道如下：
 
-```fsharp:line-numbers [ch05-lists-pipelines.fsx]
+```fsharp:line-numbers
 let pipelineLabels =
     requests |> List.filter isValidRequest |> List.map formatRequest
 
@@ -116,9 +116,9 @@ printfn "Pipeline labels: %A" pipelineLabels
 
 ## 用 `choose` 合并相关阶段 {#choose-pipeline}
 
-共享脚本把有效性与格式化组合成一个选择函数：
+示例把有效性与格式化组合成一个选择函数：
 
-```fsharp:line-numbers [ch05-lists-pipelines.fsx]
+```fsharp:line-numbers
 let tryFormatRequest request =
     if isValidRequest request then
         Some(formatRequest request)
@@ -137,9 +137,9 @@ printfn "Chosen labels: %A" chosenLabels
 
 变换函数回答“新数据是什么”。若目标是依次执行输出等副作用而不收集结果，`List.iter action` 或 `for item in source do ...` 更贴切。它们的动作或循环主体返回 `unit`，整个迭代也返回 `unit`。
 
-共享示例用 `for` 展示标签顺序：
+示例用 `for` 展示标签顺序：
 
-```fsharp:line-numbers [ch05-lists-pipelines.fsx]
+```fsharp:line-numbers
 printf "Iteration order:"
 
 for label in pipelineLabels do
@@ -155,11 +155,11 @@ printfn ""
 
 `let mutable name = initial` 建立可变存储位置，`name <- next` 更新它。`=` 仍用于绑定或相等判断，不用于更新。
 
-可变状态增加了时间顺序：要知道某一行的 `name` 是什么值，必须先确认此前哪些路径执行过 `<-`。把状态留在一个小函数内，并且不把其引用交给外部，就更容易追踪。共享脚本中的两个命令式版本都遵守这条规则。
+可变状态增加了时间顺序：要知道某一行的 `name` 是什么值，必须先确认此前哪些路径执行过 `<-`。把状态留在一个小函数内，并且不把其引用交给外部，就更容易追踪。示例中的两个命令式版本都遵守这条规则。
 
 ### `for` 版本：枚举由语言管理 {#for-version}
 
-```fsharp:line-numbers [ch05-lists-pipelines.fsx]
+```fsharp:line-numbers
 let labelsWithFor source =
     let mutable reversedLabels = []
 
@@ -176,7 +176,7 @@ let labelsWithFor source =
 
 ### `while` 版本：条件与进度都由代码管理 {#while-version}
 
-```fsharp:line-numbers [ch05-lists-pipelines.fsx]
+```fsharp:line-numbers
 let labelsWithWhile source =
     let mutable remaining = source
     let mutable reversedLabels = []
@@ -199,7 +199,7 @@ let labelsWithWhile source =
 
 ## 三种实现怎样选择 {#choosing-style}
 
-共享脚本用结构相等确认三种实现产生相同标签和顺序。应根据所需结果和实测成本选择：
+示例用结构相等确认三种实现产生相同标签和顺序。应根据所需结果和实测成本选择：
 
 | 目标 | 通常先考虑 | 原因 |
 | --- | --- | --- |
@@ -209,25 +209,6 @@ let labelsWithWhile source =
 | 热路径需要减少遍历/分配 | 先测量，再合并阶段或使用合适集合 | 有清楚基线的测量比猜测可靠 |
 
 两种风格都可能带来多余成本：函数式版本可能分配过多中间列表，命令式版本可能因错误的尾部追加退化。先保证结果、顺序和对外行为相同，再用基准或分析工具比较真实成本。
-
-## 运行共享示例 {#run-example}
-
-在仓库根目录执行：
-
-```console
-dotnet fsi --exec examples/scripts/ch05-lists-pipelines.fsx
-```
-
-应得到：
-
-```text
-Pipeline labels: ["Lin:3"; "Sam:2"]
-Chosen labels: ["Lin:3"; "Sam:2"]
-For/while agree: true
-Iteration order: Lin:3 Sam:2
-```
-
-请按顺序比较四行，确认三个实现结果相等，而且打印顺序一致。源 `requests` 从未改变；每个结果都是新列表值。
 
 ## 逐个检查管道阶段 {#debugging}
 

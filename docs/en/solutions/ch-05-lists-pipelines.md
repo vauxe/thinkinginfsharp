@@ -14,7 +14,7 @@ Check every stage's type and order first. Equal final output can still hide exce
 
 The shared pipeline is:
 
-```fsharp:line-numbers [ch05-lists-pipelines.fsx]
+```fsharp:line-numbers
 let pipelineLabels =
     requests |> List.filter isValidRequest |> List.map formatRequest
 
@@ -30,7 +30,7 @@ This runs two eager list stages: filtering traverses four elements and produces 
 
 The answer region is:
 
-```fsharp:line-numbers [ch05-lists-pipelines.fsx]
+```fsharp:line-numbers
 let tryFormatRequest request =
     if isValidRequest request then
         Some(formatRequest request)
@@ -49,7 +49,7 @@ If the valid-request list must be logged, tested, or passed to another step inde
 
 The `for` and `while` versions are:
 
-```fsharp:line-numbers [ch05-lists-pipelines.fsx]
+```fsharp:line-numbers
 let labelsWithFor source =
     let mutable reversedLabels = []
 
@@ -60,7 +60,7 @@ let labelsWithFor source =
 
     List.rev reversedLabels
 ```
-```fsharp:line-numbers [ch05-lists-pipelines.fsx]
+```fsharp:line-numbers
 let labelsWithWhile source =
     let mutable remaining = source
     let mutable reversedLabels = []

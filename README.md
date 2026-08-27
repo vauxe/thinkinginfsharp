@@ -23,15 +23,15 @@ Before committing, run:
 npm run check
 ```
 
-The complete check also needs the .NET 10 SDK. It tests the reading theme, verifies bilingual structure, executes every registered example against its expected output or diagnostic, and builds the VitePress site.
+The complete check also needs the .NET 10 SDK. It tests the reading theme, verifies bilingual structure, executes the focused fixtures against their expected output or diagnostic, and builds the VitePress site.
 
 ## Repository layout
 
 ```text
 docs/                         Book content and site configuration
-examples/                     Runnable example sources referenced by the book
+examples/                     Focused fixtures that need repository context
 scripts/                      Focused book, example, and theme checks
 .github/workflows/            GitHub Pages deployment
 ```
 
-Book pages show focused excerpts; `examples/` contains their complete runnable form. The checks keep those excerpts synchronized with the scripts and verify exact output or the documented compiler diagnostic.
+Most book examples stay in the page. `examples/` is reserved for integrated, multi-file, interop, diagnostic, or effectful cases that need repository-level verification.

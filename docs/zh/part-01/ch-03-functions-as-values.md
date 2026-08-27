@@ -16,7 +16,7 @@ translationKey: part-01/ch-03-functions-as-values
 
 先看一个计算预约行金额的函数：
 
-```fsharp:line-numbers [ch03-functions-as-values.fsx]
+```fsharp:line-numbers
 let lineTotal unitPrice seats = unitPrice * decimal seats
 let standardLineTotal = lineTotal 19.50m
 let totalForThree = standardLineTotal 3
@@ -80,7 +80,7 @@ F# 中 `let` 绑定函数通常使用**柯里化**形式：代码中写多个形
 
 同一计算也能写成接收一个二元组的函数：
 
-```fsharp:line-numbers [ch03-functions-as-values.fsx]
+```fsharp:line-numbers
 let lineTotalTupled (unitPrice, seats) = unitPrice * decimal seats
 let tupledTotal = lineTotalTupled (19.50m, 3)
 
@@ -102,7 +102,7 @@ decimal * int -> decimal
 
 在第一个示例中，`lineTotal 19.50m` 得到 `int -> decimal`，并绑定为 `standardLineTotal`。单价被固定，调用方以后只需提供座位数。相同思路也用于服务费：
 
-```fsharp:line-numbers [ch03-functions-as-values.fsx]
+```fsharp:line-numbers
 let addFee fee subtotal = subtotal + fee
 let addServiceFee = addFee 2.00m
 let finalTotal = addServiceFee totalForThree
@@ -117,7 +117,7 @@ printfn "With service fee: %M" finalTotal
 
 有时一个短函数只在附近使用一次，无需先命名。`fun` 表达式直接产生匿名函数：
 
-```fsharp:line-numbers [ch03-functions-as-values.fsx]
+```fsharp:line-numbers
 let increment seats = seats + 1
 let incrementAnonymous = fun seats -> seats + 1
 
@@ -131,7 +131,7 @@ printfn "Named and anonymous: %d, %d" (increment 3) (incrementAnonymous 3)
 
 **高阶函数**至少做一件事：接收函数值，或返回函数值。部分应用已经展示了返回函数；下面展示接收函数：
 
-```fsharp:line-numbers [ch03-functions-as-values.fsx]
+```fsharp:line-numbers
 let applyTwice transform value = transform (transform value)
 let incrementedTwice = applyTwice increment 3
 
@@ -151,7 +151,7 @@ val applyTwice: ('a -> 'a) -> 'a -> 'a
 
 观察一个不检查、修改或构造输入的函数：
 
-```fsharp:line-numbers [ch03-functions-as-values.fsx]
+```fsharp:line-numbers
 let identity value = value
 let unchangedNumber = identity 42
 let unchangedText = identity "F#"
@@ -169,27 +169,6 @@ val identity: 'a -> 'a
 `applyTwice` 中同一个 `'a` 出现三次，表示变换的输入、输出和待变换值必须是同一类型。不同字母如 `'a` 与 `'b` 则表示这些位置不必使用相同类型。
 
 写出全部形参的函数定义在安全时通常可以泛化。可变状态、部分应用与复杂值则可能触发**值限制**。遇到这项诊断时，第 11 章会给出准确规则和对应修复方法。
-
-## 运行共享示例 {#run-example}
-
-在仓库根目录执行：
-
-```console
-dotnet fsi --exec examples/scripts/ch03-functions-as-values.fsx
-```
-
-应得到：
-
-```text
-Curried total: 58.50
-Tupled total: 58.50
-Named and anonymous: 4, 4
-Applied twice: 5
-With service fee: 60.50
-Identity values: 42, F#
-```
-
-柯里化与元组版本都得到 `58.50`，但签名和部分应用方式不同。验证函数时应同时查看输出与类型。
 
 ## 先理清函数应用的分组 {#debugging}
 

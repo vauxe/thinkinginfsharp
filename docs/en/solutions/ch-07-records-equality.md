@@ -37,7 +37,7 @@ The record removes the risk of swapping two `string` positions while still type-
 
 The shared definitions provide the predictions directly:
 
-```fsharp:line-numbers [ch07-records-equality.fsx]
+```fsharp:line-numbers
 let equalCopy =
     { EventId = "A-1"
       Attendee = "Lin"

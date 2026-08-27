@@ -37,9 +37,9 @@ Either part alone is incomplete. A private wrapper with a public unchecked const
 
 ## Expose the type and hide the constructor {#private-representation}
 
-The shared script defines the domain inside an explicit module:
+The example defines the domain inside an explicit module:
 
-```fsharp:line-numbers [ch12-making-illegal-states-unrepresentable.fsx]
+```fsharp:line-numbers
 type CapacityError = NonPositiveCapacity of actual: int
 
 type Capacity = private Capacity of int<seat>
@@ -93,7 +93,7 @@ Keep the trusted code small. Every function that can invoke the private `Capacit
 
 The other protected components show two policies:
 
-```fsharp:line-numbers [ch12-making-illegal-states-unrepresentable.fsx]
+```fsharp:line-numbers
 type EventIdError = | BlankEventId
 
 type EventId = private EventId of string
@@ -135,7 +135,7 @@ Do not publish an unchecked escape hatch merely for convenience. If trusted migr
 
 The request model combines the two protected component types and also hides its record representation:
 
-```fsharp:line-numbers [ch12-making-illegal-states-unrepresentable.fsx]
+```fsharp:line-numbers
 type BookingRequestError =
     | InvalidEventId of EventIdError
     | InvalidSeatCount of SeatCountError
@@ -193,7 +193,7 @@ F# access control is lexical and assembly-aware:
 
 Every F# file is implicitly a module when no explicit top-level namespace/module changes the organization. A top-level module is contained in one file. Therefore a private representation and its companion module can share one file-level module, while another file cannot reopen that module to reach the private case.
 
-In the shared script, both type and companion module sit inside `BookingDomain`; code after that module is outside the private boundary even though it is in the same physical `.fsx` file. Scope is determined by the enclosing module, not merely by the filename.
+If both type and companion module sit inside an explicit `BookingDomain` module, code after that module is outside the private boundary even in the same physical `.fsx` file. Scope is determined by the enclosing module, not merely by the filename.
 
 ### A signature file defines the cross-file API {#signature-file}
 
@@ -241,46 +241,6 @@ It is likely overdesign when a value is a short-lived local, its components alre
 
 Start with the smallest type that removes real risk. Protect `EventId` if nonblank identity matters everywhere. Do not wrap every display label merely to make the type list longer.
 
-## Run the shared example {#run-example}
-
-From the repository root:
-
-```console
-dotnet fsi --exec examples/scripts/ch12-making-illegal-states-unrepresentable.fsx
-```
-
-The five deterministic lines cover accepted capacity, rejected capacity, identifier normalization, valid request construction, and both request rejection paths:
-
-```fsharp:line-numbers [ch12-making-illegal-states-unrepresentable.fsx]
-let describeCapacityError error =
-    match error with
-    | NonPositiveCapacity actual -> $"capacity must be positive: {actual}"
-
-match Capacity.create 40 with
-| Ok capacity -> printfn "Capacity: accepted=%d" (Capacity.value capacity)
-| Error error -> printfn "Capacity: %s" (describeCapacityError error)
-
-match Capacity.create 0 with
-| Ok _ -> printfn "Capacity rejection: unexpected success"
-| Error error -> printfn "Capacity rejection: %s" (describeCapacityError error)
-
-let describeRequestError error =
-    match error with
-    | InvalidEventId BlankEventId -> "event id is blank"
-    | InvalidSeatCount(NonPositiveSeatCount actual) -> $"seat count must be positive: {actual}"
-
-match BookingRequest.create "  EVT-42  " 3 with
-| Ok request -> printfn "Request: event=%s seats=%d" (BookingRequest.eventId request) (BookingRequest.seats request)
-| Error error -> printfn "Request: %s" (describeRequestError error)
-
-match BookingRequest.create "   " 3 with
-| Ok _ -> printfn "Request rejection: unexpected event success"
-| Error error -> printfn "Request rejection: %s" (describeRequestError error)
-
-match BookingRequest.create "EVT-42" 0 with
-| Ok _ -> printfn "Request rejection: unexpected seat success"
-| Error error -> printfn "Request rejection: %s" (describeRequestError error)
-```
 ## Exercises {#exercises}
 
 ### Exercise 1: protect a percentage {#exercise-01}
@@ -306,13 +266,7 @@ Write the public portion of a `.fsi` signature for `Capacity` plus a `tryReserve
 
 ## Part II checkpoint {#part-checkpoint}
 
-From the repository root, run the chapter's checked domain example:
-
-```console
-dotnet fsi --warnaserror+ --exec examples/scripts/ch12-making-illegal-states-unrepresentable.fsx
-```
-
-Its output shows successful construction plus rejection of a blank event ID, non-positive capacity, and non-positive seat count. This checks the chapter's value-construction boundary; later chapters add state transitions and external adapters.
+Test the constructors above with a valid request, a blank event ID, non-positive capacity, and non-positive seat count. The valid request must be constructed; each invalid value must fail at its own boundary. Later chapters add state transitions and external adapters.
 
 [Continue to Chapter 13](../part-03/ch-13-composition-pipeline-api), which begins composing these typed operations.
 

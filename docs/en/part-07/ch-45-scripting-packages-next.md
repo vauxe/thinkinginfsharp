@@ -492,26 +492,16 @@ Contribute back at the smallest durable boundary: improve a reproduction, docume
 
 ## Avoid common scripting and package mistakes {#common-mistakes}
 
-- proving a result in a stateful REPL session but never running a fresh script process;
-- putting `;;` throughout an `.fsx` file because interactive submissions used it;
-- assuming relative paths are beside the script regardless of the caller's working directory;
-- letting a loaded helper execute writes at top level;
-- omitting a NuGet version and calling the result reproducible;
-- calling one exact `#r` version a lock for the full dependency closure;
-- using `usepackagetargets=true` without understanding the package's build behavior;
-- selecting a package by download count or F# branding without a representative target test;
-- treating a clean vulnerability audit as proof that dependencies are safe;
-- using several feeds without controlling which feed may supply each package;
-- rewriting a generated file on every run and creating timestamp or diff churn;
-- depending on filesystem enumeration order, current culture, local time, or absolute developer paths;
+- proving a result only in a stateful REPL, or carrying interactive `;;` into an ordinary script;
+- assuming paths are script-relative, or letting a loaded helper write at top level;
+- omitting a NuGet version, treating one `#r` as a closure lock, or enabling `usepackagetargets=true` without reading its build behavior;
+- selecting by downloads/branding, trusting a clean audit as proof of safety, or using feeds without package-source control;
+- rewriting unchanged output or depending on enumeration order, culture, local time, or developer paths;
 - printing errors but returning exit code `0` to CI;
-- deleting a broad path derived from an unchecked argument or environment variable;
-- logging command-line secrets or embedding them in generated output;
+- deleting an unchecked broad path, or logging/embedding command-line secrets;
 - claiming a digest authenticates the producer rather than only identifying bytes;
-- introducing a build DSL before a target graph exists;
-- keeping a script after it has acquired a public CLI, several modules, packages, tests, and publishing needs;
-- learning quotations, SRTP, flexible types, and byrefs before ordinary modeling and effects are comfortable;
-- mistaking completion of a feature list for the ability to design, test, ship, and maintain a system.
+- introducing a build DSL before a target graph exists, or retaining a script after it becomes a public multi-module product;
+- front-loading advanced language features, or mistaking a completed feature list for system design, delivery, and maintenance skill.
 
 ## Exercises {#exercises}
 

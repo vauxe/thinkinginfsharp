@@ -32,7 +32,7 @@ translationKey: solutions/ch-02-values-bindings-expressions
 
 一种直接答案放在独立答案脚本中：
 
-```fsharp:line-numbers [ch02-exercise-02.fsx]
+```fsharp:line-numbers
 let rawAttendeeCount = "24"
 let attendeeCount = int rawAttendeeCount
 let nextAttendeeCount = attendeeCount + 1
@@ -47,7 +47,7 @@ printfn "Next attendee count: %d" nextAttendeeCount
 
 重新看同一段代码：
 
-```fsharp:line-numbers [ch02-values-bindings-expressions.fsx]
+```fsharp:line-numbers
 let normalizedCapacity =
     let capacity = 20
     let capacity = capacity + 4

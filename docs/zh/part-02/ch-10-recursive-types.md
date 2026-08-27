@@ -16,7 +16,7 @@ translationKey: part-02/ch-10-recursive-types
 
 共享类型表示空树、一个叶子值，或包含两棵子树的分支：
 
-```fsharp:line-numbers [ch10-recursive-types.fsx]
+```fsharp:line-numbers
 type BookingTree<'T> =
     | Empty
     | Leaf of 'T
@@ -46,7 +46,7 @@ let branchTree = Branch(Leaf 2, Branch(Leaf 3, Leaf 4))
 
 要使用每一种 `BookingTree`，就要覆盖每个案例。要处理 `Branch`，就递归处理它的两个子树字段：
 
-```fsharp:line-numbers [ch10-recursive-types.fsx]
+```fsharp:line-numbers
 let rec countLeaves tree =
     match tree with
     | Empty -> 0
@@ -77,7 +77,7 @@ printfn "Totals: empty=%d leaf=%d branch=%d" (totalSeats emptyTree) (totalSeats 
 
 树的 map 处理每个案例，却只改变叶子：
 
-```fsharp:line-numbers [ch10-recursive-types.fsx]
+```fsharp:line-numbers
 let rec mapTree mapping tree =
     match tree with
     | Empty -> Empty
@@ -117,7 +117,7 @@ mapTree (f >> g) tree = mapTree f tree |> mapTree g
 
 前面的遍历重复了相同的递归过程，下面的 fold 把这个过程集中起来：
 
-```fsharp:line-numbers [ch10-recursive-types.fsx]
+```fsharp:line-numbers
 let rec foldTree onEmpty onLeaf onBranch tree =
     match tree with
     | Empty -> onEmpty
@@ -171,7 +171,7 @@ let mapTreeWithFold mapping =
 
 示例用同一骨架定义高度：
 
-```fsharp:line-numbers [ch10-recursive-types.fsx]
+```fsharp:line-numbers
 let rec height tree =
     match tree with
     | Empty -> 0
@@ -208,16 +208,6 @@ and Binding =
 ```
 
 只有领域确实存在两个不同概念时，才使用相互递归。单个递归联合更容易遍历，不应只为展示语法而拆分。相互递归函数使用相应的 `let rec ... and ...` 形式。
-
-## 运行共享示例 {#run-example}
-
-在仓库根目录执行：
-
-```console
-dotnet fsi --exec examples/scripts/ch10-recursive-types.fsx
-```
-
-六行输出覆盖空树、叶子与分支树、直接遍历、改变叶子类型的 map、由 fold 推导的查询、高度，以及叶子数保持不变。
 
 ## 练习 {#exercises}
 

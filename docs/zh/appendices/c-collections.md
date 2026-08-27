@@ -88,7 +88,7 @@ F# list 是不可变单链表，它的常见操作成本直接来自这种结构
 
 许多 `Seq` 变换返回延迟可枚举值。创建管道可能为 O(1)，而以后每次枚举才执行工作。`Seq.fold`、`Seq.toList` 或完整 `Seq.length` 等终端操作会消费元素。
 
-```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers
 let mutable pulls = 0
 
 let delayedSquares =
@@ -127,7 +127,7 @@ printfn "Second enumeration: values=%A pulls=%d" secondPass pulls
 
 FSharp.Core 文档说明，`Map` 与 `Set` 是按 F# 泛型比较排序的不可变二叉树集合，其类型带有 `comparison` 约束。
 
-```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers
 let uniqueSeats = [ 3; 1; 3; 2 ] |> Set.ofList
 
 let bookingByCode =
@@ -155,7 +155,7 @@ printfn "Ordered collections: set=%A map=%A" (Set.toList uniqueSeats) (Map.toLis
 
 .NET 把 Dictionary 键检索记录为非常快、接近 O(1)，其速度取决于哈希质量。.NET 集合复杂度表会区分哈希插入/查找的均摊或期望 O(1) 与最坏 O(n)。
 
-```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers
 [<CustomEquality; NoComparison>]
 type EmailAddress =
     { Value: string }

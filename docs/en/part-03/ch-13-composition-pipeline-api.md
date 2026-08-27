@@ -12,9 +12,9 @@ The form of those calls also influences API design. A curried function whose pri
 
 ## Repeated nesting reveals a data path {#repeated-nesting}
 
-The shared script begins with ordinary application:
+The example begins with ordinary application:
 
-```fsharp:line-numbers [ch13-composition-pipeline-api.fsx]
+```fsharp:line-numbers
 let nestedLabel = toLabel (addChannel "web" (capSeats 4 (trimAttendee rawDraft)))
 
 printfn "Nested: %s" nestedLabel
@@ -42,7 +42,7 @@ functionValue value
 
 Rewriting the shared chain gives:
 
-```fsharp:line-numbers [ch13-composition-pipeline-api.fsx]
+```fsharp:line-numbers
 let pipedLabel =
     rawDraft |> trimAttendee |> capSeats 4 |> addChannel "web" |> toLabel
 
@@ -56,7 +56,7 @@ Pipelines are ordinary application, not an effect system or automatic error prop
 
 ### A multi-line pipeline should expose its stages {#pipeline-formatting}
 
-For more than a very short expression, begin with the value and put one `|>` stage on each line, as the shared script does. Name a stage when its lambda becomes long or you need to inspect it in a debugger. A pipeline is readable because its transformations are visible, not because it minimizes characters.
+For more than a very short expression, begin with the value and put one `|>` stage on each line, as the example does. Name a stage when its lambda becomes long or you need to inspect it in a debugger. A pipeline is readable because its transformations are visible, not because it minimizes characters.
 
 ## Composition creates a function for later {#composition}
 
@@ -70,9 +70,9 @@ let result = composed input
 // equivalent to: second (first input)
 ```
 
-The shared script composes all four stages:
+The example composes all four stages:
 
-```fsharp:line-numbers [ch13-composition-pipeline-api.fsx]
+```fsharp:line-numbers
 let prepareLabel = trimAttendee >> capSeats 4 >> addChannel "web" >> toLabel
 
 let prepareLabelBackward = toLabel << addChannel "web" << capSeats 4 << trimAttendee
@@ -104,7 +104,7 @@ addChannel : string -> BookingDraft -> BookingDraft
 
 Configuration comes first; the primary flowing value comes last. Partial application turns `capSeats 4` and `addChannel "desk"` into `BookingDraft -> BookingDraft`, exactly the function type a pipeline or composition needs:
 
-```fsharp:line-numbers [ch13-composition-pipeline-api.fsx]
+```fsharp:line-numbers
 let deskLabel =
     { Attendee = "  Mira "
       RequestedSeats = 2
@@ -140,9 +140,9 @@ If two parameters share a primitive type, accidental reversal may still compile.
 
 ## A direct call can be the clearest call {#direct-call}
 
-The final shared example leaves a small predicate direct:
+The final example leaves a small predicate direct:
 
-```fsharp:line-numbers [ch13-composition-pipeline-api.fsx]
+```fsharp:line-numbers
 let fitsWithin capacity requested = requested <= capacity
 
 let requested = 3
@@ -174,16 +174,6 @@ Before publishing an F# function, write three representative calls:
 If the signature makes the common call concise and the unusual call merely possible, it is probably well ordered. If every call needs flips, tuple adapters, or anonymous functions, revise the API before consumers depend on it.
 
 Do not invent a custom symbolic operator for an operation that has a good domain name. `Booking.confirm code booking` is easier to search, document, and understand than an unexplained operator. The standard `|>`, `>>`, and `<<` already express application order.
-
-## Run the shared example {#run-example}
-
-From the repository root:
-
-```console
-dotnet fsi --exec examples/scripts/ch13-composition-pipeline-api.fsx
-```
-
-The six deterministic lines show nested application, an equivalent pipeline, forward and backward composition, configured partial application, and a deliberately direct predicate.
 
 ## Exercises {#exercises}
 

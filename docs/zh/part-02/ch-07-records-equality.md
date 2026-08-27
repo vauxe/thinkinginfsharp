@@ -29,9 +29,9 @@ let attendee, seats = request
 
 ### 命名记录建立可复用类型 {#records}
 
-共享脚本定义了一个预约草稿：
+示例定义了一个预约草稿：
 
-```fsharp:line-numbers [ch07-records-equality.fsx]
+```fsharp:line-numbers
 type BookingDraft =
     { EventId: string
       Attendee: string
@@ -75,9 +75,9 @@ let label { EventId = eventId; Attendee = attendee; Seats = seats } =
 
 ## 复制更新表达不可变变化 {#update}
 
-共享示例把座位数从 `2` 改为 `3`：
+示例把座位数从 `2` 改为 `3`：
 
-```fsharp:line-numbers [ch07-records-equality.fsx]
+```fsharp:line-numbers
 let updated = { original with Seats = 3 }
 
 printfn "Record update: original=%d updated=%d" original.Seats updated.Seats
@@ -90,9 +90,9 @@ F# 7 起支持用字段路径更新嵌套记录，但简洁语法不会改变浅
 
 ## 匿名记录无需声明类型名 {#anonymous-records}
 
-匿名记录用 `{| ... |}` 构造，不先声明类型名。共享脚本从命名记录投影并增加计算字段：
+匿名记录用 `{| ... |}` 构造，不先声明类型名。示例从命名记录投影并增加计算字段：
 
-```fsharp:line-numbers [ch07-records-equality.fsx]
+```fsharp:line-numbers
 let summary =
     {| updated with
         IsGroup = updated.Seats > 1 |}
@@ -109,7 +109,7 @@ printfn "Anonymous summary: %s -> %d seats, group=%b" summary.Attendee summary.S
 
 两个 `BookingDraft` 即使分别构造，只要对应字段结构相等，F# 的 `=` 就返回 `true`：
 
-```fsharp:line-numbers [ch07-records-equality.fsx]
+```fsharp:line-numbers
 let equalCopy =
     { EventId = "A-1"
       Attendee = "Lin"
@@ -152,7 +152,7 @@ printfn "Hashes agree for equal records: %b" equalHashesAgree
 
 当所有字段支持比较时，记录也自动支持结构比较，因此可以直接 `List.sort`：
 
-```fsharp:line-numbers [ch07-records-equality.fsx]
+```fsharp:line-numbers
 let drafts =
     [ { EventId = "B-2"
         Attendee = "Lin"
@@ -187,26 +187,6 @@ printfn "Structural sort: %A" sortedLabels
 | 多种互斥状态 | 下一章的可辨识联合 | 一个固定字段集合无法表达“只能是其中一种” |
 
 不要只追求少写几行。记录名与字段名是模型词汇；匿名记录与元组则能避免为局部中间数据声明无用的公共类型。
-
-## 运行共享示例 {#run-example}
-
-在仓库根目录执行：
-
-```console
-dotnet fsi --exec examples/scripts/ch07-records-equality.fsx
-```
-
-应得到：
-
-```text
-Record update: original=2 updated=3
-Anonymous summary: Lin -> 3 seats, group=true
-Equality: structural=true physical=false alias=true
-Hashes agree for equal records: true
-Structural sort: ["A-1:Ada:2"; "A-1:Lin:1"; "B-2:Lin:2"]
-```
-
-五行依次展示不可变更新、匿名记录投影、内容相等与引用身份的区别、相等值的哈希保证，以及结构排序。请按顺序比较它们。脚本不输出具体哈希整数，因为该数值不保证在不同运行环境中保持不变。
 
 ## 先说清你在比较什么 {#debugging}
 

@@ -63,7 +63,7 @@ For asynchronous resources, the computation-expression builder determines how `u
 
 The shared helper accepts acquisition and an operation:
 
-```fsharp:line-numbers [ch21-exceptions-resources-io.fsx]
+```fsharp:line-numbers
 let withReader (openReader: string -> StreamReader) path operation =
     use reader = openReader path
     operation reader
@@ -84,7 +84,7 @@ Avoid accepting a reader that somebody else owns and then silently disposing it.
 
 The error union separates known outcomes and retains exception objects for failures whose diagnostic details matter:
 
-```fsharp:line-numbers [ch21-exceptions-resources-io.fsx]
+```fsharp:line-numbers
 type ReadTextError =
     | PathNotFound of path: string
     | AccessDenied of path: string * cause: UnauthorizedAccessException
@@ -92,7 +92,7 @@ type ReadTextError =
 ```
 The adapter performs the translation:
 
-```fsharp:line-numbers [ch21-exceptions-resources-io.fsx]
+```fsharp:line-numbers
 let readText path =
     try
         withReader File.OpenText path (fun reader -> reader.ReadToEnd()) |> Ok
@@ -122,9 +122,9 @@ Do not log the same exception at every layer. Either handle it and record the ou
 
 ## Test both completion paths with real resources {#resource-tests}
 
-The shared script creates a unique directory beneath `Path.GetTempPath()`, writes one file, and opens actual `StreamReader` instances:
+The example creates a unique directory beneath `Path.GetTempPath()`, writes one file, and opens actual `StreamReader` instances:
 
-```fsharp:line-numbers [ch21-exceptions-resources-io.fsx]
+```fsharp:line-numbers
 let tempName = Guid.NewGuid().ToString("N")
 
 let tempDirectory =
@@ -249,16 +249,6 @@ map both into a workflow error union
 Do not keep the file open during parsing unless streaming requires it. A short lifetime reduces resource pressure and keeps pure parser tests simple. With streaming, the consumer must stay inside the resource scope, so its exception and cancellation behavior also applies within that scope.
 
 Map errors where the workflow combines reading and parsing; do not flatten both into “invalid file.” Missing files and denied access may need different messages or retry choices. Malformed syntax and violated domain rules may need different telemetry.
-
-## Run the shared example {#run-example}
-
-From the repository root:
-
-```console
-dotnet fsi --exec examples/scripts/ch21-exceptions-resources-io.fsx
-```
-
-Five deterministic lines prove success-path disposal, exception-path disposal, successful reading, missing-path translation, and final temporary-directory cleanup. Compare the exact output.
 
 ## Exercises {#exercises}
 

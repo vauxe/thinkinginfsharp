@@ -67,7 +67,7 @@ List.fold : ('State -> 'T -> 'State) -> 'State -> 'T list -> 'State
 
 `let` 把名称绑定到表达式的值。它不是语句结束符，也不会让值自动变成可变。
 
-```fsharp:line-numbers [ch02-values-bindings-expressions.fsx]
+```fsharp:line-numbers
 let eventName = "Functional Foundations"
 let capacity = 40
 let fillRatio = 0.45
@@ -96,7 +96,7 @@ printfn "%s (%c): capacity=%d, fill=%.2f, open=%b" eventName eventCode capacity 
 
 ## 定义并应用函数 {#functions}
 
-```fsharp:line-numbers [ch03-functions-as-values.fsx]
+```fsharp:line-numbers
 let lineTotal unitPrice seats = unitPrice * decimal seats
 let standardLineTotal = lineTotal 19.50m
 let totalForThree = standardLineTotal 3
@@ -123,7 +123,7 @@ printfn "Curried total: %M" totalForThree
 
 `if/then/else` 是表达式。两个分支必须具有兼容类型。只有 `then` 分支为 `unit` 时才允许省略 `else`。
 
-```fsharp:line-numbers [ch04-branching-patterns.fsx]
+```fsharp:line-numbers
 let capacityBand remaining =
     match remaining with
     | value when value <= 0 -> "full"
@@ -167,13 +167,13 @@ printfn "Capacity bands: %s, %s, %s, %s" (capacityBand 0) (capacityBand 1) (capa
 
 联合案例以大写标识符开头。可以命名案例字段，以改善生成签名与互操作。
 
-```fsharp:line-numbers [ch08-discriminated-unions.fsx]
+```fsharp:line-numbers
 type BookingStatus =
     | Pending
     | Confirmed of confirmationCode: string
     | Cancelled of reason: string
 ```
-```fsharp:line-numbers [ch08-discriminated-unions.fsx]
+```fsharp:line-numbers
 let describeStatus status =
     match status with
     | Pending -> "pending"

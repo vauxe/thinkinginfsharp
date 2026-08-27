@@ -14,7 +14,7 @@ The lists here are small and already in memory. Arrays, lazy `seq`, `Map`, `Set`
 
 ## A list is immutable and preserves earlier versions {#list-foundations}
 
-The shared script's input is a list of pairs:
+The example's input is a list of pairs:
 
 ```text
 (string * int) list
@@ -86,7 +86,7 @@ The parameter order from Chapter 3 puts the list last. The predicate can therefo
 
 The shared pipeline is:
 
-```fsharp:line-numbers [ch05-lists-pipelines.fsx]
+```fsharp:line-numbers
 let pipelineLabels =
     requests |> List.filter isValidRequest |> List.map formatRequest
 
@@ -116,9 +116,9 @@ Extract complex stages into named functions and keep each output type easy to st
 
 ## Use `choose` to merge related stages {#choose-pipeline}
 
-The shared script combines validity and formatting into one chooser:
+The example combines validity and formatting into one chooser:
 
-```fsharp:line-numbers [ch05-lists-pipelines.fsx]
+```fsharp:line-numbers
 let tryFormatRequest request =
     if isValidRequest request then
         Some(formatRequest request)
@@ -137,9 +137,9 @@ A `try` prefix often signals in F#/.NET code that an operation may return an alt
 
 Transformation functions answer “what is the new data?” When the goal is to perform an effect such as output for each item without collecting results, `List.iter action` or `for item in source do ...` is a better fit. Their action or loop body returns `unit`, and the whole iteration returns `unit` too.
 
-The shared example uses `for` to demonstrate label order:
+The example uses `for` to demonstrate label order:
 
-```fsharp:line-numbers [ch05-lists-pipelines.fsx]
+```fsharp:line-numbers
 printf "Iteration order:"
 
 for label in pipelineLabels do
@@ -159,7 +159,7 @@ Mutable state adds a timeline: to know the value of `name`, you must know which 
 
 ### The `for` version: the language manages enumeration {#for-version}
 
-```fsharp:line-numbers [ch05-lists-pipelines.fsx]
+```fsharp:line-numbers
 let labelsWithFor source =
     let mutable reversedLabels = []
 
@@ -176,7 +176,7 @@ Both `match` branches in the `for` body return `unit`: update `<-` produces `()`
 
 ### The `while` version: code manages condition and progress {#while-version}
 
-```fsharp:line-numbers [ch05-lists-pipelines.fsx]
+```fsharp:line-numbers
 let labelsWithWhile source =
     let mutable remaining = source
     let mutable reversedLabels = []
@@ -199,7 +199,7 @@ The version works and mutates only two local bindings, but it exposes more mecha
 
 ## How to choose among the three {#choosing-style}
 
-The shared script uses structural equality to show that all three implementations produce the same labels in the same order. Choose according to the required result and measured cost:
+The example uses structural equality to show that all three implementations produce the same labels in the same order. Choose according to the required result and measured cost:
 
 | Goal | Usually consider first | Reason |
 | --- | --- | --- |
@@ -209,25 +209,6 @@ The shared script uses structural equality to show that all three implementation
 | Reduce traversals or allocations on a hot path | Measure, then merge stages or choose another collection | A clear baseline and measurements beat guesses |
 
 Either style can carry avoidable costs: a functional version may allocate too many intermediate lists, while an imperative version may become quadratic through mistaken tail appends. First establish the same results, ordering, and externally visible behavior; then benchmark or profile the real costs.
-
-## Run the shared example {#run-example}
-
-From the repository root, run:
-
-```console
-dotnet fsi --exec examples/scripts/ch05-lists-pipelines.fsx
-```
-
-You should see:
-
-```text
-Pipeline labels: ["Lin:3"; "Sam:2"]
-Chosen labels: ["Lin:3"; "Sam:2"]
-For/while agree: true
-Iteration order: Lin:3 Sam:2
-```
-
-Compare all four lines in order, including equality across three implementations and effect iteration order. Source `requests` never changes; every result is a new list value.
 
 ## Check every pipeline stage {#debugging}
 

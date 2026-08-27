@@ -16,7 +16,7 @@ The compiler assigns every expression a static type. That type determines which 
 
 The script compares both forms:
 
-```fsharp:line-numbers [ch26-dotnet-runtime-boundaries.fsx]
+```fsharp:line-numbers
 let request = { RequestId = "R-26"; Seats = 3 }
 
 let declaredType = typeof<BookingRequest>
@@ -54,7 +54,7 @@ Three operations have different guarantees:
 
 The shared decoder uses type-test patterns:
 
-```fsharp:line-numbers [ch26-dotnet-runtime-boundaries.fsx]
+```fsharp:line-numbers
 let describeObject (value: objnull) =
     match value with
     | null -> "null"
@@ -91,7 +91,7 @@ An F# function value and a .NET delegate both represent callable behavior, but t
 
 The script constructs `Func<int,int,int>` and `Converter<int,string>` explicitly:
 
-```fsharp:line-numbers [ch26-dotnet-runtime-boundaries.fsx]
+```fsharp:line-numbers
 let add = Func<int, int, int>(fun left right -> left + right)
 
 let labels =
@@ -109,7 +109,7 @@ Do not accidentally expose `FSharpFunc<_,_>` to languages that expect `Func<_,_>
 
 An event separates a publisher that triggers notifications from observers that subscribe. The example publisher stores a private `Event<EventHandler<SeatsChangedEventArgs>, SeatsChangedEventArgs>` and exposes only `Publish` through a `[<CLIEvent>]` member:
 
-```fsharp:line-numbers [ch26-dotnet-runtime-boundaries.fsx]
+```fsharp:line-numbers
 type SeatsChangedEventArgs(previous: int, current: int) =
     inherit EventArgs()
 
@@ -168,7 +168,7 @@ Chapter 14 chose collections by lookup, update, order, and evaluation needs. The
 
 The script directly compares a live view with a snapshot:
 
-```fsharp:line-numbers [ch26-dotnet-runtime-boundaries.fsx]
+```fsharp:line-numbers
 let mutableNumbers = ResizeArray<int>([ 1; 2 ])
 let liveView: IEnumerable<int> = mutableNumbers
 let snapshot = liveView |> Seq.toList
@@ -216,7 +216,7 @@ Reference identity is fixed. For value types, calling `ReferenceEquals` boxes ea
 
 The script creates two `Customer` instances carrying the same ID. The class does not override equality, so the default dictionary treats the two references as separate keys. A second dictionary receives an explicit comparer built with `HashIdentity.FromFunctions`:
 
-```fsharp:line-numbers [ch26-dotnet-runtime-boundaries.fsx]
+```fsharp:line-numbers
 type Customer(customerId: string) =
     member _.CustomerId = customerId
 
@@ -274,16 +274,6 @@ Use this sequence when integrating an object-based API:
 7. Test both values and integration lifetimes: handler removal, enumeration timing, comparer behavior, and failure types.
 
 This does not isolate F# from .NET. The adapter narrows a broad runtime protocol to the few types and operations that domain logic actually needs.
-
-## Run the shared example {#run-example}
-
-From the repository root:
-
-```console
-dotnet fsi --checknulls+ --warnaserror+ --exec examples/scripts/ch26-dotnet-runtime-boundaries.fsx
-```
-
-Eight deterministic lines cover exact runtime type, safe and failing casts, delegates, event removal, live versus copied collections, case-insensitive lookup, and default reference versus domain key identity. Run it once with the flags shown above, then remove `--checknulls+` if you want to compare the compiler's behavior without nullable checking.
 
 ## Exercises {#exercises}
 

@@ -36,9 +36,9 @@ Do not accumulate by reflex. A command-line tool may intentionally report only t
 
 ## Give each successful field a type {#model}
 
-The shared script separates raw text from successfully checked values:
+The example separates raw text from successfully checked values:
 
-```fsharp:line-numbers [ch18-workflow-validation.fsx]
+```fsharp:line-numbers
 type ValidationError =
     | MissingRequestId
     | MissingAttendee
@@ -64,7 +64,7 @@ type ValidBooking =
 
 The error union keeps facts rather than formatted UI messages. Each field validator returns `Result<'Value, ValidationError list>`:
 
-```fsharp:line-numbers [ch18-workflow-validation.fsx]
+```fsharp:line-numbers
 let validateRequestId raw =
     if String.IsNullOrWhiteSpace raw then
         Error [ MissingRequestId ]
@@ -101,7 +101,7 @@ The binder is not called in the `Error` case. The error type is preserved; `bind
 
 The first strategy nests three dependent continuations:
 
-```fsharp:line-numbers [ch18-workflow-validation.fsx]
+```fsharp:line-numbers
 let validateFirstError (raw: RawBooking) =
     validateRequestId raw.RequestId
     |> Result.bind (fun requestId ->
@@ -127,7 +127,7 @@ Short-circuiting also prevents unnecessary work, but that is a consequence rathe
 
 The accumulating strategy evaluates all three field functions before deciding whether construction is possible:
 
-```fsharp:line-numbers [ch18-workflow-validation.fsx]
+```fsharp:line-numbers
 let errorsOf result =
     match result with
     | Ok _ -> []
@@ -170,7 +170,7 @@ Likewise, do not construct a half-valid domain record and patch it later. Keep s
 
 The direct three-way match is easy to audit. When the pattern repeats, factor only the combination mechanics:
 
-```fsharp:line-numbers [ch18-workflow-validation.fsx]
+```fsharp:line-numbers
 let applyValidation valueResult functionResult =
     match functionResult, valueResult with
     | Ok mapping, Ok value -> Ok(mapping value)
@@ -195,7 +195,7 @@ let validateAccumulatingWithApply (raw: RawBooking) =
 - append left-to-right errors when both failed;
 - retain the one error list when only one failed.
 
-The curried `createBooking` begins inside `Ok`. Each application supplies one independently computed component. The shared script asserts that this refactoring returns exactly the same errors, order, and successful value as the explicit match.
+The curried `createBooking` begins inside `Ok`. Each application supplies one independently computed component. The example asserts that this refactoring returns exactly the same errors, order, and successful value as the explicit match.
 
 The function takes the next value result first so an accumulated function result can flow through `|>`. That parameter order is a local F# API choice, not a universal name for applicative application.
 
@@ -205,7 +205,7 @@ Repeated list append can become expensive for very large validation sets. A smal
 
 After a seat count exists, comparing it with capacity is a dependent business check:
 
-```fsharp:line-numbers [ch18-workflow-validation.fsx]
+```fsharp:line-numbers
 let ensureWithin capacity (SeatCount requested as seats) =
     if requested <= capacity then
         Ok seats
@@ -292,16 +292,6 @@ The bindings cannot depend on one another within that group. Never describe `and
 
 Types state possible results; combining functions state evaluation policy. Review both.
 
-## Run the shared example {#run-example}
-
-From the repository root:
-
-```console
-dotnet fsi --exec examples/scripts/ch18-workflow-validation.fsx
-```
-
-Seven deterministic lines and assertions verify first-error output, three- and two-error accumulation, agreement on valid input, and capacity-check counts for invalid, excessive, and accepted seat text. Compare their exact order.
-
 ## Exercises {#exercises}
 
 ### Exercise 1: draw two validation phases {#exercise-01}
@@ -334,13 +324,7 @@ Explain why FSharp.Core alone does not establish that this compiles or accumulat
 
 ## Part III checkpoint {#part-checkpoint}
 
-From the repository root, run the checked workflow example:
-
-```console
-dotnet fsi --warnaserror+ --exec examples/scripts/ch18-workflow-validation.fsx
-```
-
-Its seven lines show independent errors accumulating in field order, valid input succeeding, and invalid input short-circuiting the dependent capacity lookup. The example uses ordinary functions, so the result does not depend on an unstated computation-expression builder.
+Trace two cases through the ordinary functions above. Structurally invalid input must accumulate independent errors in field order without querying capacity; valid input must reach the dependent lookup and construct the request. The result must not depend on an unstated computation-expression builder.
 
 [Continue to Chapter 19](../part-04/ch-19-dotnet-null-boundaries), where external .NET values enter through a dedicated adapter.
 

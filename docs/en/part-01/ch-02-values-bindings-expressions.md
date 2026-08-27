@@ -18,9 +18,9 @@ A **value** is the result of an expression that completes normally. The integer 
 
 An **expression** is code evaluated to produce a result, such as `20 + 4`. Evaluation can also cause an observable effect. `printfn` writes output, yet it still returns the `unit` value `()`.
 
-A **binding** is an association between a name and a value. Start with a group of bindings from the shared script:
+A **binding** is an association between a name and a value. Start with a group of bindings from the example:
 
-```fsharp:line-numbers [ch02-values-bindings-expressions.fsx]
+```fsharp:line-numbers
 let eventName = "Functional Foundations"
 let capacity = 40
 let fillRatio = 0.45
@@ -55,7 +55,7 @@ F# also supports `let mutable`, because local counters, array updates, and some 
 
 Scope determines where a name is visible. F# uses indentation for much of its local structure. The right side of `normalizedCapacity` below contains two local bindings:
 
-```fsharp:line-numbers [ch02-values-bindings-expressions.fsx]
+```fsharp:line-numbers
 let normalizedCapacity =
     let capacity = 20
     let capacity = capacity + 4
@@ -108,7 +108,7 @@ For example, an unsuffixed `40` defaults to `int` in this context; `0.45` is inf
 
 The next region shows both:
 
-```fsharp:line-numbers [ch02-values-bindings-expressions.fsx]
+```fsharp:line-numbers
 let requestedSeats: int = 3
 let pricePerSeat: decimal = 19.50m
 let totalPrice = decimal requestedSeats * pricePerSeat
@@ -144,24 +144,6 @@ An expression-oriented F# file still contains declarations. Top-level `let`, typ
 When expressions run in sequence, a non-final expression should normally return `unit`. Otherwise, ignoring a meaningful value is often a mistake, and the compiler may warn about it. `printfn` fits such a position because its meaningful behavior is output and its returned value is `()`.
 
 This rule also explains why “expressions have values” does not conflict with “programs have side effects.” A type records the result passed to later computation. Output, file writes, and network requests are effects that happen during evaluation. You need to read both pieces of information.
-
-## Run the shared example {#run-example}
-
-From the repository root, run:
-
-```console
-dotnet fsi --exec examples/scripts/ch02-values-bindings-expressions.fsx
-```
-
-You should see:
-
-```text
-Functional Foundations (F): capacity=40, fill=0.45, open=true
-Ticket total: 58.50
-Normalized capacity: 24; outer capacity: 40
-```
-
-Compare these deterministic outputs in this order. Formatting in the script changes only the display, not the types of `fillRatio` or `totalPrice`.
 
 ## Trace the first conflicting constraint {#debugging}
 

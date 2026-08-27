@@ -2,97 +2,6 @@
   "schemaVersion": 1,
   "entries": [
     {
-      "id": "ch01-first-session",
-      "kind": "script",
-      "path": "examples/scripts/ch01-first-session.fsx",
-      "expectedOutput": [
-        "Functional Foundations: 22 seats remaining",
-        "Seats available: true",
-        "Printing returned: ()"
-      ]
-    },
-    {
-      "id": "ch01-exercise-02-solution",
-      "kind": "script",
-      "path": "examples/solutions/ch01-exercise-02.fsx",
-      "expectedOutput": [
-        "Lin booked 3 seats."
-      ]
-    },
-    {
-      "id": "ch02-values-bindings-expressions",
-      "kind": "script",
-      "path": "examples/scripts/ch02-values-bindings-expressions.fsx",
-      "expectedOutput": [
-        "Functional Foundations (F): capacity=40, fill=0.45, open=true",
-        "Ticket total: 58.50",
-        "Normalized capacity: 24; outer capacity: 40"
-      ]
-    },
-    {
-      "id": "ch02-exercise-02-solution",
-      "kind": "script",
-      "path": "examples/solutions/ch02-exercise-02.fsx",
-      "expectedOutput": [
-        "Next attendee count: 25"
-      ]
-    },
-    {
-      "id": "ch03-functions-as-values",
-      "kind": "script",
-      "path": "examples/scripts/ch03-functions-as-values.fsx",
-      "expectedOutput": [
-        "Curried total: 58.50",
-        "Tupled total: 58.50",
-        "Named and anonymous: 4, 4",
-        "Applied twice: 5",
-        "With service fee: 60.50",
-        "Identity values: 42, F#"
-      ]
-    },
-    {
-      "id": "ch04-branching-patterns",
-      "kind": "script",
-      "path": "examples/scripts/ch04-branching-patterns.fsx",
-      "expectedOutput": [
-        "Availability: available",
-        "Capacity bands: full, last seat, limited, available",
-        "Booking: Lin requested 3 seats",
-        "Queues: empty | one: Lin | next: Lin, then Ada"
-      ]
-    },
-    {
-      "id": "ch04-exercise-03-solution",
-      "kind": "script",
-      "path": "examples/solutions/ch04-exercise-03.fsx",
-      "expectedOutput": [
-        "Requests: invalid, accepted, too large"
-      ]
-    },
-    {
-      "id": "ch05-lists-pipelines",
-      "kind": "script",
-      "path": "examples/scripts/ch05-lists-pipelines.fsx",
-      "expectedOutput": [
-        "Pipeline labels: [\"Lin:3\"; \"Sam:2\"]",
-        "Chosen labels: [\"Lin:3\"; \"Sam:2\"]",
-        "For/while agree: true",
-        "Iteration order: Lin:3 Sam:2"
-      ]
-    },
-    {
-      "id": "ch06-recursion-folds",
-      "kind": "script",
-      "path": "examples/scripts/ch06-recursion-folds.fsx",
-      "expectedOutput": [
-        "Sums: recursive=9 tail=9 fold=9",
-        "Empty sums: 0, 0, 0",
-        "Singleton sums: 5, 5, 5",
-        "Tail-recursive count: 100000",
-        "Fold order: left=-6 right=2"
-      ]
-    },
-    {
       "id": "capstone-part-01-booking-basics",
       "kind": "script",
       "path": "examples/capstone/part-01/BookingBasics.fsx",
@@ -105,65 +14,11 @@
       ]
     },
     {
-      "id": "ch07-records-equality",
-      "kind": "script",
-      "path": "examples/scripts/ch07-records-equality.fsx",
-      "expectedOutput": [
-        "Record update: original=2 updated=3",
-        "Anonymous summary: Lin -> 3 seats, group=true",
-        "Equality: structural=true physical=false alias=true",
-        "Hashes agree for equal records: true",
-        "Structural sort: [\"A-1:Ada:2\"; \"A-1:Lin:1\"; \"B-2:Lin:2\"]"
-      ]
-    },
-    {
-      "id": "ch08-discriminated-unions",
-      "kind": "script",
-      "path": "examples/scripts/ch08-discriminated-unions.fsx",
-      "expectedOutput": [
-        "Flag model contradiction: pending=true confirmed=true cancelled=false",
-        "Statuses: [\"pending\"; \"confirmed:C-42\"; \"cancelled:duplicate\"]",
-        "Confirmed case carries code: C-42",
-        "Transition: pending -> confirmed:C-99",
-        "All descriptions: 3"
-      ]
-    },
-    {
-      "id": "ch09-option-result",
-      "kind": "script",
-      "path": "examples/scripts/ch09-option-result.fsx",
-      "expectedOutput": [
-        "Lookup: known=Lin missing=none",
-        "Option bind: positive=3 nonPositive=none",
-        "Validation: success=ok:Lin:2 failure=error:attendee is empty",
-        "Context: R-9 -> requested 6 exceeds maximum 4",
-        "Short circuit: error:attendee is empty",
-        "Some null: isSome=true payloadIsNull=true"
-      ]
-    },
-    {
-      "id": "ch10-recursive-types",
-      "kind": "script",
-      "path": "examples/scripts/ch10-recursive-types.fsx",
-      "expectedOutput": [
-        "Counts: empty=0 leaf=1 branch=3",
-        "Totals: empty=0 leaf=2 branch=9",
-        "Mapped: Branch(Leaf(2 seats),Branch(Leaf(3 seats),Leaf(4 seats)))",
-        "Fold agrees: count=true total=true",
-        "Heights: empty=0 leaf=1 branch=3",
-        "Shape preserved: before=3 after=3"
-      ]
-    },
-    {
-      "id": "ch11-generics-constraints",
-      "kind": "script",
-      "path": "examples/scripts/ch11-generics-constraints.fsx",
-      "expectedOutput": [
-        "Generalized function: ints=[3; 3] strings=[\"Lin\"; \"Lin\"]",
-        "Simple generic value: ints=[1] strings=[\"Ada\"]",
-        "Value restriction fixes: ints=2 strings=2 fresh=true",
-        "Constraints: equal=true ordered=true sorted=[\"A\"; \"B\"]",
-        "Measures: requested=5 remaining=35 rate=4.0"
+      "id": "ch06-non-tail-recursion",
+      "kind": "expected-error",
+      "path": "examples/expected-errors/ch06-non-tail-recursion/Ch06NonTailRecursion.fsproj",
+      "diagnostics": [
+        "FS3569"
       ]
     },
     {
@@ -172,175 +27,6 @@
       "path": "examples/expected-errors/ch11-value-restriction.fsx",
       "diagnostics": [
         "FS0030"
-      ]
-    },
-    {
-      "id": "ch12-making-illegal-states-unrepresentable",
-      "kind": "script",
-      "path": "examples/scripts/ch12-making-illegal-states-unrepresentable.fsx",
-      "expectedOutput": [
-        "Capacity: accepted=40",
-        "Capacity rejection: capacity must be positive: 0",
-        "Request: event=EVT-42 seats=3",
-        "Request rejection: event id is blank",
-        "Request rejection: seat count must be positive: 0"
-      ]
-    },
-    {
-      "id": "ch13-composition-pipeline-api",
-      "kind": "script",
-      "path": "examples/scripts/ch13-composition-pipeline-api.fsx",
-      "expectedOutput": [
-        "Nested: Lin:4:web",
-        "Pipeline matches nested: true",
-        "Forward composition: Lin:4:web",
-        "Backward composition: Lin:4:web",
-        "Configured pipeline: Mira:2:desk",
-        "Direct predicate: requested=3 capacity=4 fits=true"
-      ]
-    },
-    {
-      "id": "ch14-collections-evaluation",
-      "kind": "script",
-      "path": "examples/scripts/ch14-collections-evaluation.fsx",
-      "expectedOutput": [
-        "Eager: list=[2; 4; 6] array=[|20; 4; 6|] source=[1; 2; 3]",
-        "Deferred before enumeration: pulls=0",
-        "First enumeration: values=[1; 4; 9] pulls=3",
-        "Second enumeration: values=[1; 4; 9] pulls=6",
-        "Cached enumerations: first=[1; 4; 9] second=[1; 4; 9] pulls=3",
-        "Ordered collections: set=[1; 2; 3] map=[(\"A1\", \"only\"); (\"B2\", \"replacement\")]",
-        "Hash dictionary: count=1 lookup=second",
-        "Conversion snapshot: array=[|99; 2; 3|] list=[1; 2; 3]"
-      ]
-    },
-    {
-      "id": "ch15-active-patterns",
-      "kind": "script",
-      "path": "examples/scripts/ch15-active-patterns.fsx",
-      "expectedOutput": [
-        "Complete: pending=open:pending",
-        "Complete: confirmed=open:confirmed:C-42",
-        "Complete: cancelled=closed:duplicate",
-        "Partial: three=matched:3 zero=not-matched text=not-matched",
-        "Explicit errors: zero=not-positive:0 text=not-an-integer:oops",
-        "Parameterized: six=large:6/1 three=group:3/2 one=single:1/2"
-      ]
-    },
-    {
-      "id": "ch18-workflow-validation",
-      "kind": "script",
-      "path": "examples/scripts/ch18-workflow-validation.fsx",
-      "expectedOutput": [
-        "First error: [missing-request-id]",
-        "Accumulated invalid: [missing-request-id; missing-attendee; seats-not-integer:oops]",
-        "Accumulated mixed: [missing-attendee; non-positive-seats:0]",
-        "Valid strategies agree: true (REQ-18|Lin|3)",
-        "Dependent invalid: [seats-not-integer:oops] capacity-checks=0",
-        "Dependent excessive: [exceeds-capacity:5/4] capacity-checks=1",
-        "Dependent accepted: ok:3 capacity-checks=1"
-      ]
-    },
-    {
-      "id": "ch20-functional-core-effects",
-      "kind": "script",
-      "path": "examples/scripts/ch20-functional-core-effects.fsx",
-      "expectedOutput": [
-        "Captured: time=2026-09-01T12:00:00.0000000+00:00 draw=7 region=eu-west",
-        "Decision: accepted:BOOK-eu-west-0007",
-        "Fallback: accepted:BOOK-global-0042",
-        "Window: early=not-open closed=closed",
-        "Effect order: clock -> random:10000 -> environment:BOOKING_REGION",
-        "Core replay: true effect-calls=3"
-      ]
-    },
-    {
-      "id": "ch21-exceptions-resources-io",
-      "kind": "script",
-      "path": "examples/scripts/ch21-exceptions-resources-io.fsx",
-      "expectedOutput": [
-        "Success: text=42 disposed=true",
-        "Failure: caught=true disposed=true",
-        "Read result: ok:42",
-        "Missing result: path-not-found",
-        "Cleanup: removed=true"
-      ]
-    },
-    {
-      "id": "ch22-async-task",
-      "kind": "script",
-      "path": "examples/scripts/ch22-async-task.fsx",
-      "expectedOutput": [
-        "Async before start: entered=false",
-        "Async after StartAsTask: entered=true completed=false",
-        "Async result: async-done",
-        "Task after call: entered=true completed=false",
-        "Task result: task-done",
-        "Interop: async-to-task=21 task-to-async=42"
-      ]
-    },
-    {
-      "id": "ch23-cancellation-timeouts",
-      "kind": "script",
-      "path": "examples/scripts/ch23-cancellation-timeouts.fsx",
-      "expectedOutput": [
-        "Operation cancellation: canceled=true token=true",
-        "Abandoned wait: waiter-canceled=true operation-pending=true",
-        "Underlying after abandon: result=late-result",
-        "Timeout signal: timed-out=true operation-pending=true",
-        "Fault: type=InvalidOperationException message=quote-failed",
-        "Sync dispose: success=true fault=true cancel=true",
-        "Async dispose: pending=true success=true fault=true cancel=true"
-      ]
-    },
-    {
-      "id": "ch24-concurrency-agents-state",
-      "kind": "script",
-      "path": "examples/scripts/ch24-concurrency-agents-state.fsx",
-      "expectedOutput": [
-        "Concurrent waits: entered=2 pending=true",
-        "Concurrent results: [|\"first\"; \"second\"|]",
-        "Parallel map agrees: true",
-        "Shared counter: race=1 lock=2 interlocked=2",
-        "Locked capacity: accepted=1 remaining=1 invariant=true",
-        "Agent capacity: accepted=1 remaining=1 invariant=true",
-        "Cache: values=[|23; 23|] computations=1 entries=1"
-      ]
-    },
-    {
-      "id": "ch26-dotnet-runtime-boundaries",
-      "kind": "script",
-      "path": "examples/scripts/ch26-dotnet-runtime-boundaries.fsx",
-      "expectedOutput": [
-        "Runtime type: declared=BookingRequest actual=BookingRequest",
-        "Pattern casts: [\"text:LIN\"; \"request:R-26/3\"; \"int:42\"]",
-        "Failed downcast: InvalidCastException",
-        "Delegates: add=7 labels=[|\"2\"; \"4\"; \"6\"|]",
-        "Event: observed=[\"4->2\"] after-remove=1",
-        ".NET list: live=[1; 2; 3] snapshot=[1; 2]",
-        "String comparer: count=1 found=true value=second",
-        "Class keys: same-reference=false default=2 domain=1 value=second"
-      ]
-    },
-    {
-      "id": "ch45-scripting-packages-next",
-      "kind": "script",
-      "path": "examples/scripts/ch45-scripting-packages-next.fsx",
-      "expectedOutput": [
-        "First write: updated files=2",
-        "Second write: unchanged files=2",
-        "Check mode: current files=2",
-        "Stable timestamp: true",
-        "Manifest paths: nested/beta.bin, notes.txt",
-        "Cleanup: removed=true"
-      ]
-    },
-    {
-      "id": "ch06-non-tail-recursion",
-      "kind": "expected-error",
-      "path": "examples/expected-errors/ch06-non-tail-recursion/Ch06NonTailRecursion.fsproj",
-      "diagnostics": [
-        "FS3569"
       ]
     },
     {
@@ -415,6 +101,19 @@
         "metric: name=booking.requests value=1 outcome=accepted",
         "trace: name=booking.place outcome=accepted",
         "lifecycle: store-disposed=true"
+      ]
+    },
+    {
+      "id": "ch45-scripting-packages-next",
+      "kind": "script",
+      "path": "examples/scripts/ch45-scripting-packages-next.fsx",
+      "expectedOutput": [
+        "First write: updated files=2",
+        "Second write: unchanged files=2",
+        "Check mode: current files=2",
+        "Stable timestamp: true",
+        "Manifest paths: nested/beta.bin, notes.txt",
+        "Cleanup: removed=true"
       ]
     }
   ]

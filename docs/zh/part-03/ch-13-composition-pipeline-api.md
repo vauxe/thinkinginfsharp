@@ -12,9 +12,9 @@ translationKey: part-03/ch-13-composition-pipeline-api
 
 ## 从嵌套调用中找出数据路径 {#repeated-nesting}
 
-共享脚本从普通函数调用开始：
+示例从普通函数调用开始：
 
-```fsharp:line-numbers [ch13-composition-pipeline-api.fsx]
+```fsharp:line-numbers
 let nestedLabel = toLabel (addChannel "web" (capSeats 4 (trimAttendee rawDraft)))
 
 printfn "Nested: %s" nestedLabel
@@ -42,7 +42,7 @@ functionValue value
 
 改写共享链会得到：
 
-```fsharp:line-numbers [ch13-composition-pipeline-api.fsx]
+```fsharp:line-numbers
 let pipedLabel =
     rawDraft |> trimAttendee |> capSeats 4 |> addChannel "web" |> toLabel
 
@@ -56,7 +56,7 @@ printfn "Pipeline matches nested: %b" (pipedLabel = nestedLabel)
 
 ### 用多行清楚展示各阶段 {#pipeline-formatting}
 
-表达式稍长时，就像共享脚本一样从值开始，每行写一个 `|>` 阶段。lambda 变长或需要在调试器中单独检查时，应给该步骤命名。管道可读是因为变换清楚，而不是因为字符最少。
+表达式稍长时，就像示例一样从值开始，每行写一个 `|>` 阶段。lambda 变长或需要在调试器中单独检查时，应给该步骤命名。管道可读是因为变换清楚，而不是因为字符最少。
 
 ## 组合创建稍后使用的函数 {#composition}
 
@@ -70,9 +70,9 @@ let result = composed input
 // 等同于：second (first input)
 ```
 
-共享脚本组合全部四个阶段：
+示例组合全部四个阶段：
 
-```fsharp:line-numbers [ch13-composition-pipeline-api.fsx]
+```fsharp:line-numbers
 let prepareLabel = trimAttendee >> capSeats 4 >> addChannel "web" >> toLabel
 
 let prepareLabelBackward = toLabel << addChannel "web" << capSeats 4 << trimAttendee
@@ -104,7 +104,7 @@ addChannel : string -> BookingDraft -> BookingDraft
 
 配置在前，主要流动值在后。固定座位上限或渠道后，两项函数的剩余类型都是 `BookingDraft -> BookingDraft`。因此都能直接加入管道或组合：
 
-```fsharp:line-numbers [ch13-composition-pipeline-api.fsx]
+```fsharp:line-numbers
 let deskLabel =
     { Attendee = "  Mira "
       RequestedSeats = 2
@@ -146,9 +146,9 @@ FSharp.Core 中有三类常见例子：
 
 ## 直接调用可能最清楚 {#direct-call}
 
-最后一个共享示例让小谓词保持直接调用：
+最后一个示例让小谓词保持直接调用：
 
-```fsharp:line-numbers [ch13-composition-pipeline-api.fsx]
+```fsharp:line-numbers
 let fitsWithin capacity requested = requested <= capacity
 
 let requested = 3
@@ -180,16 +180,6 @@ printfn "Direct predicate: requested=%d capacity=%d fits=%b" requested capacity 
 若签名让常见调用简洁、少见调用仍然可行，其顺序通常合理。若每次调用都需要翻转、元组适配或匿名函数，应在使用者开始依赖前修改 API。
 
 不要为已经有良好领域名称的操作发明自定义符号。`Booking.confirm code booking` 比未解释的运算符更容易搜索、记录与理解。标准 `|>`、`>>` 和 `<<` 已经能表达应用顺序。
-
-## 运行共享示例 {#run-example}
-
-在仓库根目录执行：
-
-```console
-dotnet fsi --exec examples/scripts/ch13-composition-pipeline-api.fsx
-```
-
-六行输出展示嵌套调用、等价管道、前向与后向组合、固定配置后的部分应用，以及有意保持直接调用的谓词。
 
 ## 练习 {#exercises}
 

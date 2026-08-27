@@ -16,7 +16,7 @@ This chapter uses only simple arithmetic, strings, and minimal tuples. Collectio
 
 Start with a function that calculates the amount for a booking line:
 
-```fsharp:line-numbers [ch03-functions-as-values.fsx]
+```fsharp:line-numbers
 let lineTotal unitPrice seats = unitPrice * decimal seats
 let standardLineTotal = lineTotal 19.50m
 let totalForThree = standardLineTotal 3
@@ -80,7 +80,7 @@ This describes the semantic model of function types and application. The compile
 
 The same calculation can be written as a function receiving one pair:
 
-```fsharp:line-numbers [ch03-functions-as-values.fsx]
+```fsharp:line-numbers
 let lineTotalTupled (unitPrice, seats) = unitPrice * decimal seats
 let tupledTotal = lineTotalTupled (19.50m, 3)
 
@@ -102,7 +102,7 @@ Supplying fewer than all arguments to a curried function produces a new function
 
 In the first example, `lineTotal 19.50m` produces an `int -> decimal` function bound as `standardLineTotal`. The unit price is fixed, so future callers provide only a seat count. The service-fee example uses the same idea:
 
-```fsharp:line-numbers [ch03-functions-as-values.fsx]
+```fsharp:line-numbers
 let addFee fee subtotal = subtotal + fee
 let addServiceFee = addFee 2.00m
 let finalTotal = addServiceFee totalForThree
@@ -117,7 +117,7 @@ Parameter order is therefore part of API design. Stable configuration that calle
 
 A short function used only nearby may not need a name first. A `fun` expression creates an anonymous function directly:
 
-```fsharp:line-numbers [ch03-functions-as-values.fsx]
+```fsharp:line-numbers
 let increment seats = seats + 1
 let incrementAnonymous = fun seats -> seats + 1
 
@@ -131,7 +131,7 @@ A name records intent and improves diagnostics, so brevity is not a reason to tu
 
 A **higher-order function** does at least one of two things: it accepts a function value or returns one. Partial application already returned functions; this example accepts one:
 
-```fsharp:line-numbers [ch03-functions-as-values.fsx]
+```fsharp:line-numbers
 let applyTwice transform value = transform (transform value)
 let incrementedTwice = applyTwice increment 3
 
@@ -151,7 +151,7 @@ Use a higher-order function when behavior genuinely varies and the function can 
 
 Consider a function that neither inspects, changes, nor constructs its input:
 
-```fsharp:line-numbers [ch03-functions-as-values.fsx]
+```fsharp:line-numbers
 let identity value = value
 let unchangedNumber = identity 42
 let unchangedText = identity "F#"
@@ -169,27 +169,6 @@ val identity: 'a -> 'a
 The three occurrences of the same `'a` in `applyTwice` likewise express a consistency constraint: the transformation's input and output and the value being transformed must align. Different letters such as `'a` and `'b` denote positions that need not have the same type.
 
 Complete function definitions with explicit parameters can usually be generalized when it is safe. Mutable state, partial applications, and complex values may instead expose the **value restriction**. When that diagnostic appears, Chapter 11 provides the precise rule and an explicit repair.
-
-## Run the shared example {#run-example}
-
-From the repository root, run:
-
-```console
-dotnet fsi --exec examples/scripts/ch03-functions-as-values.fsx
-```
-
-You should see:
-
-```text
-Curried total: 58.50
-Tupled total: 58.50
-Named and anonymous: 4, 4
-Applied twice: 5
-With service fee: 60.50
-Identity values: 42, F#
-```
-
-The curried and tupled versions both produce `58.50`, while their signatures and partial-application abilities differ. Verify a function with both its output and its type.
 
 ## Parenthesize the application first {#debugging}
 

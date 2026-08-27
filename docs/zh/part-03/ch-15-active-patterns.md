@@ -50,9 +50,9 @@ let (|Recognized|_|) input =
 
 ## 完整活动模式划分全部输入 {#complete-active-patterns}
 
-共享脚本把三个声明状态归入一个双案例工作流视图：
+示例把三个声明状态归入一个双案例工作流视图：
 
-```fsharp:line-numbers [ch15-active-patterns.fsx]
+```fsharp:line-numbers
 let (|Open|Closed|) status =
     match status with
     | Pending -> Open "pending"
@@ -102,9 +102,9 @@ let (|Positive|_|) value =
 
 `Some payload` 表示具名案例匹配，并绑定其中的数据。`None` 表示该模式没有匹配，因此匹配表达式会尝试后续子句。部分模式不必彼此互斥；由上到下的子句顺序会解决重叠。
 
-共享脚本把正整数文本识别为座位量：
+示例把正整数文本识别为座位量：
 
-```fsharp:line-numbers [ch15-active-patterns.fsx]
+```fsharp:line-numbers
 let (|SeatCount|_|) raw =
     match parseSeatCount raw with
     | Ok value -> Some value
@@ -151,9 +151,9 @@ match seats with
 
 `minimum` 写在模式中，`value` 来自被匹配的输入。只有单案例活动模式——完整或部分——可以参数化；多案例活动模式不能接收这些额外实参。
 
-共享示例用计数器记录识别器的调用次数：
+示例用计数器记录识别器的调用次数：
 
-```fsharp:line-numbers [ch15-active-patterns.fsx]
+```fsharp:line-numbers
 let mutable thresholdChecks = 0
 
 let (|AtLeast|_|) minimum value =
@@ -258,16 +258,6 @@ F# 还为可空引用提供 `Null`/`NonNull` 活动模式。第 19 章会结合�
 | 加载或查询外部状态 | 有副作用的普通函数，再匹配其结果 |
 
 可读模式语法是结果，而不是目标。若识别器名称隐藏的内容多于其案例揭示的内容，就回到普通函数。
-
-## 运行共享示例 {#run-example}
-
-在仓库根目录执行：
-
-```console
-dotnet fsi --exec examples/scripts/ch15-active-patterns.fsx
-```
-
-六行输出覆盖完整活动模式的全部案例、成功与失败的部分识别、保留的错误细节，以及参数化识别器的调用次数。
 
 ## 练习 {#exercises}
 

@@ -412,19 +412,15 @@ Accessibility and localization defects are platform defects even when the shared
 
 ## Verify from pure logic to released packages {#testing-evidence-ladder}
 
-Use the cheapest useful layer first, but do not stop there:
+Use the cheapest useful layer first:
 
-1. **Pure tests:** update, validation, navigation decisions, stale-result rejection, formatting inputs, and effect descriptions.
-2. **Adapter tests:** notifications, commands, collection deltas, validation projection, cancellation, and platform-port fakes.
-3. **XAML/compile tests:** resources, classes, compiled binding paths, templates, and targeted framework graphs.
-4. **Headless Avalonia tests:** construct real controls, apply styles and layout, simulate input, inspect the visual or automation tree, and optionally compare images.
-5. **Native debug smoke:** start an unlocked native backend, exercise keyboard/pointer/touch, dialogs, clipboard, scaling, and shutdown.
-6. **Publish and package tests:** produce each RID, inspect native assets and metadata, sign, install on a clean target, launch outside the SDK, upgrade, rollback, and uninstall.
-7. **Device and store tests:** permissions, suspend/resume, process death, deep links, network loss, accessibility, performance, signing, staged distribution, crash reports, and update behavior.
+1. **Pure and adapter tests:** state, validation, navigation, stale-result rejection, effects, notifications, commands, cancellation, and platform ports.
+2. **XAML and headless tests:** resources, compiled bindings, templates, real controls, layout, input, and visual/automation trees.
+3. **Native smoke:** keyboard/pointer/touch, dialogs, clipboard, scaling, lifetime, and shutdown on each supported backend.
+4. **Publish and package tests:** every RID, native assets, signing, clean install, SDK-independent launch, upgrade, rollback, and uninstall.
+5. **Device and store tests:** lifecycle, permissions, deep links, network loss, accessibility, performance, distribution, crashes, and updates.
 
-Headless testing is valuable in CI, but it replaces the native windowing and rendering backend. It cannot certify Win32, macOS, X11/Wayland, Android, iOS, drivers, packaging, signing, or store behavior.
-
-Record each result with its OS version, CPU, package, locale, scale, input, assistive technology, test date, and commit. “Works on my machine” becomes useful only after “machine” is named.
+Headless CI cannot certify native backends, drivers, packaging, signing, or stores. Record OS, CPU, package, locale, scale, input, assistive technology, date, and commit with every result.
 
 ## Publishing is not packaging or release {#publishing-and-release}
 
@@ -446,43 +442,30 @@ An update can change both executable and user data. Use backward-compatible sett
 
 ## Run a bounded adoption spike {#adoption-spike}
 
-For a serious client, time-box one representative vertical slice and measure:
+Time-box one representative vertical slice covering:
 
-- official F# template creation, locked restore, CLI build, IDE edit/preview, and debugger behavior;
-- one immutable domain workflow through the chosen state pattern and binding or renderer;
-- one virtualized list or otherwise demanding real screen at representative data volume;
-- asynchronous cancellation, stale completion, offline error, retry, and restart recovery;
-- one platform service with denied permission and cancellation paths;
-- keyboard, touch, focus, screen reader, large text, localization, and narrow layout;
-- startup, interaction latency, memory, package size, and crash diagnostics on target hardware;
-- per-RID publish, clean installation, signing or representative signing, upgrade, and uninstall;
-- mobile lifecycle and physical-device behavior if mobile is in scope;
-- dependency maintenance, licensing, support policy, control ecosystem, and an exit condition.
+- official F# template, locked restore, CLI/IDE build-edit-debug workflow;
+- an immutable domain workflow and one demanding screen at representative volume;
+- cancellation, stale completion, offline/retry/restart, and a denied platform permission;
+- keyboard/touch/focus, screen reader, large text, localization, and narrow layout;
+- target-hardware performance plus per-RID publish, clean install, signing, upgrade, and uninstall;
+- physical-device lifecycle when relevant, and maintenance, licensing, support, controls, and an exit condition.
 
 Compare implementation and operational cost, not screenshot similarity. A framework is acceptable only if the team can build, diagnose, distribute, update, and support it within the product's actual platform matrix.
 
 ## Avoid common UI mistakes {#common-mistakes}
 
-- Treating a successful shared-project build as Windows, macOS, Linux, Android, and iOS validation.
-- Choosing a framework before naming required platforms, native APIs, input modes, stores, and update policy.
-- Letting business decisions, HTTP, files, and cancellation accumulate in window code-behind.
-- Calling a mutable view model “the model” and losing the immutable domain state beneath it.
-- Exposing discriminated unions or options directly to XAML without a deliberate adapter contract.
-- Disabling compiled binding globally to silence an `x:DataType` or public-type mismatch.
-- Blocking the UI dispatcher or starting unsupervised fire-and-forget tasks from event handlers.
-- Accepting a late asynchronous result after navigation or a newer request.
-- Storing irreplaceable state only in a window, activity, control, singleton, cache, or working directory.
-- Scattering operating-system checks through shared logic instead of injecting platform capabilities.
-- Assuming identical controls imply identical lifecycle, accessibility, fonts, input, or native services.
-- Designing a fixed desktop canvas and calling it mobile support.
-- Using custom clickable visuals without keyboard, focus, semantics, or automation peers.
-- Testing only headless and claiming a native rendering or packaging result.
-- Publishing one architecture, mutable dependency graph, or unsigned folder and calling it a release.
-- Enabling trimming, single-file, or AOT from a size goal without testing reflection and native assets.
-- Forgetting settings/data migration, interrupted update, rollback, uninstall, and user-data policy.
-- Forcing every platform host to be F# when a tiny C# adapter would reduce toolchain risk.
-- Treating one failed graphical automation launch as proof that the application logic is defective.
-- Treating one local successful launch as proof that installers, stores, and supported OS versions work.
+- Treating a shared build as platform validation, or choosing a framework before naming platforms, native APIs, inputs, stores, and update policy.
+- Accumulating business decisions and I/O in code-behind, or mistaking a mutable view model for the domain model.
+- Exposing unions/options directly to XAML, or disabling compiled binding to hide a type mismatch.
+- Blocking the dispatcher, launching unmanaged tasks, or accepting a result after navigation or a newer request.
+- Keeping irreplaceable state in UI/process-local storage, or scattering OS checks instead of injecting capabilities.
+- Assuming controls share lifecycle/accessibility/native behavior, or calling a fixed desktop canvas mobile support.
+- Building custom clickable visuals without semantics, or using headless tests as native rendering/package evidence.
+- Calling one architecture, mutable graph, or unsigned folder a release; enabling trimming/single-file/AOT without reflection and native-asset tests.
+- Omitting data migration, interrupted update, rollback, uninstall, or retention policy.
+- Forcing F# into every host when a thin C# adapter is safer.
+- Generalizing from one failed automation run or one successful local launch.
 
 ## Exercises {#exercises}
 

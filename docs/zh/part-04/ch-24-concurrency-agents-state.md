@@ -24,9 +24,9 @@ F# 便于使用不可变值，可以消除许多意外竞争。但队列、缓�
 
 ## 只验证工作重叠，不推断线程 {#concurrent-overlap}
 
-共享示例启动两个任务表达式。每一个都会记录已经进入，然后等待同一个尚未触发的信号：
+示例启动两个任务表达式。每一个都会记录已经进入，然后等待同一个尚未触发的信号：
 
-```fsharp:line-numbers [ch24-concurrency-agents-state.fsx]
+```fsharp:line-numbers
 let releaseWaits = newGate<unit> ()
 let entered = [| 0 |]
 
@@ -62,7 +62,7 @@ printfn "Concurrent results: %A" waitResults
 
 `Array.Parallel.map` 通过 .NET 并行基础设施对数组变换进行分区：
 
-```fsharp:line-numbers [ch24-concurrency-agents-state.fsx]
+```fsharp:line-numbers
 let values = [| 1..8 |]
 let sequentialSquares = values |> Array.map (fun value -> value * value)
 let parallelSquares = values |> Array.Parallel.map (fun value -> value * value)
@@ -88,9 +88,9 @@ printfn "Parallel map agrees: %b" parallelAgrees
 
 表达式 `counter <- counter + 1` 会读取、计算再写入。两个线程可以读到相同旧值，再写入相同新值，从而丢失一次递增。
 
-只靠反复运行的压力测试有时会错过这项竞争。共享测试使用两个参与者的 `Barrier`：两个长时间运行的工作线程都在任一线程可以写入前完成读取。因此测试必然产生错误结果，而不是碰运气：
+只靠反复运行的压力测试有时会错过这项竞争。测试使用两个参与者的 `Barrier`：两个长时间运行的工作线程都在任一线程可以写入前完成读取。因此测试必然产生错误结果，而不是碰运气：
 
-```fsharp:line-numbers [ch24-concurrency-agents-state.fsx]
+```fsharp:line-numbers
 let racyCounter = [| 0 |]
 
 runTwoWithBarrier (fun barrier ->
@@ -146,7 +146,7 @@ printfn "Shared counter: race=%d lock=%d interlocked=%d" racyCounter[0] lockedCo
 
 容量示例把 `Remaining` 与 `Accepted` 作为一项不变量更新：
 
-```fsharp:line-numbers [ch24-concurrency-agents-state.fsx]
+```fsharp:line-numbers
 type CapacityState =
     { mutable Remaining: int
       mutable Accepted: int }
@@ -195,9 +195,9 @@ printfn
 
 `MailboxProcessor<'Message>` 在进程内队列上运行异步接收循环。调用方投递消息；循环每次处理一条已接收消息，并可通过递归携带下一个不可变状态。
 
-共享预约代理把 `remaining` 与 `accepted` 保持为私有状态：
+预约代理把 `remaining` 与 `accepted` 保持为私有状态：
 
-```fsharp:line-numbers [ch24-concurrency-agents-state.fsx]
+```fsharp:line-numbers
 type ReservationReply =
     | Accepted of remaining: int
     | Rejected of remaining: int
@@ -282,7 +282,7 @@ reservationAgent.Dispose()
 
 示例存储 `Lazy<int>` 值：
 
-```fsharp:line-numbers [ch24-concurrency-agents-state.fsx]
+```fsharp:line-numbers
 let cache = ConcurrentDictionary<string, Lazy<int>>()
 let computations = [| 0 |]
 
@@ -331,16 +331,6 @@ cacheBarrier.Dispose()
 
 重复运行专项测试有助于暴露资源与生命周期错误，但不能替代受控交错。避免依赖 sleep、CPU 数量、线程 ID 或调度器的具体顺序。清理时务必释放屏障并触发等待信号，避免断言失败后工作线程无法退出。
 
-## 运行共享示例 {#run-example}
-
-在仓库根目录运行：
-
-```console
-dotnet fsi --checknulls+ --exec examples/scripts/ch24-concurrency-agents-state.fsx
-```
-
-七行输出覆盖并发等待、数据并行等价、强制丢失更新、锁与原子修正、复合容量不变量、代理串行化，以及单次计算缓存。
-
 ## 练习 {#exercises}
 
 ### 练习 1：选择同步机制 {#exercise-01}
@@ -365,13 +355,7 @@ dotnet fsi --checknulls+ --exec examples/scripts/ch24-concurrency-agents-state.f
 
 ## 第四部分检查点 {#part-checkpoint}
 
-在仓库根目录运行行为确定的并发示例：
-
-```console
-dotnet fsi --warnaserror+ --exec examples/scripts/ch24-concurrency-agents-state.fsx
-```
-
-七行输出会稳定暴露一次丢失更新，并验证锁与原子修正、复合容量不变量、代理串行化，以及竞争下只计算一次的缓存。这些进程内检查不能证明跨进程一致性或持久性。
+用受控同步稳定触发一次丢失更新，再验证上文的锁、原子操作、复合不变量、代理和缓存场景。断言最终不变量，不要依赖到达顺序。这些进程内检查不能证明跨进程一致性或持久性。
 
 [继续阅读第 25 章](../part-05/ch-25-objects-interfaces)，考察更广泛 .NET 生态中的面向对象接口。
 

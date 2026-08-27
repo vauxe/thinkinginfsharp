@@ -29,9 +29,9 @@ When call sites accumulate `fst` and `snd`, or readers must remember what a four
 
 ### Named records establish reusable types {#records}
 
-The shared script defines a booking draft:
+The example defines a booking draft:
 
-```fsharp:line-numbers [ch07-records-equality.fsx]
+```fsharp:line-numbers
 type BookingDraft =
     { EventId: string
       Attendee: string
@@ -75,9 +75,9 @@ Construction and patterns use the same field vocabulary: one builds a value, and
 
 ## Copy-and-update expresses immutable change {#update}
 
-The shared example changes seat count from `2` to `3`:
+The example changes seat count from `2` to `3`:
 
-```fsharp:line-numbers [ch07-records-equality.fsx]
+```fsharp:line-numbers
 let updated = { original with Seats = 3 }
 
 printfn "Record update: original=%d updated=%d" original.Seats updated.Seats
@@ -90,9 +90,9 @@ Starting with F# 7, a field path can update nested records. The shorter syntax d
 
 ## Anonymous records name fields without declaring a type {#anonymous-records}
 
-An anonymous record uses `{| ... |}` and needs no prior type declaration. The shared script projects from a named record and adds a computed field:
+An anonymous record uses `{| ... |}` and needs no prior type declaration. The example projects from a named record and adds a computed field:
 
-```fsharp:line-numbers [ch07-records-equality.fsx]
+```fsharp:line-numbers
 let summary =
     {| updated with
         IsGroup = updated.Seats > 1 |}
@@ -109,7 +109,7 @@ They suit local projections, query results, and short-range adaptation. Prefer a
 
 Two separately constructed `BookingDraft` values make F# `=` return `true` when corresponding fields are structurally equal:
 
-```fsharp:line-numbers [ch07-records-equality.fsx]
+```fsharp:line-numbers
 let equalCopy =
     { EventId = "A-1"
       Attendee = "Lin"
@@ -152,7 +152,7 @@ Treat a hash code as a temporary lookup hint within the current runtime. Durable
 
 When every field supports comparison, a record automatically supports structural comparison and can be passed directly to `List.sort`:
 
-```fsharp:line-numbers [ch07-records-equality.fsx]
+```fsharp:line-numbers
 let drafts =
     [ { EventId = "B-2"
         Attendee = "Lin"
@@ -187,26 +187,6 @@ Equality and comparison constraints are not identical either. A type may support
 | Several mutually exclusive states | A discriminated union in the next chapter | One fixed field set cannot say “exactly one of these” |
 
 Do not optimize only for line count. Record and field names are model vocabulary. Anonymous records and tuples avoid inventing public types for data that remains local.
-
-## Run the shared example {#run-example}
-
-From the repository root, run:
-
-```console
-dotnet fsi --exec examples/scripts/ch07-records-equality.fsx
-```
-
-You should see:
-
-```text
-Record update: original=2 updated=3
-Anonymous summary: Lin -> 3 seats, group=true
-Equality: structural=true physical=false alias=true
-Hashes agree for equal records: true
-Structural sort: ["A-1:Ada:2"; "A-1:Lin:1"; "B-2:Lin:2"]
-```
-
-The five lines demonstrate immutable update, anonymous projection, content versus identity, the equality-to-hash guarantee, and structural sorting. Compare them in order. The script omits the actual hash integer because its value is not stable across environments.
 
 ## State what you are comparing {#debugging}
 

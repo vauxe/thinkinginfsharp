@@ -18,9 +18,9 @@ translationKey: part-01/ch-02-values-bindings-expressions
 
 **表达式**是被求值以产生结果的代码，例如 `20 + 4`。求值也可能产生可观察的副作用；`printfn` 会输出文本，但它仍返回 `unit` 值 `()`。
 
-**绑定**是名称与值之间的关联。先看共享脚本中的一组绑定：
+**绑定**是名称与值之间的关联。先看示例中的一组绑定：
 
-```fsharp:line-numbers [ch02-values-bindings-expressions.fsx]
+```fsharp:line-numbers
 let eventName = "Functional Foundations"
 let capacity = 40
 let fillRatio = 0.45
@@ -55,7 +55,7 @@ F# 也支持 `let mutable`，因为局部计数、数组更新和某些互操作
 
 作用域决定名称在哪里可见。F# 用缩进表达很多局部结构；下面 `normalizedCapacity` 的右侧包含两个局部绑定：
 
-```fsharp:line-numbers [ch02-values-bindings-expressions.fsx]
+```fsharp:line-numbers
 let normalizedCapacity =
     let capacity = 20
     let capacity = capacity + 4
@@ -108,7 +108,7 @@ F# 还提供其他宽度的有符号与无符号整数、`float32` 和 `bigint` 
 
 下面一段同时展示两者：
 
-```fsharp:line-numbers [ch02-values-bindings-expressions.fsx]
+```fsharp:line-numbers
 let requestedSeats: int = 3
 let pricePerSeat: decimal = 19.50m
 let totalPrice = decimal requestedSeats * pricePerSeat
@@ -144,24 +144,6 @@ val noFurtherResult: unit = ()
 一串表达式按顺序执行时，非最后表达式通常应返回 `unit`；否则忽略一个有意义的值往往是错误，编译器也可能给出警告。`printfn` 很适合出现在这种位置，因为它的有意义行为是输出，返回值就是 `()`。
 
 这条规则也解释了为什么“表达式有值”与“程序有副作用”并不矛盾。类型说明表达式会把什么结果交给后续计算；输出、写文件或网络请求则是在求值期间发生的副作用。阅读代码时两者都要检查。
-
-## 运行共享示例 {#run-example}
-
-在仓库根目录执行：
-
-```console
-dotnet fsi --exec examples/scripts/ch02-values-bindings-expressions.fsx
-```
-
-应得到：
-
-```text
-Functional Foundations (F): capacity=40, fill=0.45, open=true
-Ticket total: 58.50
-Normalized capacity: 24; outer capacity: 40
-```
-
-请逐行核对上面的输出。脚本中的格式化只影响显示，不改变 `fillRatio` 或 `totalPrice` 的类型。
 
 ## 追踪第一个冲突约束 {#debugging}
 

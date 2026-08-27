@@ -14,9 +14,9 @@ This chapter handles a closed, synchronous, in-memory state representation. Chap
 
 ## Independent flags create a Cartesian product {#flag-problem}
 
-The shared script first retains an intentionally weak record:
+The example first retains an intentionally weak record:
 
-```fsharp:line-numbers [ch08-discriminated-unions.fsx]
+```fsharp:line-numbers
 type BookingFlags =
     { IsPending: bool
       IsConfirmed: bool
@@ -43,7 +43,7 @@ This does not make Boolean values bad. `HasDietaryRequirements` and `NeedsWheelc
 
 List every legal state in one type:
 
-```fsharp:line-numbers [ch08-discriminated-unions.fsx]
+```fsharp:line-numbers
 type BookingStatus =
     | Pending
     | Confirmed of confirmationCode: string
@@ -73,7 +73,7 @@ In a pattern, the same name identifies a case and binds its data. `Confirmed cod
 
 The shared function covers all three cases:
 
-```fsharp:line-numbers [ch08-discriminated-unions.fsx]
+```fsharp:line-numbers
 let describeStatus status =
     match status with
     | Pending -> "pending"
@@ -92,7 +92,7 @@ If the type later gains `Waitlisted of position: int`, every explicit match that
 
 ### The non-exhaustive version is diagnostic-only {#non-exhaustive-diagnostic}
 
-The following deliberately omits `Cancelled` and is not part of the valid shared script:
+The following deliberately omits `Cancelled` and is not part of the valid example:
 
 ```fsharp
 let incomplete status =
@@ -109,7 +109,7 @@ Do not mechanically add `| _ -> "other"` to silence it. When states have distinc
 
 To read a confirmation code, first prove the state is `Confirmed`:
 
-```fsharp:line-numbers [ch08-discriminated-unions.fsx]
+```fsharp:line-numbers
 let confirmationCode status =
     match status with
     | Confirmed code -> Some code
@@ -133,9 +133,9 @@ Alternatives in an OR pattern must bind compatible names and types. Neither alte
 
 ## A state transition is a value-to-value function {#transitions}
 
-The shared example writes confirmation as a pure function:
+The example writes confirmation as a pure function:
 
-```fsharp:line-numbers [ch08-discriminated-unions.fsx]
+```fsharp:line-numbers
 let confirm code status =
     match status with
     | Pending -> Confirmed code
@@ -185,26 +185,6 @@ When considering a discriminated union, ask:
 5. are independent facts being forced incorrectly into exclusive cases?
 
 If a union has many cases differing only by a few independent switches, the model may need “a record plus several small unions or Booleans,” not one huge union enumerating a Cartesian product. A type should compress illegal combinations, not enumerate every accidental one.
-
-## Run the shared example {#run-example}
-
-From the repository root, run:
-
-```console
-dotnet fsi --exec examples/scripts/ch08-discriminated-unions.fsx
-```
-
-You should see:
-
-```text
-Flag model contradiction: pending=true confirmed=true cancelled=false
-Statuses: ["pending"; "confirmed:C-42"; "cancelled:duplicate"]
-Confirmed case carries code: C-42
-Transition: pending -> confirmed:C-99
-All descriptions: 3
-```
-
-The first line preserves the counterexample. The remaining four prove union construction, exhaustive deconstruction, case-specific data, and pure transition. The valid script itself contains no incomplete match; compare all five lines in order.
 
 ## Inspect the case payload {#debugging}
 

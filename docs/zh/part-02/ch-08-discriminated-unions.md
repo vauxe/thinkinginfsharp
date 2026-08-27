@@ -14,9 +14,9 @@ translationKey: part-02/ch-08-discriminated-unions
 
 ## 独立标志会产生所有真假组合 {#flag-problem}
 
-共享脚本先保留一个故意薄弱的记录：
+示例先保留一个故意薄弱的记录：
 
-```fsharp:line-numbers [ch08-discriminated-unions.fsx]
+```fsharp:line-numbers
 type BookingFlags =
     { IsPending: bool
       IsConfirmed: bool
@@ -43,7 +43,7 @@ printfn
 
 用一个类型列出全部合法状态：
 
-```fsharp:line-numbers [ch08-discriminated-unions.fsx]
+```fsharp:line-numbers
 type BookingStatus =
     | Pending
     | Confirmed of confirmationCode: string
@@ -73,7 +73,7 @@ let cancelled = Cancelled "duplicate"
 
 共享函数覆盖三个案例：
 
-```fsharp:line-numbers [ch08-discriminated-unions.fsx]
+```fsharp:line-numbers
 let describeStatus status =
     match status with
     | Pending -> "pending"
@@ -92,7 +92,7 @@ printfn "Statuses: %A" descriptions
 
 ### 非穷尽版本只用于读诊断 {#non-exhaustive-diagnostic}
 
-下面代码故意遗漏 `Cancelled`，不属于共享有效脚本：
+下面代码故意遗漏 `Cancelled`，不属于有效示例：
 
 ```fsharp
 let incomplete status =
@@ -109,7 +109,7 @@ F# 编译器会报告 FS0025 非穷尽模式警告，并举出未覆盖值。启
 
 要读取确认码，必须先证明状态是 `Confirmed`：
 
-```fsharp:line-numbers [ch08-discriminated-unions.fsx]
+```fsharp:line-numbers
 let confirmationCode status =
     match status with
     | Confirmed code -> Some code
@@ -133,9 +133,9 @@ OR 模式的替代项必须绑定兼容的名称与类型；这里两者都不�
 
 ## 状态转换是值到值的函数 {#transitions}
 
-共享示例把确认写成纯函数：
+示例把确认写成纯函数：
 
-```fsharp:line-numbers [ch08-discriminated-unions.fsx]
+```fsharp:line-numbers
 let confirm code status =
     match status with
     | Pending -> Confirmed code
@@ -185,26 +185,6 @@ F# 9 起，联合值会生成 `.IsConfirmed` 等案例测试属性。只需要�
 5. 是否误把可同时成立的独立事实强塞进互斥案例。
 
 案例过多且彼此只差几个独立开关，可能说明需要“记录 + 若干小联合/布尔字段”，而不是一个巨大联合列出笛卡尔积。类型应压缩非法组合，不应枚举所有偶然组合。
-
-## 运行共享示例 {#run-example}
-
-在仓库根目录执行：
-
-```console
-dotnet fsi --exec examples/scripts/ch08-discriminated-unions.fsx
-```
-
-应得到：
-
-```text
-Flag model contradiction: pending=true confirmed=true cancelled=false
-Statuses: ["pending"; "confirmed:C-42"; "cancelled:duplicate"]
-Confirmed case carries code: C-42
-Transition: pending -> confirmed:C-99
-All descriptions: 3
-```
-
-第一行展示布尔标志模型允许的矛盾值，后四行展示联合构造、穷尽匹配、案例专属数据和纯转换。有效脚本本身不存在非穷尽匹配；请按顺序比较五行。
 
 ## 检查案例携带的数据 {#debugging}
 

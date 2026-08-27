@@ -14,7 +14,7 @@ translationKey: solutions/ch-04-branching-patterns
 
 共享定义是：
 
-```fsharp:line-numbers [ch04-branching-patterns.fsx]
+```fsharp:line-numbers
 let availability remaining =
     if remaining > 0 then "available" else "full"
 
@@ -42,7 +42,7 @@ printfn "Availability: %s" (availability 3)
 
 定义如下：
 
-```fsharp:line-numbers [ch04-exercise-03.fsx]
+```fsharp:line-numbers
 let classifyRequest (remaining, requested) =
     match remaining, requested with
     | _, requested when requested <= 0 -> "invalid"
@@ -57,7 +57,7 @@ printfn "Requests: %s, %s, %s" (classifyRequest (5, 0)) (classifyRequest (5, 3))
 
 队列部分是：
 
-```fsharp:line-numbers [ch04-branching-patterns.fsx]
+```fsharp:line-numbers
 let describeQueue queue =
     match queue with
     | [] -> "empty"

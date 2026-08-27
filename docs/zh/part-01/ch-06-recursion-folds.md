@@ -16,7 +16,7 @@ translationKey: part-01/ch-06-recursion-folds
 
 普通非递归 `let` 的名称只在右侧求值完成后进入后续作用域。`let rec` 则让函数名称在自己的主体中可见，因此可以调用自身：
 
-```fsharp:line-numbers [ch06-recursion-folds.fsx]
+```fsharp:line-numbers
 let rec sumRecursive values =
     match values with
     | [] -> 0
@@ -61,7 +61,7 @@ let rec sumRecursive values =
 
 把此前的和作为额外参数传到下一步：
 
-```fsharp:line-numbers [ch06-recursion-folds.fsx]
+```fsharp:line-numbers
 [<TailCall>]
 let rec sumLoop accumulator values =
     match values with
@@ -92,9 +92,9 @@ let rec fibonacci n =
 
 这个属性只检查递归调用是否位于尾位置；它既不修改算法，也不证明函数会终止。跨函数调用、运行时行为、调试设置和计算表达式也会影响实际栈使用。这里能得出的结论仅是：这个同步自调用位于尾位置。
 
-共享脚本还会让这个实现计算 100,000 项列表的长度：
+示例还会让这个实现计算 100,000 项列表的长度：
 
-```fsharp:line-numbers [ch06-recursion-folds.fsx]
+```fsharp:line-numbers
 [<TailCall>]
 let rec countLoop accumulator values =
     match values with
@@ -120,7 +120,7 @@ printfn "Tail-recursive count: %d" largeCount
 
 尾递归求和包含一个通用骨架：从初始状态开始，按顺序把每个元素并入状态，最后返回状态。`List.fold` 把骨架留在库中，只要求提供更新函数与初始状态：
 
-```fsharp:line-numbers [ch06-recursion-folds.fsx]
+```fsharp:line-numbers
 let sumWithFold values =
     values |> List.fold (fun accumulator value -> accumulator + value) 0
 ```
@@ -148,9 +148,9 @@ folder (folder (folder initial a) b) c
 folder a (folder b (folder c initial))
 ```
 
-它的 folder 先接元素、再接状态，与 `List.fold` 的状态优先顺序不同。共享脚本用减法让差异可见：
+它的 folder 先接元素、再接状态，与 `List.fold` 的状态优先顺序不同。示例用减法让差异可见：
 
-```fsharp:line-numbers [ch06-recursion-folds.fsx]
+```fsharp:line-numbers
 let leftAssociated = List.fold (fun state value -> state - value) 0 [ 1; 2; 3 ]
 let rightAssociated = List.foldBack (fun value state -> value - state) [ 1; 2; 3 ] 0
 
@@ -183,26 +183,6 @@ printfn "Fold order: left=%d right=%d" leftAssociated rightAssociated
 | `List.fold` | `O(n)` | 遍历由 FSharp.Core 实现管理 | 一个累加状态 |
 
 每种实现都要分别检查 `int` 溢出和输入的业务含义。栈安全、算术安全与领域正确性也必须分别验证。
-
-## 运行共享示例 {#run-example}
-
-在仓库根目录执行：
-
-```console
-dotnet fsi --warnaserror+ --exec examples/scripts/ch06-recursion-folds.fsx
-```
-
-应得到：
-
-```text
-Sums: recursive=9 tail=9 fold=9
-Empty sums: 0, 0, 0
-Singleton sums: 5, 5, 5
-Tail-recursive count: 100000
-Fold order: left=-6 right=2
-```
-
-空列表、单项列表、普通列表与大列表分别验证基础情况、结果一致性，以及这个尾递归实现能处理给定的大输入。请按顺序比较五行输出。
 
 ## 先检查递减，再检查尾位置 {#debugging}
 

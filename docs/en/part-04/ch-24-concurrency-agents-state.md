@@ -24,9 +24,9 @@ Start with the requirement. Use asynchronous APIs to avoid blocking scarce threa
 
 ## Observe overlap without claiming threads {#concurrent-overlap}
 
-The shared example starts two task expressions. Each records entry and then awaits the same closed gate:
+The example starts two task expressions. Each records entry and then awaits the same closed gate:
 
-```fsharp:line-numbers [ch24-concurrency-agents-state.fsx]
+```fsharp:line-numbers
 let releaseWaits = newGate<unit> ()
 let entered = [| 0 |]
 
@@ -62,7 +62,7 @@ Unbounded concurrency is not a performance plan. Every external dependency has c
 
 `Array.Parallel.map` partitions an array transformation through the .NET parallel infrastructure:
 
-```fsharp:line-numbers [ch24-concurrency-agents-state.fsx]
+```fsharp:line-numbers
 let values = [| 1..8 |]
 let sequentialSquares = values |> Array.map (fun value -> value * value)
 let parallelSquares = values |> Array.Parallel.map (fun value -> value * value)
@@ -88,9 +88,9 @@ Do not wrap naturally asynchronous I/O in CPU-parallel APIs merely to “make it
 
 The expression `counter <- counter + 1` reads, computes, and writes. Two threads can read the same old value and both write the same new value, losing one increment.
 
-Probabilistic stress sometimes misses that race. The shared test uses a two-participant `Barrier`: both long-running workers read before either may write. The bad result is therefore forced, not hoped for:
+Probabilistic stress sometimes misses that race. The test uses a two-participant `Barrier`: both long-running workers read before either may write. The bad result is therefore forced, not hoped for:
 
-```fsharp:line-numbers [ch24-concurrency-agents-state.fsx]
+```fsharp:line-numbers
 let racyCounter = [| 0 |]
 
 runTwoWithBarrier (fun barrier ->
@@ -146,7 +146,7 @@ When several locks are unavoidable, define one acquisition order. Otherwise two 
 
 The capacity example updates `Remaining` and `Accepted` as one invariant:
 
-```fsharp:line-numbers [ch24-concurrency-agents-state.fsx]
+```fsharp:line-numbers
 type CapacityState =
     { mutable Remaining: int
       mutable Accepted: int }
@@ -195,9 +195,9 @@ Once correctness depends on several locations, a check followed by an update, or
 
 `MailboxProcessor<'Message>` runs an asynchronous receive loop over an in-process queue. Callers post messages; the loop handles one received message at a time and can carry the next immutable state through recursion.
 
-The shared reservation agent keeps `remaining` and `accepted` private:
+The reservation agent keeps `remaining` and `accepted` private:
 
-```fsharp:line-numbers [ch24-concurrency-agents-state.fsx]
+```fsharp:line-numbers
 type ReservationReply =
     | Accepted of remaining: int
     | Rejected of remaining: int
@@ -282,7 +282,7 @@ A cache needs more than a thread-safe dictionary. Specify:
 
 The example stores `Lazy<int>` values:
 
-```fsharp:line-numbers [ch24-concurrency-agents-state.fsx]
+```fsharp:line-numbers
 let cache = ConcurrentDictionary<string, Lazy<int>>()
 let computations = [| 0 |]
 
@@ -331,16 +331,6 @@ That schedule demonstrates a lost update. Corrected implementations can run the 
 
 Repeat focused tests to expose resource and lifecycle mistakes, but repetition is not a substitute for a forced interleaving. Avoid sleeps, CPU-count assumptions, thread IDs, and exact scheduler order. Always release barriers and gates during cleanup so a failed assertion cannot strand workers.
 
-## Run the shared example {#run-example}
-
-From the repository root:
-
-```console
-dotnet fsi --checknulls+ --exec examples/scripts/ch24-concurrency-agents-state.fsx
-```
-
-Seven deterministic lines cover concurrent waiting, data-parallel equivalence, forced lost update, lock and atomic corrections, a compound capacity invariant, agent serialization, and a single-computation cache.
-
 ## Exercises {#exercises}
 
 ### Exercise 1: choose a synchronization mechanism {#exercise-01}
@@ -365,13 +355,7 @@ Explain why a thread-safe dictionary alone cannot guarantee freshness, bounded m
 
 ## Part IV checkpoint {#part-checkpoint}
 
-From the repository root, run the deterministic concurrency example:
-
-```console
-dotnet fsi --warnaserror+ --exec examples/scripts/ch24-concurrency-agents-state.fsx
-```
-
-Its seven lines expose a forced lost update, verify lock and atomic corrections, preserve a compound capacity invariant, serialize updates through an agent, and compute one cached value under contention. These in-process checks do not establish cross-process consistency or durability.
+Use controlled synchronization to force a lost update, then verify the lock, atomic, compound-invariant, agent, and cache cases above. Assert final invariants rather than arrival order. These in-process checks do not establish cross-process consistency or durability.
 
 [Continue to Chapter 25](../part-05/ch-25-objects-interfaces), which examines object-oriented interfaces in the wider .NET ecosystem.
 

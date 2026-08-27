@@ -14,7 +14,7 @@ translationKey: part-02/ch-11-generics-constraints
 
 共享函数只是把输入的两个副本放进列表，并未以其他方式使用它：
 
-```fsharp:line-numbers [ch11-generics-constraints.fsx]
+```fsharp:line-numbers
 let duplicate value = [ value; value ]
 
 let integerCopies = duplicate 3
@@ -63,7 +63,7 @@ type Envelope<'T> =
 
 ## 值限制防止一个值被不相容地使用 {#value-restriction}
 
-下面这个仅用于诊断的定义有意不放入有效共享脚本：
+下面这个仅用于诊断的定义有意不放入有效示例：
 
 ```fsharp
 let ambiguousBuckets = Array.create 2 []
@@ -103,9 +103,9 @@ let alwaysKeep = List.filter (fun _ -> true) // FS0030
    let makeEmptyBuckets () = Array.create 2 []
    ```
 
-共享脚本展示第三种形式：
+示例展示第三种形式：
 
-```fsharp:line-numbers [ch11-generics-constraints.fsx]
+```fsharp:line-numbers
 let makeEmptyBuckets () = Array.create 2 []
 
 let integerBuckets: int list array = makeEmptyBuckets ()
@@ -127,7 +127,7 @@ printfn
 
 无约束的 `'T` 不承诺排序、算术、成员，甚至不承诺 F# 泛型相等。定义中使用的操作会加入最小必要能力：
 
-```fsharp:line-numbers [ch11-generics-constraints.fsx]
+```fsharp:line-numbers
 type Envelope<'T> = { Label: string; Payload: 'T }
 
 let same left right = left = right
@@ -199,13 +199,13 @@ let inline add left right = left + right
 
 当前 F# 的**静态解析类型参数**（SRTP）简化语法通常使用 `'T` 这样的撇号前缀名称；旧资料和某些复杂分派形式仍使用 `^T`。识别 SRTP 要同时观察 `inline`、编译期特化和 `static member (+)` 这类成员约束。它适合少数泛型数值与成员抽象。`map`、相等检查和领域规则等函数通常只需普通类型参数。
 
-共享脚本中的带度量加法有意把表示固定为 `int`，只改变度量，因此无需自定义 SRTP 机制。附录 H 会给出识别规则与高级官方入口；对领域 API 而言，具体数值类型通常更清楚。
+示例中的带度量加法有意把表示固定为 `int`，只改变度量，因此无需自定义 SRTP 机制。附录 H 会给出识别规则与高级官方入口；对领域 API 而言，具体数值类型通常更清楚。
 
 ## 度量单位约束数值量纲 {#units-of-measure}
 
 座位数与经过分钟数都可能用数字表示，但二者相加毫无意义。F# 可以把编译期度量附着在受支持的数值类型上：
 
-```fsharp:line-numbers [ch11-generics-constraints.fsx]
+```fsharp:line-numbers
 [<Measure>]
 type seat
 
@@ -247,18 +247,6 @@ let seatsFromInt raw : int<seat> =
 `Int32WithMeasure` 只附加编译期度量，并不检查正数或容量。`-3<seat>` 在量纲上仍是座位数，却很可能违反本领域不变量。第 12 章会把带度量表示与私有构造、验证结合起来。
 
 不要混淆只有一个值 `()` 的 `unit` 类型与 `seat` 这样的**度量单位**。它们的词语重叠，作用却完全不同。
-
-## 运行共享示例 {#run-example}
-
-在仓库根目录执行：
-
-```console
-dotnet fsi --exec examples/scripts/ch11-generics-constraints.fsx
-```
-
-五行输出依次展示：同一个泛型函数用于两种类型、可安全泛化的简单值、每次生成新值的泛型工厂、泛型记录带来的相等与比较约束，以及经过量纲检查的算术。
-
-无效的 FS0030 与 FS0001 示例只作诊断说明，因此共享脚本保持零警告。附录 E 会集中收录编译器诊断实验。
 
 ## 练习 {#exercises}
 

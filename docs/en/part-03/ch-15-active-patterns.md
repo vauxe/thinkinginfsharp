@@ -50,9 +50,9 @@ The three principal forms differ in one question:
 
 ## Complete active patterns partition every input {#complete-active-patterns}
 
-The shared script groups three declared statuses into a two-case workflow view:
+The example groups three declared statuses into a two-case workflow view:
 
-```fsharp:line-numbers [ch15-active-patterns.fsx]
+```fsharp:line-numbers
 let (|Open|Closed|) status =
     match status with
     | Pending -> Open "pending"
@@ -102,9 +102,9 @@ let (|Positive|_|) value =
 
 `Some payload` means the named case matched and binds the payload. `None` means this pattern did not match, so the match expression tries a later clause. Partial patterns do not need to be mutually exclusive; top-to-bottom clause order resolves overlap.
 
-The shared script recognizes positive integer text as a seat count:
+The example recognizes positive integer text as a seat count:
 
-```fsharp:line-numbers [ch15-active-patterns.fsx]
+```fsharp:line-numbers
 let (|SeatCount|_|) raw =
     match parseSeatCount raw with
     | Ok value -> Some value
@@ -151,9 +151,9 @@ match seats with
 
 `minimum` is supplied by the pattern occurrence; `value` comes from the match input. Only single-case active patterns—complete or partial—can be parameterized. A multi-case active pattern cannot take these extra specialization arguments.
 
-The instrumented shared example records recognizer calls:
+The instrumented example records recognizer calls:
 
-```fsharp:line-numbers [ch15-active-patterns.fsx]
+```fsharp:line-numbers
 let mutable thresholdChecks = 0
 
 let (|AtLeast|_|) minimum value =
@@ -258,16 +258,6 @@ F# also supplies `Null`/`NonNull` active patterns for nullable references. Chapt
 | Load or query external state | Explicit effectful function, then match its result |
 
 Readable pattern syntax is the result, not the goal. If the recognizer's name hides more than its cases reveal, return to an ordinary function.
-
-## Run the shared example {#run-example}
-
-From the repository root:
-
-```console
-dotnet fsi --exec examples/scripts/ch15-active-patterns.fsx
-```
-
-Six deterministic lines cover every complete partition, successful and failed partial recognition, preserved error details, and parameterized recognizer call counts.
 
 ## Exercises {#exercises}
 

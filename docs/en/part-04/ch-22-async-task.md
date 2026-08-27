@@ -31,9 +31,9 @@ Neither representation promises a new thread. Asynchrony means the caller need n
 
 ## `async {}` builds work without starting it {#async-start}
 
-The shared example creates two explicit signals. `asyncEntered` records entry into the body; `asyncRelease` keeps the body from finishing. There is no clock and no assumed scheduler speed.
+The example creates two explicit signals. `asyncEntered` records entry into the body; `asyncRelease` keeps the body from finishing. There is no clock and no assumed scheduler speed.
 
-```fsharp:line-numbers [ch22-async-task.fsx]
+```fsharp:line-numbers
 let asyncEntered = newGate<bool> ()
 let asyncRelease = newGate<unit> ()
 
@@ -77,7 +77,7 @@ Prefer a completion handle or a parent workflow that awaits the operation. Fire-
 
 The second half uses the same test setup:
 
-```fsharp:line-numbers [ch22-async-task.fsx]
+```fsharp:line-numbers
 let taskEntered = newGate<bool> ()
 let taskRelease = newGate<unit> ()
 
@@ -141,13 +141,13 @@ let quoteAndReserve fetchQuote reserve request =
 
 The second operation starts only after the first produces `quote`, so this code is sequential. Top-to-bottom syntax does not automatically make independent calls concurrent. Introduce concurrency only where requirements allow it, while accounting for rate limits, partial failure, and cancellation.
 
-Waiting with `let!` yields control according to the workflow and awaited operation. Reading `.Result`, calling `.Wait()`, or using `GetAwaiter().GetResult()` blocks the current thread. The shared script uses the last form only in its outer test harness, keeping the process alive for assertions; application workflows should continue with `let!`.
+Waiting with `let!` yields control according to the workflow and awaited operation. Reading `.Result`, calling `.Wait()`, or using `GetAwaiter().GetResult()` blocks the current thread. A console test harness may use the last form at its outer boundary to keep the process alive for assertions; application workflows should continue with `let!`.
 
 ## Convert once where the two models meet {#interop}
 
 The platform exposes many `Task<'T>` APIs, while existing F# libraries and codebases may expose `Async<'T>`. Conversion is explicit:
 
-```fsharp:line-numbers [ch22-async-task.fsx]
+```fsharp:line-numbers
 let taskFromAsync = async { return 21 } |> Async.StartAsTask
 
 let asyncFromTask = task { return 42 } |> Async.AwaitTask
@@ -200,16 +200,6 @@ construct/call → observe entered gate → assert incomplete → release gate �
 `TaskCompletionSource<'T>` lets test code control completion of a task. The example requests `RunContinuationsAsynchronously` so releasing a gate does not unexpectedly execute its continuations inline on the releasing call. This option does not change the start rule being tested.
 
 Use a fresh gate set for each execution. Complete every gate in cleanup when a failed assertion could otherwise leave work pending. Production code should await real APIs, not expose test gates; the gate is a deterministic substitute for an external completion event.
-
-## Run the shared example {#run-example}
-
-From the repository root:
-
-```console
-dotnet fsi --exec examples/scripts/ch22-async-task.fsx
-```
-
-Six deterministic lines demonstrate construction versus start, suspension before completion, eventual results, and conversion in both directions. Compare their order.
 
 ## Exercises {#exercises}
 

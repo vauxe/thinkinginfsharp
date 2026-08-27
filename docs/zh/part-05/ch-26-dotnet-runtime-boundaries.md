@@ -16,7 +16,7 @@ F# 值运行在 .NET 类型系统中。记录可以装箱为 `obj`，函数可�
 
 脚本比较了这两种形式：
 
-```fsharp:line-numbers [ch26-dotnet-runtime-boundaries.fsx]
+```fsharp:line-numbers
 let request = { RequestId = "R-26"; Seats = 3 }
 
 let declaredType = typeof<BookingRequest>
@@ -54,7 +54,7 @@ printfn "Runtime type: declared=%s actual=%s" declaredType.Name actualType.Name
 
 共享解码器使用类型测试模式：
 
-```fsharp:line-numbers [ch26-dotnet-runtime-boundaries.fsx]
+```fsharp:line-numbers
 let describeObject (value: objnull) =
     match value with
     | null -> "null"
@@ -91,7 +91,7 @@ F# 函数值和 .NET 委托都表示可调用行为，但运行时类型与调�
 
 脚本直接构造 `Func<int,int,int>` 和 `Converter<int,string>`：
 
-```fsharp:line-numbers [ch26-dotnet-runtime-boundaries.fsx]
+```fsharp:line-numbers
 let add = Func<int, int, int>(fun left right -> left + right)
 
 let labels =
@@ -109,7 +109,7 @@ printfn "Delegates: add=%d labels=%A" (add.Invoke(3, 4)) labels
 
 事件把触发通知的发布者与订阅者分开。示例发布者保存私有的 `Event<EventHandler<SeatsChangedEventArgs>, SeatsChangedEventArgs>`，只通过带 `[<CLIEvent>]` 的成员公开 `Publish`：
 
-```fsharp:line-numbers [ch26-dotnet-runtime-boundaries.fsx]
+```fsharp:line-numbers
 type SeatsChangedEventArgs(previous: int, current: int) =
     inherit EventArgs()
 
@@ -168,7 +168,7 @@ printfn "Event: observed=%A after-remove=%d" observedChanges observations.Count
 
 脚本直接比较实时视图与快照：
 
-```fsharp:line-numbers [ch26-dotnet-runtime-boundaries.fsx]
+```fsharp:line-numbers
 let mutableNumbers = ResizeArray<int>([ 1; 2 ])
 let liveView: IEnumerable<int> = mutableNumbers
 let snapshot = liveView |> Seq.toList
@@ -216,7 +216,7 @@ F# 会把 .NET 的 `bool TryGetValue(key, out value)` 模式适配为元组返�
 
 脚本创建两个 ID 相同的 `Customer` 实例。该类没有覆盖相等，因此默认字典把两个引用视为不同键。第二个字典则接收由 `HashIdentity.FromFunctions` 构建的比较器：
 
-```fsharp:line-numbers [ch26-dotnet-runtime-boundaries.fsx]
+```fsharp:line-numbers
 type Customer(customerId: string) =
     member _.CustomerId = customerId
 
@@ -274,16 +274,6 @@ printfn
 7. 同时测试值与互操作生命周期：处理器移除、枚举时机、比较器行为和失败类型。
 
 这不是隔离 .NET，而是明确转换：适配器把宽泛的运行时协议翻译成领域真正需要的少量类型和操作。
-
-## 运行共享示例 {#run-example}
-
-在仓库根目录执行：
-
-```console
-dotnet fsi --checknulls+ --warnaserror+ --exec examples/scripts/ch26-dotnet-runtime-boundaries.fsx
-```
-
-八行输出覆盖具体运行时类型、安全与失败转换、委托、事件移除、实时与复制集合、不区分大小写查找，以及默认引用键与领域键身份。先用上面的参数运行一次；若想比较未启用可空检查时的编译器行为，再去掉 `--checknulls+`。
 
 ## 练习 {#exercises}
 

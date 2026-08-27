@@ -63,7 +63,7 @@ let read path =
 
 这个共享帮助函数接收资源获取函数和后续操作：
 
-```fsharp:line-numbers [ch21-exceptions-resources-io.fsx]
+```fsharp:line-numbers
 let withReader (openReader: string -> StreamReader) path operation =
     use reader = openReader path
     operation reader
@@ -84,7 +84,7 @@ let withReader (openReader: string -> StreamReader) path operation =
 
 错误联合会区分已知结果，并为诊断细节重要的故障保留异常对象：
 
-```fsharp:line-numbers [ch21-exceptions-resources-io.fsx]
+```fsharp:line-numbers
 type ReadTextError =
     | PathNotFound of path: string
     | AccessDenied of path: string * cause: UnauthorizedAccessException
@@ -92,7 +92,7 @@ type ReadTextError =
 ```
 适配器执行翻译：
 
-```fsharp:line-numbers [ch21-exceptions-resources-io.fsx]
+```fsharp:line-numbers
 let readText path =
     try
         withReader File.OpenText path (fun reader -> reader.ReadToEnd()) |> Ok
@@ -122,9 +122,9 @@ let readText path =
 
 ## 用真实资源测试两条完成路径 {#resource-tests}
 
-共享脚本会在 `Path.GetTempPath()` 下创建唯一目录，写入一个文件，并打开真实 `StreamReader` 实例：
+示例会在 `Path.GetTempPath()` 下创建唯一目录，写入一个文件，并打开真实 `StreamReader` 实例：
 
-```fsharp:line-numbers [ch21-exceptions-resources-io.fsx]
+```fsharp:line-numbers
 let tempName = Guid.NewGuid().ToString("N")
 
 let tempDirectory =
@@ -249,16 +249,6 @@ finally
 除非必须流式处理，否则不要在解析期间故意保持文件打开。缩短资源生命周期既能减少压力，也让纯解析器测试更简单。必须流式处理时，消费者要留在资源作用域内，其异常与取消行为也在该作用域内发生。
 
 应在工作流组合读取与解析的位置映射错误，不要把两者都压成“文件无效”。文件缺失、访问拒绝、语法错误与违反领域规则，可能需要不同的用户提示、重试方式和遥测。
-
-## 运行共享示例 {#run-example}
-
-在仓库根目录运行：
-
-```console
-dotnet fsi --exec examples/scripts/ch21-exceptions-resources-io.fsx
-```
-
-五行输出会验证成功路径释放、异常路径释放、成功读取、缺失路径转换和最终临时目录清理。请逐行核对。
 
 ## 练习 {#exercises}
 

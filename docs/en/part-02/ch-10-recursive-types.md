@@ -16,7 +16,7 @@ We use finite in-memory values here and do not consider mutation, cyclic lazy va
 
 The shared type represents an empty tree, one leaf value, or a branch with two subtrees:
 
-```fsharp:line-numbers [ch10-recursive-types.fsx]
+```fsharp:line-numbers
 type BookingTree<'T> =
     | Empty
     | Leaf of 'T
@@ -46,7 +46,7 @@ The chosen cases are domain policy. If an empty tree is meaningless, omit `Empty
 
 To consume every `BookingTree`, cover every case. To process a `Branch`, recursively process its two subtree fields:
 
-```fsharp:line-numbers [ch10-recursive-types.fsx]
+```fsharp:line-numbers
 let rec countLeaves tree =
     match tree with
     | Empty -> 0
@@ -77,7 +77,7 @@ The result rule still depends on the question. `countLeaves` gives every leaf `1
 
 A tree map handles every case but changes only leaves:
 
-```fsharp:line-numbers [ch10-recursive-types.fsx]
+```fsharp:line-numbers
 let rec mapTree mapping tree =
     match tree with
     | Empty -> Empty
@@ -117,7 +117,7 @@ The second law assumes ordinary pure functions and equality-capable values when 
 
 The shared fold captures the recursive mechanics:
 
-```fsharp:line-numbers [ch10-recursive-types.fsx]
+```fsharp:line-numbers
 let rec foldTree onEmpty onLeaf onBranch tree =
     match tree with
     | Empty -> onEmpty
@@ -171,7 +171,7 @@ The three arguments are exactly the rules that preserve the three constructors. 
 
 The example defines height with the same skeleton:
 
-```fsharp:line-numbers [ch10-recursive-types.fsx]
+```fsharp:line-numbers
 let rec height tree =
     match tree with
     | Empty -> 0
@@ -208,16 +208,6 @@ and Binding =
 ```
 
 Use mutual recursion only when the domain genuinely has two distinct concepts. A single recursive union is easier to traverse and should not be split merely to demonstrate the syntax. Mutually recursive functions use the corresponding `let rec ... and ...` form.
-
-## Run the shared example {#run-example}
-
-From the repository root:
-
-```console
-dotnet fsi --exec examples/scripts/ch10-recursive-types.fsx
-```
-
-The six deterministic lines cover empty, leaf, and branch trees; direct traversals; a type-changing map; fold-derived queries; height; and preservation of leaf count.
 
 ## Exercises {#exercises}
 

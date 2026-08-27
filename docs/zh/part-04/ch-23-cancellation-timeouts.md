@@ -36,9 +36,9 @@ let reserve load save request cancellationToken =
 
 在调用链中途使用 `CancellationToken.None` 会悄悄切断传播。只有被调用操作确实独立于调用方生命周期时，这样做才合适。
 
-共享示例注册一个回调，用相同令牌把受控任务完成为已取消：
+示例注册一个回调，用相同令牌把受控任务完成为已取消：
 
-```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
+```fsharp:line-numbers
 let cancellableTask (cancellationToken: CancellationToken) =
     let completion = newGate<string> ()
 
@@ -83,7 +83,7 @@ operationCancellation.Dispose()
 
 `Task<'T>.WaitAsync(cancellationToken)` 展示第二种策略。它返回另一个任务，在原任务完成或等待令牌取消时完成。取消该令牌不会修改原任务：
 
-```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
+```fsharp:line-numbers
 let underlyingCompletion = newGate<string> ()
 let waitCancellation = new CancellationTokenSource()
 let abandonedWait = underlyingCompletion.Task.WaitAsync(waitCancellation.Token)
@@ -124,9 +124,9 @@ waitCancellation.Dispose()
 
 `WaitAsync(TimeSpan)` 会使包装任务以 `TimeoutException` 结束，但不会取消源任务。现代 .NET 中接受 `TimeProvider` 的重载可以让测试控制时间。如果超时还应取消操作，就创建并释放链接令牌源，设置截止时间，并把令牌传给操作。
 
-共享测试完全不使用真实时钟。注入的任务表示“截止时间已到”：
+测试完全不使用真实时钟。注入的任务表示“截止时间已到”：
 
-```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
+```fsharp:line-numbers
 type WaitOutcome<'T> =
     | Completed of 'T
     | TimedOut
@@ -169,7 +169,7 @@ timedOperation.SetResult("finished-after-timeout")
 
 `task {}` 中的意外异常会使返回任务进入故障状态。用 `let!` 等待，或在最外层测试代码中使用 `GetAwaiter().GetResult()`，都能得到原始异常：
 
-```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
+```fsharp:line-numbers
 let faultingTask () : Task<string> =
     task { return raise (InvalidOperationException "quote-failed") }
 
@@ -199,7 +199,7 @@ printfn "Fault: type=%s message=%s" faultType faultMessage
 
 测试对象会记录两种释放过程：
 
-```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
+```fsharp:line-numbers
 type SyncProbe(label: string, disposed: ResizeArray<string>) =
     interface IDisposable with
         member _.Dispose() = disposed.Add label
@@ -255,7 +255,7 @@ F# 10 在编译项目中支持 task `use` 与 `IAsyncDisposable`。F# Interactiv
 
 首先测试同步清理：
 
-```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
+```fsharp:line-numbers
 let syncDisposed = ResizeArray<string>()
 
 let runWithSyncResource path (cancellationToken: CancellationToken) =
@@ -306,7 +306,7 @@ syncCancellation.Dispose()
 
 异步测试启动三个操作，分别对应三种主体结果。每个 `DisposeAsync` 都会报告已经进入，并等待各自的释放信号：
 
-```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
+```fsharp:line-numbers
 let asyncDisposed = ResizeArray<string>()
 
 let runWithAsyncResource label path (cancellationToken: CancellationToken) started release =
@@ -422,16 +422,6 @@ asyncCancellation.Dispose()
 8. 测试由信号或可控时间驱动，还是在猜测需要等待多久？
 
 这份检查表比通用辅助函数更有用。数据库事务、共享刷新、支付请求与 UI 预览的提交点和生命周期规则各不相同。
-
-## 运行共享示例 {#run-example}
-
-在仓库根目录运行：
-
-```console
-dotnet fsi --checknulls+ --exec examples/scripts/ch23-cancellation-timeouts.fsx
-```
-
-七行输出验证操作取消、放弃等待、受控超时、原始故障传播，以及成功、故障和取消时的同步与异步清理。
 
 ## 练习 {#exercises}
 

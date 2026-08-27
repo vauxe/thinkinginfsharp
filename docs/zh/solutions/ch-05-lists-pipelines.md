@@ -14,7 +14,7 @@ translationKey: solutions/ch-05-lists-pipelines
 
 共享管道是：
 
-```fsharp:line-numbers [ch05-lists-pipelines.fsx]
+```fsharp:line-numbers
 let pipelineLabels =
     requests |> List.filter isValidRequest |> List.map formatRequest
 
@@ -35,7 +35,7 @@ printfn "Pipeline labels: %A" pipelineLabels
 
 答案区域是：
 
-```fsharp:line-numbers [ch05-lists-pipelines.fsx]
+```fsharp:line-numbers
 let tryFormatRequest request =
     if isValidRequest request then
         Some(formatRequest request)
@@ -54,7 +54,7 @@ printfn "Chosen labels: %A" chosenLabels
 
 `for` 与 `while` 版本分别是：
 
-```fsharp:line-numbers [ch05-lists-pipelines.fsx]
+```fsharp:line-numbers
 let labelsWithFor source =
     let mutable reversedLabels = []
 
@@ -65,7 +65,7 @@ let labelsWithFor source =
 
     List.rev reversedLabels
 ```
-```fsharp:line-numbers [ch05-lists-pipelines.fsx]
+```fsharp:line-numbers
 let labelsWithWhile source =
     let mutable remaining = source
     let mutable reversedLabels = []

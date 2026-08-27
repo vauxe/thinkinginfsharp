@@ -336,37 +336,26 @@ These are dated observations, not a universal stack recommendation:
 
 ## Run a bounded data-stack spike {#adoption-spike}
 
-Use one representative path and the same acceptance data for every candidate:
+Use the same acceptance data to verify one representative path:
 
-- one realistic schema with null, Unicode, time, decimal, and boundary values;
-- one success query with projection, filter, ordering, and a bounded result;
-- one malformed or incompatible input with a declared error;
-- one cancellation and one dependency/transient failure;
-- one write conflict or transaction boundary if writes exist;
-- generated SQL, allocation, row count, and latency evidence at representative scale;
-- locked restore, clean Release build, publish, startup, and target-platform execution;
-- secrets, logs, temporary files, visualization output, and model artifacts reviewed;
-- an upgrade or schema-evolution exercise plus a deletion criterion for a losing spike.
+- a realistic schema covering null, Unicode, time, decimal, and boundary values;
+- a bounded projected, filtered, ordered success query plus malformed input, cancellation, dependency/transient failure, and any write conflict or transaction boundary;
+- generated SQL, allocation, row count, and latency at representative scale;
+- locked restore through target-platform execution, including review of secrets, logs, temporary files, visualization output, and model artifacts;
+- one upgrade or schema evolution and a deletion condition.
 
 Compare correctness and ownership before syntax. A ten-line demo that assumes a live developer database, downloads a schema, loads all rows, or hides a native runtime is not smaller; it has merely moved work outside the file.
 
 ## Avoid common data mistakes {#common-mistakes}
 
-- Treating a sample-inferred type as validation of every runtime document.
-- Compiling against a mutable URL or production database without declaring that build dependency.
-- Placing secrets or sensitive production rows in static parameters, samples, notebooks, or plots.
-- Returning generated rows, ORM entities, or tensor objects from the application core.
-- Assuming `query {}` means SQL without checking the source and materialization point.
-- Running a supported expression locally after accidentally calling `Seq.toList` too early.
-- Trusting an in-memory database test as proof of production translation or transaction behavior.
-- Interpolating values into SQL or logging parameter contents by default.
-- Loading an unbounded data set because the API returns `seq` or calls itself lazy.
-- Using a data frame when a small typed array would be clearer and safer.
-- Selecting a prerelease because its version number is larger than the stable line.
-- Starting a new workflow on deprecated notebook tooling from an old tutorial.
-- Treating a chart as validation, or a single model metric as a product decision.
-- Fitting preprocessing before the train/test split and leaking evaluation data.
-- Ignoring native packages, model provenance, session lifetime, or rollback in ML deployment.
+- Treating a sample-inferred type as validation of every runtime document, or compiling against a mutable URL or production database without declaring the dependency.
+- Placing secrets or sensitive rows in samples, notebooks, plots, parameters, or logs.
+- Returning generated rows, ORM entities, or tensors from the core instead of adapting them at the boundary.
+- Assuming `query {}` means SQL, materializing too early, or trusting an in-memory database as production translation evidence.
+- Interpolating values into SQL, logging parameters by default, or loading unbounded data because an API appears lazy.
+- Choosing a data frame, prerelease, or old notebook tool without a requirement that justifies it.
+- Treating a chart or one model metric as validation, or fitting preprocessing before the train/test split.
+- Ignoring native packages, model provenance, session lifetime, monitoring, or rollback in ML deployment.
 
 ## Exercises {#exercises}
 

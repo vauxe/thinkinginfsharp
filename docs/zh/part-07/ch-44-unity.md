@@ -480,20 +480,15 @@ F# 规则与编排
 
 ## 按层次验证 Unity 项目 {#testing-ladder}
 
-使用能推翻声明的最便宜测试，然后只攀登到发布所需高度：
+使用能推翻声明的最便宜测试：
 
-1. **纯 .NET 测试：** 规则、不变量、属性、存档迁移、确定性重放与 C# 导向签名。
-2. **产物检查：** 目标框架、程序集身份、依赖闭包、符号、原生资源与许可证文件。
-3. **Unity 导入检查：** 记录确切 Editor 补丁和平台兼容性；使用干净的 Library/cache，开启 Validate References，并保证 Console 零错误。
-4. **Edit Mode 测试：** 不要求运行场景的适配器映射与资源/Editor 代码。
-5. **Play Mode 测试：** 组件生命周期、场景/prefab 序列化、重载配置、输入、时间与引擎交互。
-6. **Mono Player 测试：** 当 Mono 是发布或诊断后端时，在命名平台上于 Editor 外构建并启动。
-7. **IL2CPP Player 测试：** 显式架构与裁剪级别、构建日志、启动、罕见反射/泛型路径与崩溃符号。
-8. **设备/发布测试：** 受支持硬件、性能、内存、挂起/恢复、平台服务、打包、签名、升级、遥测与恢复。
+1. **纯测试与产物检查：** 规则、不变量、属性、重放、迁移、C# 签名、目标框架、依赖、符号、原生资产与许可证。
+2. **导入与 Edit Mode：** 确切 Editor 补丁、干净缓存、引用/平台验证、适配器映射和 Editor 代码。
+3. **Play Mode：** 生命周期、场景/prefab 序列化、重载设置、输入、时间与引擎交互。
+4. **Player 测试：** 适用时先测 Mono，再测发布 IL2CPP 架构/裁剪、反射路径、日志与符号。
+5. **设备/发布测试：** 硬件性能、生命周期、平台服务、打包、签名、升级、遥测与恢复。
 
-Unity Test Framework 可以在构建后的 Player 中运行 Edit Mode、Play Mode 与测试。把普通 F# 测试留在 Unity 外以快速反馈，再为适配器与宿主增加由 Unity 宿主负责的 C# 测试。Player 测试不是 Play Mode 的重复；它运行不同的运行时与包。
-
-失败时保留确切 Editor 版本、构建配置、目标、后端、裁剪级别、命令、退出码、Editor 日志、Player 日志、测试 XML、崩溃转储、符号与产物哈希。“CI 失败”不是诊断。
+把快速 F# 测试留在 Unity 外，并由 Unity 宿主负责适配器周围的 C# 测试。Play Mode 不能替代构建后的 Player。失败时保留确切 Editor/配置/目标/后端/裁剪设置、命令、退出码、日志、测试 XML、转储、符号与产物哈希。
 
 ## 让 Player 构建可复现 {#build-and-release}
 
@@ -532,45 +527,31 @@ Unity 命令行构建支持显式 build target 或保存的 build profile。始�
 
 ## 开展范围受限的采用试验 {#adoption-spike}
 
-在生产 Unity 代码库采用 F# 前，用一个端到端小样在限定时间内覆盖最难的代表风险：
+采用 F# 前，限定时间验证一个端到端小样：
 
-- 确切 Unity 补丁、平台模块、F# SDK、NuGet lock 与可重复插件复制步骤；
-- 一条带属性或重放测试的领域规则，以及一个 C# 友好公开契约；
-- 一份映射成已验证 F# 状态的 Inspector 创作配置；
-- 场景/prefab 保存、脚本重载、domain-reload 设置、启用/禁用与场景卸载；
-- 一项带取消、陈旧结果拒绝和主线程返回的异步操作；
-- 一次存档迁移与一份损坏/旧 payload；
-- 一条针对 CPU、`GC.Alloc`、内存与复制分析的代表逐帧路径；
-- 一条处于预期裁剪级别的动态反射/泛型路径；
-- Play Mode、相关时的 Mono，以及发布 IL2CPP 架构；
-- 干净 CI 导入、命令行 Player 构建、启动、日志、符号、包与签名路径；
-- 上手成本、IDE/调试器摩擦、依赖更新，以及退回 C# 宿主的文档化退出路径。
+- 确切 Unity/模块/F# SDK 版本、NuGet lock 和可重复插件复制；
+- 一条已测试领域规则、C# 友好契约和已验证 Inspector 配置；
+- 场景/重载/生命周期，带陈旧结果拒绝和主线程返回的可取消异步工作，以及存档迁移/损坏；
+- 测得的逐帧 CPU、`GC.Alloc`、内存/复制和裁剪后的反射/泛型路径；
+- Play Mode、适用的 Mono、发布 IL2CPP，以及从干净 CI Player 构建到签名；
+- 上手、IDE/调试、依赖更新和退回 C# 宿主的路径。
 
 只采用验证通过的边界。F# 可以负责整个确定性模拟、只负责离线规则，或只留在服务端与工具中。整个子系统都用 C# 也可能更简单；这些都是合理的工程结论。
 
 ## 避免常见 Unity 错误 {#common-mistakes}
 
-- 把成功的 `dotnet build` 称为 Unity 支持。
-- 因开发机有 .NET 10 就以 `net10.0` 为目标，而 Player 插件契约是 .NET Standard 2.1。
-- 复制 `FSharpGameplay.dll`，却漏掉 `FSharp.Core.dll` 或另一传递依赖。
-- 把 NuGet lock 或 `.deps.json` 当作 Unity 自动还原的东西。
-- 为消除未解释不匹配而关闭引用或程序集版本验证。
-- 意外向 C# 暴露 F# 函数、list、option 或 union，然后在每个调用点写适配器。
-- 未做 prefab、reload 和 Player 测试，就让 Unity 序列化生成的 F# 表示、属性或任意对象图。
-- 把场景对象、资源或打开资源存进持久领域状态。
-- 因周围 F# 值不可变就从工作线程读取 Unity 对象。
-- 只在 `FixedUpdate` 采样帧边缘输入并丢失事件。
-- 未度量 `GC.Alloc` 就为每个实体每帧分配 sequence、闭包、字符串或状态 class。
-- 在性能分析前把每个清晰不可变值都换成可变更新。
-- 为让一个反射失败消失而保留全部 FSharp.Core。
-- 假设 `link.xml` 能让运行期代码生成或不支持 API 在 AOT 下工作。
-- 把 Play Mode 当作 IL2CPP 测试。
-- 只测试一种泛型类型、序列化子类型、locale、错误回调或旧存档格式。
-- 假设 Burst 特性能把任意 F# IL 变成受支持 HPC# kernel。
-- 使用“已安装的 Unity 6.3”构建，而不指定确切补丁与模块集。
-- 让 CI 复用上次活动平台，或在一次不可靠目标切换中构建多个目标。
-- 在失败可诊断前丢弃 PDB、IL2CPP 符号、Editor 日志或 Player 日志。
-- 当窄 C# 适配器是更简单长期契约时，仍强迫每行 Unity 面向代码使用 F#。
+- 把 `dotnet build` 称为 Unity 支持，或以 `net10.0` 而不是 Player 的 .NET Standard 2.1 契约为目标。
+- 只复制游戏 DLL，或假设 Unity 会还原 NuGet lock、`.deps.json` 与传递依赖。
+- 关闭引用/版本验证，而不解释不匹配。
+- 意外向 C# 暴露 F# 形状，或未做 prefab、reload 和 Player 测试就让 Unity 序列化它们。
+- 把 Unity 资源存进持久领域状态，或从工作线程读取 Unity 对象。
+- 只在 `FixedUpdate` 采样边缘输入、未测 `GC.Alloc` 就逐帧分配，或在分析前替换清晰不可变设计。
+- 为一个反射失败保留全部 FSharp.Core，或假设 `link.xml` 能让不支持的运行期生成在 AOT 下工作。
+- 把 Play Mode 当作 IL2CPP 证据，或只测一种泛型、序列化、locale、回调或旧存档情况。
+- 假设 Burst 支持任意 F# IL。
+- 用未注明补丁/模块的 Unity 构建，或让 CI 隐式复用/切换活动目标。
+- 在失败可诊断前丢弃符号与日志。
+- 在窄 C# 适配器更简单时仍强迫 Unity 边界全部使用 F#。
 
 ## 练习 {#exercises}
 

@@ -88,7 +88,7 @@ Dense contiguous storage often improves locality and interop. It also makes alia
 
 Many `Seq` transformations return a deferred enumerable. Creating the pipeline can be O(1), while each later enumeration performs the work. Terminal operations such as `Seq.fold`, `Seq.toList`, or a complete `Seq.length` consume elements.
 
-```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers
 let mutable pulls = 0
 
 let delayedSquares =
@@ -127,7 +127,7 @@ Do not call `Seq.length` and then enumerate merely to test emptiness. Use a one-
 
 FSharp.Core documents `Map` and `Set` as immutable binary-tree collections ordered by F# generic comparison. Their types have a `comparison` constraint.
 
-```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers
 let uniqueSeats = [ 3; 1; 3; 2 ] |> Set.ofList
 
 let bookingByCode =
@@ -155,7 +155,7 @@ The `comparison` constraint is stronger than equality. Functions, types marked `
 
 .NET documents dictionary key retrieval as very fast, close to O(1), with speed dependent on hash quality. The .NET collection complexity table distinguishes amortized/expected O(1) from O(n) worst cases for hash insertion and lookup.
 
-```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers
 [<CustomEquality; NoComparison>]
 type EmailAddress =
     { Value: string }

@@ -14,7 +14,7 @@ A recursion answer must explain decrease, invariants, and work after return. Wri
 
 The shared definition is:
 
-```fsharp:line-numbers [ch06-recursion-folds.fsx]
+```fsharp:line-numbers
 let rec sumRecursive values =
     match values with
     | [] -> 0
@@ -30,7 +30,7 @@ Every level must wait for the recursive result and then perform `head + result`.
 
 The tail-recursive definition is:
 
-```fsharp:line-numbers [ch06-recursion-folds.fsx]
+```fsharp:line-numbers
 [<TailCall>]
 let rec sumLoop accumulator values =
     match values with
@@ -47,7 +47,7 @@ If the function recurses first and adds `head` afterward, work remains after ret
 
 The order example is:
 
-```fsharp:line-numbers [ch06-recursion-folds.fsx]
+```fsharp:line-numbers
 let leftAssociated = List.fold (fun state value -> state - value) 0 [ 1; 2; 3 ]
 let rightAssociated = List.foldBack (fun value state -> value - state) [ 1; 2; 3 ] 0
 

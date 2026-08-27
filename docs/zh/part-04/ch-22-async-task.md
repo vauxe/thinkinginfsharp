@@ -31,9 +31,9 @@ translationKey: part-04/ch-22-async-task
 
 ## `async {}` 构建工作但不启动 {#async-start}
 
-共享示例创建两个控制信号：`asyncEntered` 记录是否进入主体，`asyncRelease` 阻止主体完成。测试不使用计时器，也不假设调度器速度。
+示例创建两个控制信号：`asyncEntered` 记录是否进入主体，`asyncRelease` 阻止主体完成。测试不使用计时器，也不假设调度器速度。
 
-```fsharp:line-numbers [ch22-async-task.fsx]
+```fsharp:line-numbers
 let asyncEntered = newGate<bool> ()
 let asyncRelease = newGate<unit> ()
 
@@ -77,7 +77,7 @@ printfn "Async result: %s" asyncResult
 
 后半段使用相同的测试方法：
 
-```fsharp:line-numbers [ch22-async-task.fsx]
+```fsharp:line-numbers
 let taskEntered = newGate<bool> ()
 let taskRelease = newGate<unit> ()
 
@@ -141,13 +141,13 @@ let quoteAndReserve fetchQuote reserve request =
 
 第二项操作只会在第一项产生 `quote` 后启动，因此这段代码是顺序执行的。从上到下的写法不会自动让独立调用并发。只在需求允许时引入并发，同时考虑速率限制、部分失败与取消。
 
-用 `let!` 等待时，会按照工作流和被等待操作的规则交还控制权。读取 `.Result`、调用 `.Wait()` 或 `GetAwaiter().GetResult()` 都会阻塞当前线程。共享脚本只在最外层测试代码中使用最后一种形式，以便进程等待断言完成；应用工作流应继续使用 `let!`。
+用 `let!` 等待时，会按照工作流和被等待操作的规则交还控制权。读取 `.Result`、调用 `.Wait()` 或 `GetAwaiter().GetResult()` 都会阻塞当前线程。控制台测试可以只在最外层使用最后一种形式，让进程等待断言完成；应用工作流应继续使用 `let!`。
 
 ## 只在两种模型的交界处转换一次 {#interop}
 
 平台提供大量 `Task<'T>` API，而已有 F# 库和代码库可能提供 `Async<'T>`。两者可以明确转换：
 
-```fsharp:line-numbers [ch22-async-task.fsx]
+```fsharp:line-numbers
 let taskFromAsync = async { return 21 } |> Async.StartAsTask
 
 let asyncFromTask = task { return 42 } |> Async.AwaitTask
@@ -200,16 +200,6 @@ F# 任务表达式也可以直接用 `let!` 绑定 `Async<'T>`。选择能让外
 `TaskCompletionSource<'T>` 允许测试代码控制一个任务何时完成。示例使用 `RunContinuationsAsynchronously`，避免触发信号时在当前调用中直接执行后续代码。这一选项不会改变被测的启动规则。
 
 每次执行都应使用一套新信号。若失败的断言可能使工作永远挂起，应在清理中触发所有信号。生产代码应等待真实 API，而不是暴露测试信号；这些信号只是结果可控的外部完成事件替身。
-
-## 运行共享示例 {#run-example}
-
-在仓库根目录运行：
-
-```console
-dotnet fsi --exec examples/scripts/ch22-async-task.fsx
-```
-
-六行输出验证构造与启动的区别、完成前的挂起、最终结果，以及两个转换方向。请核对输出顺序。
 
 ## 练习 {#exercises}
 

@@ -42,9 +42,9 @@ seats[1] <- true
 
 需要频繁按索引访问的固定大小数据、数值计算，以及直接使用数组的 API 都适合数组。`Array.map` 会立即返回新数组，而不会修改输入。切片会创建副本。数组复制是浅复制，因此引用类型元素仍指向相同底层对象。
 
-共享脚本把列表与数组行为并排展示：
+示例把列表与数组行为并排展示：
 
-```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers
 let source = [ 1; 2; 3 ]
 let doubledList = source |> List.map ((*) 2)
 let doubledArray = source |> List.toArray |> Array.map ((*) 2)
@@ -103,9 +103,9 @@ let candidateSeatCounts maximum =
 
 ### 重复枚举可能重复生产 {#repeated-enumeration}
 
-共享示例用计数器让求值过程可见：
+示例用计数器让求值过程可见：
 
-```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers
 let mutable pulls = 0
 
 let delayedSquares =
@@ -142,7 +142,7 @@ printfn "Second enumeration: values=%A pulls=%d" secondPass pulls
 
 `Seq.cache` 会按需计算元素，并为后续枚举记住它们：
 
-```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers
 let mutable cachedPulls = 0
 
 let cachedSquares =
@@ -175,9 +175,9 @@ printfn "Cached enumerations: first=%A second=%A pulls=%d" cachedFirst cachedSec
 - `Set.ofSeq` 会枚举并移除比较结果相同的重复项；
 - `Map.ofSeq` 会枚举键值对，并为每个比较结果相同的键保留一项绑定。
 
-这些复制都是浅复制。若元素是指向可变对象的引用，两个集合仍可能指向同一个对象。共享脚本的数组到列表转换证明的是集合槽位彼此独立，而不是深复制：
+这些复制都是浅复制。若元素是指向可变对象的引用，两个集合仍可能指向同一个对象。示例的数组到列表转换证明的是集合槽位彼此独立，而不是深复制：
 
-```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers
 let mutableArray = [| 1; 2; 3 |]
 let listSnapshot = mutableArray |> Array.toList
 mutableArray[0] <- 99
@@ -191,7 +191,7 @@ printfn "Conversion snapshot: array=%A list=%A" mutableArray listSnapshot
 
 脚本中的有序集合直接暴露比较顺序：
 
-```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers
 let uniqueSeats = [ 3; 1; 3; 2 ] |> Set.ofList
 
 let bookingByCode =
@@ -210,7 +210,7 @@ printfn "Ordered collections: set=%A map=%A" (Set.toList uniqueSeats) (Map.toLis
 
 脚本定义了一个带 `[<NoComparison>]`、只支持相等的键：
 
-```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers
 [<CustomEquality; NoComparison>]
 type EmailAddress =
     { Value: string }
@@ -260,16 +260,6 @@ F# `Map` 与 `Set` 不可变且有序，树操作是对数时间。.NET `Diction
 | 带自定义相等的可变查找 | `Dictionary` / `HashSet` | 相等与哈希码必须一致；不保证排序顺序 |
 
 这张表是起点，并不禁止转换。程序可以接收 `seq`，验证后只枚举一次并保存为数组，再公开不可变结果。每次转换都应有明确理由。
-
-## 运行共享示例 {#run-example}
-
-在仓库根目录执行：
-
-```console
-dotnet fsi --exec examples/scripts/ch14-collections-evaluation.fsx
-```
-
-八行输出和可执行断言覆盖列表/数组的立即行为、序列的延迟与重复枚举、缓存、有序 `Map`/`Set` 行为、只支持相等的字典键，以及转换后保存的结果。
 
 ## 练习 {#exercises}
 

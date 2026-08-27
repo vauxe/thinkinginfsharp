@@ -16,7 +16,7 @@ Here we follow one recursive path through a singly linked list. Chapter 10 cover
 
 An ordinary non-recursive `let` name enters the following scope only after its right side has been evaluated. `let rec` makes a function name visible within its own body, allowing it to call itself:
 
-```fsharp:line-numbers [ch06-recursion-folds.fsx]
+```fsharp:line-numbers
 let rec sumRecursive values =
     match values with
     | [] -> 0
@@ -61,7 +61,7 @@ In `head + sumRecursive tail`, addition with `head` still happens after the recu
 
 Pass the sum completed so far into the next step as an extra parameter:
 
-```fsharp:line-numbers [ch06-recursion-folds.fsx]
+```fsharp:line-numbers
 [<TailCall>]
 let rec sumLoop accumulator values =
     match values with
@@ -92,9 +92,9 @@ The standard script check also runs FSI with `--warnaserror+`. The compiled nega
 
 The attribute checks call position; it neither changes the algorithm nor proves termination. Actual stack use can also depend on cross-function calls, runtime behavior, debug settings, computation expressions, and other execution models. The narrow conclusion here is that this synchronous self-call is in tail position.
 
-The shared script also runs this implementation against a 100,000-item list:
+The example also runs this implementation against a 100,000-item list:
 
-```fsharp:line-numbers [ch06-recursion-folds.fsx]
+```fsharp:line-numbers
 [<TailCall>]
 let rec countLoop accumulator values =
     match values with
@@ -120,7 +120,7 @@ Review recursion with at least four questions: does the problem shrink, can the 
 
 Tail-recursive summation has a general skeleton: begin with state, combine each element into that state in order, and return the final state. `List.fold` keeps the traversal in the library and asks only for an update function and initial state:
 
-```fsharp:line-numbers [ch06-recursion-folds.fsx]
+```fsharp:line-numbers
 let sumWithFold values =
     values |> List.fold (fun accumulator value -> accumulator + value) 0
 ```
@@ -148,9 +148,9 @@ In `sumWithFold`, both `'State` and `'T` become `int`, but they need not be the 
 folder a (folder b (folder c initial))
 ```
 
-Its folder receives the element before state, the reverse of `List.fold`'s state-first order. The shared script makes the difference visible with subtraction:
+Its folder receives the element before state, the reverse of `List.fold`'s state-first order. The example makes the difference visible with subtraction:
 
-```fsharp:line-numbers [ch06-recursion-folds.fsx]
+```fsharp:line-numbers
 let leftAssociated = List.fold (fun state value -> state - value) 0 [ 1; 2; 3 ]
 let rightAssociated = List.foldBack (fun value state -> value - state) [ 1; 2; 3 ] 0
 
@@ -183,26 +183,6 @@ For a finite list of length `n`, all three summation versions perform a linear a
 | `List.fold` | `O(n)` | Traversal is managed by the FSharp.Core implementation | One accumulated state |
 
 Each implementation still needs separate checks for `int` overflow and the business meaning of its input. Stack safety, arithmetic safety, and domain correctness must be verified separately.
-
-## Run the shared example {#run-example}
-
-From the repository root, run:
-
-```console
-dotnet fsi --warnaserror+ --exec examples/scripts/ch06-recursion-folds.fsx
-```
-
-You should see:
-
-```text
-Sums: recursive=9 tail=9 fold=9
-Empty sums: 0, 0, 0
-Singleton sums: 5, 5, 5
-Tail-recursive count: 100000
-Fold order: left=-6 right=2
-```
-
-Empty, singleton, ordinary, and large lists separately verify base behavior, equal semantics, and bounded runtime behavior of this tail-recursive implementation. Compare all five output lines in order.
 
 ## Check decrease before tail position {#debugging}
 

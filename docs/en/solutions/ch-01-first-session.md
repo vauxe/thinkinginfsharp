@@ -31,7 +31,7 @@ The point is not the subtraction. It is to reason in the direction of dependency
 
 One direct answer is in the separate solution script:
 
-```fsharp:line-numbers [ch01-exercise-02.fsx]
+```fsharp:line-numbers
 let guest = "Lin"
 let requestedSeats = 3
 let confirmation = $"{guest} booked {requestedSeats} seats."

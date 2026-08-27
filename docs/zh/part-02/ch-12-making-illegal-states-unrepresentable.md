@@ -37,9 +37,9 @@ let validateCapacity capacity =
 
 ## 公开类型并隐藏构造器 {#private-representation}
 
-共享脚本在显式模块中定义领域：
+示例在显式模块中定义领域：
 
-```fsharp:line-numbers [ch12-making-illegal-states-unrepresentable.fsx]
+```fsharp:line-numbers
 type CapacityError = NonPositiveCapacity of actual: int
 
 type Capacity = private Capacity of int<seat>
@@ -93,7 +93,7 @@ Capacity.value : Capacity -> int<seat>
 
 另两个受保护组成部分展示了两项策略：
 
-```fsharp:line-numbers [ch12-making-illegal-states-unrepresentable.fsx]
+```fsharp:line-numbers
 type EventIdError = | BlankEventId
 
 type EventId = private EventId of string
@@ -135,7 +135,7 @@ module SeatCount =
 
 请求模型组合两个受保护的值，并且还隐藏自己的记录表示：
 
-```fsharp:line-numbers [ch12-making-illegal-states-unrepresentable.fsx]
+```fsharp:line-numbers
 type BookingRequestError =
     | InvalidEventId of EventIdError
     | InvalidSeatCount of SeatCountError
@@ -193,7 +193,7 @@ F# 访问控制同时具有词法与程序集含义：
 
 当没有显式顶层命名空间/模块改变组织方式时，每个 F# 文件都会隐式成为模块。顶层模块只能包含在一个文件中。因此，私有表示及其伴生模块可以共享一个文件级模块，另一个文件却不能重新打开该模块来访问私有案例。
 
-在共享脚本中，类型与伴生模块都位于 `BookingDomain` 内；该模块之后的代码即使仍在同一个 `.fsx` 文件中，也无法访问其中的 `private` 表示。访问范围由外围模块决定，而不只是文件名。
+若类型与伴生模块都放在显式 `BookingDomain` 模块内，该模块之后的代码即使仍在同一个 `.fsx` 文件中，也无法访问其中的 `private` 表示。访问范围由外围模块决定，而不只是文件名。
 
 ### 签名文件定义跨文件 API {#signature-file}
 
@@ -241,46 +241,6 @@ module Capacity =
 
 从能消除真实风险的最小类型开始。如果非空标识在各处都重要，就保护 `EventId`；不要只为增加类型数量而包装每个显示标签。
 
-## 运行共享示例 {#run-example}
-
-在仓库根目录执行：
-
-```console
-dotnet fsi --exec examples/scripts/ch12-making-illegal-states-unrepresentable.fsx
-```
-
-五行输出覆盖接受容量、拒绝容量、标识规范化、有效请求构造及两条请求拒绝路径：
-
-```fsharp:line-numbers [ch12-making-illegal-states-unrepresentable.fsx]
-let describeCapacityError error =
-    match error with
-    | NonPositiveCapacity actual -> $"capacity must be positive: {actual}"
-
-match Capacity.create 40 with
-| Ok capacity -> printfn "Capacity: accepted=%d" (Capacity.value capacity)
-| Error error -> printfn "Capacity: %s" (describeCapacityError error)
-
-match Capacity.create 0 with
-| Ok _ -> printfn "Capacity rejection: unexpected success"
-| Error error -> printfn "Capacity rejection: %s" (describeCapacityError error)
-
-let describeRequestError error =
-    match error with
-    | InvalidEventId BlankEventId -> "event id is blank"
-    | InvalidSeatCount(NonPositiveSeatCount actual) -> $"seat count must be positive: {actual}"
-
-match BookingRequest.create "  EVT-42  " 3 with
-| Ok request -> printfn "Request: event=%s seats=%d" (BookingRequest.eventId request) (BookingRequest.seats request)
-| Error error -> printfn "Request: %s" (describeRequestError error)
-
-match BookingRequest.create "   " 3 with
-| Ok _ -> printfn "Request rejection: unexpected event success"
-| Error error -> printfn "Request rejection: %s" (describeRequestError error)
-
-match BookingRequest.create "EVT-42" 0 with
-| Ok _ -> printfn "Request rejection: unexpected seat success"
-| Error error -> printfn "Request rejection: %s" (describeRequestError error)
-```
 ## 练习 {#exercises}
 
 ### 练习 1：保护百分比 {#exercise-01}
@@ -306,13 +266,7 @@ type BookingRequest = private { EventId: EventId; Seats: SeatCount }
 
 ## 第二部分检查点 {#part-checkpoint}
 
-在仓库根目录运行本章已校验的领域示例：
-
-```console
-dotnet fsi --warnaserror+ --exec examples/scripts/ch12-making-illegal-states-unrepresentable.fsx
-```
-
-输出既展示成功构造，也展示对空活动 ID、非正容量和非正座位数的拒绝。这验证了本章的值构造边界；状态转换与外部适配器会在后文加入。
+用上述构造函数测试有效请求、空活动 ID、非正容量和非正座位数。有效请求必须成功构造，每个无效值都必须在自己的边界被拒绝。状态转换与外部适配器会在后文加入。
 
 [继续阅读第 13 章](../part-03/ch-13-composition-pipeline-api)，开始组合这些带类型的操作。
 

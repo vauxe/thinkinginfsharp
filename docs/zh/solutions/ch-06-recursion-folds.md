@@ -14,7 +14,7 @@ translationKey: solutions/ch-06-recursion-folds
 
 共享定义是：
 
-```fsharp:line-numbers [ch06-recursion-folds.fsx]
+```fsharp:line-numbers
 let rec sumRecursive values =
     match values with
     | [] -> 0
@@ -36,7 +36,7 @@ let rec sumRecursive values =
 
 尾递归定义为：
 
-```fsharp:line-numbers [ch06-recursion-folds.fsx]
+```fsharp:line-numbers
 [<TailCall>]
 let rec sumLoop accumulator values =
     match values with
@@ -53,7 +53,7 @@ let sumTailRecursive values = sumLoop 0 values
 
 顺序示例是：
 
-```fsharp:line-numbers [ch06-recursion-folds.fsx]
+```fsharp:line-numbers
 let leftAssociated = List.fold (fun state value -> state - value) 0 [ 1; 2; 3 ]
 let rightAssociated = List.foldBack (fun value state -> value - state) [ 1; 2; 3 ] 0
 

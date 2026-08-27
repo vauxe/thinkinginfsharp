@@ -44,7 +44,7 @@ For each chapter:
 
 1. identify the opening problem and inspect important type signatures;
 2. predict output, failure, ordering, or ownership before running anything;
-3. predict the smallest relevant code block, then run the chapter script when execution matters;
+3. predict the smallest relevant code block, then run that block or a named fixture when execution matters;
 4. explain the result in your own words;
 5. solve all three exercises before opening the solution;
 6. compare the stated constraints with the observed result, then revise your answer.
@@ -59,15 +59,15 @@ You can read the site directly in a browser. To run the examples, install the SD
 dotnet --version
 ```
 
-Book pages show the smallest code needed for the current idea. Complete chapter scripts live under `examples/scripts/`, while multi-file fixtures live under `examples/chapters/`; run a script from the repository root:
+Most self-contained blocks can be copied into a local file and run directly:
 
 ```console
-dotnet fsi --exec examples/scripts/ch05-lists-pipelines.fsx
+dotnet fsi --exec lesson.fsx
 ```
 
-The repository check executes every registered script and compares exact output. Some examples intentionally demonstrate compiler errors; they are labelled as expected failures and checked for the stated diagnostic. Ecosystem passages that describe proposals or manual platform checks say so explicitly.
+The repository keeps complete fixtures only when an excerpt is insufficient: integrated checkpoints, multi-file builds, F#/C# interop, expected compiler diagnostics, and CLI or filesystem behavior. CI builds or executes every registered fixture. Ecosystem passages that describe proposals or manual platform checks say so explicitly.
 
-Command paths beginning with `examples/` run against files in this repository. A path beginning with `path/to/`, such as `path/to/YourSolution.slnx`, is a template: replace it with the project you assembled for that chapter or with your own application. This distinction prevents a design recipe from looking like a bundled fixture.
+Run a path beginning with `examples/` from the repository root. A path beginning with `path/to/`, such as `path/to/YourSolution.slnx`, is a template: replace it with the project you assembled for that chapter or with your own application.
 
 ## Read the type before the implementation {#reading-signatures}
 

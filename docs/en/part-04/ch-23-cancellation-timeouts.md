@@ -36,9 +36,9 @@ let reserve load save request cancellationToken =
 
 Using `CancellationToken.None` midway through the call chain silently stops propagation. It is appropriate only when the called operation is deliberately independent of the caller's lifetime.
 
-The shared example registers a callback that completes a controlled task as canceled with the same token:
+The example registers a callback that completes a controlled task as canceled with the same token:
 
-```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
+```fsharp:line-numbers
 let cancellableTask (cancellationToken: CancellationToken) =
     let completion = newGate<string> ()
 
@@ -83,7 +83,7 @@ Two policies are often described with the same phrase, “cancel the call”:
 
 `Task<'T>.WaitAsync(cancellationToken)` demonstrates the second policy. It returns another task that completes when either the original task completes or the wait token is canceled. Canceling that token does not modify the original task:
 
-```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
+```fsharp:line-numbers
 let underlyingCompletion = newGate<string> ()
 let waitCancellation = new CancellationTokenSource()
 let abandonedWait = underlyingCompletion.Task.WaitAsync(waitCancellation.Token)
@@ -124,9 +124,9 @@ A timeout answers “how long will this caller wait?” It does not by itself an
 
 `WaitAsync(TimeSpan)` faults its wrapper task with `TimeoutException`; it does not cancel the source task. Overloads that accept `TimeProvider` let modern .NET tests control time. If timeout should also cancel the operation, create and dispose a linked source, schedule its deadline, and pass its token to the operation.
 
-The shared test removes wall-clock time altogether. An injected task represents “the deadline fired”:
+The test removes wall-clock time altogether. An injected task represents “the deadline fired”:
 
-```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
+```fsharp:line-numbers
 type WaitOutcome<'T> =
     | Completed of 'T
     | TimedOut
@@ -169,7 +169,7 @@ A task has terminal states for successful completion, fault, and cancellation. D
 
 An unexpected exception inside `task {}` faults the returned task. Awaiting with `let!`, or using `GetAwaiter().GetResult()` in an outer test harness, surfaces the original exception:
 
-```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
+```fsharp:line-numbers
 let faultingTask () : Task<string> =
     task { return raise (InvalidOperationException "quote-failed") }
 
@@ -199,7 +199,7 @@ Some resources can dispose synchronously. Others implement `IAsyncDisposable`; t
 
 Test probes expose both disposal paths:
 
-```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
+```fsharp:line-numbers
 type SyncProbe(label: string, disposed: ResizeArray<string>) =
     interface IDisposable with
         member _.Dispose() = disposed.Add label
@@ -255,7 +255,7 @@ Because the chapter example must run as an FSI script, its asynchronous probe us
 
 Synchronous cleanup is tested first:
 
-```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
+```fsharp:line-numbers
 let syncDisposed = ResizeArray<string>()
 
 let runWithSyncResource path (cancellationToken: CancellationToken) =
@@ -306,7 +306,7 @@ The disposal log is exactly `success`, `failure`, `cancel`. A pre-canceled token
 
 The asynchronous test starts three operations, one for each body outcome. Every `DisposeAsync` announces entry and waits on a separate release gate:
 
-```fsharp:line-numbers [ch23-cancellation-timeouts.fsx]
+```fsharp:line-numbers
 let asyncDisposed = ResizeArray<string>()
 
 let runWithAsyncResource label path (cancellationToken: CancellationToken) started release =
@@ -422,16 +422,6 @@ For every asynchronous API, review:
 8. Are tests driven by signals or controllable time rather than elapsed-time guesses?
 
 This checklist is more useful than a universal helper. A database transaction, shared refresh, payment request, and UI preview have different commit points and lifecycle rules.
-
-## Run the shared example {#run-example}
-
-From the repository root:
-
-```console
-dotnet fsi --checknulls+ --exec examples/scripts/ch23-cancellation-timeouts.fsx
-```
-
-Seven deterministic lines prove operation cancellation, abandoned waiting, controlled timeout, original fault propagation, and synchronous plus asynchronous cleanup on every body outcome.
 
 ## Exercises {#exercises}
 

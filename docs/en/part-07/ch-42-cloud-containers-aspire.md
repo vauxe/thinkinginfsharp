@@ -393,17 +393,13 @@ Cost is an operational signal, not an afterthought. Record requests, duration, C
 
 Move outward only as risk requires:
 
-1. pure F# tests for decisions, idempotency, and state transitions;
-2. adapter tests for configuration, serialization, provider events, cancellation, and failure mapping;
-3. locked Release build and ordinary publish for every target framework/RID;
-4. image metadata and policy checks for user, port, entry point, base, architecture, SBOM, signature, and vulnerabilities;
-5. container start under read-only/non-root/resource-limit settings, then probe and shutdown tests;
-6. AppHost or emulator test for resource wiring and the representative dependency path;
-7. target-platform staging deployment with real identity, network, data, probes, telemetry, scaling, and failure injection;
-8. progressive production rollout with user, reliability, security, and cost gates;
-9. rollback or forward-fix rehearsal with evidence that data remains compatible.
+1. pure decision/idempotency tests, then adapter tests for configuration, events, cancellation, and failure mapping;
+2. locked Release build/publish plus image metadata, architecture, SBOM, signature, and vulnerability checks;
+3. restricted container startup, probes, shutdown, and AppHost/emulator wiring;
+4. target-platform staging with real identity, network, data, telemetry, scaling, and failure injection;
+5. progressive production gates followed by rollback or forward-fix rehearsal with compatible data.
 
-Emulators and local orchestrators are useful but not authoritative. Provider control planes, identities, quotas, networking, retries, and managed data services must be tested in a production-like environment. Conversely, do not move pure domain testing into expensive cloud fixtures.
+Emulators are not evidence for provider control planes, identities, quotas, networking, retries, or managed data; test those in a production-like environment. Keep pure domain tests out of expensive cloud fixtures.
 
 ## Date every compatibility claim {#version-evidence}
 
@@ -418,48 +414,30 @@ Emulators and local orchestrators are useful but not authoritative. Provider con
 | AWS Lambda .NET 10 image/runtime path | Current official docs reviewed | Package, invoke, and deploy the actual handler |
 | Kubernetes probes/deployment | Current official semantics reviewed | Manifest, cluster behavior, and real probe execution |
 
-The sample remains pinned to 13.5.2 because that is the version actually run. NuGet now lists 13.5.3; adopting it requires updating the SDK and matching CLI together, then repeating restore, startup, health, and deployment checks.
-
-Versions answer “what was considered,” not “what your application supports.” Keep the provider plan, region, architecture, trigger, integration package, CLI, base digest, and test date with the evidence.
+The sample remains on the verified 13.5.2. Adopting NuGet's listed 13.5.3 requires updating the SDK and matching CLI together, then repeating restore through deployment. Versions record what was considered, not application support; keep provider plan, region, architecture, trigger, packages, CLI, base digest, and date with the evidence.
 
 ## Run a bounded adoption spike {#adoption-spike}
 
-Choose one representative path rather than scaffolding the intended final estate:
+Choose one removable representative path covering:
 
-- one F# service or handler with a real public/event contract;
-- one durable effect with duplicate and unknown-outcome handling;
-- one identity and secret flow without copied long-lived credentials;
-- one image or deployment package for the actual architecture;
-- one readiness, liveness, shutdown, and dependency-failure sequence;
-- one telemetry path queried in the target backend;
-- one measured scale or cold-capacity scenario;
-- one deployment, partial rollout, rollback or forward-fix, and cleanup;
-- one cost estimate reconciled with observed usage.
+- a real service/event contract and a durable effect with duplicate/unknown outcomes;
+- identity and secrets without copied credentials, plus the actual deployment package;
+- readiness, liveness, shutdown, dependency failure, and queried telemetry;
+- measured capacity and cost reconciled with observed use;
+- deployment, partial rollout, rollback or forward-fix, and cleanup.
 
-Compare the smallest managed service, managed container, Serverless candidate, and Kubernetes only when Kubernetes is genuinely plausible. Count code, manifests, packages, control-plane objects, permissions, pipeline steps, alerts, upgrade duties, incident paths, and deletion work.
-
-The spike should be cheap to remove. Keep provider types outside the domain core, preserve a normal host path, and record the condition that would reverse the choice.
+Compare the smallest managed service, managed container, Serverless candidate, and Kubernetes only when plausible. Count code, infrastructure, permissions, pipelines, alerts, upgrades, incidents, and deletion work. Keep provider types outside the core, preserve a normal host path, and record the reversal condition.
 
 ## Avoid common cloud mistakes {#common-mistakes}
 
-- Treating a container as an operating model or a security boundary by itself.
-- Selecting Kubernetes before identifying a cluster-level requirement and owner.
-- Calling Serverless stateless while retaining business truth in memory or `/tmp`.
-- Assuming an event executes once, in order, on one instance.
-- Retrying a payment or write with a new identity after an unknown outcome.
+- Treating a container as an operating/security model, or choosing Kubernetes without a cluster-level requirement and owner.
+- Calling Serverless stateless while retaining truth in memory or `/tmp`, assuming ordered exactly-once events, or retrying an unknown write with a new identity.
 - Putting every downstream dependency into liveness and creating restart storms.
-- Exposing health details, dashboards, OTLP, or admin endpoints without access control.
-- Shipping secrets, environment values, certificates, or provider IDs inside an image.
-- Promoting mutable tags or rebuilding separately for each environment.
-- Ignoring OS, CPU architecture, non-root user, filesystem, signal, and memory differences.
-- Adding Aspire resources without understanding connection, ordering, health, and production responsibility.
-- Assuming AppHost environment automatically becomes the child application's environment.
-- Assuming OTLP variables mean the F# service is instrumented or telemetry reached a backend.
-- Treating a green local dashboard as a production deployment or probe configuration.
-- Suppressing broad warning sets instead of documenting one dated migration warning.
-- Letting a publish command silently rewrite a shared lock file.
-- Claiming “.NET support” proves first-class F# templates and bindings.
-- Using a local emulator as evidence for provider identity, retries, quotas, networking, or cost.
+- Exposing health, dashboards, OTLP, or admin endpoints without access control, or baking secrets and provider values into images.
+- Promoting mutable tags, rebuilding per environment, or ignoring OS, architecture, user, filesystem, signal, and memory differences.
+- Adding Aspire resources without owning connections, ordering, health, and production behavior; AppHost variables and OTLP settings prove neither child configuration nor delivered telemetry.
+- Treating a green dashboard as deployment evidence, suppressing broad warnings, or letting publish rewrite a shared lock file.
+- Inferring first-class F# support from “.NET support,” or provider behavior from a local emulator.
 - Deploying a code rollback without checking schema, messages, payments, and other irreversible effects.
 - Measuring cloud cost without engineering and incident ownership.
 

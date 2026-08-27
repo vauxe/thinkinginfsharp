@@ -27,15 +27,15 @@ The first argument to `lineTotal` must be `decimal`, and the second must be `int
 
 The named and anonymous functions are:
 
-```fsharp:line-numbers [ch03-functions-as-values.fsx]
+```fsharp:line-numbers
 let increment seats = seats + 1
 let incrementAnonymous = fun seats -> seats + 1
 
 printfn "Named and anonymous: %d, %d" (increment 3) (incrementAnonymous 3)
 ```
-The named call in the shared script is:
+The named call in the example is:
 
-```fsharp:line-numbers [ch03-functions-as-values.fsx]
+```fsharp:line-numbers
 let applyTwice transform value = transform (transform value)
 let incrementedTwice = applyTwice increment 3
 
@@ -49,14 +49,14 @@ An `int -> string` function cannot be used directly because the first transforma
 
 The two runnable definitions are:
 
-```fsharp:line-numbers [ch03-functions-as-values.fsx]
+```fsharp:line-numbers
 let lineTotal unitPrice seats = unitPrice * decimal seats
 let standardLineTotal = lineTotal 19.50m
 let totalForThree = standardLineTotal 3
 
 printfn "Curried total: %M" totalForThree
 ```
-```fsharp:line-numbers [ch03-functions-as-values.fsx]
+```fsharp:line-numbers
 let lineTotalTupled (unitPrice, seats) = unitPrice * decimal seats
 let tupledTotal = lineTotalTupled (19.50m, 3)
 

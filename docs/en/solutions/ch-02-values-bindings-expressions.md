@@ -32,7 +32,7 @@ The compiler still determines all these types at compile time without annotation
 
 One direct answer is in the separate solution script:
 
-```fsharp:line-numbers [ch02-exercise-02.fsx]
+```fsharp:line-numbers
 let rawAttendeeCount = "24"
 let attendeeCount = int rawAttendeeCount
 let nextAttendeeCount = attendeeCount + 1
@@ -47,7 +47,7 @@ One risk is deliberately left here: if the text is not a valid integer, the `int
 
 Look at the same region again:
 
-```fsharp:line-numbers [ch02-values-bindings-expressions.fsx]
+```fsharp:line-numbers
 let normalizedCapacity =
     let capacity = 20
     let capacity = capacity + 4

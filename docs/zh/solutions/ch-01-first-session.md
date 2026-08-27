@@ -31,7 +31,7 @@ translationKey: solutions/ch-01-first-session
 
 独立答案脚本中的一种直接写法如下：
 
-```fsharp:line-numbers [ch01-exercise-02.fsx]
+```fsharp:line-numbers
 let guest = "Lin"
 let requestedSeats = 3
 let confirmation = $"{guest} booked {requestedSeats} seats."

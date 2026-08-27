@@ -14,9 +14,9 @@ This chapter uses tuples and lists only to build pattern intuition. Records and 
 
 ## An `if` selects one result {#if-expression}
 
-The shared script first maps remaining capacity to text:
+The example first maps remaining capacity to text:
 
-```fsharp:line-numbers [ch04-branching-patterns.fsx]
+```fsharp:line-numbers
 let availability remaining =
     if remaining > 0 then "available" else "full"
 
@@ -80,7 +80,7 @@ A lowercase variable pattern such as `value` matches any value and creates a new
 
 A numeric range is not one literal pattern. Bind the value with a variable pattern, then check it in a `when` guard:
 
-```fsharp:line-numbers [ch04-branching-patterns.fsx]
+```fsharp:line-numbers
 let capacityBand remaining =
     match remaining with
     | value when value <= 0 -> "full"
@@ -100,7 +100,7 @@ Guards also explain why `| value when value = target -> ...` compares with a run
 
 Chapter 3 used a tuple as one composite argument. A pattern can also decompose it in a function parameter or `match`:
 
-```fsharp:line-numbers [ch04-branching-patterns.fsx]
+```fsharp:line-numbers
 let bookingSummary (guest, seats) =
     let noun = if seats = 1 then "seat" else "seats"
     $"{guest} requested {seats} {noun}"
@@ -117,9 +117,9 @@ In `match remaining, requested with`, the comma first forms a pair as the match 
 
 An F# list is an ordered, immutable, singly linked collection of elements of one type. This chapter needs only enough syntax to recognize shape: `[]` is empty, `[ a; b ]` contains exactly two elements, and `head :: tail` decomposes a nonempty list into its first element and remaining list.
 
-The shared example covers empty, one-element, and at-least-two-element shapes:
+The example covers empty, one-element, and at-least-two-element shapes:
 
-```fsharp:line-numbers [ch04-branching-patterns.fsx]
+```fsharp:line-numbers
 let describeQueue queue =
     match queue with
     | [] -> "empty"
@@ -159,25 +159,6 @@ Use the form that exposes the basis of the decision:
 - keep a clear `if` when the decision is one Boolean choice.
 
 Both forms produce values. The real criterion is which one makes the input space, priority, and omissions easiest to see.
-
-## Run the shared example {#run-example}
-
-From the repository root, run:
-
-```console
-dotnet fsi --exec examples/scripts/ch04-branching-patterns.fsx
-```
-
-You should see:
-
-```text
-Availability: available
-Capacity bands: full, last seat, limited, available
-Booking: Lin requested 3 seats
-Queues: empty | one: Lin | next: Lin, then Ada
-```
-
-Compare each output line in order. Each branch function returns data and output is kept outside the function, so decision and display can be verified separately.
 
 ## Simulate each rule {#debugging}
 

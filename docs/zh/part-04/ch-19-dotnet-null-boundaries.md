@@ -12,7 +12,7 @@ F# 本身就是一门 .NET 语言。调用 `Uri`、`String.Join` 或 `IReadOnlyC
 
 ## 把 .NET 调用读成有类型的表达式 {#dotnet-calls}
 
-共享示例从不含 I/O 的代码开始：
+示例从不含 I/O 的代码开始：
 
 ```fsharp:line-numbers [NullBoundaries.fs]
 let createAbsoluteUri (raw: string) : Uri = Uri(raw, UriKind.Absolute)

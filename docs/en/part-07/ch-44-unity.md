@@ -476,20 +476,15 @@ Measure conversion cost, scheduling overhead, determinism, safety checks, Editor
 
 ## Verify each layer in increasing cost order {#testing-ladder}
 
-Use the cheapest test that can disprove the claim, then climb only as far as the release requires:
+Use the cheapest test that can disprove the claim:
 
-1. **Pure .NET tests:** rules, invariants, properties, save migrations, deterministic replay, and C#-oriented signatures.
-2. **Artifact inspection:** target framework, assembly identities, dependency closure, symbols, native assets, and license files.
-3. **Unity import check:** exact Editor patch, clean Library/cache, Validate References, zero Console errors, explicit platform compatibility.
-4. **Edit Mode tests:** adapter mapping and asset/editor code that does not require a running scene.
-5. **Play Mode tests:** component lifecycle, scene/prefab serialization, reload configuration, input, timing, and engine interaction.
-6. **Mono Player test:** build and launch outside the Editor on a named platform when Mono is a shipping or diagnostic backend.
-7. **IL2CPP Player test:** explicit architecture and stripping level, build logs, launch, rare reflection/generic paths, and crash symbols.
-8. **Device/release test:** supported hardware, performance, memory, suspend/resume, platform services, packaging, signing, upgrade, telemetry, and recovery.
+1. **Pure tests and artifact inspection:** rules, invariants, properties, replay, migrations, C# signatures, target framework, dependencies, symbols, native assets, and licenses.
+2. **Import and Edit Mode:** exact Editor patch, clean cache, reference/platform validation, adapter mapping, and editor code.
+3. **Play Mode:** lifecycle, scene/prefab serialization, reload settings, input, timing, and engine interaction.
+4. **Player tests:** Mono when relevant, then shipping IL2CPP architecture/stripping with reflection paths, logs, and symbols.
+5. **Device/release tests:** hardware performance, lifecycle, platform services, packaging, signing, upgrade, telemetry, and recovery.
 
-Unity Test Framework can run Edit Mode, Play Mode, and tests in a built Player. Keep ordinary F# tests outside Unity for fast feedback, then add Unity-owned C# tests for the adapter and host. A Player test is not redundant with Play Mode; it exercises a different runtime and package.
-
-For failures, preserve the exact Editor version, build profile, target, backend, stripping level, command, exit code, Editor log, Player log, test XML, crash dump, symbols, and artifact hash. “CI failed” is not a diagnosis.
+Keep fast F# tests outside Unity and Unity-owned C# tests around the adapter. Play Mode cannot replace a built Player. On failure, preserve the exact Editor/profile/target/backend/stripping settings, command, exit code, logs, test XML, dump, symbols, and artifact hash.
 
 ## Make the Player build reproducible {#build-and-release}
 
@@ -528,45 +523,31 @@ Log domain outcomes with stable event names and identifiers, not entire save fil
 
 ## Run a bounded adoption spike {#adoption-spike}
 
-Before committing a production Unity codebase to F#, time-box one vertical slice containing the hardest representative risks:
+Before adopting F#, time-box one vertical slice covering:
 
-- exact Unity patch, platform module, F# SDK, NuGet lock, and repeatable plug-in copy step;
-- one domain rule with property or replay tests and one C#-friendly public contract;
-- one Inspector-authored configuration mapped into validated F# state;
-- scene/prefab save, script reload, domain-reload settings, enable/disable, and scene unload;
-- one asynchronous operation with cancellation, stale-result rejection, and main-thread return;
-- one save migration and one corrupt/older payload;
-- a representative per-frame path measured for CPU, `GC.Alloc`, memory, and copying;
-- one dynamic reflection/generic path at the intended stripping level;
-- Play Mode, Mono if relevant, and the shipping IL2CPP architecture;
-- clean CI import, command-line Player build, launch, logs, symbols, package, and signing path;
-- onboarding, IDE/debugger friction, dependency updates, and a documented exit path to a C# host.
+- exact Unity/module/F# SDK versions, NuGet lock, and repeatable plug-in copy;
+- a tested domain rule, C#-friendly contract, and validated Inspector configuration;
+- scene/reload/lifetime behavior, cancellable async work with stale-result rejection and main-thread return, and save migration/corruption;
+- measured per-frame CPU, `GC.Alloc`, memory/copying, and a stripped reflection/generic path;
+- Play Mode, relevant Mono, shipping IL2CPP, and clean CI Player build through signing;
+- onboarding, IDE/debugging, dependency updates, and an exit path to a C# host.
 
 Adopt only the boundary that passes. F# may handle the entire deterministic simulation, only offline rules, or only server and tool code. C# may also be simpler for the whole subsystem; each is a valid engineering outcome.
 
 ## Avoid common Unity mistakes {#common-mistakes}
 
-- Calling a successful `dotnet build` Unity support.
-- Targeting `net10.0` because the developer machine has .NET 10, while the Player plug-in contract is .NET Standard 2.1.
-- Copying `FSharpGameplay.dll` but omitting `FSharp.Core.dll` or another transitive dependency.
-- Treating a NuGet lock file or `.deps.json` as something Unity automatically restores.
-- Disabling reference or assembly-version validation to silence an unexplained mismatch.
-- Exposing F# functions, lists, options, or unions to C# accidentally and then writing adapters at every call site.
-- Asking Unity to serialize generated F# representations, properties, or arbitrary graphs without prefab, reload, and Player tests.
-- Storing scene objects, assets, or open resources inside durable domain state.
-- Reading Unity objects from a worker thread because the surrounding F# value is immutable.
-- Sampling frame-edge input only in `FixedUpdate` and losing events.
-- Allocating sequences, closures, strings, or state classes per entity per frame without measuring `GC.Alloc`.
-- Replacing every clear immutable value with mutation before profiling.
-- Preserving all of FSharp.Core to make one reflection failure disappear.
-- Assuming `link.xml` makes runtime code generation or unsupported APIs work under AOT.
-- Treating Play Mode as an IL2CPP test.
-- Testing only one generic type, serialization subtype, locale, error callback, or old save format.
-- Assuming a Burst attribute turns arbitrary F# IL into a supported HPC# kernel.
-- Building with “the installed Unity 6.3” instead of an exact patch and module set.
-- Letting CI reuse the last active platform or build multiple targets through one unreliable target switch.
-- Discarding PDBs, IL2CPP symbols, Editor logs, or Player logs before a failure is diagnosable.
-- Forcing every Unity-facing line into F# when a narrow C# adapter is the simpler long-term contract.
+- Calling `dotnet build` Unity support, or targeting `net10.0` instead of the Player's .NET Standard 2.1 contract.
+- Copying only the gameplay DLL, or assuming Unity restores NuGet locks, `.deps.json`, and transitive dependencies.
+- Disabling reference/version validation instead of explaining a mismatch.
+- Exposing F# shapes to C# accidentally, or asking Unity to serialize them without prefab, reload, and Player tests.
+- Storing Unity resources in durable domain state, or reading Unity objects from a worker thread.
+- Sampling edge input only in `FixedUpdate`, allocating per frame without `GC.Alloc` evidence, or replacing clear immutability before profiling.
+- Preserving all FSharp.Core for one reflection failure, or assuming `link.xml` makes unsupported runtime generation work under AOT.
+- Treating Play Mode as IL2CPP evidence, or testing only one generic, serialization, locale, callback, or old-save case.
+- Assuming Burst accepts arbitrary F# IL.
+- Building with an unspecified Unity patch/module, or letting CI reuse/switch active targets implicitly.
+- Discarding symbols and logs before a failure is diagnosable.
+- Forcing F# across the Unity boundary when a narrow C# adapter is simpler.
 
 ## Exercises {#exercises}
 

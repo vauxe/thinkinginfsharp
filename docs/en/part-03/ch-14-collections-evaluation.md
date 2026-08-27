@@ -42,9 +42,9 @@ seats[1] <- true
 
 Use an array for indexed algorithms, dense fixed snapshots, numeric work, or APIs that naturally exchange arrays. `Array.map` returns a new array eagerly; it does not mutate its input. Slices create copies. Copying an array is shallow, so reference-type elements still refer to the same underlying objects.
 
-The shared script places list and array behavior side by side:
+The example places list and array behavior side by side:
 
-```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers
 let source = [ 1; 2; 3 ]
 let doubledList = source |> List.map ((*) 2)
 let doubledArray = source |> List.toArray |> Array.map ((*) 2)
@@ -103,9 +103,9 @@ The body is executable code, not inert data. Its side effects run when elements 
 
 ### Re-enumeration can repeat production {#repeated-enumeration}
 
-The shared example makes evaluation visible with a counter:
+The example makes evaluation visible with a counter:
 
-```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers
 let mutable pulls = 0
 
 let delayedSquares =
@@ -142,7 +142,7 @@ Do not infer evaluation from the `Seq.` prefix alone. Read the operation documen
 
 `Seq.cache` computes elements as demanded and remembers them for later enumeration:
 
-```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers
 let mutable cachedPulls = 0
 
 let cachedSquares =
@@ -177,7 +177,7 @@ A conversion may allocate, enumerate, copy references, change update rules, disc
 
 These copies are shallow. If an element is a reference to a mutable object, both collections can still point to that same object. The shared array-to-list conversion proves independence of collection slots, not deep cloning:
 
-```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers
 let mutableArray = [| 1; 2; 3 |]
 let listSnapshot = mutableArray |> Array.toList
 mutableArray[0] <- 99
@@ -191,7 +191,7 @@ Avoid chains that repeatedly bounce among `list`, array, and `seq` just to call 
 
 The ordered collections in the script expose comparison order directly:
 
-```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers
 let uniqueSeats = [ 3; 1; 3; 2 ] |> Set.ofList
 
 let bookingByCode =
@@ -210,7 +210,7 @@ printfn "Ordered collections: set=%A map=%A" (Set.toList uniqueSeats) (Map.toLis
 
 The script defines an equality-only key with `[<NoComparison>]`:
 
-```fsharp:line-numbers [ch14-collections-evaluation.fsx]
+```fsharp:line-numbers
 [<CustomEquality; NoComparison>]
 type EmailAddress =
     { Value: string }
@@ -260,16 +260,6 @@ Only then benchmark a representative workload. Big-O notation does not account f
 | Mutable lookup with custom equality | `Dictionary` / `HashSet` | Equality and hash code must agree; sorted order is not guaranteed |
 
 The table is a starting point, not a ban on conversion. A program can receive a `seq`, validate and materialize it once as an array, then expose an immutable result. Every conversion should have a reason.
-
-## Run the shared example {#run-example}
-
-From the repository root:
-
-```console
-dotnet fsi --exec examples/scripts/ch14-collections-evaluation.fsx
-```
-
-Eight deterministic lines and executable assertions cover eager list/array behavior, deferred and repeated sequence enumeration, caching, ordered `Map`/`Set` behavior, an equality-only dictionary key, and a conversion snapshot.
 
 ## Exercises {#exercises}
 

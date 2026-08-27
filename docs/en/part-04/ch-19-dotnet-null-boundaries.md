@@ -12,7 +12,7 @@ We establish that conversion point before performing substantial I/O. First we c
 
 ## Read a .NET call as a typed expression {#dotnet-calls}
 
-The shared example begins without I/O:
+The example begins without I/O:
 
 ```fsharp:line-numbers [NullBoundaries.fs]
 let createAbsoluteUri (raw: string) : Uri = Uri(raw, UriKind.Absolute)

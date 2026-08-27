@@ -26,9 +26,9 @@ type Option<'T> =
 
 The definition shown is conceptual—the type already exists in FSharp.Core. `Some value` proves a value is present; `None` states that it is absent. The return type records the possibility before the code runs.
 
-The shared script uses the standard `try` naming convention for an operation that may not produce a value:
+The example uses the standard `try` naming convention for an operation that may not produce a value:
 
-```fsharp:line-numbers [ch09-option-result.fsx]
+```fsharp:line-numbers
 let attendees = [ "B-101", "Lin"; "B-102", "Ada" ]
 
 let tryFindAttendee bookingId =
@@ -68,7 +68,7 @@ rowOption |> Option.map tryPositiveSeats
 
 `Option.bind` joins those two absence-producing steps:
 
-```fsharp:line-numbers [ch09-option-result.fsx]
+```fsharp:line-numbers
 let requestedSeats = [ "B-101", 3; "B-102", 0 ]
 
 let tryPositiveSeats seats = if seats > 0 then Some seats else None
@@ -111,7 +111,7 @@ type Result<'T, 'TError> =
 
 `Ok value` carries the successful value. `Error error` carries a reason chosen by the domain. A discriminated union is usually better than a bare error string because each failure case remains available to program logic:
 
-```fsharp:line-numbers [ch09-option-result.fsx]
+```fsharp:line-numbers
 let validateAttendee request =
     if String.IsNullOrWhiteSpace request.Attendee then
         Error EmptyAttendee
@@ -168,7 +168,7 @@ As with option, choose `map` when the next function returns a plain value and `b
 
 A low-level validation error may not identify which request caused it. Replace a string concatenation convention with structured context:
 
-```fsharp:line-numbers [ch09-option-result.fsx]
+```fsharp:line-numbers
 type RequestFailure =
     { RequestId: string
       Cause: BookingError }
@@ -193,7 +193,7 @@ Do not attach every possible detail in the deepest function. Let each layer add 
 
 The shared request violates two rules, but the pipeline returns the attendee error:
 
-```fsharp:line-numbers [ch09-option-result.fsx]
+```fsharp:line-numbers
 let doublyInvalidRequest = { Attendee = ""; Seats = 0 }
 
 printfn "Short circuit: %s" (validate 4 doublyInvalidRequest |> describeResult)
@@ -221,7 +221,7 @@ Nested types can be accurate. `Result<'T option, 'Error>` can mean “the operat
 
 An option wraps a value; it does not sanitize that value. A nullable reference can therefore be wrapped in `Some`:
 
-```fsharp:line-numbers [ch09-option-result.fsx]
+```fsharp:line-numbers
 let riskyPayload: (string | null) option = Some null
 
 let payloadIsNull =
@@ -234,16 +234,6 @@ printfn "Some null: isSome=%b payloadIsNull=%b" riskyPayload.IsSome payloadIsNul
 This produces three representable states: `None`, `Some null`, and `Some "Lin"`. That is usually accidental complexity. At a .NET boundary, normalize a nullable result into `None` or reject it before core code receives the value.
 
 Under F# nullness checking, `(string | null) option` states that the payload may be null. For now, remember that `Some` does not prove a reference payload is non-null. Chapter 19 explains `T | null`, `Nullable<T>`, legacy .NET annotations, and conversion at .NET interfaces.
-
-## Run the shared example {#run-example}
-
-From the repository root:
-
-```console
-dotnet fsi --exec examples/scripts/ch09-option-result.fsx
-```
-
-The six deterministic lines cover a successful lookup, absence, option composition, validation success and failure, added error context, first-error short-circuiting, and the `Some null` edge case. Compare the exact output.
 
 ## Exercises {#exercises}
 

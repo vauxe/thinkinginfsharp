@@ -26,9 +26,9 @@ type Option<'T> =
 
 这里展示的是概念定义——该类型已经存在于 FSharp.Core。`Some value` 表示值存在，`None` 表示值缺失。返回类型在代码运行前就写明了这两种可能。
 
-共享脚本遵循标准的 `try` 命名惯例，用它命名可能找不到值的操作：
+示例遵循标准的 `try` 命名惯例，用它命名可能找不到值的操作：
 
-```fsharp:line-numbers [ch09-option-result.fsx]
+```fsharp:line-numbers
 let attendees = [ "B-101", "Lin"; "B-102", "Ada" ]
 
 let tryFindAttendee bookingId =
@@ -68,7 +68,7 @@ rowOption |> Option.map tryPositiveSeats
 
 `Option.bind` 会连接这两个可能缺失的步骤：
 
-```fsharp:line-numbers [ch09-option-result.fsx]
+```fsharp:line-numbers
 let requestedSeats = [ "B-101", 3; "B-102", 0 ]
 
 let tryPositiveSeats seats = if seats > 0 then Some seats else None
@@ -111,7 +111,7 @@ type Result<'T, 'TError> =
 
 `Ok value` 携带成功值；`Error error` 携带领域所选的原因。可辨识联合通常优于裸错误字符串，因为程序仍能识别每种失败案例：
 
-```fsharp:line-numbers [ch09-option-result.fsx]
+```fsharp:line-numbers
 let validateAttendee request =
     if String.IsNullOrWhiteSpace request.Attendee then
         Error EmptyAttendee
@@ -168,7 +168,7 @@ printfn
 
 底层验证错误可能没有指出是哪个请求导致了它。不要依赖拼接字符串的约定，而要使用结构化上下文：
 
-```fsharp:line-numbers [ch09-option-result.fsx]
+```fsharp:line-numbers
 type RequestFailure =
     { RequestId: string
       Cause: BookingError }
@@ -193,7 +193,7 @@ match contextualFailure with
 
 共享请求违反了两条规则，但管道返回参与者错误：
 
-```fsharp:line-numbers [ch09-option-result.fsx]
+```fsharp:line-numbers
 let doublyInvalidRequest = { Attendee = ""; Seats = 0 }
 
 printfn "Short circuit: %s" (validate 4 doublyInvalidRequest |> describeResult)
@@ -221,7 +221,7 @@ printfn "Short circuit: %s" (validate 4 doublyInvalidRequest |> describeResult)
 
 option 只表示值是否存在，不会检查值本身。因此，可空引用仍能被放进 `Some`：
 
-```fsharp:line-numbers [ch09-option-result.fsx]
+```fsharp:line-numbers
 let riskyPayload: (string | null) option = Some null
 
 let payloadIsNull =
@@ -234,16 +234,6 @@ printfn "Some null: isSome=%b payloadIsNull=%b" riskyPayload.IsSome payloadIsNul
 这样会产生三种可表示状态：`None`、`Some null` 和 `Some "Lin"`。这通常是意外复杂度。在 .NET 边界处，应先把可空结果规范化为 `None`，或拒绝它，再让核心代码接收该值。
 
 启用 F# 空值检查后，`(string | null) option` 明确表示其中的值可以为 null。这里先记住：`Some` 不能保证内部引用非 null。第 19 章会完整解释 `T | null`、`Nullable<T>`、旧式 .NET 标注与互操作转换。
-
-## 运行共享示例 {#run-example}
-
-在仓库根目录执行：
-
-```console
-dotnet fsi --exec examples/scripts/ch09-option-result.fsx
-```
-
-六行输出覆盖成功查找、缺失、option 组合、验证成功与失败、补充错误信息、遇到第一个错误后停止，以及 `Some null` 特殊情况。请逐行核对。
 
 ## 练习 {#exercises}
 

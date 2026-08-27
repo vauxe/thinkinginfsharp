@@ -14,7 +14,7 @@ We will trace those requirements through unconstrained functions, the value rest
 
 The shared function uses its input only to place two copies in a list:
 
-```fsharp:line-numbers [ch11-generics-constraints.fsx]
+```fsharp:line-numbers
 let duplicate value = [ value; value ]
 
 let integerCopies = duplicate 3
@@ -63,7 +63,7 @@ Generality is useful only when the implementation really ignores the difference.
 
 ## The value restriction protects one value from incompatible uses {#value-restriction}
 
-This diagnostic-only definition is deliberately absent from the valid shared script:
+This diagnostic-only definition is deliberately absent from the valid example:
 
 ```fsharp
 let ambiguousBuckets = Array.create 2 []
@@ -103,9 +103,9 @@ There are three common intents:
    let makeEmptyBuckets () = Array.create 2 []
    ```
 
-The shared script demonstrates the third form:
+The example demonstrates the third form:
 
-```fsharp:line-numbers [ch11-generics-constraints.fsx]
+```fsharp:line-numbers
 let makeEmptyBuckets () = Array.create 2 []
 
 let integerBuckets: int list array = makeEmptyBuckets ()
@@ -127,7 +127,7 @@ Explicit generic value syntax exists for rare cases, but it is not the default r
 
 An unconstrained `'T` offers no promise of ordering, arithmetic, members, or even F# generic equality. The operation used in a definition adds the smallest required capability:
 
-```fsharp:line-numbers [ch11-generics-constraints.fsx]
+```fsharp:line-numbers
 type Envelope<'T> = { Label: string; Payload: 'T }
 
 let same left right = left = right
@@ -205,7 +205,7 @@ The shared measured addition deliberately fixes the representation as `int` and 
 
 Seat counts and elapsed minutes may both be represented by numbers, but adding them is meaningless. F# can attach compile-time measures to supported numeric types:
 
-```fsharp:line-numbers [ch11-generics-constraints.fsx]
+```fsharp:line-numbers
 [<Measure>]
 type seat
 
@@ -247,18 +247,6 @@ let seatsFromInt raw : int<seat> =
 `Int32WithMeasure` attaches a compile-time measure; it does not check positivity or capacity. `-3<seat>` is dimensionally a seat count but still violates this domain's likely invariant. Chapter 12 combines measured representations with private construction and validation.
 
 Do not confuse the `unit` type, whose sole value is `()`, with a unit **of measure** such as `seat`. The words overlap; their roles do not.
-
-## Run the shared example {#run-example}
-
-From the repository root:
-
-```console
-dotnet fsi --exec examples/scripts/ch11-generics-constraints.fsx
-```
-
-The five deterministic lines demonstrate a generalized function at two types and a safe generic value. They also cover a fresh-value factory, inferred equality and comparison constraints, and dimension-checked arithmetic.
-
-The invalid FS0030 and FS0001 examples remain diagnostic-only so the shared script stays warning-free. Appendix E collects compiler-diagnostic labs separately.
 
 ## Exercises {#exercises}
 

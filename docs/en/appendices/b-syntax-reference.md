@@ -67,7 +67,7 @@ The parentheses around the folder matter because that whole function is the firs
 
 `let` binds a name to the value of an expression. It is not a statement terminator, and it does not make the value mutable.
 
-```fsharp:line-numbers [ch02-values-bindings-expressions.fsx]
+```fsharp:line-numbers
 let eventName = "Functional Foundations"
 let capacity = 40
 let fillRatio = 0.45
@@ -96,7 +96,7 @@ Shadowing creates a new binding with the same name. It does not mutate the earli
 
 ## Define and apply functions {#functions}
 
-```fsharp:line-numbers [ch03-functions-as-values.fsx]
+```fsharp:line-numbers
 let lineTotal unitPrice seats = unitPrice * decimal seats
 let standardLineTotal = lineTotal 19.50m
 let totalForThree = standardLineTotal 3
@@ -123,7 +123,7 @@ Choose parameter order so the stable configuration arrives first and the changin
 
 `if/then/else` is an expression. Both branches must have a compatible type. Omitting `else` is allowed only when the `then` branch has type `unit`.
 
-```fsharp:line-numbers [ch04-branching-patterns.fsx]
+```fsharp:line-numbers
 let capacityBand remaining =
     match remaining with
     | value when value <= 0 -> "full"
@@ -167,13 +167,13 @@ A lowercase identifier in a pattern usually **binds**; it does not compare again
 
 Union cases begin with uppercase identifiers. Case fields may be named to improve generated signatures and interoperation.
 
-```fsharp:line-numbers [ch08-discriminated-unions.fsx]
+```fsharp:line-numbers
 type BookingStatus =
     | Pending
     | Confirmed of confirmationCode: string
     | Cancelled of reason: string
 ```
-```fsharp:line-numbers [ch08-discriminated-unions.fsx]
+```fsharp:line-numbers
 let describeStatus status =
     match status with
     | Pending -> "pending"

@@ -28,7 +28,7 @@ F# 函数本身就是值，因此改法可以很小：读取一次外部信息�
 
 示例只建模活动决策所需的事实：
 
-```fsharp:line-numbers [ch20-functional-core-effects.fsx]
+```fsharp:line-numbers
 type Campaign =
     { OpensAt: DateTimeOffset
       ClosesAt: DateTimeOffset
@@ -47,7 +47,7 @@ type Decision =
 ```
 `Campaign` 包含策略。`Candidate` 包含已为一次尝试捕获的观察。`Decision` 命名每个纯结果。决策函数因而很直接：
 
-```fsharp:line-numbers [ch20-functional-core-effects.fsx]
+```fsharp:line-numbers
 let decide campaign candidate =
     if candidate.SubmittedAt < campaign.OpensAt then
         NotOpen
@@ -67,7 +67,7 @@ let decide campaign candidate =
 
 编排函数接收一个包含三个具名函数值的记录：
 
-```fsharp:line-numbers [ch20-functional-core-effects.fsx]
+```fsharp:line-numbers
 type RuntimeEffects =
     { UtcNow: unit -> DateTimeOffset
       NextInt: int -> int
@@ -111,7 +111,7 @@ ReadSetting ──────────┘        副作用                 �
 
 系统适配器很小：
 
-```fsharp:line-numbers [ch20-functional-core-effects.fsx]
+```fsharp:line-numbers
 let systemEffects (random: Random) =
     { UtcNow = fun () -> DateTimeOffset.UtcNow
       NextInt = fun upperExclusive -> random.Next upperExclusive
@@ -132,7 +132,7 @@ let systemEffects (random: Random) =
 
 闭包是函数值与它从定义范围捕获的值。确定性提供者是几个很小的闭包：
 
-```fsharp:line-numbers [ch20-functional-core-effects.fsx]
+```fsharp:line-numbers
 let fixedClock instant = fun () -> instant
 
 let fixedDraw draw =
@@ -198,7 +198,7 @@ type IClock =
 
 脚本使用固定依赖，并且只把可变 `ResizeArray` 用作测试仪表：
 
-```fsharp:line-numbers [ch20-functional-core-effects.fsx]
+```fsharp:line-numbers
 let instant = DateTimeOffset(2026, 9, 1, 12, 0, 0, TimeSpan.Zero)
 
 let campaign =
@@ -270,16 +270,6 @@ assert (closedDecision = Closed)
 - 根据代码中的比较，开放时刻包含在内，关闭时刻排除在外。
 
 测试不会 sleep、修改进程环境，也不会猜测某个种子会让 `Random` 返回什么。种子可以让某种实现可重现，但断言框架生成的具体序列会让领域测试耦合到领域并未定义的算法。固定函数直接表达真实要求：返回这个范围内的抽取值。
-
-## 运行共享示例 {#run-example}
-
-在仓库根目录运行：
-
-```console
-dotnet fsi --exec examples/scripts/ch20-functional-core-effects.fsx
-```
-
-六行输出会报告捕获快照、接受代码、后备区域、窗口边界、确切的外部调用顺序和重放结果。请比较其顺序与文本。
 
 ## 有副作用的依赖仍需失败策略 {#failure-contracts}
 

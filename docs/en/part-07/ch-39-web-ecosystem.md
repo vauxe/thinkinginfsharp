@@ -311,18 +311,16 @@ Keep `HttpContext`, framework handler types, binding attributes, and response he
 
 This containment makes a framework change finite. It does not make it free: routing metadata, authentication, streaming, multipart input, OpenAPI, filters, and integration tests still live at the boundary. But business invariants and effect protocols remain stable while the adapter changes.
 
-## Test the boundary at three speeds {#testing-strategy}
+## Test the boundary at four layers {#testing-strategy}
 
-For any choice, retain:
+Use four layers:
 
 1. pure tests for validation and workflow decisions;
 2. focused handler tests only where framework-free invocation is meaningful;
 3. `TestServer` integration tests for binding, routing, middleware, error bodies, authentication metadata, and cancellation;
 4. a small real-process smoke for startup configuration, sockets, and deployment packaging.
 
-Microsoft's [integration-testing guidance](https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests?view=aspnetcore-10.0) recommends focusing broader tests on important infrastructure scenarios because they cost more than isolated tests. A library-specific test helper should complement, not replace, the ASP.NET pipeline test when middleware behavior matters.
-
-When comparing frameworks, run the same contract cases against each spike. Otherwise the framework with fewer assertions may appear simpler only because it left requirements untested.
+Reserve broader tests for important infrastructure scenarios, as Microsoft's [integration-testing guidance](https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests?view=aspnetcore-10.0) recommends. Library helpers complement rather than replace the ASP.NET pipeline when middleware matters. Run the same contract cases against every candidate; fewer assertions are not evidence of a simpler framework.
 
 ## Evaluate performance and security with the actual path {#performance-security}
 
@@ -334,32 +332,24 @@ Third-party packages expand the supply-chain and upgrade surface. Pin direct dep
 
 ## Run a bounded adoption spike {#adoption-spike}
 
-Time-box a candidate comparison around one representative vertical slice:
+Time-box one representative vertical slice and verify:
 
-- one success request with the real DTO and serializer policy;
-- one validation failure and one unexpected failure with the required error response;
-- authentication plus one authorization rule if the product needs them;
-- cancellation through one realistic dependency;
-- OpenAPI/client generation if it is a requirement;
-- one diagnostic correlation through the chosen middleware;
-- a Release build, `TestServer` contract, real-process startup, and publish artifact;
-- a short upgrade exercise to the next compatible patch or minor version.
+- the real DTO/serializer contract through success, validation, and unexpected failures;
+- required authentication, authorization, cancellation, and OpenAPI/client generation;
+- one diagnostic correlation through middleware;
+- locked Release build, `TestServer`, real-process startup, and publish;
+- one compatible upgrade and a deletion condition.
 
-Record implementation size only after correctness gaps, unfamiliar concepts, package graph, diagnostic quality, test ergonomics, documentation currency, and maintenance responsibility. Delete unsuccessful spikes; do not let comparison code become three supported stacks.
+Compare correctness gaps, concepts, package graph, diagnostics, tests, documentation, and ownership before line count. Delete losing spikes instead of supporting several stacks.
 
 ## Avoid common ecosystem mistakes {#common-mistakes}
 
-- Treating ASP.NET Core and an F# library as mutually exclusive misunderstands the stack.
-- Selecting from syntax alone ignores middleware, operations, and upgrades.
+- Treating ASP.NET Core and an F# library as mutually exclusive, or assuming helpers configure identity, limits, TLS, and telemetry, misunderstands the stack.
+- Selecting by syntax, downloads, or isolated benchmarks ignores product, middleware, operations, and upgrade requirements.
 - Copying C# Minimal API overloads without annotations can produce confusing F# inference failures.
-- Serializing domain unions directly makes the wire contract follow private refactors.
-- Moving `HttpContext` into the core makes a later adapter change expensive.
-- Calling a computed target-framework compatibility result active support overstates package evidence.
-- Calling an older package abandoned without examining current maintenance evidence is equally careless.
-- Choosing the newest prerelease as the default stable dependency changes the risk contract silently.
-- Using download counts or a benchmark winner as architecture evidence skips product requirements.
+- Serializing domain unions directly or moving `HttpContext` into the core couples private design to the boundary.
+- Computed target compatibility is not active support; age alone does not prove abandonment; a newer prerelease is not a stable default.
 - Installing several web DSLs “for flexibility” creates several policy surfaces to secure and test.
-- Assuming framework helpers configure authentication, limits, TLS, or telemetry hides platform work.
 - Rebuilding the booking capstone in every framework produces breadth without additional understanding.
 
 ## Exercises {#exercises}
