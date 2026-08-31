@@ -258,6 +258,61 @@ Define a pure `parsePositiveSeats: string -> Result<int, SeatParseError>`. Compo
 
 Test a valid file, a missing file, non-integer text, and zero. Explain why parsing does not need access to the reader or path.
 
+
+::: details Answer
+
+#### Define parsing without I/O {#exercise-01-parser}
+
+```fsharp
+open System
+
+type SeatParseError =
+    | SeatsNotInteger of raw: string
+    | SeatsNotPositive of value: int
+
+let parsePositiveSeats (raw: string) =
+    match Int32.TryParse(raw.Trim()) with
+    | true, value when value > 0 -> Ok value
+    | true, value -> Error(SeatsNotPositive value)
+    | false, _ -> Error(SeatsNotInteger raw)
+
+assert (parsePositiveSeats " 3 " = Ok 3)
+assert (parsePositiveSeats "oops" = Error(SeatsNotInteger "oops"))
+assert (parsePositiveSeats "0" = Error(SeatsNotPositive 0))
+```
+
+The parser needs only text. A path would add irrelevant identity, and a reader would extend resource lifetime without helping the parse.
+
+#### Preserve which phase failed {#exercise-01-workflow}
+
+Using `ReadTextError` and `readText` from the chapter:
+
+```fsharp
+type LoadSeatsError =
+    | ReadFailure of ReadTextError
+    | ParseFailure of SeatParseError
+
+let loadSeats path =
+    readText path
+    |> Result.mapError ReadFailure
+    |> Result.bind (fun text ->
+        parsePositiveSeats text
+        |> Result.mapError ParseFailure)
+```
+
+The four required tests should assert these results:
+
+| Fixture | Expected result |
+|---|---|
+| file containing `"3"` | `Ok 3` |
+| missing file | `Error(ReadFailure(PathNotFound path))` |
+| file containing `"oops"` | `Error(ParseFailure(SeatsNotInteger "oops"))` |
+| file containing `"0"` | `Error(ParseFailure(SeatsNotPositive 0))` |
+
+Create all files beneath one unique temporary directory and remove that exact directory in `finally`. `readText` disposes its reader before `parsePositiveSeats` runs, so parser success or failure cannot extend the file handle's lifetime.
+
+:::
+
 ### Exercise 2: audit a catch-all adapter {#exercise-02}
 
 Review this code:
@@ -270,13 +325,110 @@ let read path =
 
 List the information and policy it loses. Rewrite it with a structured error union, specific handlers in correct inheritance order, and a decision about unrecognized exceptions. State where logging belongs.
 
+
+::: details Answer
+
+#### Identify what the string erases {#exercise-02-audit}
+
+The catch-all version loses:
+
+- the exception's runtime type and inheritance category;
+- its stack trace and inner exception;
+- structured context such as path and operation;
+- the distinction between missing, denied, malformed, canceled, and unexpected failure;
+- an explicit decision about which conditions are recoverable;
+- stable handling, because localized or version-dependent messages are presentation text.
+
+It may also catch programming errors from code added later to the `try` block and misreport them as a file read failure.
+
+#### Make the translation policy narrow {#exercise-02-rewrite}
+
+```fsharp
+open System.IO
+
+type ReadFailure =
+    | MissingPath of path: string
+    | Denied of path: string * cause: UnauthorizedAccessException
+    | OtherIo of path: string * cause: IOException
+
+let read path =
+    try
+        File.ReadAllText path
+        |> Ok
+    with
+    | :? FileNotFoundException
+    | :? DirectoryNotFoundException -> Error(MissingPath path)
+    | :? UnauthorizedAccessException as cause -> Error(Denied(path, cause))
+    | :? IOException as cause -> Error(OtherIo(path, cause))
+```
+
+Specific missing-path cases come before the `IOException` base handler. There is no final `ex` pattern, so argument bugs and failures outside the declared I/O policy propagate with their diagnostic identity intact.
+
+Log where the operation is finally handled or abandoned, not automatically inside `read`. If `OtherIo` is returned to a service boundary, that boundary can log `cause` once with request context and map it to a stable external response.
+
+:::
+
 ### Exercise 3: prove nested disposal order {#exercise-03}
 
 Write `withTwoReaders` using two `use` bindings. Inject opener functions that retain both actual `StreamReader` references. Prove both readers are disposed when the operation succeeds and when it raises.
 
 Explain why reverse declaration order matters for resources where the second depends on the first, and why the operation must not return either reader.
 
-[Read the chapter solutions](../solutions/ch-21-exceptions-resources-io).
+
+::: details Answer
+
+#### Keep both readers inside the scope {#exercise-03-scope}
+
+```fsharp
+open System
+open System.IO
+
+let withTwoReaders openFirst firstPath openSecond secondPath operation =
+    use first = openFirst firstPath
+    use second = openSecond secondPath
+    operation first second
+
+let readerIsDisposed (reader: StreamReader option) =
+    match reader with
+    | None -> false
+    | Some value ->
+        try
+            value.Peek() |> ignore
+            false
+        with :? ObjectDisposedException ->
+            true
+```
+
+For existing `firstPath` and `secondPath` inside the task's temporary directory, retain references in instrumented openers:
+
+```fsharp
+let mutable firstSeen = None
+let mutable secondSeen = None
+
+let openFirst path =
+    let reader = File.OpenText path
+    firstSeen <- Some reader
+    reader
+
+let openSecond path =
+    let reader = File.OpenText path
+    secondSeen <- Some reader
+    reader
+
+withTwoReaders openFirst firstPath openSecond secondPath (fun first second ->
+    first.Peek() + second.Peek())
+|> ignore
+
+assert (readerIsDisposed firstSeen)
+assert (readerIsDisposed secondSeen)
+```
+
+Reset the retained references, call the same helper with an operation that raises `InvalidDataException`, catch it outside, and repeat both disposal assertions. Cleanup of the temporary directory still belongs in an outer `finally`.
+
+F# specifies reverse declaration order: `second` is disposed before `first`. Declare a base resource first and a resource depending on it second, so the dependent resource is released first. The operation must not return either reader because both are outside their valid lifetime after `withTwoReaders` returns.
+
+:::
+
 
 The next chapter applies the same separation to computations that complete later, comparing F# `Async<'T>` with .NET `Task<'T>`.
 

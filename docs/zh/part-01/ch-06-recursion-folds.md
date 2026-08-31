@@ -184,20 +184,6 @@ printfn "Fold order: left=%d right=%d" leftAssociated rightAssociated
 
 每种实现都要分别检查 `int` 溢出和输入的业务含义。栈安全、算术安全与领域正确性也必须分别验证。
 
-## 先检查递减，再检查尾位置 {#debugging}
-
-递归出错时按顺序问：
-
-1. 每个输入构造是否有规则；
-2. 基础规则返回的是否是正确单位元或终止结果；
-3. 递归参数是否严格更小或更接近终止；
-4. 递归调用回来后是否还有运算、构造或副作用；
-5. 累加器不变量在初始、推进与结束三处是否成立。
-
-结果顺序颠倒通常来自前插累积后漏掉反转。`fold` 类型错误常来自把 accumulator 与 element 参数顺序写反；先从完整签名标出 `'State` 与 `'T`。
-
-运行时间异常增长时，同时检查尾位置和重复工作。画出一个小输入的调用树，观察同一子问题是否出现多次。尾调用处理栈帧保留；记忆化或更换算法处理重复工作。
-
 ## 练习 {#exercises}
 
 用小输入手工展开，并结合代码位置、编译器诊断和有限输入上的运行结果进行验证。每题都要写出基础情况、递减参数和结果顺序。
@@ -211,11 +197,56 @@ printfn "Fold order: left=%d right=%d" leftAssociated rightAssociated
 3. 解释为什么函数会终止；
 4. 圈出每层递归返回后仍待执行的工作，据此判断调用的尾位置。
 
+
+::: details 参考答案
+
+共享定义是：
+
+```fsharp:line-numbers
+let rec sumRecursive values =
+    match values with
+    | [] -> 0
+    | head :: tail -> head + sumRecursive tail
+```
+展开过程如下：
+
+1. `3 + sumRecursive [0; 4]`；
+2. `3 + (0 + sumRecursive [4])`；
+3. `3 + (0 + (4 + sumRecursive []))`。
+
+基础规则让 `sumRecursive []` 返回 `0`，最终结果为 `7`。
+
+三次非空调用的 `(head, tail)` 分别是 `(3, [0; 4])`、`(0, [4])`、`(4, [])`。每次尾部长度减少一，有限输入最终到达空列表，所以终止。
+
+每层都必须等待递归结果，再执行 `head + result`。这三个加法都是尚未完成的工作，因此递归调用不在尾位置，调用深度随列表长度增加。
+
+:::
+
 ### 练习 2：证明累加器含义 {#exercise-02}
 
 对 `sumLoop 0 [ 3; 0; 4 ]`，列出每一步 `(accumulator, values)`。用“累加器加剩余列表之和等于原列表之和”检查每一步。
 
 然后设想把递归分支改为“先递归，再把 `head` 相加”。说明 `[<TailCall>]` 应该提醒什么，以及即使通过尾调用检查，仍有哪些终止或数值性质没有被证明。
+
+
+::: details 参考答案
+
+尾递归定义为：
+
+```fsharp:line-numbers
+[<TailCall>]
+let rec sumLoop accumulator values =
+    match values with
+    | [] -> accumulator
+    | head :: tail -> sumLoop (accumulator + head) tail
+
+let sumTailRecursive values = sumLoop 0 values
+```
+状态依次是 `(0, [3; 0; 4])`、`(3, [0; 4])`、`(3, [4])`、`(7, [])`。每一步中，累加器加剩余列表之和都为 `7`；最后剩余和为零，累加器就是结果。
+
+若先递归再加 `head`，调用返回后仍有加法，`[<TailCall>]` 应给出非尾递归警告，在本书警告即错误设置下阻止构建。即使属性检查通过，它仍未证明输入有限、参数确实递减、算术不溢出或结果满足领域规则；这些要靠推理、类型选择和测试分别验证。
+
+:::
 
 ### 练习 3：展开折叠并选择抽象 {#exercise-03}
 
@@ -224,7 +255,25 @@ printfn "Fold order: left=%d right=%d" leftAssociated rightAssociated
 3. 写出用 `List.fold` 计算列表长度的初始状态与 folder 类型；
 4. 为普通求和、提前寻找首个匹配项和遍历二叉树分别选择专用函数、折叠或直接递归，并说明理由。
 
-[查看本章练习答案](../solutions/ch-06-recursion-folds)。
+
+::: details 参考答案
+
+顺序示例是：
+
+```fsharp:line-numbers
+let leftAssociated = List.fold (fun state value -> state - value) 0 [ 1; 2; 3 ]
+let rightAssociated = List.foldBack (fun value state -> value - state) [ 1; 2; 3 ] 0
+
+printfn "Fold order: left=%d right=%d" leftAssociated rightAssociated
+```
+左折叠括号为 `((0 - 1) - 2) - 3`，结果 `-6`。右折叠括号为 `1 - (2 - (3 - 0))`，结果 `2`。两者的方向与 folder 参数顺序都不同。
+
+用 `List.fold` 计数时，初始状态是 `0`；folder 可写成接收 `count` 与被忽略元素、返回 `count + 1`，抽象类型为 `int -> 'a -> int`。完整操作把 `'a list` 折叠成 `int`。
+
+一般求和优先使用 `List.sum`，因为名称直接表达意图。寻找首个匹配项优先使用 `List.tryFind`，因为它能提前停止；`fold` 通常遍历全部输入。二叉树先使用与叶、分支结构对齐的直接递归，第 10 章再抽取树折叠。
+
+:::
+
 
 ## 第一部分检查点 {#part-checkpoint}
 

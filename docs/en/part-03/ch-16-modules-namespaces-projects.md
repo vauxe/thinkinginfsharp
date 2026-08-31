@@ -260,6 +260,50 @@ A project has `Domain.fs`, `Pricing.fs`, and `Program.fs`. `Pricing` uses domain
 
 Explain why moving the files between folders without changing declarations or project items does not fix the dependency.
 
+
+::: details Answer
+
+#### Valid project order {#exercise-01-order}
+
+The dependencies are:
+
+```text
+Domain.fs  ──▶  Pricing.fs  ──▶  Program.fs
+     └──────────────────────────▶
+```
+
+Therefore the project items are:
+
+```xml
+<ItemGroup>
+  <Compile Include="Domain.fs" />
+  <Compile Include="Pricing.fs" />
+  <Compile Include="Program.fs" />
+</ItemGroup>
+```
+
+`Domain.fs` provides the independent vocabulary. `Pricing.fs` may use it because the compiler has already processed it. `Program.fs` comes last because it consumes both providers.
+
+More than one topological order can be valid when files are independent. Here the stated dependencies force all three positions. Do not alphabetize the items unless alphabetical order also happens to respect the graph.
+
+#### Diagnose the reversed order {#exercise-01-diagnostic}
+
+This order is invalid:
+
+```xml
+<ItemGroup>
+  <Compile Include="Pricing.fs" />
+  <Compile Include="Domain.fs" />
+  <Compile Include="Program.fs" />
+</ItemGroup>
+```
+
+Compilation reaches `Pricing.fs` before `Domain.fs`. `FS0039` appears at its `open` declaration or first qualified use of the missing `Domain` module or one of its types. The exact location depends on which unavailable name is encountered first; the cause is the same forward reference.
+
+Folders do not participate in F# name resolution or compiler input order. Moving `Domain.fs` into `Core` changes only its path; the project item must change too. The folder neither moves the file earlier nor adds `Core` to its namespace. Source declarations establish names, and `<Compile>` items establish order.
+
+:::
+
 ### Exercise 2: repair scope and choose qualification {#exercise-02}
 
 Repair this invalid file while keeping `Booking.Text.normalize` as the public qualified name:
@@ -272,13 +316,113 @@ let normalize (raw: string) = raw.Trim()
 
 In a consumer module, show one call using the full name and one call after an `open` declaration. Explain exactly what `open` changes and what it does not change.
 
+
+::: details Answer
+
+#### Put the value in a module {#exercise-02-fix}
+
+The requested public name is obtained by placing `Text` under the `Booking` namespace:
+
+```fsharp
+namespace Booking
+
+module Text =
+    let normalize (raw: string) = raw.Trim()
+```
+
+The namespace may contain the module, and the module may contain the `let`-bound function. Moving only the `let` one indentation level has no meaning without the `module Text =` declaration.
+
+#### Qualified and opened calls {#exercise-02-open}
+
+A consumer can retain the whole owner at the call site:
+
+```fsharp
+module Booking.Consumer
+
+let normalizeQualified raw =
+    Booking.Text.normalize raw
+```
+
+Or it can open the module before the following use:
+
+```fsharp
+module Booking.Consumer
+
+open Booking.Text
+
+let normalizeOpened raw =
+    normalize raw
+```
+
+`open Booking.Text` adds accessible members to short-name lookup in the following scope. The original names, definitions, file order, assembly references, and access levels stay unchanged. Both forms therefore require either an earlier defining file in this project or a reference to the defining assembly.
+
+Qualification is the better default when a short name is ambiguous or only used once. A focused `open` is reasonable when the consumer repeatedly speaks that module's vocabulary.
+
+:::
+
 ### Exercise 3: propagate one nullable boundary {#exercise-03}
 
 Assume `BookingId.create : (string | null) -> Result<BookingId, BookingIdError>`. Write `BookingRequest.create` so it accepts the same nullable text contract, forwards it, and maps the error into `InvalidBookingId`.
 
 Test both `null` and a non-null identifier. Explain why the parameter annotation belongs on the wrapper and why this boundary type is not a replacement for `option` in the domain model.
 
-[Read the chapter solutions](../solutions/ch-16-modules-namespaces-projects).
+
+::: details Answer
+
+#### State the wrapper's real contract {#exercise-03-contract}
+
+This compact model makes both the inner and outer parameter explicit:
+
+```fsharp
+open System
+
+type BookingIdError =
+    | MissingBookingId
+
+type BookingId = private BookingId of string
+
+module BookingId =
+    let create (raw: string | null) =
+        match raw with
+        | null -> Error MissingBookingId
+        | value when String.IsNullOrWhiteSpace value -> Error MissingBookingId
+        | value -> Ok(BookingId(value.Trim()))
+
+type BookingRequestError =
+    | InvalidBookingId of BookingIdError
+
+type BookingRequest =
+    private
+        { Id: BookingId
+          Seats: int }
+
+module BookingRequest =
+    let create (rawId: string | null) seats =
+        match BookingId.create rawId with
+        | Error error -> Error(InvalidBookingId error)
+        | Ok bookingId -> Ok { Id = bookingId; Seats = seats }
+```
+
+`BookingRequest.create` promises that callers may supply `null`, then immediately delegates validation and preserves the error context. The production chapter example additionally validates `SeatCount`; that separate invariant does not change the nullable-reference reasoning.
+
+#### Test both sides of the boundary {#exercise-03-tests}
+
+```fsharp
+match BookingRequest.create null 2 with
+| Error(InvalidBookingId MissingBookingId) -> ()
+| other -> failwithf "Unexpected nullable result: %A" other
+
+match BookingRequest.create "REQ-16" 2 with
+| Ok _ -> ()
+| other -> failwithf "Unexpected valid result: %A" other
+```
+
+Without `(rawId: string | null)`, inference makes the wrapper accept non-null `string`, even though the called function accepts a wider input. A test that passes `null` then conflicts with the wrapper's inferred contract. Annotating the wrapper records what its callers can actually provide.
+
+`string | null` models a CLR reference boundary that can contain null. It should be checked and normalized at that boundary. `option<string>` is an explicit F# domain value with `Some` and `None`, pattern matching, and composition functions. One does not silently substitute for the other; convert deliberately when crossing the boundary.
+
+:::
+
 
 Chapter 17 uses signature files to restrict the public API to the types and operations that a component deliberately exposes.
 

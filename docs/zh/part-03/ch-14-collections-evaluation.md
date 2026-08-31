@@ -275,6 +275,68 @@ F# `Map` 与 `Set` 不可变且有序，树操作是对数时间。.NET `Diction
 
 说明你会在输入或输出阶段进行哪些转换。
 
+
+::: details 参考答案
+
+#### 1. 通过头/尾处理不可变命令 {#exercise-01-list}
+
+从 `Command list` 开始。这批数据不大、已经到手、不可变，并按列表的递归结构消费。前插与头/尾匹配都符合该表示。
+
+若输入以 `seq<Command>` 到达，就在验证大小限制后物化一次：
+
+```fsharp
+let commands = incoming |> Seq.toList
+```
+
+这声明处理过程使用稳定快照。在每次列表操作之间又转换回 `seq` 只会浪费工作。
+
+#### 2. 按索引表示座位占用 {#exercise-01-array}
+
+从 `bool array` 或信息更丰富的状态数组开始。活动的座位范围固定，按索引读取和局部更新是主要操作：
+
+```fsharp
+let occupied = Array.create capacity false
+occupied[seatIndex] <- true
+```
+
+把这项可变操作限制在一个组件内。对外根据 API 契约返回数组副本、不可变摘要或领域事件；若直接暴露工作数组，调用方就能修改内部状态。
+
+#### 3. 前十项候选分配 {#exercise-01-sequence}
+
+从 `seq<Allocation>` 开始，因为生产量可能很大，消费者又有意提前停止：
+
+```fsharp
+let selected =
+    generateCandidates request
+    |> Seq.filter isValid
+    |> Seq.truncate 10
+    |> Seq.toList
+```
+
+最终列表是那批很小的已接受快照。当少于十项候选属于正常结果时，`Seq.truncate` 比 `Seq.take` 更合适，因为来源过短会让 `take` 失败。
+
+#### 4. 不可变查找与有序报告 {#exercise-01-map}
+
+若 `ConfirmationCode` 具有稳定比较语义，就从 `Map<ConfirmationCode, Booking>` 开始。`Map.tryFind` 提供不可变查找，`Map.toList` 无需另行排序便按键的比较顺序产生结果。
+
+若业务顺序不同于类型的泛型比较——例如按确认时间排序——就明确存储该信息，并按业务键排序或建立索引。不要把泛型结构顺序误当成领域规则。
+
+#### 5. 大小写不敏感的可变邮箱成员判断 {#exercise-01-hashset}
+
+从 .NET `HashSet<string>` 开始，并明确提供相等规则：
+
+```fsharp
+open System
+open System.Collections.Generic
+
+let attendees = HashSet<string>(StringComparer.OrdinalIgnoreCase)
+attendees.Add("Lin@example.com") |> ignore
+```
+
+这里不需要全序关系。若只在输出时需要字母顺序报告，就投影为字符串并在那里排序。若集合要离开管理它的组件，应复制集合或提供只读结果，不要共享可变状态。
+
+:::
+
 ### 练习 2：预测请求量与缓存 {#exercise-02}
 
 不要运行以下代码，预测每次生成完整结果后的 `reads`：
@@ -295,11 +357,80 @@ let all = values |> Seq.toList
 
 然后插入 `let cached = values |> Seq.cache`，改为消费 `cached`，并再次预测。说明调用代码应暴露哪种含义：新鲜枚举、缓存重放，还是完整快照。
 
+
+::: details 参考答案
+
+定义 `values` 后，`reads` 立即值为 `0`：还没有消费者请求元素。
+
+不使用缓存时：
+
+1. `Seq.take 2 |> Seq.toList` 请求两项，所以 `reads = 2`，`firstTwo = [ 2; 4 ]`；
+2. `values |> Seq.toList` 开始另一次枚举并请求全部三项，所以 `reads = 5`，`all = [ 2; 4; 6 ]`。
+
+第二次遍历不会从此前两项之后恢复。它向这个序列表达式请求新枚举器，生产会重新开始。
+
+使用全新计数器和缓存序列时：
+
+```fsharp
+let cached = values |> Seq.cache
+let firstTwo = cached |> Seq.take 2 |> Seq.toList
+let all = cached |> Seq.toList
+```
+
+执行 `firstTwo` 后，`reads = 2`。执行 `all` 时，前两项来自缓存，只有第三项重新生产，因此最终计数为 `3`。
+
+应明确选择对外语义：
+
+- **每次重新枚举：** 当来源便宜、纯净、可重新遍历且需要最新结果时，保留未缓存序列；
+- **缓存重放：** 当既需要延迟消费前缀，又需要重放相同已产生值时，使用 `Seq.cache`；
+- **完整快照：** 当全部工作应只完成一次，且后续遍历必须可预测时，在边界使用 `Seq.toList` 或 `Seq.toArray`。
+
+对于带副作用或依赖外部资源的来源，必须说明每次枚举会发生什么。`seq<'T>` 类型本身没有定义是否能安全重放。
+
+:::
+
 ### 练习 3：顺序与相等 {#exercise-03}
 
 某领域键支持不区分大小写的相等与哈希，并标有 `[<NoComparison>]`。解释它为何能用于 `Dictionary` 或 `HashSet`，却不能用于 `Map` 或 `Set`。再设计一种偶尔生成字母顺序报告的方法，不改变键的类型定义，并说明相等与哈希码必须遵守的规则。
 
-[查看本章练习答案](../solutions/ch-14-collections-evaluation)。
+
+::: details 参考答案
+
+`Map<'Key,'Value>` 与 `Set<'T>` 需要导航有序树，因此其键或元素必须满足 F# `comparison`。`[<NoComparison>]` 会明确禁止这种约束，所以编译器拒绝有序集合。
+
+`Dictionary<'Key,'Value>` 与 `HashSet<'T>` 改为使用 `IEqualityComparer`，或使用类型的默认相等与哈希实现。它们需要确定桶位置，再判断候选项是否相等；并不需要判断一个值是否小于另一个值。
+
+对于上下文特定的大小写不敏感邮箱集合，优先在集合边界提供比较器：
+
+```fsharp
+let emails =
+    System.Collections.Generic.HashSet<string>(
+        System.StringComparer.OrdinalIgnoreCase
+    )
+```
+
+偶尔需要排序报告时，可以投影出可排序表示并明确排序：
+
+```fsharp
+let report =
+    emails
+    |> Seq.sortWith (fun left right ->
+        System.StringComparer.OrdinalIgnoreCase.Compare(left, right))
+    |> Seq.toList
+```
+
+这项排序会为报告物化排序工作，却不会把哈希集合变成有序集合。若领域键是受保护且只支持相等的类型，应先投影其规范化显示值再排序，而不是仅为满足 `Map` 就添加没有意义的比较。
+
+必须遵守的哈希规则是单向的：
+
+```text
+若 comparer.Equals(left, right)，则 comparer.GetHashCode(left) = comparer.GetHashCode(right)
+```
+
+不相等的值可能具有相同哈希码。碰撞会降低性能，但相等比较仍能区分这些值。绝不能把哈希码本身当作身份标识或排序键。
+
+:::
+
 
 第 15 章将介绍活动模式：匹配抽象应揭示领域分类，同时不能隐藏昂贵计算或失败。
 

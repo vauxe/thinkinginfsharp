@@ -286,6 +286,79 @@ Refactor a function that reads `DateTimeOffset.UtcNow`, calls `Random.Next(100)`
 
 Write a deterministic test that supplies a fixed instant, draw, and region. Prove that calling the pure function twice does not invoke any dependency again.
 
+
+::: details Answer
+
+#### Separate captured facts from the decision {#exercise-01-core}
+
+```fsharp
+open System
+
+type OfferPolicy =
+    { EndsAt: DateTimeOffset
+      WinningDrawExclusive: int }
+
+type OfferFacts =
+    { ObservedAt: DateTimeOffset
+      Draw: int
+      Region: string }
+
+type OfferDecision =
+    | Expired
+    | NotSelected
+    | Selected of region: string
+
+let decideOffer policy facts =
+    if facts.ObservedAt >= policy.EndsAt then
+        Expired
+    elif facts.Draw >= policy.WinningDrawExclusive then
+        NotSelected
+    else
+        Selected facts.Region
+```
+
+The function has no way to reread time, advance a random source, or inspect the process environment. Its two arguments describe its complete decision input.
+
+#### Put acquisition in one orchestration function {#exercise-01-boundary}
+
+```fsharp
+type OfferEffects =
+    { UtcNow: unit -> DateTimeOffset
+      NextInt: int -> int
+      ReadSetting: string -> string option }
+
+let captureOffer effects =
+    { ObservedAt = effects.UtcNow()
+      Draw = effects.NextInt 100
+      Region =
+        effects.ReadSetting "OFFER_REGION"
+        |> Option.defaultValue "global" }
+
+let fixedInstant = DateTimeOffset(2026, 9, 1, 12, 0, 0, TimeSpan.Zero)
+let mutable calls = 0
+
+let fixedEffects =
+    { UtcNow = fun () -> calls <- calls + 1; fixedInstant
+      NextInt = fun upper -> calls <- calls + 1; assert (upper = 100); 7
+      ReadSetting = fun name -> calls <- calls + 1; assert (name = "OFFER_REGION"); Some "eu" }
+
+let policy =
+    { EndsAt = fixedInstant.AddHours(1.0)
+      WinningDrawExclusive = 10 }
+
+let facts = captureOffer fixedEffects
+let first = decideOffer policy facts
+let replay = decideOffer policy facts
+
+assert (first = Selected "eu")
+assert (replay = first)
+assert (calls = 3)
+```
+
+The mutable counter is test instrumentation. Both decisions use the same facts and leave it unchanged. A production adapter can replace the three function fields without changing `decideOffer`.
+
+:::
+
 ### Exercise 2: choose data, function, closure, or interface {#exercise-02}
 
 Choose a dependency form for each case and justify it:
@@ -298,13 +371,80 @@ Choose a dependency form for each case and justify it:
 
 State the lifetime and failure behavior even when the chosen type is a function.
 
+
+::: details Answer
+
+#### Match power to need {#exercise-02-choices}
+
+| Case | Choice | Reason |
+|---|---|---|
+| One expiration comparison uses one instant | Capture `DateTimeOffset` data | The consumer should not be able to reread time |
+| Retry policy requests a new delay after each failure | Function such as `int -> TimeSpan` | Each attempt intentionally asks for another value |
+| Formatter retains immutable culture and prefix | Closure | Configuration is captured once behind one formatting operation |
+| Cross-language storage client manages a disposable connection and related read/write operations | Interface extending or exposing disposal policy | Operations, identity, and lifecycle form one component contract |
+| One internal workflow needs clock, draw, and setting lookup | Small workflow-specific record of functions | Named local capabilities travel together; domain functions receive only captured data |
+
+The retry function's lifetime must cover the retry operation and its failure contract must say whether producing a delay can fail. The formatter closure is pure only if formatting and captured values are pure. The storage interface does not make I/O pure; it gives the effectful component a stable boundary and lifecycle.
+
+Do not pass the whole workflow dependency record to the expiration comparison. That would grant unnecessary capability and make its real dependency less obvious.
+
+:::
+
 ### Exercise 3: make adapter failures visible {#exercise-03}
 
 Change setting lookup so a missing `BOOKING_REGION` is an error instead of using a fallback. Define a specific error union and make the capture step return `Result<Candidate, CaptureError>`.
 
 Ensure that a missing setting is distinguishable from a random provider returning an out-of-range value. Decide whether the latter should remain an exception or become an error case, and justify the choice based on who can recover.
 
-[Read the chapter solutions](../solutions/ch-20-functional-core-effects).
+
+::: details Answer
+
+#### Return expected setting absence {#exercise-03-result}
+
+Using the chapter's `Campaign`, `Candidate`, and `RuntimeEffects` types:
+
+```fsharp
+type CaptureError =
+    | MissingRequiredSetting of name: string
+
+let captureCandidateRequired campaign effects =
+    let submittedAt = effects.UtcNow()
+    let draw = effects.NextInt 10_000
+
+    if draw < 0 || draw >= 10_000 then
+        invalidArg (nameof effects) "NextInt returned a value outside its requested range."
+
+    match effects.ReadSetting "BOOKING_REGION" with
+    | None -> Error(MissingRequiredSetting "BOOKING_REGION")
+    | Some raw when String.IsNullOrWhiteSpace raw ->
+        Error(MissingRequiredSetting "BOOKING_REGION")
+    | Some raw ->
+        Ok
+            { SubmittedAt = submittedAt
+              Draw = draw
+              Region = raw.Trim() }
+```
+
+Tests should cover both branches without reading the process environment:
+
+```fsharp
+let missingEffects =
+    { UtcNow = fixedClock instant
+      NextInt = fixedDraw 42
+      ReadSetting = fun _ -> None }
+
+assert (
+    captureCandidateRequired campaign missingEffects =
+        Error(MissingRequiredSetting "BOOKING_REGION")
+)
+```
+
+Missing required configuration is an expected startup or request-boundary fact that a caller can report. An out-of-range result violates the `NextInt` function's contract; this solution keeps it as `ArgumentException` because ordinary business recovery cannot make the provider correct. If the provider is untrusted input and the caller can select another provider, a distinct `InvalidDrawProvider` error case could instead be honest.
+
+Do not merge both conditions into `Error "capture failed"`. One identifies absent configuration; the other identifies a broken dependency contract and needs different diagnostics and ownership.
+
+:::
+
 
 The next chapter adds exceptions, disposable resources, and file I/O to this orchestration layer while preserving the same functional core.
 

@@ -88,5 +88,5 @@ If F# is new to you, read the [preface](./preface/) and then [start Chapter 1](.
 - [Appendix D: C# to F# Migration and Interop](./appendices/d-csharp-migration)
 - [Appendix E: Common Compiler Diagnostic Index](./appendices/e-compiler-errors)
 - [Appendix F: F# Glossary](./glossary)
-- [Appendix G: Solutions and Open-Exercise Review Guide](./appendices/g-solutions-guide)
+- [Appendix G: Working with Exercises and Answers](./appendices/g-solutions-guide)
 - [Appendix H: Advanced Feature Recognition Index](./appendices/h-advanced-index)

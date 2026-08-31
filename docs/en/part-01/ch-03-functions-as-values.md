@@ -170,20 +170,6 @@ The three occurrences of the same `'a` in `applyTwice` likewise express a consis
 
 Complete function definitions with explicit parameters can usually be generalized when it is safe. Mutable state, partial applications, and complex values may instead expose the **value restriction**. When that diagnostic appears, Chapter 11 provides the precise rule and an explicit repair.
 
-## Parenthesize the application first {#debugging}
-
-Function diagnostics often arise at a call site. Check them in this order:
-
-1. inspect the function value's full signature in FSI;
-2. mentally parenthesize arrow types by right association;
-3. mentally parenthesize function application by left association;
-4. distinguish successive application `a b` from one tuple `(a, b)`;
-5. check whether partial application produced a function or already produced the final value.
-
-If a diagnostic says a value was expected but a function was supplied, provide or trace the remaining argument. If it says a value cannot be applied as a function, an earlier step may already have produced the final result.
-
-When a long anonymous function produces a confusing diagnostic, bind it to a name temporarily and let FSI display its signature alone. Fix the type first, then decide whether to inline it. This is more effective than guessing inside nested parentheses.
-
 ## Exercises {#exercises}
 
 Write the signature before calculating output. Use arrows and tuple types to determine whether a function is curried.
@@ -199,11 +185,52 @@ Explain these four signatures and add association parentheses to every arrow:
 
 For each signature, state what it receives in sequence, what it produces, and what repeated occurrences of `'a` constrain.
 
+
+::: details Answer
+
+| Name | Parenthesized type | Reading |
+| --- | --- | --- |
+| `lineTotal` | `decimal -> (int -> decimal)` | Receives a unit price and returns a function that receives seats and produces an amount |
+| `standardLineTotal` | `int -> decimal` | Receives seats and produces an amount whose unit price is already fixed |
+| `applyTwice` | `('a -> 'a) -> ('a -> 'a)` | Receives a type-preserving function and returns another function from `'a` to `'a` |
+| `identity` | `'a -> 'a` | Receives a value of any one type and returns a value of that same type |
+
+You can also read `applyTwice` position by position as `('a -> 'a) -> 'a -> 'a`: give it the transformation, then the value, then obtain the result. Right association makes the last two positions the returned `'a -> 'a` function. Repeated `'a` requires all positions in one instantiation to agree; it does not mean that each position independently accepts any type.
+
+The first argument to `lineTotal` must be `decimal`, and the second must be `int`. Supplying the first produces a function shaped like `standardLineTotal`, not an amount.
+
+:::
+
 ### Exercise 2: pass behavior {#exercise-02}
 
 Call `applyTwice` twice: once with the named function `increment`, and once with an equivalent anonymous function written at the call site. Start both calls from `3`.
 
 Write the anonymous function, the two results, and the relevant types. Then explain why `applyTwice` cannot directly accept a function that converts an `int` to a `string`.
+
+
+::: details Answer
+
+The named and anonymous functions are:
+
+```fsharp:line-numbers
+let increment seats = seats + 1
+let incrementAnonymous = fun seats -> seats + 1
+
+printfn "Named and anonymous: %d, %d" (increment 3) (incrementAnonymous 3)
+```
+The named call in the example is:
+
+```fsharp:line-numbers
+let applyTwice transform value = transform (transform value)
+let incrementedTwice = applyTwice increment 3
+
+printfn "Applied twice: %d" incrementedTwice
+```
+Read the equivalent anonymous call as `applyTwice (fun seats -> seats + 1) 3`; it also produces `5`. The anonymous function and `increment` both have type `int -> int`, so this call instantiates `'a` in `applyTwice` as `int`.
+
+An `int -> string` function cannot be used directly because the first transformation would produce a `string`, while the second call would still require an `int`. `applyTwice` requires `'a -> 'a`, not `'a -> 'b`. If the domain needs two different transformations in sequence, define a function whose type describes those stages rather than weakening this consistency.
+
+:::
 
 ### Exercise 3: choose a parameter form {#exercise-03}
 
@@ -214,7 +241,30 @@ Compare `lineTotal` with `lineTotalTupled`:
 3. what value does `addServiceFee` retain, and what is its remaining input type?
 4. if unit price and seat count always travel as one indivisible coordinate-like pair in the domain, why might the tupled version be clearer?
 
-[Read the chapter solutions](../solutions/ch-03-functions-as-values).
+
+::: details Answer
+
+The two runnable definitions are:
+
+```fsharp:line-numbers
+let lineTotal unitPrice seats = unitPrice * decimal seats
+let standardLineTotal = lineTotal 19.50m
+let totalForThree = standardLineTotal 3
+
+printfn "Curried total: %M" totalForThree
+```
+```fsharp:line-numbers
+let lineTotalTupled (unitPrice, seats) = unitPrice * decimal seats
+let tupledTotal = lineTotalTupled (19.50m, 3)
+
+printfn "Tupled total: %M" tupledTotal
+```
+The curried version has type `decimal -> int -> decimal` and is called as `lineTotal 19.50m 3`. The tupled version has type `decimal * int -> decimal` and is called as `lineTotalTupled (19.50m, 3)`. Only the former can directly fix the price with `lineTotal 19.50m`, producing `int -> decimal`.
+
+`addServiceFee` retains `2.00m`; its remaining input is a subtotal, so its type is `decimal -> decimal`. Semantically, the function forms a closure. If unit price and seat count form one domain value, the tupled input states “accept only a complete pair.” Partial application is not the only design criterion.
+
+:::
+
 
 The next chapter lets function bodies choose. Both `if` and `match` are expressions that produce values, while patterns combine input structure with branch-local bindings.
 

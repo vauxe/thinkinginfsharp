@@ -160,20 +160,6 @@ printfn "Queues: %s | %s | %s" (describeQueue []) (describeQueue [ "Lin" ]) (des
 
 两者都产生值。选择时应看哪种写法最容易展示所有可能输入、规则优先级和遗漏情况。
 
-## 按规则逐项模拟 {#debugging}
-
-当结果进入错误分支时，记录一个输入并逐条检查：
-
-1. 匹配输入表达式求得什么值和类型；
-2. 第一条模式是否匹配；
-3. 只有匹配时，守卫是否为真；
-4. 若失败，下一条规则怎样处理同一个原始输入；
-5. 首个成功规则的右侧产生什么类型和值。
-
-类型错误出现在箭头右侧时，应比较所有分支的结果类型。出现穷尽性警告时，找出遗漏情况并明确处理。`_ -> failwith ...` 只会把遗漏推迟到运行时。
-
-无法理解某个变量来自哪里时，检查它是否是模式新建立的局部绑定。给模式名称增加领域含义，例如 `requested`，通常比 `x` 更容易追踪。
-
 ## 练习 {#exercises}
 
 先写出每个输入访问的第一条成功规则，再运行脚本。答案需要说明被跳过的规则为何失败。
@@ -187,11 +173,45 @@ printfn "Queues: %s | %s | %s" (describeQueue []) (describeQueue [ "Lin" ]) (des
 3. 解释为什么不能让 `then` 返回 `"available"`、让 `else` 只调用 `printfn`；
 4. 说明在什么情况下省略 `else` 才合法。
 
+
+::: details 参考答案
+
+共享定义是：
+
+```fsharp:line-numbers
+let availability remaining =
+    if remaining > 0 then "available" else "full"
+
+printfn "Availability: %s" (availability 3)
+```
+`availability 3` 的条件为 `true`，结果是 `"available"`；`availability 0` 的条件为 `false`，结果是 `"full"`。条件 `remaining > 0` 是 `bool`，两个分支都是 `string`，因此整个函数是 `int -> string`。
+
+若 `then` 返回字符串而 `else` 只调用 `printfn`，两个结果分别为 `string` 与 `unit`，无法统一。输出副作用不会变成字符串结果。只有当整个条件表达式只执行副作用、`then` 也返回 `unit` 时，才可以省略 `else`；未命中路径也返回 `()`。
+
+:::
+
 ### 练习 2：追踪规则与守卫 {#exercise-02}
 
 先检查 `capacityBand -2`、`capacityBand 0` 和 `capacityBand 1`，再检查输入 `5` 与 `6`。为每个输入写出第一个成功规则和结果。
 
 然后回答：若把 `_ -> "available"` 移到第一条，会发生什么？若只保留两个带守卫的变量规则，编译器为何仍不能把它们视为可靠穷尽？
+
+
+::: details 参考答案
+
+| 输入 | 首个成功规则 | 结果 |
+| --- | --- | --- |
+| `-2` | `value when value <= 0` | `"full"` |
+| `0` | `value when value <= 0` | `"full"` |
+| `1` | 字面量 `1` | `"last seat"` |
+| `5` | `value when value <= 5` | `"limited"` |
+| `6` | `_` | `"available"` |
+
+输入 `1` 也初步匹配第一条变量模式，但守卫为假，所以继续到字面量规则。输入 `6` 会依次让两个守卫为假，也不匹配字面量，最终由通配符接住。
+
+若通配符移到第一条，它会先匹配全部输入，其他规则不可达。只留下带守卫的变量规则也不构成编译器可证明的穷尽集合：守卫是一般布尔表达式，可能同时为假，还可能以后改变。无守卫兜底规则才明确覆盖余下输入。
+
+:::
 
 ### 练习 3：分解组合输入 {#exercise-03}
 
@@ -202,7 +222,39 @@ printfn "Queues: %s | %s | %s" (describeQueue []) (describeQueue [ "Lin" ]) (des
 3. 写出函数完整类型；
 4. 对队列 `[ "Lin"; "Ada" ]` 和四项队列，说明 `describeQueue` 命中哪个模式以及 `_` 代表什么。
 
-[查看本章练习答案](../solutions/ch-04-branching-patterns)。
+
+::: details 参考答案
+
+定义如下：
+
+```fsharp:line-numbers
+let classifyRequest (remaining, requested) =
+    match remaining, requested with
+    | _, requested when requested <= 0 -> "invalid"
+    | remaining, requested when requested <= remaining -> "accepted"
+    | _ -> "too large"
+
+printfn "Requests: %s, %s, %s" (classifyRequest (5, 0)) (classifyRequest (5, 3)) (classifyRequest (2, 3))
+```
+`(5, 0)` 先命中请求数不大于零，结果 `"invalid"`；`(5, 3)` 跳过第一条，在第二条满足 `3 <= 5`，结果 `"accepted"`；`(2, 3)` 两个守卫都失败，由 `_` 得到 `"too large"`。函数类型是 `int * int -> string`。
+
+顺序很重要：若接受规则在前，`(0, 0)` 会先满足 `0 <= 0`，无效请求被误收。规则顺序在这里直接表达业务优先级。
+
+队列部分是：
+
+```fsharp:line-numbers
+let describeQueue queue =
+    match queue with
+    | [] -> "empty"
+    | [ only ] -> $"one: {only}"
+    | first :: second :: _ -> $"next: {first}, then {second}"
+
+printfn "Queues: %s | %s | %s" (describeQueue []) (describeQueue [ "Lin" ]) (describeQueue [ "Lin"; "Ada"; "Sam" ])
+```
+两项和四项列表都命中 `first :: second :: _`。前两个名称分别绑定前两项，`_` 匹配剩余列表：两项时余下 `[]`，四项时余下两项。它不是第三个元素，也不创建可读取名称。
+
+:::
+
 
 下一章会从列表结构走向列表变换，用 `map`、`filter`、`choose` 和管道把分支函数组合成可读的数据流，并比较循环和可变状态的取舍。
 

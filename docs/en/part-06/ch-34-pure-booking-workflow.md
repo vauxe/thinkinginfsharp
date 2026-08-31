@@ -350,17 +350,6 @@ The broader domain, workflow, property, and decider test filter also passes. The
 
 These results show deterministic decisions for the covered model. They do not show that several bookings cannot consume the same activity capacity, that state was loaded consistently, or that a fact was committed exactly once. Those guarantees require atomic persistence and integration tests.
 
-## Avoid common false simplifications {#false-simplifications}
-
-- Chaining independent field validators with `Result.bind` reports only the first error; use that only when fail-fast is the intended contract.
-- Accumulating state-dependent refusals can report conditions that were never meaningfully evaluated.
-- Rechecking status or capacity in `Decider` duplicates protected domain rules.
-- Throwing exceptions for ordinary invalid input hides expected outcomes from the type.
-- Reading a repository inside `decide` makes repeatability and concurrency policy implicit.
-- Returning a new state without the accepted fact erases a useful application boundary in this design.
-- Returning both an event and a separately calculated state risks disagreement; derive state with `evolve`.
-- Calling the function pure does not make the later load-decide-commit sequence atomic.
-
 ## Exercises {#exercises}
 
 ### Exercise 1: trace exact precedence {#exercise-01}
@@ -375,15 +364,140 @@ Before running tests, predict the exact `BookingDecisionError` for each input:
 
 For every prediction, name the rules that evaluation skips.
 
+
+::: details Answer
+
+#### Follow the branch that can actually run {#exercise-01-traces}
+
+| Input | Exact result | Rules not evaluated |
+|---|---|---|
+| Blank ID and zero seats, `NotBooked` | `InvalidCommand [InvalidRequestId BlankRequestId; InvalidSeatCount (NonPositiveSeatCount 0)]` | State occupancy and capacity |
+| Valid five seats, capacity four, `NotBooked` | `BookingCreationFailed (RequestedSeatsExceedCapacity (5<seat>, 4<seat>))` | Nothing after creation refusal |
+| Same valid command, `Booked existing` | `BookingAlreadyExists (Booking.requestId existing)` | `Booking.create`, so capacity is not rechecked |
+| Blank ID and blank confirmation code, `NotBooked` | `InvalidCommand [InvalidRequestId BlankRequestId; InvalidConfirmationCode BlankConfirmationCode]` | Booking lookup and status transition |
+| Valid confirmation, already `Confirmed currentCode` | `BookingTransitionFailed (CannotConfirmFrom (Confirmed currentCode))` | Event wrapping and evolution |
+
+Case (a) runs both pure field validators even though the first failed. It never inspects `NotBooked`; changing the state to `Booked existing` would produce the same validation list.
+
+Case (b) reaches creation because both fields are valid and state is empty. `Booking.create` performs the capacity comparison, so the workflow wraps its error instead of repeating the integer comparison.
+
+Case (c) demonstrates business short-circuiting. The new request's five seats are individually valid, but occupied state means no creation attempt exists to diagnose. Reporting both duplicate and capacity would pretend the rejected creation ran.
+
+Case (d) establishes that this decider validates independent lifecycle fields before lookup. That is a public precedence choice, not a universal security policy. Exercise 3 considers an alternative.
+
+Case (e) validates the new command, finds the matching booking, and calls `Booking.confirm`. The error carries the current booking's existing confirmation code, not the proposed new one, because it describes the state that refused transition.
+
+:::
+
 ### Exercise 2: add a third independent field {#exercise-02}
 
 Imagine placement also receives `AttendeeEmail: string`, with a protected `EmailAddress` smart constructor. Sketch `ValidPlaceBooking` and `validatePlaceBooking` for request ID, email, and seats. Preserve field-order accumulation. Explain why remaining activity capacity still does not belong in this validator.
+
+
+::: details Answer
+
+#### Extend the constructor one argument at a time {#exercise-02-validation}
+
+The following self-contained extension uses the same pattern. It introduces different type names so it does not imply that the capstone already has an email policy:
+
+```fsharp
+open System
+open Booking.Domain
+
+type EmailAddressError = BlankEmailAddress
+type EmailAddress = private EmailAddress of string
+
+module EmailAddress =
+    let create raw =
+        if String.IsNullOrWhiteSpace raw then
+            Error BlankEmailAddress
+        else
+            Ok(EmailAddress(raw.Trim()))
+
+type PlaceBookingWithEmail =
+    { RequestId: string
+      AttendeeEmail: string
+      Seats: int }
+
+type PlaceWithEmailError =
+    | InvalidRequestId of RequestIdError
+    | InvalidEmailAddress of EmailAddressError
+    | InvalidSeatCount of SeatCountError
+
+type ValidPlaceBookingWithEmail =
+    private
+        { RequestId: RequestId
+          AttendeeEmail: EmailAddress
+          Seats: SeatCount }
+
+let applyValidation valueResult functionResult =
+    match functionResult, valueResult with
+    | Ok mapping, Ok value -> Ok(mapping value)
+    | Error earlier, Error later -> Error(earlier @ later)
+    | Error errors, Ok _
+    | Ok _, Error errors -> Error errors
+
+let createValid requestId attendeeEmail seats : ValidPlaceBookingWithEmail =
+    { RequestId = requestId
+      AttendeeEmail = attendeeEmail
+      Seats = seats }
+
+let validate (command: PlaceBookingWithEmail) =
+    let requestId =
+        RequestId.create command.RequestId
+        |> Result.mapError (fun error -> [ InvalidRequestId error ])
+
+    let email =
+        EmailAddress.create command.AttendeeEmail
+        |> Result.mapError (fun error -> [ InvalidEmailAddress error ])
+
+    let seats =
+        SeatCount.create command.Seats
+        |> Result.mapError (fun error -> [ InvalidSeatCount error ])
+
+    Ok createValid
+    |> applyValidation requestId
+    |> applyValidation email
+    |> applyValidation seats
+```
+
+For blank ID, blank email, and zero seats, the result list follows declaration order: request ID, email, seats. Moving the pipeline applications changes observable error order, so choose it deliberately and fix it with a test.
+
+The three validators depend only on their own raw fields. Remaining activity capacity depends on protected activity data and possibly activity-wide reservations. It belongs after this function in the stateful decision, where fail-fast semantics and later atomic commit can be specified.
+
+The example checks only blank email because that is the stated rule. A production `EmailAddress` policy needs an explicit requirement before adding syntax, normalization, internationalization, or deliverability checks. Do not smuggle an arbitrary regular expression into a smart constructor.
+
+:::
 
 ### Exercise 3: specify cancellation precedence {#exercise-03}
 
 Consider a cancelled booking and three cancel commands: blank ID plus blank reason, a valid different ID, and the correct ID with a valid new reason. State the result of each under the current policy. Then propose one alternative precedence policy, its user or security motivation, and the tests and public contract that would need to change.
 
-[Read the chapter solutions](../solutions/ch-34-pure-booking-workflow).
+
+::: details Answer
+
+#### Current policy {#exercise-03-current}
+
+Assume the state contains request `REQ-7` with `Cancelled oldReason`:
+
+1. Blank ID plus blank reason returns `InvalidCommand [InvalidRequestId BlankRequestId; InvalidCancellationReason BlankCancellationReason]`. State is not inspected.
+2. A valid different ID plus valid reason returns `BookingDoesNotExist`. The cancelled status is not inspected because the target does not match.
+3. The correct ID plus a valid new reason returns `BookingTransitionFailed (CannotCancelFrom (Cancelled oldReason))`. The new reason is valid but never replaces the final status.
+
+This order gives callers complete field feedback before domain lookup. It is simple and deterministic, and it matches placement and confirmation validation order. It may reveal validation details for a target that does not exist, which some public boundaries prefer not to do.
+
+#### One defensible alternative {#exercise-03-alternative}
+
+A privacy-sensitive API could validate only the request ID, perform authorization and lookup, then validate the reason only for an authorized existing target. A valid missing ID would always return one indistinguishable not-found result, regardless of whether the reason was blank. This can reduce account or resource probing and avoids spending further validation work for concealed targets.
+
+That is an application-boundary policy, not a silent edit to the pure function. It would require a separate authenticated lookup phase, a documented error contract, endpoint tests proving indistinguishable missing/unauthorized responses, and revised decider inputs—perhaps a protected authorized booking plus a reason command.
+
+It also gives up full accumulation across ID and reason. That trade-off is acceptable only when the security or privacy requirement outweighs immediate field feedback. Keeping the current internal decider and projecting a coarser external error can often preserve both concerns without duplicating transition rules.
+
+Whichever policy is chosen, tests should state the exact precedence. Vague claims such as “all errors are handled” do not tell a caller which error wins or which checks ran.
+
+:::
+
 
 ## Sources {#sources}
 

@@ -215,15 +215,122 @@ and Binding =
 
 用结构递归编写 `exists : ('T -> bool) -> BookingTree<'T> -> bool`。先说明每个案例的规则，再写代码。分支实现是否总应访问右子树？解释布尔短路带来的结果。
 
+
+::: details 参考答案
+
+规则如下：
+
+- `Empty` 不包含匹配值，所以返回 `false`；
+- `Leaf value` 返回 `predicate value`；
+- `Branch(left, right)` 在任一子树成功时成功。
+
+直接翻译为：
+
+```fsharp
+let rec exists predicate tree =
+    match tree with
+    | Empty -> false
+    | Leaf value -> predicate value
+    | Branch(left, right) ->
+        exists predicate left || exists predicate right
+```
+
+F# 的布尔 `||` 会短路。左侧调用返回 `true` 时，右侧调用不会运行。对于纯粹的存在性查询，这是理想行为，而且可能避开树的大部分。最坏情况下——不存在匹配，或匹配位于最后访问的叶子——函数仍会访问每个节点，花费 `O(n)` 时间。
+
+不要把必须执行的副作用藏进 `predicate`，再假设每个叶子都会被访问。该函数只承诺回答是否存在，不承诺遍历全部节点。必须对每个值执行的工作，应使用另一项遍历。
+
+:::
+
 ### 练习 2：检验 map 定律 {#exercise-02}
 
 实现 `mapTreeWithFold`，再对 `emptyTree`、`leafTree` 和 `branchTree` 检查恒等律与复合律。解释为什么检查三个示例能增加信心，却不能证明该定律对每棵树都成立。
+
+
+::: details 参考答案
+
+fold 用相应的重建构造器替换每个构造器：
+
+```fsharp
+let mapTreeWithFold mapping =
+    foldTree
+        Empty
+        (mapping >> Leaf)
+        (fun left right -> Branch(left, right))
+
+let examples = [ emptyTree; leafTree; branchTree ]
+let increment seats = seats + 1
+let double seats = seats * 2
+
+let identityHolds =
+    examples
+    |> List.forall (fun tree -> mapTreeWithFold id tree = tree)
+
+let compositionHolds =
+    examples
+    |> List.forall (fun tree ->
+        mapTreeWithFold (increment >> double) tree
+        = (tree |> mapTreeWithFold increment |> mapTreeWithFold double))
+```
+
+对三个示例而言，两个值都是 `true`。这能发现几类常见实现错误，但递归类型允许任意规模和结构的树，三个值不可能枚举全部情况。
+
+证明也遵循相同结构。定律对 `Empty` 与 `Leaf` 直接成立。对于 `Branch`，先假设它们对两棵更小子树成立，再证明重建会保持组合结果。这种结构归纳正是结构递归在推理上的对应物。
+
+:::
 
 ### 练习 3：用一次 fold 计算一份摘要 {#exercise-03}
 
 定义一个包含 `LeafCount`、`TotalSeats` 和 `MaximumSeats : int option` 的摘要记录。用一次 `foldTree` 遍历计算它。分别给出 `Empty`、`Leaf 2` 与共享分支树的正确摘要，再说明时间复杂度与直接调用栈上界。
 
-[查看本章练习答案](../solutions/ch-10-recursive-types)。
+
+::: details 参考答案
+
+空树规则没有最大值；叶子初始化三个字段；分支规则组合已经完成的摘要：
+
+```fsharp
+type TreeSummary =
+    { LeafCount: int
+      TotalSeats: int
+      MaximumSeats: int option }
+
+let emptySummary =
+    { LeafCount = 0
+      TotalSeats = 0
+      MaximumSeats = None }
+
+let summarizeLeaf seats =
+    { LeafCount = 1
+      TotalSeats = seats
+      MaximumSeats = Some seats }
+
+let combineSummaries left right =
+    let maximum =
+        match left.MaximumSeats, right.MaximumSeats with
+        | None, other
+        | other, None -> other
+        | Some leftMax, Some rightMax -> Some(max leftMax rightMax)
+
+    { LeafCount = left.LeafCount + right.LeafCount
+      TotalSeats = left.TotalSeats + right.TotalSeats
+      MaximumSeats = maximum }
+
+let summarize tree =
+    tree
+    |> foldTree emptySummary summarizeLeaf combineSummaries
+```
+
+预期值如下：
+
+| 树 | `LeafCount` | `TotalSeats` | `MaximumSeats` |
+| --- | ---: | ---: | --- |
+| `Empty` | 0 | 0 | `None` |
+| `Leaf 2` | 1 | 2 | `Some 2` |
+| 共享分支 | 3 | 9 | `Some 4` |
+
+fold 会访问每个节点一次，因此时间为 `O(n)`。直接递归实现最多保留从根到当前节点的链以及待处理分支工作，所以调用栈深度为 `O(h)`。它在一次遍历中计算三个字段；编写三个独立 fold 在渐近意义上仍是 `O(n)`，但会访问树三遍。
+
+:::
+
 
 第 11 章会研究 `mapTree` 等泛型函数是怎样被推断的、泛化在哪里停止，以及操作会引入哪些类型约束。
 

@@ -3,6 +3,20 @@ import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const docsRoot = join(resolve(dirname(fileURLToPath(import.meta.url)), '..'), 'docs')
+const standaloneCheckAnchors = [
+  'boundary-mistakes',
+  'checklist',
+  'common-mistakes',
+  'debugging',
+  'design-checklist',
+  'false-simplifications',
+  'review-checklist',
+  'selection-checklist'
+]
+const standaloneCheckPattern = new RegExp(
+  `^## .+ \\{#(?:${standaloneCheckAnchors.join('|')})\\}$`,
+  'm'
+)
 
 function markdownFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -67,6 +81,39 @@ function assertEqual(left, right, message) {
   if (JSON.stringify(left) !== JSON.stringify(right)) throw new Error(message)
 }
 
+function checkExerciseLayout(source, locale, path) {
+  if (!/^part-\d{2}\/ch-\d{2}-.+\.md$/.test(path)) return
+
+  const label = locale === 'zh' ? '参考答案' : 'Answer'
+  const answers = source.match(new RegExp(`^::: details ${label}$`, 'gm')) ?? []
+  if (answers.length !== 3) {
+    throw new Error(`${locale}/${path}: expected three inline answers, found ${answers.length}`)
+  }
+  if (source.includes('../solutions/')) {
+    throw new Error(`${locale}/${path}: links to a standalone solution page`)
+  }
+
+  if (standaloneCheckPattern.test(source)) {
+    throw new Error(`${locale}/${path}: standalone check or common-mistakes section remains`)
+  }
+
+  for (const number of [1, 2, 3]) {
+    const anchor = `exercise-0${number}`
+    const exercise = new RegExp(`^### .+ \\{#${anchor}\\}$`, 'm').exec(source)
+    if (!exercise) throw new Error(`${locale}/${path}: missing ${anchor}`)
+
+    const tail = source.slice(exercise.index + exercise[0].length)
+    const nextHeading = number < 3
+      ? new RegExp(`^### .+ \\{#exercise-0${number + 1}\\}$`, 'm').exec(tail)
+      : /^## .+$/m.exec(tail)
+    const section = tail.slice(0, nextHeading?.index ?? tail.length)
+    const sectionAnswers = section.match(new RegExp(`^::: details ${label}$`, 'gm')) ?? []
+    if (sectionAnswers.length !== 1) {
+      throw new Error(`${locale}/${path}: ${anchor} must contain exactly one inline answer`)
+    }
+  }
+}
+
 function checkBook() {
   const english = pagePaths('en')
   const chinese = pagePaths('zh')
@@ -103,6 +150,14 @@ function checkBook() {
       sharedCodeBlocks(zhSource),
       `${path}: shared code blocks differ`
     )
+
+    checkExerciseLayout(enSource, 'en', path)
+    checkExerciseLayout(zhSource, 'zh', path)
+  }
+
+  const standaloneSolutions = paths.filter((path) => path.startsWith('solutions/'))
+  if (standaloneSolutions.length > 0) {
+    throw new Error(`standalone solution pages remain: ${standaloneSolutions.length}`)
   }
 
   console.log(`Book check passed: ${paths.length} bilingual page pairs.`)

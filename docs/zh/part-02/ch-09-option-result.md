@@ -246,6 +246,18 @@ printfn "Some null: isSome=%b payloadIsNull=%b" riskyPayload.IsSome payloadIsNul
 3. 从已经验证为非空的姓名计算参与者姓名首字母；
 4. 查询一个可能失败的外部服务，而一次成功查询仍可能找不到预约。
 
+
+::: details 参考答案
+
+1. **用有效标识查找：** `Booking option`。查无结果属于正常情况，题设还说明标识验证已经完成。如果存储访问本身可能失败，那是另一个维度，类型可以变成 `Result<Booking option, StorageError>`。
+2. **解析座位数：** `Result<int, SeatCountError>`。文本可能格式不对、超出 `int` 范围，或数值不被业务接受。带类型的错误让调用方能够解释或响应这些区别。只有当所有失败都被有意视为“没有解析出来”时，`int option` 才可能足够。
+3. **计算姓名首字母：** `string`。题设承诺姓名已经验证为非空。公开缺失或失败会迫使每位调用方处理契约声称不会发生的案例。若实际上无法信任前提，就应修复输入类型或在边界验证。
+4. **查询服务：** `Result<Booking option, ServiceError>`。`Error` 表示查询未成功完成；`Ok None` 表示查询完成但没有找到值；`Ok (Some booking)` 表示查询完成且找到了值。压平任一层都会合并不同事实。
+
+类型应追随含义，而不是实现上的方便。
+
+:::
+
 ### 练习 2：组合可选数据 {#exercise-02}
 
 从以下两个函数开始：
@@ -256,6 +268,33 @@ tryConfirmedCode : Booking -> string option
 ```
 
 定义 `tryFindConfirmedCode : string -> string option`。让结果保持扁平，并直接表达组合过程，无需使用模式匹配。然后解释 `bind` 为什么适合这项组合，以及 `map` 会怎样改变结果类型。
+
+
+::: details 参考答案
+
+直接定义如下：
+
+```fsharp
+let tryFindConfirmedCode bookingId =
+    bookingId
+    |> tryFindBooking
+    |> Option.bind tryConfirmedCode
+```
+
+`tryConfirmedCode` 已经返回 `string option`。`Option.map tryConfirmedCode` 会再次包装这个返回的 option，产生 `string option option`。`Option.bind` 把函数应用于 `Some booking`，直接返回函数产生的 option；遇到 `None` 则不调用函数并原样保留。
+
+直接使用模式匹配也有相同行为：
+
+```fsharp
+let tryFindConfirmedCodeExplicit bookingId =
+    match tryFindBooking bookingId with
+    | Some booking -> tryConfirmedCode booking
+    | None -> None
+```
+
+第一版并非更加正确，只是更紧凑地表达了相同的案例分析。
+
+:::
 
 ### 练习 3：保留验证上下文 {#exercise-03}
 
@@ -268,7 +307,51 @@ tryConfirmedCode : Booking -> string option
 
 最后说明一个有两处无效的请求会返回哪个错误，并解释这项优先级。
 
-[查看本章练习答案](../solutions/ch-09-option-result)。
+
+::: details 参考答案
+
+联合案例组成封闭集合，因此应修改原定义，而不是试图在其他位置扩展它：
+
+```fsharp
+type BookingError =
+    | EmptyAttendee
+    | NonPositiveSeats of actual: int
+    | TooManySeats of requested: int * maximum: int
+    | EventClosed
+
+type ValidationFailure =
+    { RequestId: string
+      EventId: string
+      Cause: BookingError }
+
+let validateOpen isOpen request =
+    if isOpen then Ok request else Error EventClosed
+
+let validateBooking maximum isOpen request =
+    request
+    |> validateAttendee
+    |> Result.bind (validateSeats maximum)
+    |> Result.bind (validateOpen isOpen)
+
+let addContext requestId eventId result =
+    result
+    |> Result.mapError (fun cause ->
+        { RequestId = requestId
+          EventId = eventId
+          Cause = cause })
+
+let checkRequest request =
+    request
+    |> validateBooking 4 false
+    |> addContext "R-9" "E-2"
+```
+
+按这个顺序，把参与者为空且活动关闭的请求交给 `checkRequest` 会产生 `EmptyAttendee`；遇到第一个 `Error` 后，`Result.bind` 不会运行后面的座位或开放状态检查。通过前两项检查但活动已关闭的请求会产生 `EventClosed`。随后，`addContext` 包装最终保留下来的领域错误，而不会改变 `Ok` 值。
+
+如果界面必须报告全部三个相互独立的违规项，这条管道就选错了组合规则。此时要运行每项验证并主动累积错误；调整 `bind` 顺序无法实现累积。
+
+:::
+
 
 第 10 章会把同样由案例驱动的推理从两个案例的容器推广到递归树。
 

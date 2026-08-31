@@ -174,41 +174,80 @@ F# 9 起，联合值会生成 `.IsConfirmed` 等案例测试属性。只需要�
 
 不要用一串 `.IsPending`、`.IsConfirmed` 把联合重新写成标志判断。联合把案例与数据绑定，也让编译器掌握完整案例集合。
 
-## 设计检查表 {#design-checklist}
-
-考虑可辨识联合时问：
-
-1. 这些情况是否互斥并构成一个封闭集合；
-2. 每种情况是否携带不同数据；
-3. 案例名是否来自领域语言，而不是技术实现；
-4. 新增案例时，哪些匹配应由编译器提醒；
-5. 是否误把可同时成立的独立事实强塞进互斥案例。
-
-案例过多且彼此只差几个独立开关，可能说明需要“记录 + 若干小联合/布尔字段”，而不是一个巨大联合列出笛卡尔积。类型应压缩非法组合，不应枚举所有偶然组合。
-
-## 检查案例携带的数据 {#debugging}
-
-若新增案例后出现 FS0025，逐个匹配判断新案例的真实规则，而不是先加通配符。若多个分支重复，确认它们是否真的有同一语义，再用 OR 模式合并。
-
-构造案例时报类型错误时，先看 `of` 后声明的数据。`Confirmed of string` 接收一个字符串；`Case of string * int` 接收所写的二元组。构造和模式都必须与声明一致。
-
-代码频繁先测案例、随后又匹配取数据，通常可以合成一次 `match`。若状态转换返回原值却调用方无法判断是否发生变化，返回类型可能需要第 9 章的 `Result`。
-
 ## 练习 {#exercises}
 
 ### 练习 1：拆除标志组合 {#exercise-01}
 
 一个通知请求含 `IsEmail`、`IsSms`、`IsDisabled` 三个标志，但规则要求恰好为邮件、短信或禁用之一。列出标志模型允许的组合数量与三个合法组合，再定义携带邮件地址、电话号码或禁用原因的联合。解释哪些非法状态从此无法构造。
 
+
+::: details 参考答案
+
+三个独立布尔值产生 `2³ = 8` 种组合，其中只有三种合法：
+
+- `(true,false,false)` 表示邮件；
+- `(false,true,false)` 表示短信；
+- `(false,false,true)` 表示禁用。
+
+其余五种组合都必须额外拒绝。
+
+联合直接表达合法集合：
+
+```fsharp
+type NotificationTarget =
+    | Email of address: string
+    | Sms of phoneNumber: string
+    | Disabled of reason: string
+```
+
+现在每个值都只选择一种目标：邮件地址、短信号码或禁用原因。智能构造函数或验证可以继续保证字符串格式，而不改变这三个 case。
+
+:::
+
 ### 练习 2：证明穷尽性 {#exercise-02}
 
 为 `BookingStatus` 写一个返回短标签的穷尽函数。然后在纸上增加 `Waitlisted of position: int`，指出编译器应提醒哪个匹配。比较“新增显式分支”和“先前已有 `_` 分支”对维护者提供的信息。
+
+
+::: details 参考答案
+
+完整匹配如下：
+
+```fsharp
+let shortLabel status =
+    match status with
+    | Pending -> "P"
+    | Confirmed _ -> "C"
+    | Cancelled _ -> "X"
+```
+
+增加 `Waitlisted of position: int` 后，这个匹配应产生 FS0025，维护者必须决定新标签，例如 `"W"`。若旧函数以 `_ -> "?"` 结尾，新增案例会静默得到 `"?"`；编译器无法区分这是有意兼容还是遗漏。
+
+通配符并非始终错误。若函数只问“是否为 Pending”，且当前与未来的所有非 Pending case 确实都返回相同结果，`| _ -> false` 就能准确表达剩余集合。关键在于未来 case 是否真的共享同一规则。
+
+:::
 
 ### 练习 3：设计转换策略 {#exercise-03}
 
 为 `cancel reason status` 写纯函数：`Pending` 和 `Confirmed _` 变为 `Cancelled reason`，已取消状态保持原值。列出只返回 `BookingStatus` 会丢失什么信息，再提出一种能区分成功与禁止转换的返回类型；暂时无需组合 `Result`。
 
-[查看本章练习答案](../solutions/ch-08-discriminated-unions)。
+
+::: details 参考答案
+
+最小函数为：
+
+```fsharp
+let cancel reason status =
+    match status with
+    | Pending
+    | Confirmed _ -> Cancelled reason
+    | Cancelled _ -> status
+```
+
+返回类型只有 `BookingStatus`，因此调用方无法区分“刚刚取消”与“先前已经取消”；也拿不到旧取消原因，无法判断重复请求是否一致。若某些转换不允许，接口可以返回 `Result<BookingStatus, string>`，成功携带新状态，失败携带原因。下一章会用领域化错误替代裸字符串，并组合这种结果。
+
+:::
+
 
 下一章会比较两种常见返回类型：`option` 表示可能缺失，`Result` 表示带具体原因的预期失败。
 

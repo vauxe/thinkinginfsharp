@@ -88,5 +88,5 @@ aside: false
 - [附录 D：从 C# 迁移到 F# 与互操作](./appendices/d-csharp-migration)
 - [附录 E：常见编译器诊断索引](./appendices/e-compiler-errors)
 - [附录 F：F# 术语表](./glossary)
-- [附录 G：答案与开放题评审指南](./appendices/g-solutions-guide)
+- [附录 G：练习与答案使用指南](./appendices/g-solutions-guide)
 - [附录 H：高级特性识别索引](./appendices/h-advanced-index)

@@ -188,35 +188,91 @@ Equality and comparison constraints are not identical either. A type may support
 
 Do not optimize only for line count. Record and field names are model vocabulary. Anonymous records and tuples avoid inventing public types for data that remains local.
 
-## State what you are comparing {#debugging}
-
-When “the same data” behaves differently, first identify the layer of the question:
-
-1. are the types equal, or are these different named records with similar fields?
-2. are you comparing field contents, reference identity, or a domain ID?
-3. do all component fields support the equality or comparison you need?
-4. did sorting accidentally adopt default record field order?
-5. is a hash code being misused as proof of equality or as a permanent key?
-
-If the old value appears to change after an update, the record probably contains a reference to some mutable object. Copy-and-update did not mutate the old record; draw the nested object shared by old and new records instead of vaguely concluding that immutability failed.
-
-When construction infers the wrong record type, check whether several records reuse labels. Put one informative type annotation on the binding or parameter rather than gambling on declaration order.
-
 ## Exercises {#exercises}
 
 ### Exercise 1: migrate a tuple to a record {#exercise-01}
 
 Replace `("A-1", "Lin", 2)` and a formatting function accepting `string * string * int` with `BookingDraft`. Write the type definition, construction, field access, and record-pattern versions. Explain which positional mistakes disappear, and which domain rules are still not guaranteed automatically.
 
+
+::: details Answer
+
+One complete rewrite is:
+
+```fsharp
+type BookingDraft =
+    { EventId: string
+      Attendee: string
+      Seats: int }
+
+let draft =
+    { EventId = "A-1"
+      Attendee = "Lin"
+      Seats = 2 }
+
+let format { EventId = eventId; Attendee = attendee; Seats = seats } =
+    $"{eventId}:{attendee}:{seats}"
+
+let attendee = draft.Attendee
+```
+
+The record removes the risk of swapping two `string` positions while still type-checking, and callers need not remember a third position. It does not guarantee nonempty strings, positive seats, an existing event, or sufficient capacity. Those are invariants and workflow rules addressed in Chapter 12 and the capstone.
+
+:::
+
 ### Exercise 2: trace copies and identity {#exercise-02}
 
 Create a record from `original` that changes only `Seats`, then separately construct another record with exactly the original fields. Predict and verify three structural equality and `PhysicalEquality` results. If a record contained a mutable list or array field, explain what copy-and-update could share; do not add mutable record fields for this exercise.
+
+
+::: details Answer
+
+The shared definitions provide the predictions directly:
+
+```fsharp:line-numbers
+let equalCopy =
+    { EventId = "A-1"
+      Attendee = "Lin"
+      Seats = 2 }
+
+let alias = original
+let structurallyEqual = original = equalCopy
+let physicallyEqual = LanguagePrimitives.PhysicalEquality original equalCopy
+let aliasIsSameReference = LanguagePrimitives.PhysicalEquality original alias
+let equalHashesAgree = hash original = hash equalCopy
+
+printfn "Equality: structural=%b physical=%b alias=%b" structurallyEqual physicallyEqual aliasIsSameReference
+printfn "Hashes agree for equal records: %b" equalHashesAgree
+```
+Let `updated = { original with Seats = 3 }`, let `equalCopy` repeat all original fields, and let `alias = original`:
+
+| Comparison | Result | Reason |
+| --- | --- | --- |
+| `original = equalCopy` | `true` | All three fields are structurally equal |
+| `PhysicalEquality original equalCopy` | `false` | The reference objects were constructed separately |
+| `PhysicalEquality original alias` | `true` | Both names point to one object |
+| `original = updated` | `false` | `Seats` differs |
+
+Copy-and-update retains unchanged field values. If one field were an array, old and new records could point to that same array. Mutating an array element would then be visible through both paths. The mutable nested object is the issue; record fields were not reassigned.
+
+:::
 
 ### Exercise 3: design equality, hashing, and order {#exercise-03}
 
 Choose structural equality, reference identity, a domain ID, or an explicit ordering key for each need: remove content-equal drafts, confirm whether two variables denote one cache object, and display bookings by descending seat count. Explain why `hash x = hash y` cannot decide equality for the first two, and write the `List.sortByDescending` key for the third.
 
-[Read the chapter solutions](../solutions/ch-07-records-equality).
+
+::: details Answer
+
+- Remove content-equal drafts with structural equality because their fields define equivalence for this requirement.
+- Check whether two variables denote one cached object with reference identity. If the cache contract is key-based, comparing an explicit cache key is often clearer.
+- Decide whether real bookings are one business entity with an explicit booking or request ID, not by guessing from contents or object identity.
+- State display order as `bookings |> List.sortByDescending (fun booking -> booking.Seats)`. If equal seat counts need attendee-name ascending order, use `List.sortWith` to state both levels instead of relying on record declaration order.
+
+`hash x = hash y` is necessary for structural equality, not sufficient. Unequal values may collide, so matching hashes cannot replace `x = y`; a hash also says nothing about whether two references denote one object.
+
+:::
+
 
 A record alone cannot express the next requirement: a booking must have exactly one of a few mutually exclusive statuses, not an arbitrary combination of Boolean flags.
 

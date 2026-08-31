@@ -187,6 +187,42 @@ Given `parse : string -> Draft`, `normalize : Draft -> Draft`, and `label : Draf
 
 Write the type of each composed function and state which function runs first.
 
+
+::: details Answer
+
+The immediate pipeline is:
+
+```fsharp
+let result =
+    text
+    |> parse
+    |> normalize
+    |> label
+```
+
+The two reusable functions are:
+
+```fsharp
+let forward = parse >> normalize >> label
+let backward = label << normalize << parse
+```
+
+Both have type `string -> string`. In both, `parse` runs first, then `normalize`, then `label`. `>>` lists execution order from left to right; `<<` lists it from final operation back toward the input.
+
+Expanding either application shows the nesting:
+
+```fsharp
+// forward text expands to:
+label (normalize (parse text))
+
+// backward text expands to the same expression:
+label (normalize (parse text))
+```
+
+In executable code, compare the resulting values with `forward text = backward text`.
+
+:::
+
 ### Exercise 2: order an F#-facing API {#exercise-02}
 
 Design parameter order for these functions and show one partial application plus one pipeline call for each:
@@ -196,6 +232,44 @@ Design parameter order for these functions and show one partial application plus
 - check whether a requested `SeatCount` fits a `Capacity`.
 
 Identify any function for which a direct call is more readable than the pipeline.
+
+
+::: details Answer
+
+For a status reused across many collections, place status first and bookings last:
+
+```fsharp
+let filterByStatus status bookings =
+    bookings
+    |> List.filter (fun booking -> Booking.status booking = status)
+
+let pendingOnly = filterByStatus Pending
+let pending = allBookings |> pendingOnly
+```
+
+For one formatter reused across many collections, use the same selector-first convention as `List.map`:
+
+```fsharp
+let renderMany formatter bookings =
+    bookings |> List.map formatter
+
+let renderForConsole = renderMany renderBookingForConsole
+let labels = allBookings |> renderForConsole
+```
+
+For capacity and requested seats, either order can be defensible. If one event capacity is reused, capacity-first supports partial application:
+
+```fsharp
+let fitsWithin capacity requested =
+    SeatCount.value requested <= Capacity.value capacity
+
+let fitsEvent = fitsWithin eventCapacity
+let accepted = requestedSeats |> fitsEvent
+```
+
+For a single check, `fitsWithin eventCapacity requestedSeats` reads more directly as a two-value relation. The protected types make reversal a compile-time error even though both contain measured integers. That safety matters more than whether the final call contains `|>`.
+
+:::
 
 ### Exercise 3: remove decorative piping {#exercise-03}
 
@@ -211,7 +285,46 @@ let canAccept capacity request =
 
 Give a direct version and a pipeline version with one meaningful intermediate name. Choose one for production and justify the choice from readability and debugging, not from character count.
 
-[Read the chapter solutions](../solutions/ch-13-composition-pipeline-api).
+
+::: details Answer
+
+The given exercise uses a representation-level `fitsWithin : int<seat> -> int<seat> -> bool`: both protected values have already been unwrapped. That is deliberately different from the protected-type API designed in Exercise 2.
+
+A direct version names both quantities and leaves the final proposition direct:
+
+```fsharp
+let canAccept capacity request =
+    let availableSeats = Capacity.value capacity
+    let requestedSeats = request |> Booking.seats |> SeatCount.value
+    fitsWithin availableSeats requestedSeats
+```
+
+A pipeline-oriented version can still preserve the important intermediate name:
+
+```fsharp
+let canAcceptPiped capacity request =
+    let requestedSeats =
+        request
+        |> Booking.seats
+        |> SeatCount.value
+
+    requestedSeats
+    |> fitsWithin (Capacity.value capacity)
+```
+
+I would choose the first version here. The extraction is short, both quantities appear next to the final relation, and a debugger can inspect each named value. The second version is correct and may fit a surrounding pipeline, but its final pipe adds no transformation stage; it only reorders a binary predicate's arguments.
+
+If `fitsWithin` instead accepts protected `Capacity` and `SeatCount` directly, the best implementation is smaller still:
+
+```fsharp
+let canAccept capacity request =
+    fitsWithin capacity (Booking.seats request)
+```
+
+Keeping measured unwrapping inside the domain predicate also reduces repeated representation knowledge at call sites.
+
+:::
+
 
 Chapter 14 applies this API reasoning to collections, where the chosen representation also determines evaluation timing, lookup rules, and conversion cost.
 

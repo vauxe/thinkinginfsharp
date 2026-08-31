@@ -170,20 +170,6 @@ val identity: 'a -> 'a
 
 写出全部形参的函数定义在安全时通常可以泛化。可变状态、部分应用与复杂值则可能触发**值限制**。遇到这项诊断时，第 11 章会给出准确规则和对应修复方法。
 
-## 先理清函数应用的分组 {#debugging}
-
-函数相关诊断常来自应用边界。依次检查：
-
-1. 在 FSI 中查看函数值的完整签名；
-2. 按右结合为箭头类型写出括号；
-3. 按左结合为函数应用写出括号；
-4. 区分 `a b` 的连续应用与 `(a, b)` 的一个元组；
-5. 检查部分应用后得到的是函数，还是已经得到最终值。
-
-若诊断说“期望某个值，却得到函数”，请补充或追踪剩余实参。若诊断说某个值无法作为函数应用，前一步可能已经得到最终结果。
-
-匿名函数的主体很长时，先把它绑定成有名称的函数，让 FSI 单独显示签名。修好类型后再决定是否内联；这比在深层括号里反复猜测有效。
-
 ## 练习 {#exercises}
 
 先写签名，再计算输出。根据类型中的箭头和元组判断函数是否柯里化。
@@ -199,11 +185,52 @@ val identity: 'a -> 'a
 
 对每个签名说明它依次接收什么、产生什么，以及 `'a` 的重复出现约束了什么。
 
+
+::: details 参考答案
+
+| 名称 | 加括号后的类型 | 阅读方式 |
+| --- | --- | --- |
+| `lineTotal` | `decimal -> (int -> decimal)` | 接收单价，返回接收座位数并产生金额的函数 |
+| `standardLineTotal` | `int -> decimal` | 接收座位数，产生已经固定单价的金额 |
+| `applyTwice` | `('a -> 'a) -> ('a -> 'a)` | 接收一个保持输入输出类型一致的函数，返回同样从 `'a` 到 `'a` 的函数 |
+| `identity` | `'a -> 'a` | 接收任意某一类型的值，返回同一类型的值 |
+
+`applyTwice` 也可逐个位置读成 `('a -> 'a) -> 'a -> 'a`：先给变换，再给值，最后得值。右结合让最后两个位置构成返回的 `'a -> 'a` 函数。相同 `'a` 要求一次实例化中的所有位置一致；它不是“这里可以各自放任意类型”。
+
+`lineTotal` 的第一个实参必须是 `decimal`，第二个必须是 `int`。只提供第一个实参时，得到一个与 `standardLineTotal` 类型相同的函数，而不是金额。
+
+:::
+
 ### 练习 2：传入行为 {#exercise-02}
 
 使用 `applyTwice` 完成两次调用：一次传入命名函数 `increment`，一次直接传入等价的匿名函数。两次都从 `3` 开始。
 
 写出匿名函数、两次调用的结果和相关类型。然后说明 `applyTwice` 为什么不能直接接收一个把 `int` 转成 `string` 的函数。
+
+
+::: details 参考答案
+
+命名函数和匿名函数如下：
+
+```fsharp:line-numbers
+let increment seats = seats + 1
+let incrementAnonymous = fun seats -> seats + 1
+
+printfn "Named and anonymous: %d, %d" (increment 3) (incrementAnonymous 3)
+```
+示例中的命名调用是：
+
+```fsharp:line-numbers
+let applyTwice transform value = transform (transform value)
+let incrementedTwice = applyTwice increment 3
+
+printfn "Applied twice: %d" incrementedTwice
+```
+等价的匿名调用写作 `applyTwice (fun seats -> seats + 1) 3`，结果同样为 `5`。匿名函数与 `increment` 都是 `int -> int`，因此 `applyTwice` 在这次调用中把 `'a` 实例化为 `int`。
+
+一个 `int -> string` 函数不能直接使用，因为第一次变换产生 `string`，第二次调用却仍要求输入 `int`。`applyTwice` 的约束是 `'a -> 'a`，不是 `'a -> 'b`。若业务真的要连续不同变换，需要另一个明确描述两阶段类型的函数，而不是削弱这里的一致性。
+
+:::
 
 ### 练习 3：选择参数形式 {#exercise-03}
 
@@ -214,7 +241,30 @@ val identity: 'a -> 'a
 3. `addServiceFee` 保留了什么值，剩余输入类型是什么？
 4. 若单价和座位数在领域中始终作为一个不可分的坐标对传递，元组版本为何可能更清楚？
 
-[查看本章练习答案](../solutions/ch-03-functions-as-values)。
+
+::: details 参考答案
+
+两个可运行定义分别是：
+
+```fsharp:line-numbers
+let lineTotal unitPrice seats = unitPrice * decimal seats
+let standardLineTotal = lineTotal 19.50m
+let totalForThree = standardLineTotal 3
+
+printfn "Curried total: %M" totalForThree
+```
+```fsharp:line-numbers
+let lineTotalTupled (unitPrice, seats) = unitPrice * decimal seats
+let tupledTotal = lineTotalTupled (19.50m, 3)
+
+printfn "Tupled total: %M" tupledTotal
+```
+柯里化版本类型为 `decimal -> int -> decimal`，调用 `lineTotal 19.50m 3`；元组版本类型为 `decimal * int -> decimal`，调用 `lineTotalTupled (19.50m, 3)`。只有前者能直接用 `lineTotal 19.50m` 固定单价，得到 `int -> decimal`。
+
+`addServiceFee` 保留 `2.00m`，剩余输入是小计，所以类型为 `decimal -> decimal`；这个函数形成了闭包。如果单价与座位数在领域中本来就是一个整体，元组输入能直接表达“只接受完整一对”。是否需要部分应用，不是唯一设计标准。
+
+:::
+
 
 下一章会让函数主体开始做选择：`if` 与 `match` 都是产生值的表达式，模式则把输入结构与分支内绑定结合起来。
 

@@ -265,6 +265,50 @@ accepted:REQ-16 remaining=1
 
 解释为什么只在目录之间移动文件，却不修改声明或项目项，无法修复依赖。
 
+
+::: details 参考答案
+
+#### 有效的项目顺序 {#exercise-01-order}
+
+依赖关系是：
+
+```text
+Domain.fs  ──▶  Pricing.fs  ──▶  Program.fs
+     └──────────────────────────▶
+```
+
+因此，项目项应为：
+
+```xml
+<ItemGroup>
+  <Compile Include="Domain.fs" />
+  <Compile Include="Pricing.fs" />
+  <Compile Include="Program.fs" />
+</ItemGroup>
+```
+
+`Domain.fs` 提供独立词汇。编译器已经处理它，所以 `Pricing.fs` 可以使用它。`Program.fs` 使用前两个提供者，因而位于最后。
+
+当文件彼此独立时，可能存在多个有效的拓扑顺序。本题给出的依赖确定了三个位置。不要按字母排序项目项，除非字母顺序碰巧也满足依赖图。
+
+#### 诊断颠倒的顺序 {#exercise-01-diagnostic}
+
+下面的顺序无效：
+
+```xml
+<ItemGroup>
+  <Compile Include="Pricing.fs" />
+  <Compile Include="Domain.fs" />
+  <Compile Include="Program.fs" />
+</ItemGroup>
+```
+
+编译过程先到达 `Pricing.fs`，之后才会看到 `Domain.fs`。`FS0039` 会出现在 `open` 声明、首次限定使用缺失的 `Domain` 模块，或首次使用其中某个类型的位置。确切位置取决于编译器最先遇到哪个不可用名称；原因都是同一个前向引用。
+
+目录不参与 F# 名称解析或编译顺序。把 `Domain.fs` 移进 `Core` 只会改变路径，还必须同步更新项目项。目录既不会让编译器更早看到文件，也不会自动给命名空间添加 `Core`。源码声明确定名称，`<Compile>` 项确定顺序。
+
+:::
+
 ### 练习 2：修复作用域并选择限定方式 {#exercise-02}
 
 修复下面的无效文件，同时保持公开限定名称为 `Booking.Text.normalize`：
@@ -277,13 +321,113 @@ let normalize (raw: string) = raw.Trim()
 
 在消费者模块中，分别展示一次使用完整名称的调用，以及一次先写 `open` 声明再调用的代码。准确解释 `open` 改变什么，又不改变什么。
 
+
+::: details 参考答案
+
+#### 把值放入模块 {#exercise-02-fix}
+
+把 `Text` 放在 `Booking` 命名空间下，即可得到所要求的公开名称：
+
+```fsharp
+namespace Booking
+
+module Text =
+    let normalize (raw: string) = raw.Trim()
+```
+
+命名空间可以包含模块，而模块可以包含 `let` 绑定函数。只有缩进 `let`，却没有 `module Text =` 声明，并不会产生这种结构。
+
+#### 限定调用与打开后的调用 {#exercise-02-open}
+
+调用方可以在调用点使用完整限定名称：
+
+```fsharp
+module Booking.Consumer
+
+let normalizeQualified raw =
+    Booking.Text.normalize raw
+```
+
+它也可以先打开模块，再在后续位置使用：
+
+```fsharp
+module Booking.Consumer
+
+open Booking.Text
+
+let normalizeOpened raw =
+    normalize raw
+```
+
+`open Booking.Text` 把可访问成员加入后续作用域的短名称查找。原始名称、定义、文件顺序、程序集引用和访问级别都保持原样。因此，两种写法都要求定义文件位于本项目中的更早位置，或项目已经引用定义所在的程序集。
+
+当短名称有歧义或只使用一次时，限定名称是更好的默认选择。当调用方反复使用某个职责集中的模块词汇时，可以只 `open` 该模块。
+
+:::
+
 ### 练习 3：传递一个可空参数 {#exercise-03}
 
 假设 `BookingId.create : (string | null) -> Result<BookingId, BookingIdError>`。编写 `BookingRequest.create`，让它接收同一种可空文本，转交输入，并把错误映射为 `InvalidBookingId`。
 
 分别测试 `null` 和非空标识符。解释参数标注为何必须出现在包装函数上，以及为什么这种输入类型不能替代领域模型中的 `option`。
 
-[阅读本章答案](../solutions/ch-16-modules-namespaces-projects)。
+
+::: details 参考答案
+
+#### 声明包装函数的真实契约 {#exercise-03-contract}
+
+下面这个紧凑模型明确标注了内外两层函数的参数：
+
+```fsharp
+open System
+
+type BookingIdError =
+    | MissingBookingId
+
+type BookingId = private BookingId of string
+
+module BookingId =
+    let create (raw: string | null) =
+        match raw with
+        | null -> Error MissingBookingId
+        | value when String.IsNullOrWhiteSpace value -> Error MissingBookingId
+        | value -> Ok(BookingId(value.Trim()))
+
+type BookingRequestError =
+    | InvalidBookingId of BookingIdError
+
+type BookingRequest =
+    private
+        { Id: BookingId
+          Seats: int }
+
+module BookingRequest =
+    let create (rawId: string | null) seats =
+        match BookingId.create rawId with
+        | Error error -> Error(InvalidBookingId error)
+        | Ok bookingId -> Ok { Id = bookingId; Seats = seats }
+```
+
+`BookingRequest.create` 承诺调用方可以提供 `null`，随后立即委托验证并保留错误上下文。章内的正式示例还会验证 `SeatCount`；这个独立不变量不会改变可空引用的推理。
+
+#### 测试边界两侧 {#exercise-03-tests}
+
+```fsharp
+match BookingRequest.create null 2 with
+| Error(InvalidBookingId MissingBookingId) -> ()
+| other -> failwithf "Unexpected nullable result: %A" other
+
+match BookingRequest.create "REQ-16" 2 with
+| Ok _ -> ()
+| other -> failwithf "Unexpected valid result: %A" other
+```
+
+若没有 `(rawId: string | null)`，即便被调用函数接受更宽的输入，推断也会让包装函数只接受非空 `string`。传入 `null` 的测试随后会与包装函数推断出的契约冲突。标注包装函数记录的是它的调用方实际可以提供什么。
+
+`string | null` 建模可能含有 null 的 CLR 引用，应在边界检查并规范化。`option<string>` 是 F# 领域值，提供 `Some`、`None`、模式匹配和组合函数。二者不会自动互换；跨越边界时要主动转换。
+
+:::
+
 
 第 17 章会用签名文件限制公共 API：调用方只能看到组件有意公开的类型和操作。
 

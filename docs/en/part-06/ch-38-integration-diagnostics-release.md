@@ -360,35 +360,147 @@ F# also makes it comfortable to keep the policy core smaller than the host. The 
 
 The language does not select a production database, make a provider idempotent, export telemetry, secure a network, or operate a deployment. The mature use of types is to expose those remaining boundaries, not to hide them behind a generic “effect” abstraction.
 
-## Avoid common closure mistakes {#common-mistakes}
-
-- Testing the service but forgetting to wire it into the executable leaves a false green path.
-- Reimplementing endpoint validation for the final service lets two public paths drift.
-- Calling `TestServer` a real network test ignores sockets, startup arguments, and process lifetime.
-- Using only a real-process smoke test makes failure cases slow and hard to control.
-- Letting the C# client reference domain internals defeats the contract test.
-- Putting request IDs or correlation IDs on metrics creates unbounded cardinality.
-- Logging bodies “temporarily” often creates a permanent sensitive-data store.
-- Assuming `StartActivity` is non-null makes behavior depend on whether a listener is installed.
-- Creating custom spans without an investigation question adds noise and cost.
-- Checking logs for one forbidden literal is evidence for that fixture, not a universal secret scanner.
-- Calling `dotnet build -c Release` a published artifact skips target and runtime decisions.
-- Adding production infrastructure to make the sample look complete obscures rather than fixes its boundary.
-
 ## Exercises {#exercises}
 
 ### Exercise 1: audit three inflated claims {#exercise-01}
 
 A release note says: “The booking API is safe across three replicas, performs payment and notifications exactly once, and is production ready because all tests pass.” Rewrite it as a guarantee ledger. For each claim, identify the strongest current evidence, the missing topology or dependency, the next mechanism, and a test that would produce the missing evidence. Do not merely replace every sentence with “not guaranteed.”
 
+
+::: details Answer
+
+#### Separate the evidence from the missing boundary {#exercise-01-ledger}
+
+Start with a four-column ledger:
+
+| Inflated claim | Strongest current evidence | Missing mechanism or boundary | Next decisive test |
+|---|---|---|---|
+| safe across three replicas | concurrent commands through several service objects sharing one process and normalized file path do not oversell | one transactional/conditional store shared by independent processes; aggregate version by event | start three hosts against the real store, force them to read one version, release competing conditional writes, then verify committed occupancy |
+| payment and notification exactly once | exact completed retries do not repeat controlled stub calls; ambiguous payment is not blindly retried; pending notification intent survives orderly restart | provider idempotency and lookup; transactional outbox; at-least-once relay; consumer atomic deduplication; reconciliation | kill at every provider/outbox acknowledgment boundary and compare provider records, outbox rows, publishes, and consumer state |
+| production ready because tests pass | locked Release build, focused tests, TestServer HTTP integration, real local Kestrel and C# smoke, safe sample logs | security, real dependencies, publish artifact, migration, topology, load envelope, telemetry backend, SLO/RPO/RTO, rollout and recovery | deploy the immutable candidate to a production-like environment and exercise security, migration, load, dependency failure, restore, rollout, and rollback gates |
+
+The first current claim is still useful: **within one process and one normalized snapshot path, cooperating service instances serialize the aggregate capacity decision**. The missing evidence begins exactly at the OS-process boundary.
+
+The second current claim should split in two: **an exact completed operation replays its local result without repeating the modeled stub calls**, and **an ambiguous payment stops for reconciliation rather than charging again**. Neither sentence says what a real provider or notification consumer did.
+
+The third defensible claim, once an application-specific gate has actually passed, is: **the application has a reproducible local acceptance check for its documented topology**. “Production ready” is not a single testable property until a production contract names environment, traffic, security, dependencies, availability, durability, and responsibilities.
+
+#### Rewrite the release note {#exercise-01-rewrite}
+
+A defensible note, after the described acceptance path has run successfully, could read:
+
+> The booking capstone now passes its locked local acceptance gate. The verified topology is one API process using one local snapshot path and controlled payment/notification adapters. Exact completed retries do not repeat those adapter calls, changed payloads conflict, ambiguous payment stops for reconciliation, and a C# HTTP consumer completes the public workflow. Multi-process storage, real provider delivery, security controls, telemetry export, artifact deployment, and production recovery remain outside this release.
+
+That statement preserves accomplishments while making the next engineering work obvious. It is more useful than either the inflated claim or a vague “nothing is guaranteed.”
+
+:::
+
 ### Exercise 2: design collection without cardinality debt {#exercise-02}
 
 The service will use an OpenTelemetry-compatible collector. Design the configuration and validation work without changing the domain model. Choose which built-in and custom sources to subscribe to, which attributes may become metric dimensions, how sampling works, what is redacted, and how logs join traces. Specify one automated test and one load test that catch a cardinality mistake. Decide whether the custom child activity earns its cost.
+
+
+::: details Answer
+
+#### Define the signal contract before the collector {#exercise-02-contract}
+
+Subscribe to the supported ASP.NET Core server instrumentation plus these application sources:
+
+| Signal | Source | Keep | Avoid |
+|---|---|---|---|
+| traces | built-in ASP.NET Core server source | method, matched route template, status; normal trace context | raw URL query, request body, authorization headers |
+| traces | `ThinkingInFSharp.Booking.Api` | `booking.http.request` only if its outcome adds investigation value | request ID as a searchable global attribute unless policy explicitly permits it |
+| metrics | `ThinkingInFSharp.Booking.Api` | request counter and duration histogram with bounded `outcome` | correlation ID, concrete path, exception message, user or provider identifier |
+| logs | application completion event 1000 | trace/correlation, method, route template, status, outcome, duration | bodies, confirmation code, transaction text, exception message, snapshot path |
+
+Keep the existing custom child activity for the first deployment because `booking.outcome` provides a stable application classification independent of raw status. Set an explicit review date. If queries never use the child and the built-in server span plus structured log answer the same questions, remove it to reduce span volume.
+
+Do not sample metrics. Aggregate every request measurement in process and let the metrics pipeline export at the configured interval. For traces, start with parent-based probabilistic sampling. Retain or separately sample errors according to the collector's documented behavior. A head sampler cannot know a later outcome, so “keep every error” may require tail sampling or another error signal. State the latency, memory, and failure tradeoff rather than promising it for free.
+
+Use a collector endpoint and credentials from deployment configuration. Enforce TLS and least privilege. Apply attribute allowlists or redaction in both the application and collector, because a collector rule is not a reason to emit known secrets. Bound queue memory, define export timeouts, and decide whether telemetry loss may ever affect request success; in most services it should not.
+
+Microsoft's [.NET tracing guide](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/distributed-tracing-instrumentation-walkthroughs) distinguishes instrument creation from collection. Its [metrics guide](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/metrics-instrumentation) recommends `IMeterFactory` in dependency-injection hosts, matching the tested design here.
+
+#### Test correlation and series growth {#exercise-02-tests}
+
+Retain the current in-process listener test because it verifies local signal production without a vendor. Add a collector integration test that sends one successful and one invalid request with a controlled valid `traceparent`, then asserts:
+
+- the response header and completion log use the same trace ID;
+- the custom activity is a child of the server activity when sampled;
+- the counter and histogram include `success` and `client_error` measurements;
+- exported records contain no forbidden fields or fixture secrets;
+- disabling the activity sampler does not change HTTP behavior.
+
+For cardinality, send at least 10,000 requests with distinct booking IDs and concrete URL values. Query or inspect the test backend and assert a fixed upper bound on custom metric series—at most four `outcome` series per instrument with the current contract. Also cap distinct route values to the number of registered templates and verify that no correlation or booking ID appears as a metric attribute.
+
+Run this as a load test, not just a source scan. A harmless-looking enrichment processor can add an identifier after application tests have passed. Observe collector memory, dropped data, export queue length, and backend ingestion while varying IDs.
+
+:::
 
 ### Exercise 3: turn the check into a real release plan {#exercise-03}
 
 Choose one explicit target, such as a framework-dependent Linux container or a self-contained `linux-x64` service. Extend the acceptance gate into a publish, promotion, deployment, and rollback plan. Name the immutable artifact, runtime/configuration contract, storage migration strategy, health gates, security checks, smoke tests, telemetry checks, rollout policy, and rollback trigger. State which steps can remain local and which require a production-like environment.
 
-[Read the chapter solutions](../solutions/ch-38-integration-diagnostics-release).
+
+::: details Answer
+
+#### Choose and name one artifact {#exercise-03-artifact}
+
+Assume the target is a framework-dependent Linux container on `linux-x64`. The immutable release identity is an OCI image digest, not a mutable tag. A multi-stage build restores from the lock file and runs the complete acceptance suite. It then publishes `Booking.Api` in Release and copies only the publish output into a pinned, supported ASP.NET Core runtime image.
+
+Record alongside the digest:
+
+- source commit and clean-tree status;
+- SDK, target framework, runtime-image digest, and lock-file hash;
+- build provenance and software bill of materials;
+- vulnerability and license scan results under an explicit policy;
+- configuration schema version and database migration range;
+- public DTO/API version and rollback compatibility window.
+
+Framework-dependent means the runtime comes from the runtime image. Pinning that image improves reproducibility, but security patches require rebuilding and promoting a new image. Microsoft's [.NET publishing overview](https://learn.microsoft.com/en-us/dotnet/core/deploying/) makes the runtime model a deliberate publish choice.
+
+#### Promote the same bytes through gates {#exercise-03-pipeline}
+
+A concrete pipeline is:
+
+1. **Source gate:** frozen JavaScript install, locked .NET restore, formatting/content checks, full build and tests.
+2. **Publish gate:** publish once, build the image once, generate provenance/SBOM, scan, sign, and store by digest.
+3. **Ephemeral gate:** start the exact digest with a temporary real database and controlled provider sandbox; run migration, HTTP/C# smoke, malformed input, diagnostics export, and shutdown tests.
+4. **Staging gate:** restore anonymized representative data, run backward/forward migration checks, concurrency/load tests, provider reconciliation, outbox recovery, and authorization tests.
+5. **Promotion:** attach approval to the digest; do not rebuild for production.
+6. **Canary deployment:** route a small, bounded share of eligible traffic while watching error rate, latency, saturation, payment ambiguity, outbox age, and capacity conflicts.
+7. **Expansion:** increase traffic in timed stages only while gates remain healthy.
+8. **Completion:** retain the prior compatible digest and migration recovery material for the declared rollback window.
+
+The service needs separate liveness and readiness semantics. Liveness should answer whether the process can make progress without depending on every remote system. Readiness should remove an instance when a dependency essential to serving requests is unavailable, while avoiding synchronized flapping. Neither endpoint should reveal credentials, paths, SQL, or provider messages.
+
+Apply these runtime controls where the platform supports them:
+
+- run as a non-root user on a read-only base filesystem;
+- inject secrets through the platform, not the image;
+- restrict outbound destinations;
+- terminate TLS under a documented trust model; and
+- enforce authentication, authorization, request-size limits, and rate limits.
+
+Scan results need a responsible owner and an expiry for every exception. A green scanner alone is not a security design.
+
+#### Make storage evolution and rollback compatible {#exercise-03-rollback}
+
+Replace the file snapshot before claiming replica safety. Use an event-keyed transactional or version-conditional store, then design schema changes with an expand/migrate/contract sequence:
+
+1. deploy code that reads old and new forms but writes a backward-compatible form;
+2. apply an additive migration and verify it under concurrent load;
+3. backfill with bounded, observable batches;
+4. switch writes only after old readers are gone;
+5. remove old fields in a later release after the rollback window.
+
+An application rollback is safe only while the older binary can read the current schema and understand messages already emitted. Otherwise recovery is a forward fix or database restore, each with an explicit data-loss window. Test restore time and data correctness; do not infer RPO or RTO from the existence of backups.
+
+Stop rollout automatically when error, latency, or saturation limits are breached. Also stop for failed readiness, unexpected payment ambiguity, or growing outbox backlog. Roll back only when the compatibility contract allows it. Preserve related logs, traces, and state, then open an incident; do not delete the failed environment before diagnosis.
+
+Local gates can verify deterministic builds, unit and contract behavior, static security policy, and the local smoke test. Published-image execution, real database migrations, provider sandbox behavior, collector export, load, canary routing, backup restore, and rollback require production-like or production control planes.
+
+:::
+
 
 Part VI is complete. Part VII maps this foundation onto the wider F# and .NET ecosystem without pretending that every useful library belongs in one application.

@@ -114,18 +114,6 @@ The example first evaluates `printfn "%s" summary`, so the summary appears on sc
 
 This distinction matters later. A signature ending in `unit` usually means that the call matters because it performs an effect, such as writing a file, sending a response, or recording a log. The return type alone cannot say whether that effect completed or failed; tests and an explicit error model must check those outcomes.
 
-## Check how the code is being run first {#debugging}
-
-Problems in a first session usually come from how the code is launched rather than from its business logic.
-
-- **FSI keeps waiting:** the interactive submission may lack its closing `;;`, parenthesis, or quotation mark.
-- **The script path does not exist:** confirm that the terminal is in the directory where you saved the file.
-- **A script appears silent:** scripts display explicit output. Add `printfn`, or take a small expression back to FSI for automatic display.
-- **An integer/string expression fails to compile:** read the expected and actual types in the diagnostic, then choose an intentional conversion that matches the data's meaning.
-- **The output is right while the design remains unclear:** one output describes one run. Later chapters add types, failure paths, and testable boundaries.
-
-A productive rhythm is to send the smallest expression to FSI, understand its type, put it back into the script, and rerun the whole script. This combines fast feedback with whole-script verification.
-
 ## Exercises {#exercises}
 
 Answer independently before running or editing a local copy. Use the solution to compare both your reasoning and your final answer.
@@ -140,6 +128,25 @@ Use the output you just observed to answer these questions:
 
 Then edit your local copy and test the prediction in question 3.
 
+::: details Answer
+
+The types are:
+
+| Name | Type | Computed value |
+| --- | --- | --- |
+| `remaining` | `int` | `22` |
+| `hasSeats` | `bool` | `true` |
+| `summary` | `string` | `"Functional Foundations: 22 seats remaining"` |
+| `printResult` | `unit` | `()` |
+
+To evaluate the right side of `printResult`, `printfn "%s" summary` must run first, so the summary is the first output line. After that print finishes, the call returns `()`, and that value is bound to `printResult`. The next two `printfn` calls print the Boolean and `()` in order.
+
+If `booked` changes to `40`, `remaining` changes from `22` to `0`, and `hasSeats` changes from `true` to `false`. Because `summary` depends on `remaining`, it now ends in `0 seats remaining`. The type and value of `printResult` do not change: printing different text still returns `()`.
+
+The point is not the subtraction. It is to reason in the direction of dependency: an input changes the arithmetic expression, which changes the comparison and interpolation, which finally changes the output.
+
+:::
+
 ### Exercise 2: migrate a small program {#exercise-02}
 
 Imagine an imperative program that creates rewritable variables named `guest`, `requestedSeats`, and `confirmation`, then prints “Lin booked 3 seats.” Rewrite it in F# using only constructs from this chapter:
@@ -149,6 +156,23 @@ Imagine an imperative program that creates rewritable variables named `guest`, `
 3. print it with `printfn`;
 4. state both the final call's return value and what appears on screen.
 
+::: details Answer
+
+One direct answer is:
+
+```fsharp:line-numbers
+let guest = "Lin"
+let requestedSeats = 3
+let confirmation = $"{guest} booked {requestedSeats} seats."
+
+printfn "%s" confirmation
+```
+The three `let` bindings state data dependencies rather than declaring three storage slots that must later be rewritten. `confirmation` depends only on the two values already named. The final `printfn` writes the text to standard output and returns `()`.
+
+Type annotations add no value here: the string literal, integer `3`, interpolation, and `printfn` already give the compiler enough constraints. Nor is there a reason to invent an operator or abstraction to make the answer look “more functional.” Clear intermediate values are the purpose of the exercise.
+
+:::
+
 ### Exercise 3: choose an entry point {#exercise-03}
 
 Choose FSI, a script, or a project for each job, and give one reason:
@@ -157,7 +181,17 @@ Choose FSI, a script, or a project for each job, and give one reason:
 2. run a version-controlled utility each week to produce a local report;
 3. build an HTTP service with multiple modules, automated tests, and deployment.
 
-[Read the chapter solutions](../solutions/ch-01-first-session).
+::: details Answer
+
+| Job | Suitable entry point | Reason |
+| --- | --- | --- |
+| Inspect `17 * 23` | FSI | The question is one expression; immediate value and type feedback is most useful |
+| Produce a local report every week | Script | The code must be saved, reviewed, and repeated, but may not need an application publishing boundary |
+| Build and deploy an HTTP service | Project | Multiple modules, tests, dependencies, configuration, and publishing need an explicit build boundary |
+
+These are not inviolable rules. A growing script can migrate to a project, and a small expression from a project can still be explored in FSI. Choose the shortest reliable feedback loop for the current problem, not a status hierarchy of file extensions.
+
+:::
 
 The next chapter tightens the temporary language used here: what `let` binds, how immutable names work by default, and how the compiler infers types from constraints.
 

@@ -210,20 +210,6 @@ let labelsWithWhile source =
 
 两种风格都可能带来多余成本：函数式版本可能分配过多中间列表，命令式版本可能因错误的尾部追加退化。先保证结果、顺序和对外行为相同，再用基准或分析工具比较真实成本。
 
-## 逐个检查管道阶段 {#debugging}
-
-管道报错时，不要试图一次读懂整条链：
-
-1. 写出当前阶段输入类型；
-2. 查看右侧函数已部分应用后的剩余参数类型；
-3. 确认管道值的类型与最后一个参数的类型一致；
-4. 在 FSI 中临时绑定中间结果；
-5. 检查下一阶段是否需要值、列表还是 `option`。
-
-输出顺序不对时，寻找 `::` 头部插入与遗漏的 `List.rev`。循环不结束时，确认每条循环路径都更新了循环条件依赖的状态。列表结果长度不对时，分别统计 `filter` 返回真的项或 `choose` 返回 `Some` 的项。
-
-副作用发生两次时，检查是否重复调用了有副作用的映射函数。本章列表立即求值，每次明确调用都会重新遍历；第 14 章的惰性序列会带来另一种重复枚举风险。
-
 ## 练习 {#exercises}
 
 每题先写阶段类型与中间值，再运行。最终列表相同还不够；还要比较源数据、顺序与副作用。
@@ -237,11 +223,57 @@ let labelsWithWhile source =
 3. 展开两个 `|>`，改写为不使用管道的等价调用；
 4. 说明源列表是否变化，以及该管道遍历几次列表阶段。
 
+
+::: details 参考答案
+
+共享管道是：
+
+```fsharp:line-numbers
+let pipelineLabels =
+    requests |> List.filter isValidRequest |> List.map formatRequest
+
+printfn "Pipeline labels: %A" pipelineLabels
+```
+`requests` 与过滤结果都是 `(string * int) list`；前者依次为 Lin 3、Ada 0、Sam 2、Mina -1，后者只保留 Lin 3、Sam 2。映射结果是 `string list`，顺序为 `[ "Lin:3"; "Sam:2" ]`。
+
+不使用管道时，分两步求值：
+
+1. 计算 `List.filter isValidRequest requests`；
+2. 把结果传给 `List.map formatRequest`。
+
+也可嵌套写成 `List.map formatRequest (List.filter isValidRequest requests)`。两种写法都不会改变源列表。
+
+这段执行两个立即求值列表阶段：过滤遍历四项并产生中间列表，映射再遍历两项并产生最终列表。调用次数和元素访问次数不是同一个数字，但确实存在两次列表操作。
+
+:::
+
 ### 练习 2：用 `choose` 合并选择与变换 {#exercise-02}
 
 解释 `tryFormatRequest` 对四个请求分别返回什么，并写出完整类型。然后说明 `List.choose` 如何得到与 `filter` 加 `map` 相同的结果。
 
 比较两种写法：什么情况下保留独立过滤结果更清楚？什么情况下 `choose` 更准确？`None` 在这个示例中丢失了什么信息？
+
+
+::: details 参考答案
+
+答案区域是：
+
+```fsharp:line-numbers
+let tryFormatRequest request =
+    if isValidRequest request then
+        Some(formatRequest request)
+    else
+        None
+
+let chosenLabels = requests |> List.choose tryFormatRequest
+
+printfn "Chosen labels: %A" chosenLabels
+```
+`tryFormatRequest` 的完整类型为 `(string * int) -> string option`。它依次产生 `Some "Lin:3"`、`None`、`Some "Sam:2"`、`None`。`List.choose` 只提取两个 `Some` 的内部值，保持顺序，得到与过滤后映射相同的 `string list`。
+
+若“有效请求”列表需要单独记录、测试或交给其他步骤，`filter` 与 `map` 的分段更清楚。若只有有效项才有可构造的输出，且中间列表没有领域意义，`choose` 更准确。这里 `None` 丢掉了请求为何无效以及原请求内容；需要原因时应使用携带错误的模型。
+
+:::
 
 ### 练习 3：比较循环状态 {#exercise-03}
 
@@ -252,7 +284,47 @@ let labelsWithWhile source =
 3. 指出 `while` 每轮必须推进的状态，以及遗漏会怎样；
 4. 为“打印每个标签”和“产生新标签列表”分别选择首选形式并说明原因。
 
-[查看本章练习答案](../solutions/ch-05-lists-pipelines)。
+
+::: details 参考答案
+
+`for` 与 `while` 版本分别是：
+
+```fsharp:line-numbers
+let labelsWithFor source =
+    let mutable reversedLabels = []
+
+    for request in source do
+        match tryFormatRequest request with
+        | Some label -> reversedLabels <- label :: reversedLabels
+        | None -> ()
+
+    List.rev reversedLabels
+```
+```fsharp:line-numbers
+let labelsWithWhile source =
+    let mutable remaining = source
+    let mutable reversedLabels = []
+
+    while not (List.isEmpty remaining) do
+        match remaining with
+        | request :: tail ->
+            remaining <- tail
+
+            match tryFormatRequest request with
+            | Some label -> reversedLabels <- label :: reversedLabels
+            | None -> ()
+        | [] -> ()
+
+    List.rev reversedLabels
+```
+两个版本的 `reversedLabels` 变化相同：处理 Lin 后是 `[ "Lin:3" ]`；Ada 产生 `None`，不变；Sam 用 `::` 加到前端后是 `[ "Sam:2"; "Lin:3" ]`；Mina 产生 `None`，仍不变。`List.rev` 恢复输入相对顺序，否则结果会把有效项倒置。
+
+`while` 还必须让 `remaining` 从完整列表依次变为各级 `tail`，最后为 `[]`。任何非空路径忘记更新都会让条件一直为真并重复处理同一项。
+
+“打印每个标签”首选 `for` 或 `List.iter`，因为目标是产生输出副作用。“生成新标签列表”首选 `choose`，因为返回类型直接表达结果。只有性能分析确认这是热点后，才值得比较定制的单遍历可变循环。
+
+:::
+
 
 下一章会把“向头部累积再反转”推广为递归与累加器，再用 `fold` 把一类显式递归重写成可复用集合操作，并说明递归调用在什么条件下位于尾位置。
 

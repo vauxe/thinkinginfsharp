@@ -174,41 +174,74 @@ Starting with F# 9, union values expose generated case-test properties such as `
 
 Do not use a sequence of `.IsPending` and `.IsConfirmed` checks to turn a union back into flag-oriented code. A union ties each case to its data and lets the compiler understand the complete case set.
 
-## Design checklist {#design-checklist}
-
-When considering a discriminated union, ask:
-
-1. are these cases mutually exclusive and collectively a closed set?
-2. does each case carry different data?
-3. do case names come from domain language rather than implementation machinery?
-4. which matches should the compiler flag when a case is added?
-5. are independent facts being forced incorrectly into exclusive cases?
-
-If a union has many cases differing only by a few independent switches, the model may need “a record plus several small unions or Booleans,” not one huge union enumerating a Cartesian product. A type should compress illegal combinations, not enumerate every accidental one.
-
-## Inspect the case payload {#debugging}
-
-When a new case causes FS0025, decide the new case's real rule in each match instead of adding a wildcard first. If branches repeat, confirm that their semantics truly agree before joining them with an OR pattern.
-
-When case construction causes a type error, inspect the data after `of`. `Confirmed of string` receives one string; `Case of string * int` receives the stated pair. Construction and patterns must agree with that declaration.
-
-Code that first tests a case and then matches again to extract data can usually become one `match`. If a state transition returns its input but callers cannot tell whether anything happened, its return type probably needs Chapter 9's `Result`.
-
 ## Exercises {#exercises}
 
 ### Exercise 1: remove flag combinations {#exercise-01}
 
 A notification request has `IsEmail`, `IsSms`, and `IsDisabled` flags, while the rule requires exactly one of email, SMS, or disabled. Count all flag combinations and the three legal ones, then define a union carrying an email address, phone number, or disable reason. Explain which illegal states can no longer be constructed.
 
+
+::: details Answer
+
+Three independent Booleans produce `2³ = 8` combinations. If email, SMS, and disabled are the only mutually exclusive states, only `(true,false,false)`, `(false,true,false)`, and `(false,false,true)` are legal. Five others need rejection.
+
+The union states the legal set directly:
+
+```fsharp
+type NotificationTarget =
+    | Email of address: string
+    | Sms of phoneNumber: string
+    | Disabled of reason: string
+```
+
+Every constructed value now selects exactly one target: an email address, an SMS number, or a disabled reason. Smart constructors or validation can add string-format guarantees without changing these three cases.
+
+:::
+
 ### Exercise 2: prove exhaustiveness {#exercise-02}
 
 Write an exhaustive short-label function for `BookingStatus`. Then add `Waitlisted of position: int` on paper and identify which match the compiler should flag. Compare the maintenance information from an explicit new branch with what happens if the old function already had `_`.
+
+
+::: details Answer
+
+An exhaustive function is:
+
+```fsharp
+let shortLabel status =
+    match status with
+    | Pending -> "P"
+    | Confirmed _ -> "C"
+    | Cancelled _ -> "X"
+```
+
+Adding `Waitlisted of position: int` should make this match report FS0025, forcing the maintainer to choose a label such as `"W"`. If the old function ended with `_ -> "?"`, the new case would silently receive `"?"`; the compiler cannot distinguish deliberate compatibility from omission.
+
+A wildcard is not always wrong. If a function asks only “is this Pending?” and every current and future non-Pending case truly behaves the same, `| _ -> false` may state that remainder exactly. The question is whether future case policy really is shared.
+
+:::
 
 ### Exercise 3: design a transition policy {#exercise-03}
 
 Write a pure `cancel reason status` function: `Pending` and `Confirmed _` become `Cancelled reason`, while cancelled state remains unchanged. List the information lost by returning only `BookingStatus`. Then propose a return type that could distinguish success from a forbidden transition; you need not compose `Result` yet.
 
-[Read the chapter solutions](../solutions/ch-08-discriminated-unions).
+
+::: details Answer
+
+The minimal function is:
+
+```fsharp
+let cancel reason status =
+    match status with
+    | Pending
+    | Confirmed _ -> Cancelled reason
+    | Cancelled _ -> status
+```
+
+Returning only `BookingStatus` prevents callers from distinguishing “cancelled now” from “already cancelled.” They also do not receive the previous reason and cannot decide whether a repeated request agrees. If some transitions are forbidden, an interface could return `Result<BookingStatus, string>`, carrying new state on success and a reason on failure. The next chapter replaces bare strings with domain errors and composes those results.
+
+:::
+
 
 The next chapter compares two common return types: `option` represents possible absence, while `Result` represents an expected failure with context.
 

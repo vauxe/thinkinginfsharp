@@ -281,15 +281,160 @@ This does not isolate F# from .NET. The adapter narrows a broad runtime protocol
 
 Write `decode : objnull -> Result<BoundaryValue, DecodeError>` for `string`, `int`, and `BookingRequest`. Clearly handle null and unsupported runtime types. The rest of the program must pattern-match only on `BoundaryValue`, with no further casts.
 
+
+::: details Answer
+
+#### Turn runtime alternatives into a closed union {#exercise-01-decoder}
+
+```fsharp
+open System
+
+type BookingRequest =
+    { RequestId: string
+      Seats: int }
+
+type BoundaryValue =
+    | Text of string
+    | Count of int
+    | Request of BookingRequest
+
+type DecodeError =
+    | NullValue
+    | UnsupportedType of Type
+
+let decode (input: objnull) =
+    match input with
+    | null -> Error NullValue
+    | :? string as text -> Ok(Text text)
+    | :? int as count -> Ok(Count count)
+    | :? BookingRequest as request -> Ok(Request request)
+    | value -> Error(UnsupportedType(value.GetType()))
+
+let request = { RequestId = "R-26"; Seats = 2 }
+
+let decoded =
+    [ box "Lin"; box 3; box request ]
+    |> List.map decode
+
+assert (decoded = [ Ok(Text "Lin"); Ok(Count 3); Ok(Request request) ])
+assert (decode null = Error NullValue)
+
+match decode (box 1.5M) with
+| Error(UnsupportedType runtimeType) -> assert (runtimeType = typeof<decimal>)
+| outcome -> failwithf "unexpected outcome: %A" outcome
+```
+
+Only `decode` knows about `objnull`, `:?`, and `GetType`. Downstream functions can exhaustively match `Text`, `Count`, and `Request`; an unsupported runtime type cannot leak as an unchecked cast.
+
+Whether null and unsupported types are one or two error cases is domain policy. Keeping `System.Type` in boundary diagnostics is useful; letting reflection decide business behavior after this adapter is not.
+
+:::
+
 ### Exercise 2: manage an event subscription {#exercise-02}
 
 Create a capacity publisher with a CLI event. Subscribe, trigger one change, dispose or remove the subscription, and trigger another change. Assert that only the first is observed and identify the code responsible for cleanup.
+
+
+::: details Answer
+
+#### Make disposal observable {#exercise-02-subscription}
+
+```fsharp
+open System
+
+type SeatsChangedEventArgs(previous: int, current: int) =
+    inherit EventArgs()
+
+    member _.Previous = previous
+    member _.Current = current
+
+type CapacityPublisher(initial: int) =
+    let changed = Event<EventHandler<SeatsChangedEventArgs>, SeatsChangedEventArgs>()
+    let mutable current = initial
+
+    [<CLIEvent>]
+    member _.SeatsChanged = changed.Publish
+
+    member this.SetSeats(next: int) =
+        let previous = current
+        current <- next
+        changed.Trigger(this, SeatsChangedEventArgs(previous, next))
+
+let publisher = CapacityPublisher(5)
+let observed = ResizeArray<int * int>()
+
+let subscription =
+    publisher.SeatsChanged.Subscribe(fun args ->
+        observed.Add(args.Previous, args.Current))
+
+publisher.SetSeats 3
+subscription.Dispose()
+publisher.SetSeats 1
+
+assert (observed |> Seq.toList = [ (5, 3) ])
+```
+
+The composition scope that creates `subscription` is responsible for disposing it. In an application, that scope should bind the subscription with `use`, store it in a component that implements disposal, or explicitly transfer the responsibility. The test disposes midway only to verify the lifetime boundary.
+
+The publisher manages event triggering and its current capacity, not subscriber lifetimes. A longer-lived publisher that retains an unremoved handler can cause a leak.
+
+:::
 
 ### Exercise 3: define dictionary key meaning {#exercise-03}
 
 Store two customer objects whose IDs differ only by case. Build an ordinal case-insensitive comparer with `HashIdentity.FromFunctions`. Verify the equality and hash laws on three representative objects, then show that the second insertion replaces the first. Explain why a mutable customer ID would break dictionary lookup.
 
-[Read the chapter solutions](../solutions/ch-26-dotnet-runtime-boundaries).
+
+::: details Answer
+
+#### Use one immutable projection for equality and hashing {#exercise-03-comparer}
+
+```fsharp
+open System
+open System.Collections.Generic
+
+type Customer(customerId: string, displayName: string) =
+    member _.CustomerId = customerId
+    member _.DisplayName = displayName
+
+let customerIdIdentity: IEqualityComparer<Customer> =
+    HashIdentity.FromFunctions
+        (fun customer ->
+            StringComparer.OrdinalIgnoreCase.GetHashCode(customer.CustomerId))
+        (fun left right ->
+            StringComparer.OrdinalIgnoreCase.Equals(
+                left.CustomerId,
+                right.CustomerId
+            ))
+
+let first = Customer("customer-26", "Lin")
+let second = Customer("CUSTOMER-26", "Ada")
+let third = Customer("Customer-26", "Mira")
+
+let equal left right = customerIdIdentity.Equals(left, right)
+let hashOf value = customerIdIdentity.GetHashCode value
+
+assert (equal first first)
+assert (equal first second = equal second first)
+assert (equal first second && equal second third && equal first third)
+assert (hashOf first = hashOf second && hashOf second = hashOf third)
+
+let byCustomer = Dictionary<Customer, string>(customerIdIdentity)
+byCustomer[first] <- "first"
+byCustomer[second] <- "second"
+
+assert (byCustomer.Count = 1)
+assert (byCustomer[third] = "second")
+```
+
+Display names do not participate in key meaning, and all ID operations use the same ordinal case-insensitive rule. Equal IDs therefore yield equal hashes and one dictionary entry.
+
+If `CustomerId` changed after insertion, the comparer could direct lookup to a different bucket from the one used during insertion. The entry might become unreachable or removal might fail. Keep key projections immutable; to rename a key, remove the old key and insert a new immutable value under an explicit operation.
+
+These assertions sample the laws but cannot prove them for every string. Chapter 29 will turn laws such as symmetry and equal-hash agreement into generated properties.
+
+:::
+
 
 ## Sources {#sources}
 

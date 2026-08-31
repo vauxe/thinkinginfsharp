@@ -214,36 +214,133 @@ dotnet test path/to/YourSolution.slnx --configuration Release --no-build
 
 处理困难的 MSBuild 问题时，`dotnet build -bl:<path>` 产生的二进制日志会记录求值与执行细节。它可能包含绝对路径、属性和源自环境的数据，因此应把它当诊断数据检查与处理，而不是自动公开。
 
-## 精简的诊断检查表 {#checklist}
-
-在宣布工具问题已修复前，询问：
-
-1. 哪条完整命令、哪个环境复现了问题？
-2. 首个相关诊断或错误值是什么？
-3. 它属于哪类失败，什么观察确认了假设？
-4. 修复是否处理了原因，而不是隐藏症状？
-5. 窄复现现在是否通过，或产生预期诊断？
-6. 格式检查是否以只读方式运行？
-7. 锁定还原、Release 构建与全部测试是否从干净状态通过？
-8. 已发现回归是否保存为自动测试或预期错误示例？
-
-只有另一位读者也能复现结果，工具才真正形成工程实践；某台工作站碰巧变绿并不算。
-
 ## 练习 {#exercises}
 
 ### 练习 1：诊断文件顺序造成的级联 {#exercise-01}
 
 错误的第 16 章构建先报告 `Domain` 命名空间不存在，随后报告多个领域类型不存在。解释应先处理哪条消息，指出项目文件需要怎样修改，并列出两个看似可行、实际上只会隐藏或复制模型的错误做法。
 
+
+::: details 参考答案
+
+#### 修复第一个缺失依赖 {#exercise-01-order}
+
+先处理第一个 FS0039：它指出 `ThinkingInFSharp.Ch16.Domain` 不存在。项目尚未编译 `Domain.fs`，`Workflow.fs` 就打开了这个命名空间；随后关于 `Capacity`、`BookingRequest` 和 `Accepted` 的错误，都是同一依赖缺失的后果。
+
+无效顺序是：
+
+```xml
+<Compile Include="../../chapters/ch16/Workflow.fs" Link="Workflow.fs" />
+<Compile Include="../../chapters/ch16/Domain.fs" Link="Domain.fs" />
+```
+
+有效项目必须先编译依赖：
+
+```xml
+<Compile Include="Domain.fs" />
+<Compile Include="Workflow.fs" />
+<Compile Include="Program.fs" />
+```
+
+先构建范围较小的有效项目，再运行完整示例检查。预期错误项目继续保留错误顺序，以确认它会产生 FS0039。
+
+两个看似可行却并非修复的做法是：把 `Capacity` 和 `BookingRequest` 复制到 `Workflow.fs`，从而产生彼此竞争的领域模型；或添加更多 `open`，但它无法暴露尚未编译的文件。反复删除 `obj` 也是干扰：干净构建仍会复现同一错误顺序。
+
+把全部工作流定义移入 `Domain.fs` 也许能让编译成功，但那是在改变模块边界来规避一行项目配置修复。若没有比消除诊断更充分的架构理由，就不应做这种重新设计。
+
+:::
+
 ### 练习 2：选择 FSI、测试与调试器 {#exercise-02}
 
 一个已编译的预订工作流返回 `Rejected(3, 2)`，而调用方预期接受。描述一个小型 FSI 实验、一项聚焦自动测试和一个断点计划。说明每项方法能发现什么，以及诊断结束后会保留哪项产物。
+
+
+::: details 参考答案
+
+#### 为每种工具分配不同问题 {#exercise-02-tools}
+
+按当前规则，值 `Rejected(3, 2)` 是正确的：请求三个座位无法装入容量二。在修改 `decide` 之前，应先查明调用方为何预期接受。
+
+用 FSI 以受控值隔离纯规则：
+
+```fsharp
+let expectOk = function
+    | Ok value -> value
+    | Error error -> failwithf "invalid probe: %A" error
+
+let capacity = Capacity.create 2 |> expectOk
+let request = BookingRequest.create "B-30" 3 |> expectOk
+
+Workflow.decide capacity request
+// Rejected (3, 2)
+```
+
+这确认了智能构造以及纯函数对受控输入的结果。它无法说明应用实际传入了什么值，也不会在会话结束后留下回归测试。
+
+若该策略符合意图，就添加一个聚焦的示例测试：
+
+```fsharp
+[<Fact>]
+let ``three seats do not fit capacity two`` () =
+    Assert.Equal(
+        Rejected(3, 2),
+        Workflow.decide capacity request
+    )
+```
+
+测试才是持久产物。若真实需求说容量本应为四，就应在当前产生二的转换或调用方边界保留测试；不要围绕纯核心冻结错误预期。
+
+在已编译调用方中，紧邻 `Workflow.decide` 之前设置断点。检查已验证的 `SeatCount`、`Capacity` 和调用方栈帧。若值是 3 和 2，就追踪容量来源。若此前值不同而 `decide` 收到 3 和 2，则检查边界转换。确认输入后，再单步进入函数。
+
+调试器把一次真实执行追溯到输入；FSI 回答一个小模型问题；自动化测试保存已商定行为。让三者回答同一个问题只会增加工作，不会提高可信度。
+
+:::
 
 ### 练习 3：审计可复现构建 {#exercise-03}
 
 一位队友修改了一个包版本却忘记锁文件，使用全局 Fantomas，并报告 Debug 构建在已有构建缓存和产物时成功。给出一组有序、平台无关的命令来暴露每项不一致，并说明哪些仓库文件必须有意更新。
 
-[阅读本章练习答案](../solutions/ch-30-diagnostics-tooling-builds)。
+
+::: details 参考答案
+
+#### 让每种不一致在所属阶段失败 {#exercise-03-audit}
+
+从示例所在目录开始，并记录所选 SDK：
+
+```console
+dotnet --info
+dotnet tool restore
+dotnet fantomas . --check
+dotnet clean path/to/YourSolution.slnx --configuration Release
+dotnet restore path/to/YourSolution.slnx --locked-mode
+```
+
+本地工具清单让 `dotnet fantomas` 使用所声明的 7.0.5 命令；同事全局安装的版本不是仓库契约。若格式不同，应有意运行已固定版本的格式化器，并审阅它只涉及源码的差异。
+
+锁定还原应当失败，因为项目依赖已变化，相应锁定图却未更新。这个失败确认锁定检查有效。确认包变更确有意图，审阅其兼容性和来源，然后再重新生成：
+
+```console
+dotnet restore path/to/YourSolution.slnx --force-evaluate
+git diff -- "*.fsproj" "*.csproj" "packages.lock.json"
+dotnet restore path/to/YourSolution.slnx --locked-mode
+```
+
+shell 的通配符行为各不相同；若该审阅命令不能递归展开，请使用版本控制客户端或明确的项目路径。必须共同审阅的是项目引用与每个受影响的 `packages.lock.json`，而不是某一种 shell 写法。
+
+锁定图一致后，在不隐式执行其他阶段的前提下验证 Release 编译和测试：
+
+```console
+dotnet build path/to/YourSolution.slnx --configuration Release --no-restore
+dotnet test path/to/YourSolution.slnx --configuration Release --no-build
+dotnet test path/to/YourSolution.slnx --configuration Release --no-build
+```
+
+应在一次有意的依赖变更中共同更新 PackageReference 与受影响的锁文件。只有格式化器升级也有意时才更新 `.config/dotnet-tools.json`；最好让其基线差异单独审阅。仅在更改样式策略时改 `.editorconfig`，仅在更改 SDK 策略时改 `global.json`。
+
+一次使用缓存的 Debug 成功无法验证上述任何阶段。它可能重用资产、执行隐式还原、漏过 Release 专属编译，并绕过已固定的格式化器。这里清理有价值，是因为陈旧状态属于当前假设，而不是因为删除是万能修复。
+
+:::
+
 
 ## 来源 {#sources}
 

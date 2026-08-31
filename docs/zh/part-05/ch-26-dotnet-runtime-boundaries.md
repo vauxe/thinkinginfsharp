@@ -281,15 +281,160 @@ printfn
 
 为 `string`、`int` 和 `BookingRequest` 编写 `decode : objnull -> Result<BoundaryValue, DecodeError>`。分别处理 null 和不支持的运行时类型。程序其余部分只能匹配 `BoundaryValue`，不再执行转换。
 
+
+::: details 参考答案
+
+#### 把运行时选项转换为封闭联合 {#exercise-01-decoder}
+
+```fsharp
+open System
+
+type BookingRequest =
+    { RequestId: string
+      Seats: int }
+
+type BoundaryValue =
+    | Text of string
+    | Count of int
+    | Request of BookingRequest
+
+type DecodeError =
+    | NullValue
+    | UnsupportedType of Type
+
+let decode (input: objnull) =
+    match input with
+    | null -> Error NullValue
+    | :? string as text -> Ok(Text text)
+    | :? int as count -> Ok(Count count)
+    | :? BookingRequest as request -> Ok(Request request)
+    | value -> Error(UnsupportedType(value.GetType()))
+
+let request = { RequestId = "R-26"; Seats = 2 }
+
+let decoded =
+    [ box "Lin"; box 3; box request ]
+    |> List.map decode
+
+assert (decoded = [ Ok(Text "Lin"); Ok(Count 3); Ok(Request request) ])
+assert (decode null = Error NullValue)
+
+match decode (box 1.5M) with
+| Error(UnsupportedType runtimeType) -> assert (runtimeType = typeof<decimal>)
+| outcome -> failwithf "unexpected outcome: %A" outcome
+```
+
+只有 `decode` 知道 `objnull`、`:?` 和 `GetType`。下游函数可以穷尽匹配 `Text`、`Count` 与 `Request`；不支持的运行时类型无法以未检查转换形式泄漏。
+
+null 与不支持类型应该属于一个还是两个错误用例，是领域策略。在边界诊断中保留 `System.Type` 很有用；在适配器之后仍让反射决定业务行为则不合适。
+
+:::
+
 ### 练习 2：管理事件订阅 {#exercise-02}
 
 创建含 CLI 事件的容量发布者。订阅，触发一次变化，释放或移除订阅，再触发另一次变化。断言只观察到第一次，并指出由谁负责清理。
+
+
+::: details 参考答案
+
+#### 让释放可观察 {#exercise-02-subscription}
+
+```fsharp
+open System
+
+type SeatsChangedEventArgs(previous: int, current: int) =
+    inherit EventArgs()
+
+    member _.Previous = previous
+    member _.Current = current
+
+type CapacityPublisher(initial: int) =
+    let changed = Event<EventHandler<SeatsChangedEventArgs>, SeatsChangedEventArgs>()
+    let mutable current = initial
+
+    [<CLIEvent>]
+    member _.SeatsChanged = changed.Publish
+
+    member this.SetSeats(next: int) =
+        let previous = current
+        current <- next
+        changed.Trigger(this, SeatsChangedEventArgs(previous, next))
+
+let publisher = CapacityPublisher(5)
+let observed = ResizeArray<int * int>()
+
+let subscription =
+    publisher.SeatsChanged.Subscribe(fun args ->
+        observed.Add(args.Previous, args.Current))
+
+publisher.SetSeats 3
+subscription.Dispose()
+publisher.SetSeats 1
+
+assert (observed |> Seq.toList = [ (5, 3) ])
+```
+
+创建 `subscription` 的组合作用域负责释放它。在应用中，该作用域应以 `use` 绑定订阅、把它保存在实现释放的组件中，或明确转交释放责任。测试在中途释放，只为验证生命周期边界。
+
+发布者管理事件触发和当前容量，不负责订阅者的生命周期。若寿命更长的发布者一直保留未移除的处理器，就可能发生泄漏。
+
+:::
 
 ### 练习 3：定义字典键含义 {#exercise-03}
 
 存储两个 ID 仅大小写不同的客户对象。用 `HashIdentity.FromFunctions` 构建序号不区分大小写比较器。先在三个代表性对象上验证相等与哈希规律，再确认第二次插入会替换第一次。解释可变客户 ID 为什么会破坏字典查找。
 
-[阅读本章答案](../solutions/ch-26-dotnet-runtime-boundaries)。
+
+::: details 参考答案
+
+#### 用同一个不可变投影完成相等与哈希 {#exercise-03-comparer}
+
+```fsharp
+open System
+open System.Collections.Generic
+
+type Customer(customerId: string, displayName: string) =
+    member _.CustomerId = customerId
+    member _.DisplayName = displayName
+
+let customerIdIdentity: IEqualityComparer<Customer> =
+    HashIdentity.FromFunctions
+        (fun customer ->
+            StringComparer.OrdinalIgnoreCase.GetHashCode(customer.CustomerId))
+        (fun left right ->
+            StringComparer.OrdinalIgnoreCase.Equals(
+                left.CustomerId,
+                right.CustomerId
+            ))
+
+let first = Customer("customer-26", "Lin")
+let second = Customer("CUSTOMER-26", "Ada")
+let third = Customer("Customer-26", "Mira")
+
+let equal left right = customerIdIdentity.Equals(left, right)
+let hashOf value = customerIdIdentity.GetHashCode value
+
+assert (equal first first)
+assert (equal first second = equal second first)
+assert (equal first second && equal second third && equal first third)
+assert (hashOf first = hashOf second && hashOf second = hashOf third)
+
+let byCustomer = Dictionary<Customer, string>(customerIdIdentity)
+byCustomer[first] <- "first"
+byCustomer[second] <- "second"
+
+assert (byCustomer.Count = 1)
+assert (byCustomer[third] = "second")
+```
+
+显示名称不参与键含义，所有 ID 操作都使用同一种序号不区分大小写规则。因此相等 ID 产生相等哈希，并只占一个字典条目。
+
+如果 `CustomerId` 在插入后发生变化，比较器可能把查找导向不同于插入位置的哈希桶。该条目可能无法再找到，移除也可能失败。应保持键投影不可变；要重命名键，就在显式操作中移除旧键，再用新的不可变值插入。
+
+这些断言抽样检查规律，却不能证明所有字符串都成立。第 29 章会把对称性、相等值哈希一致等规律变成生成属性。
+
+:::
+
 
 ## 资料来源 {#sources}
 

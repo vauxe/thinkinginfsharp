@@ -69,13 +69,6 @@ function pages(locale: Locale, directory: string) {
     .map((name) => item(locale, `${directory}/${name}`))
 }
 
-function solutionPages(locale: Locale, partNumber: number) {
-  return readdirSync(join(docsRoot, locale, partDirectory(partNumber)))
-    .filter((name) => name.endsWith('.md'))
-    .sort()
-    .map((name) => item(locale, `solutions/${name}`))
-}
-
 function createSidebar(locale: Locale) {
   const text = labels[locale]
   const localeRoot = locale === 'en' ? '' : `/${locale}`
@@ -88,21 +81,12 @@ function createSidebar(locale: Locale) {
   }))
   const appendices = pages(locale, 'appendices')
   const glossary = item(locale, 'glossary.md')
-  const solutionsGuide = item(locale, 'appendices/g-solutions-guide.md')
   const reference = [...appendices.slice(0, 5), glossary, ...appendices.slice(5)]
   const bookSidebar = [
     contents,
     preface,
     ...parts,
     { text: text.reference, collapsed: true, items: reference }
-  ]
-  const solutionsSidebar = [
-    solutionsGuide,
-    ...partNumbers.map((number) => ({
-      text: text.parts[number - 1],
-      collapsed: true,
-      items: solutionPages(locale, number)
-    }))
   ]
   const bookPrefixes = [
     `${localeRoot}/preface/`,
@@ -111,10 +95,7 @@ function createSidebar(locale: Locale) {
     `${localeRoot}/glossary`
   ]
 
-  return {
-    ...Object.fromEntries(bookPrefixes.map((prefix) => [prefix, bookSidebar])),
-    [`${localeRoot}/solutions/`]: solutionsSidebar
-  }
+  return Object.fromEntries(bookPrefixes.map((prefix) => [prefix, bookSidebar]))
 }
 
 export const enSidebar = createSidebar('en')

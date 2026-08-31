@@ -247,6 +247,35 @@ module Capacity =
 
 把 `type FillRate = decimal` 替换为私有表示，其有效值从 `0m` 到 `1m`（含两端）。定义携带被拒绝值的错误类型、`FillRate.create` 与 `FillRate.value`。解释类型缩写加验证器为何不够。
 
+
+::: details 参考答案
+
+私有单分支联合会把已验证比例与任意 decimal 区分开：
+
+```fsharp
+type FillRateError =
+    | OutsideUnitInterval of actual: decimal
+
+type FillRate = private FillRate of decimal
+
+module FillRate =
+    let create raw =
+        if raw >= 0m && raw <= 1m then
+            Ok(FillRate raw)
+        else
+            Error(OutsideUnitInterval raw)
+
+    let value (FillRate rate) = rate
+```
+
+两个端点都会被接受，因为题设区间是闭区间。`create -0.1m` 与 `create 1.01m` 会在 `Error` 中保留被拒绝值；预期输入拒绝不需要异常。
+
+使用 `type FillRate = decimal` 时，调用方无需验证就能把 `2m` 标注为 `FillRate`。改用私有联合后，模块外只能通过公开函数构造 `FillRate`。访问器仍可返回 decimal 供计算或序列化，但不会绕过构造规则。
+
+若算术产生新的填充率，它必须重新调用 `create`；也可以留在可信模块内部，但要能说明结果始终不越界。有效比例乘以 `2m` 后，不一定仍然有效。
+
+:::
+
 ### 练习 2：选择透明或私有外层记录 {#exercise-02}
 
 假设 `EventId` 与 `SeatCount` 已受保护。比较两种设计：
@@ -258,11 +287,90 @@ type BookingRequest = private { EventId: EventId; Seats: SeatCount }
 
 分别给出一条倾向该设计的需求。若选择私有设计，列出调用方所需的最小构造与观察函数。
 
+
+::: details 参考答案
+
+若完整规则只是“包含一个有效 `EventId` 与一个有效 `SeatCount`”，应倾向公开记录。两个字段已经分别通过验证，且所有组合都合法。调用方还能继续使用记录构造、复制更新和模式匹配。
+
+若存在跨字段规则、必须保持同步的派生字段、需要整体执行的规范化，或很可能改变表示且不应破坏消费者，就应倾向私有记录。例如，小组预约策略可能要求 `SeatCount` 超过阈值时必须提供联系人地址。
+
+若没有额外验证会失败，最小私有 API 是：
+
+```fsharp
+BookingRequest.create : EventId -> SeatCount -> BookingRequest
+BookingRequest.eventId : BookingRequest -> EventId
+BookingRequest.seats : BookingRequest -> SeatCount
+```
+
+`create` 直接返回 `BookingRequest` 是准确的，因为两个实参已经受保护，而且没有新的拒绝规则。若构造会检查跨字段规则，应改为 `Result<BookingRequest, BookingRequestError>`。若调用方普遍需要某项变换，应公开该操作，不要泄露记录并迫使各处重写策略。
+
+private 并不会自动更安全：缺少观察操作的不透明类型会迫使调用方采取笨拙变通；构造器不执行任何检查的不透明类型则只是增加仪式。
+
+:::
+
 ### 练习 3：公开跨文件容量 API {#exercise-03}
 
 为 `Capacity` 加上 `tryReserve : SeatCount -> Capacity -> Result<Capacity, ReservationError>` 操作，编写 `.fsi` 签名的公开部分。说明文件顺序、联合案例可在哪些位置使用，以及恰好订满活动时该操作怎样保持正容量不变量。
 
-[查看本章练习答案](../solutions/ch-12-making-illegal-states-unrepresentable)。
+
+::: details 参考答案
+
+题设签名暴露了一处建模错误：
+
+```fsharp
+tryReserve : SeatCount -> Capacity -> Result<Capacity, ReservationError>
+```
+
+本章的 `Capacity` 是正数且固定的活动容量。预约不会改变这个事实。若返回值实际表示剩余座位，恰好订满会产生零，违反该类型的正数不变量。把它称为 `Capacity` 已经合并了两个概念。
+
+应单独建模可用量，并允许零：
+
+```fsharp
+namespace Booking.Domain
+
+[<Measure>]
+type seat
+
+type CapacityError =
+    | NonPositiveCapacity of actual: int
+
+type Capacity
+
+module Capacity =
+    val create: raw: int -> Result<Capacity, CapacityError>
+    val value: Capacity -> int<seat>
+
+type SeatCountError =
+    | NonPositiveSeatCount of actual: int
+
+type SeatCount
+
+module SeatCount =
+    val create: raw: int -> Result<SeatCount, SeatCountError>
+    val value: SeatCount -> int<seat>
+
+type AvailableSeats
+
+type ReservationError =
+    | InsufficientSeats of requested: int<seat> * available: int<seat>
+
+module AvailableSeats =
+    val fromCapacity: Capacity -> AvailableSeats
+    val value: AvailableSeats -> int<seat>
+    val tryReserve:
+        requested: SeatCount ->
+        available: AvailableSeats ->
+        Result<AvailableSeats, ReservationError>
+```
+
+`AvailableSeats` 的不变量是“零或正数”，`Capacity` 则保持正数且不变。恰好订满会返回有效的零 `AvailableSeats`；请求超过可用量则返回 `InsufficientSeats`。另一种有效设计是使用 `SoldOut | SeatsRemain of PositiveSeatCount` 联合，让零由具名案例表示。
+
+把这组公开 API 放进 `Capacity.fsi`，项目顺序中紧接 `Capacity.fs`，再放调用方文件。`.fs` 实现可以匹配并构造隐藏的联合 case；后续文件只能看到抽象类型与列出的值。签名中省略的辅助函数仍是实现细节。
+
+若保留原签名，实现就只能拒绝恰好订满、撒谎把零作为正数 `Capacity` 返回，或返回未改变的容量而不表示预约状态。类型评审已经正确揭示三种选择都错误。
+
+:::
+
 
 ## 第二部分检查点 {#part-checkpoint}
 

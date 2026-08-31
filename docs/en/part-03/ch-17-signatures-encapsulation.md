@@ -329,6 +329,70 @@ Design `EmailAddress.fsi` and `EmailAddress.fs`. The public API needs an abstrac
 
 Write the public signature, sketch the implementation, and state the project order. Explain which declarations may be used by a later file.
 
+
+::: details Answer
+
+#### Public signature {#exercise-01-signature}
+
+`EmailAddress.fsi` can publish actionable errors and an abstract successful value:
+
+```fsharp
+namespace Contacts
+
+type EmailAddressError =
+    | Blank
+    | MissingAtSign of normalized: string
+
+type EmailAddress
+
+module EmailAddress =
+    val create: raw: string -> Result<EmailAddress, EmailAddressError>
+    val value: address: EmailAddress -> string
+```
+
+Consumers can match `Blank` and `MissingAtSign`, but there is no public union case for `EmailAddress`. They can obtain that type only through published functions such as `create`.
+
+#### Matching implementation {#exercise-01-implementation}
+
+`EmailAddress.fs` supplies the representation and keeps its normalization helper out of the signature:
+
+```fsharp
+namespace Contacts
+
+open System
+
+type EmailAddressError =
+    | Blank
+    | MissingAtSign of normalized: string
+
+type EmailAddress = EmailAddress of string
+
+module NormalizedText =
+    let create (raw: string) = raw.Trim()
+
+module EmailAddress =
+    let create raw =
+        if String.IsNullOrWhiteSpace raw then
+            Error Blank
+        else
+            let normalized = NormalizedText.create raw
+
+            if normalized.Contains('@') then
+                Ok(EmailAddress normalized)
+            else
+                Error(MissingAtSign normalized)
+
+    let value (EmailAddress address) = address
+```
+
+`NormalizedText` is an implementation declaration, but omission from the matching signature makes it unavailable outside this file. It could also be declared `private`; signature omission is already sufficient for later consumers.
+
+The project order is `EmailAddress.fsi`, `EmailAddress.fs`, then any consuming file. Later files see the error cases, abstract type, `create`, and `value`. They do not see `NormalizedText` or the `EmailAddress` union case.
+
+This example only checks blank text and the presence of `@`; it is not a claim to implement the full email-address syntax. The public error names state the intentionally small policy.
+
+:::
+
 ### Exercise 2: narrow an overexposed allocation API {#exercise-02}
 
 Review this proposed public signature:
@@ -344,6 +408,42 @@ val unsafeCreate: capacity: int -> requested: int -> remaining: int -> Allocatio
 
 Redesign it so consumers cannot create inconsistent fields. Include the minimum construction/workflow and observation functions, and decide whether the insufficient-capacity error cases should remain visible. State one requirement that would instead justify a transparent record.
 
+
+::: details Answer
+
+#### Replace construction with a workflow {#exercise-02-redesign}
+
+Assume `Capacity` and `SeatCount` are already protected types. The public allocation API can be:
+
+```fsharp
+type AllocationError =
+    | InsufficientCapacity of requested: int * available: int
+
+type Allocation
+
+module Allocation =
+    val capacity: allocation: Allocation -> Capacity
+    val requested: allocation: Allocation -> SeatCount
+    val remaining: allocation: Allocation -> int
+
+val allocate:
+    capacity: Capacity ->
+    requested: SeatCount ->
+    Result<Allocation, AllocationError>
+```
+
+There is no `unsafeCreate`. `allocate` is the only published construction path, so it can establish `remaining = capacity - requested` and refuse requests above capacity. The first two accessors preserve their protected types and validated invariants. Remaining seats is an `int` because zero is valid.
+
+#### Keep the useful error transparent {#exercise-02-error}
+
+`AllocationError` should remain transparent because callers need to distinguish insufficient capacity and can use both numbers in a UI or API response. Hiding the error representation would require replacement predicates or formatting functions and would make normal control flow less direct.
+
+A transparent `Allocation` record is appropriate if it is intentionally a data-transfer or reporting snapshot, every combination permitted by its field types is legal, and direct construction/copy-and-update is part of the consumer contract. It is not appropriate while the three integers claim a relationship that callers can violate.
+
+Opacity should preserve a real rule, not merely prevent convenient record syntax. The published observations must still let callers perform every supported task.
+
+:::
+
 ### Exercise 3: repair arity and choose helper visibility {#exercise-03}
 
 A signature declares:
@@ -354,7 +454,55 @@ val apply: policy: Policy -> request: Request -> Result<Decision, DecisionError>
 
 The implementation defines `let apply (policy, request) = ...` and a `traceDecision` helper. Explain why `apply` does not match, then repair it. Show how to keep `traceDecision` usable only inside the implementation file, and how the declarations must change if one later file in the same assembly genuinely needs that helper.
 
-[Read the chapter solutions](../solutions/ch-17-signatures-encapsulation).
+
+::: details Answer
+
+#### Match the curried signature {#exercise-03-arity}
+
+The signature describes two applications:
+
+```fsharp
+apply policy request
+```
+
+The tupled implementation accepts one pair, so its arity differs. Repair it by removing the tuple pattern:
+
+```fsharp
+let apply policy request =
+    // compute Result<Decision, DecisionError>
+    // ...
+```
+
+Changing the signature to `val apply: policy: Policy * request: Request -> ...` would also make the pair consistent, but it would publish a different calling convention. Keep the curried form when partial application with one policy is a representative use.
+
+#### Choose the smallest helper scope {#exercise-03-helper}
+
+If tracing is used only in the implementation file, omit it from the signature and make the local intent explicit:
+
+```fsharp
+let private traceDecision decision =
+    // ...
+```
+
+If a later file in the same assembly genuinely needs it, the signature must expose an assembly-only value:
+
+```fsharp
+val internal traceDecision: decision: Decision -> string
+```
+
+The implementation must match:
+
+```fsharp
+let internal traceDecision decision =
+    // ...
+```
+
+Now later files in the assembly can call it, while external assemblies cannot. Merely writing `internal` in `Library.fs` but omitting the value from `Library.fsi` leaves it hidden outside the implementation file, because the signature is the visible inventory.
+
+Do not broaden the helper just to make a white-box test easy. Prefer testing `apply` through its published decisions. Widen visibility only when other implementation code genuinely depends on the helper.
+
+:::
+
 
 Chapter 18 composes these public types and operations into larger workflows. It contrasts first-error `Result` sequencing with accumulation of independent validation errors.
 

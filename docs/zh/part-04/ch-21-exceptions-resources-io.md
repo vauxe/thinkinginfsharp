@@ -258,6 +258,61 @@ finally
 
 测试有效文件、缺失文件、非整数文本与零。解释为什么解析无须访问 reader 或路径。
 
+
+::: details 参考答案
+
+#### 定义不含 I/O 的解析 {#exercise-01-parser}
+
+```fsharp
+open System
+
+type SeatParseError =
+    | SeatsNotInteger of raw: string
+    | SeatsNotPositive of value: int
+
+let parsePositiveSeats (raw: string) =
+    match Int32.TryParse(raw.Trim()) with
+    | true, value when value > 0 -> Ok value
+    | true, value -> Error(SeatsNotPositive value)
+    | false, _ -> Error(SeatsNotInteger raw)
+
+assert (parsePositiveSeats " 3 " = Ok 3)
+assert (parsePositiveSeats "oops" = Error(SeatsNotInteger "oops"))
+assert (parsePositiveSeats "0" = Error(SeatsNotPositive 0))
+```
+
+解析器只需要文本。路径会增加无关身份，reader 则会延长资源生命周期，却不能帮助解析。
+
+#### 保留失败所属阶段 {#exercise-01-workflow}
+
+使用本章的 `ReadTextError` 与 `readText`：
+
+```fsharp
+type LoadSeatsError =
+    | ReadFailure of ReadTextError
+    | ParseFailure of SeatParseError
+
+let loadSeats path =
+    readText path
+    |> Result.mapError ReadFailure
+    |> Result.bind (fun text ->
+        parsePositiveSeats text
+        |> Result.mapError ParseFailure)
+```
+
+四项必需测试应断言这些结果：
+
+| 测试输入 | 预期结果 |
+|---|---|
+| 包含 `"3"` 的文件 | `Ok 3` |
+| 缺失文件 | `Error(ReadFailure(PathNotFound path))` |
+| 包含 `"oops"` 的文件 | `Error(ParseFailure(SeatsNotInteger "oops"))` |
+| 包含 `"0"` 的文件 | `Error(ParseFailure(SeatsNotPositive 0))` |
+
+在一个唯一临时目录下创建所有文件，并在 `finally` 中只删除该目录。`readText` 会在 `parsePositiveSeats` 运行前释放 reader，因此无论解析成功还是失败，都不会延长文件句柄的生命周期。
+
+:::
+
 ### 练习 2：审计全捕获适配器 {#exercise-02}
 
 评审下面的代码：
@@ -270,13 +325,110 @@ let read path =
 
 列出它丢失的信息与策略。用结构化错误联合、继承顺序正确的特定处理器，以及对未识别异常的明确决定来重写。说明日志应属于哪里。
 
+
+::: details 参考答案
+
+#### 找出字符串抹掉的内容 {#exercise-02-audit}
+
+全捕获版本会丢失：
+
+- 异常的运行时类型与继承类别；
+- 堆栈跟踪与内部异常；
+- 路径与操作等结构化上下文；
+- 缺失、拒绝、格式错误、取消与意外故障之间的区别；
+- 对哪些条件可以恢复的明确判断；
+- 稳定处理能力，因为本地化或随版本变化的消息属于呈现文本。
+
+它还可能捕获以后加入 `try` 块的程序错误，并把它们错误报告成文件读取失败。
+
+#### 只转换明确列出的异常 {#exercise-02-rewrite}
+
+```fsharp
+open System.IO
+
+type ReadFailure =
+    | MissingPath of path: string
+    | Denied of path: string * cause: UnauthorizedAccessException
+    | OtherIo of path: string * cause: IOException
+
+let read path =
+    try
+        File.ReadAllText path
+        |> Ok
+    with
+    | :? FileNotFoundException
+    | :? DirectoryNotFoundException -> Error(MissingPath path)
+    | :? UnauthorizedAccessException as cause -> Error(Denied(path, cause))
+    | :? IOException as cause -> Error(OtherIo(path, cause))
+```
+
+具体的缺失路径用例位于 `IOException` 基类型处理器之前。没有最终 `ex` 模式，所以实参错误和已声明 I/O 策略之外的故障会保留诊断身份继续传播。
+
+日志应放在操作最终得到处理或放弃的位置，而不是自动放进 `read`。如果 `OtherIo` 返回到服务边界，该边界可以带请求上下文记录一次 `cause`，再把它映射成稳定外部响应。
+
+:::
+
 ### 练习 3：证明嵌套释放顺序 {#exercise-03}
 
 用两个 `use` 绑定编写 `withTwoReaders`。注入会保留两个真实 `StreamReader` 引用的打开函数。证明操作成功与抛出异常时，两个 reader 都会释放。
 
 解释当第二项资源依赖第一项时，为何反向声明顺序很重要，以及操作为何不能返回任何一个 reader。
 
-[阅读本章答案](../solutions/ch-21-exceptions-resources-io)。
+
+::: details 参考答案
+
+#### 让两个 reader 都留在作用域内 {#exercise-03-scope}
+
+```fsharp
+open System
+open System.IO
+
+let withTwoReaders openFirst firstPath openSecond secondPath operation =
+    use first = openFirst firstPath
+    use second = openSecond secondPath
+    operation first second
+
+let readerIsDisposed (reader: StreamReader option) =
+    match reader with
+    | None -> false
+    | Some value ->
+        try
+            value.Peek() |> ignore
+            false
+        with :? ObjectDisposedException ->
+            true
+```
+
+对于任务临时目录中已有的 `firstPath` 与 `secondPath`，在带仪表的打开函数中保留引用：
+
+```fsharp
+let mutable firstSeen = None
+let mutable secondSeen = None
+
+let openFirst path =
+    let reader = File.OpenText path
+    firstSeen <- Some reader
+    reader
+
+let openSecond path =
+    let reader = File.OpenText path
+    secondSeen <- Some reader
+    reader
+
+withTwoReaders openFirst firstPath openSecond secondPath (fun first second ->
+    first.Peek() + second.Peek())
+|> ignore
+
+assert (readerIsDisposed firstSeen)
+assert (readerIsDisposed secondSeen)
+```
+
+重置保留的引用，使用一个会抛出 `InvalidDataException` 的操作调用同一个帮助函数，在外部捕获异常，然后重复两项释放断言。临时目录清理仍属于外层 `finally`。
+
+F# 规定采用与声明相反的顺序：先释放 `second`，再释放 `first`。应先声明基础资源，再声明依赖它的资源，使依赖资源首先释放。操作不能返回任何 reader，因为 `withTwoReaders` 返回之后，两者都已经离开有效生命周期。
+
+:::
+
 
 下一章会把同样的分离应用到稍后才完成的计算，比较 F# `Async<'T>` 与 .NET `Task<'T>`。
 

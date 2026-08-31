@@ -145,20 +145,6 @@ When expressions run in sequence, a non-final expression should normally return 
 
 This rule also explains why “expressions have values” does not conflict with “programs have side effects.” A type records the result passed to later computation. Output, file writes, and network requests are effects that happen during evaluation. You need to read both pieces of information.
 
-## Trace the first conflicting constraint {#debugging}
-
-When a type error appears, narrow it in this order:
-
-1. start with the smallest expression named by the diagnostic;
-2. inspect the types of its input values separately in FSI;
-3. identify constraints supplied by literal suffixes, operators, and known APIs;
-4. decide whether the data model really needs one common type;
-5. add an annotation or explicit conversion only where the model deliberately changes type or representation.
-
-A common mistake is to blame every error on inference “guessing wrong.” Inference has no preference of its own; it solves the constraints provided by the source. The real problem may be using a person count as text in arithmetic, choosing `float` for a monetary rule, or simply omitting `m` from a literal.
-
-If shadowing is confusing, mark the indentation range of each name. When you cannot state in one sentence what the old and new bindings represent, distinct names are usually more effective than another comment.
-
 ## Exercises {#exercises}
 
 Write down the types and evaluation process independently, then run a temporary copy. A good answer explains why the compiler accepts or rejects the code.
@@ -174,6 +160,27 @@ For the `basic-values` region:
 
 Verify the answers in FSI, and compare whether FSI's display of each value has exactly the same spelling as its source literal.
 
+
+::: details Answer
+
+The seven bindings have these types:
+
+| Name | Type | Main constraint |
+| --- | --- | --- |
+| `eventName` | `string` | Double-quoted string literal |
+| `capacity` | `int` | Integer `40` with no other context |
+| `fillRatio` | `float` | Unsuffixed fractional literal `0.45` |
+| `ticketPrice` | `decimal` | The `m` suffix |
+| `eventCode` | `char` | Single-quoted character literal |
+| `registrationOpen` | `bool` | `true` |
+| `noFurtherResult` | `unit` | The sole value `()` |
+
+`float` uses binary floating-point representation, while `decimal` is a distinct decimal numeric type; the `m` suffix explicitly selects the latter. A `char` is one UTF-16 code unit, while a `string` is a sequence of UTF-16 code units. Single and double quotes express those respective types.
+
+The compiler still determines all these types at compile time without annotations. FSI may display `19.50m` as `19.50M`, so a displayed value need not reproduce its source literal character for character.
+
+:::
+
 ### Exercise 2: repair a representation boundary {#exercise-02}
 
 Suppose an external input supplies a person count as the string `"24"`. Explain why adding the integer `1` directly fails, then:
@@ -185,6 +192,24 @@ Suppose an external input supplies a person count as the string `"24"`. Explain 
 
 This chapter handles only valid input. The chapters on `option`, `Result`, and exceptions will establish complete failure models.
 
+
+::: details Answer
+
+One direct answer is:
+
+```fsharp:line-numbers
+let rawAttendeeCount = "24"
+let attendeeCount = int rawAttendeeCount
+let nextAttendeeCount = attendeeCount + 1
+
+printfn "Next attendee count: %d" nextAttendeeCount
+```
+`rawAttendeeCount` is a `string`, while the other side of integer addition is an `int`; F# will not implicitly interpret arbitrary text as an integer. `int rawAttendeeCount` explicitly produces an `int`, so both `attendeeCount` and `nextAttendeeCount` are `int`. The final output is `Next attendee count: 25`.
+
+One risk is deliberately left here: if the text is not a valid integer, the `int` conversion throws an exception. This exercise assumes a valid-input boundary. At a real input boundary, later chapters will express that branch with an explicit failure type or controlled exception conversion. Do not read this example as “all parsing should call `int` directly.”
+
+:::
+
 ### Exercise 3: trace shadowing {#exercise-03}
 
 Explain the `local-shadowing` region one line at a time:
@@ -194,7 +219,25 @@ Explain the `local-shadowing` region one line at a time:
 3. why is the outer `capacity` in the output still `40`?
 4. how many bindings does the region create, and how many existing values does it mutate?
 
-[Read the chapter solutions](../solutions/ch-02-values-bindings-expressions).
+
+::: details Answer
+
+Look at the same region again:
+
+```fsharp:line-numbers
+let normalizedCapacity =
+    let capacity = 20
+    let capacity = capacity + 4
+    capacity
+
+printfn "Normalized capacity: %d; outer capacity: %d" normalizedCapacity capacity
+```
+The first local right side directly produces `20`. While evaluating the second right side, `capacity + 4`, the name still denotes the first local binding, so the result is `24`; the new binding then shadows it. The final body sees the newest local binding, so `normalizedCapacity` is `24`.
+
+After leaving that local scope, the script-level `capacity` is visible again and remains `40`. The region establishes three bindings: two local bindings named `capacity` and the top-level `normalizedCapacity`. It mutates no existing value.
+
+:::
+
 
 The next chapter brings functions into this model. Functions are values, application is an expression, and arrow types extend data dependencies into composable behavior.
 

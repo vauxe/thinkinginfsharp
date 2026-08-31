@@ -145,20 +145,6 @@ val noFurtherResult: unit = ()
 
 这条规则也解释了为什么“表达式有值”与“程序有副作用”并不矛盾。类型说明表达式会把什么结果交给后续计算；输出、写文件或网络请求则是在求值期间发生的副作用。阅读代码时两者都要检查。
 
-## 追踪第一个冲突约束 {#debugging}
-
-遇到类型错误时，用下面的顺序缩小问题：
-
-1. 从诊断指向的最小表达式开始；
-2. 在 FSI 中分别检查输入值的类型；
-3. 看字面量后缀、运算符或已知 API 给出了什么约束；
-4. 判断数据模型是否真的需要同一类型；
-5. 只在模型确实需要改变类型或表示的位置添加标注或显式转换。
-
-常见误区是把错误都归因于“推断猜错了”。推断没有个人偏好；它只是在求解源码提供的约束。有时真正错误的是把人数读成字符串后直接参与算术，有时是货币选择了 `float`，也可能只是某个字面量漏写 `m`。
-
-遮蔽造成困惑时，先标出每个名称的缩进范围。若你无法一句话说清新旧绑定各自代表什么，改用不同名称通常比继续添加注释有效。
-
 ## 练习 {#exercises}
 
 先独立写出类型和求值过程，再运行临时副本。答案应解释编译器为什么接受或拒绝代码。
@@ -174,6 +160,27 @@ val noFurtherResult: unit = ()
 
 在 FSI 中验证，并比较 FSI 显示的值与源码字面量写法是否完全相同。
 
+
+::: details 参考答案
+
+七个绑定的类型是：
+
+| 名称 | 类型 | 主要约束 |
+| --- | --- | --- |
+| `eventName` | `string` | 双引号字符串字面量 |
+| `capacity` | `int` | 无其他上下文的整数 `40` |
+| `fillRatio` | `float` | 无后缀的小数字面量 `0.45` |
+| `ticketPrice` | `decimal` | `m` 后缀 |
+| `eventCode` | `char` | 单引号字符字面量 |
+| `registrationOpen` | `bool` | `true` |
+| `noFurtherResult` | `unit` | 唯一值 `()` |
+
+`float` 使用二进制浮点表示，`decimal` 是独立的十进制数值类型；`m` 后缀明确选择后者。`char` 是单个 UTF-16 代码单元，`string` 是 UTF-16 代码单元序列，单引号与双引号也分别表达这两个类型。
+
+没有显式标注时，编译器仍在编译期确定这些类型。FSI 可能把 `19.50m` 显示为 `19.50M`，所以值的显示形式不保证与源码字面量逐字符相同。
+
+:::
+
 ### 练习 2：转换外部表示 {#exercise-02}
 
 假设外部输入把人数提供为字符串 `"24"`。解释为什么把它直接与整数 `1` 相加会失败，然后：
@@ -185,6 +192,24 @@ val noFurtherResult: unit = ()
 
 本章只处理有效输入；`option`、`Result` 与异常会在后续章节补全失败处理。
 
+
+::: details 参考答案
+
+一种直接写法如下：
+
+```fsharp:line-numbers
+let rawAttendeeCount = "24"
+let attendeeCount = int rawAttendeeCount
+let nextAttendeeCount = attendeeCount + 1
+
+printfn "Next attendee count: %d" nextAttendeeCount
+```
+`rawAttendeeCount` 是 `string`，而整数加法的另一侧是 `int`；F# 不会自动把任意文本解释为整数。`int rawAttendeeCount` 先把文本转换为 `int`，因此 `attendeeCount` 与 `nextAttendeeCount` 都是 `int`。最终输出为 `Next attendee count: 25`。
+
+这里仍有一个刻意保留的风险：文本不是有效整数时，`int` 转换会抛出异常。本题假设输入有效；在真实输入边界，后续章节会用失败类型或受控异常转换表达这个分支。不要把本例误读为“所有解析都应该直接调用 `int`”。
+
+:::
+
 ### 练习 3：追踪遮蔽 {#exercise-03}
 
 逐行解释 `local-shadowing` 区域：
@@ -194,7 +219,25 @@ val noFurtherResult: unit = ()
 3. 输出中的外层 `capacity` 为什么仍是 `40`？
 4. 这段代码创建了几个绑定，又修改了几个既有值？
 
-[查看本章练习答案](../solutions/ch-02-values-bindings-expressions)。
+
+::: details 参考答案
+
+重新看同一段代码：
+
+```fsharp:line-numbers
+let normalizedCapacity =
+    let capacity = 20
+    let capacity = capacity + 4
+    capacity
+
+printfn "Normalized capacity: %d; outer capacity: %d" normalizedCapacity capacity
+```
+求第一个局部右侧时，字面量直接产生 `20`。求第二个局部右侧 `capacity + 4` 时，`capacity` 仍指第一个局部绑定，因此得到 `24`；随后新绑定遮蔽它。最后的主体读取最新局部绑定，所以 `normalizedCapacity` 为 `24`。
+
+离开右侧局部范围后，脚本顶层的 `capacity` 再次是可见绑定，值仍为 `40`。这段区域新建三个绑定：两个局部 `capacity` 和顶层 `normalizedCapacity`。它没有修改任何既有值。
+
+:::
+
 
 下一章会把函数纳入这幅图：函数也是值，应用也是表达式，而箭头类型会把数据依赖扩展为可组合的行为。
 

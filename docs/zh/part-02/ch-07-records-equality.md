@@ -188,35 +188,91 @@ printfn "Structural sort: %A" sortedLabels
 
 不要只追求少写几行。记录名与字段名是模型词汇；匿名记录与元组则能避免为局部中间数据声明无用的公共类型。
 
-## 先说清你在比较什么 {#debugging}
-
-遇到“相同数据却行为不同”时，先写出问题属于哪一层：
-
-1. 类型是否相同，还是两个字段相似的不同命名记录；
-2. 比较的是字段内容、引用身份还是领域 ID；
-3. 组成字段是否都支持所需的相等或比较；
-4. 排序是否无意采用记录的默认字段顺序；
-5. 哈希码是否被错误当成相等证明或永久键。
-
-更新后旧值也变化，通常说明记录字段引用了某个可变对象，而不是复制更新改写了旧记录。画出新旧记录共同引用的嵌套对象，比笼统地说“不可变失效”更准确。
-
-记录构造推断成错误类型时，检查是否有多个记录复用标签；在绑定或函数参数上加一个有信息量的类型标注，不要靠声明顺序碰运气。
-
 ## 练习 {#exercises}
 
 ### 练习 1：从元组迁移到记录 {#exercise-01}
 
 把 `("A-1", "Lin", 2)` 及一个接收 `string * string * int` 的格式化函数改为 `BookingDraft`。写出类型定义、构造、字段访问和记录模式版本。说明迁移消除了哪些位置错误，又没有自动保证哪些领域规则。
 
+
+::: details 参考答案
+
+一种完整改写是：
+
+```fsharp
+type BookingDraft =
+    { EventId: string
+      Attendee: string
+      Seats: int }
+
+let draft =
+    { EventId = "A-1"
+      Attendee = "Lin"
+      Seats = 2 }
+
+let format { EventId = eventId; Attendee = attendee; Seats = seats } =
+    $"{eventId}:{attendee}:{seats}"
+
+let attendee = draft.Attendee
+```
+
+记录消除了把两个 `string` 位置交换却仍通过类型检查的风险，也让调用方不必记忆第三个位置。它没有保证字符串非空、座位数为正、活动存在或容量足够；这些是不变量与工作流规则，第 12 章和贯穿项目会处理。
+
+:::
+
 ### 练习 2：追踪复制与身份 {#exercise-02}
 
 从 `original` 创建一个仅改变 `Seats` 的记录，再创建一个字段完全相同但单独构造的记录。预测并验证三组结构相等和 `PhysicalEquality` 结果。若记录含一个可变列表或数组字段，解释复制更新后可能共享什么；无需在本题引入可变字段。
+
+
+::: details 参考答案
+
+共享定义可以直接用于预测：
+
+```fsharp:line-numbers
+let equalCopy =
+    { EventId = "A-1"
+      Attendee = "Lin"
+      Seats = 2 }
+
+let alias = original
+let structurallyEqual = original = equalCopy
+let physicallyEqual = LanguagePrimitives.PhysicalEquality original equalCopy
+let aliasIsSameReference = LanguagePrimitives.PhysicalEquality original alias
+let equalHashesAgree = hash original = hash equalCopy
+
+printfn "Equality: structural=%b physical=%b alias=%b" structurallyEqual physicallyEqual aliasIsSameReference
+printfn "Hashes agree for equal records: %b" equalHashesAgree
+```
+设 `updated = { original with Seats = 3 }`、`equalCopy` 与原字段完全相同、`alias = original`：
+
+| 比较 | 结果 | 原因 |
+| --- | --- | --- |
+| `original = equalCopy` | `true` | 三个字段结构相等 |
+| `PhysicalEquality original equalCopy` | `false` | 分别构造的引用对象 |
+| `PhysicalEquality original alias` | `true` | 两个名称指向同一对象 |
+| `original = updated` | `false` | `Seats` 不同 |
+
+复制更新沿用未改变字段的值。若一个字段是数组，新旧记录可指向同一数组；随后改写数组元素会从两条路径都可见。问题在嵌套对象的可变性，不在记录字段被重新赋值。
+
+:::
 
 ### 练习 3：设计相等、哈希与顺序 {#exercise-03}
 
 为三种需求分别选择结构相等、引用身份、领域 ID 或显式排序键：去除内容相同的草稿、确认两个变量是否为同一缓存对象、按座位数降序展示预约。解释为什么不能以 `hash x = hash y` 判断前两者相等，并写出第三项的 `List.sortByDescending` 键。
 
-[查看本章练习答案](../solutions/ch-07-records-equality)。
+
+::: details 参考答案
+
+- 去除内容相同的草稿用结构相等，因为字段内容就是本需求的等价关系。
+- 要确认两个变量是否指向同一缓存对象，可以比较引用身份；若缓存按键定义对象，直接比较缓存键通常更清楚。
+- 真实预约是否为同一业务实体应比较明确的预约或请求 ID，不能从内容或对象身份猜测。
+- 展示顺序应明确写成 `bookings |> List.sortByDescending (fun booking -> booking.Seats)`。若座位数相同时还要按姓名升序，可用 `List.sortWith` 写出两级规则，不要依赖记录字段的声明顺序。
+
+`hash x = hash y` 对结构相等是必要条件，不是充分条件。不同值可以碰撞，因此哈希相同不能替代 `x = y`；哈希也不说明两个引用是否为同一对象。
+
+:::
+
 
 下一章处理记录无法单独表达的要求：预约只能处于少数几种互斥状态之一，不能是若干布尔标志的任意组合。
 

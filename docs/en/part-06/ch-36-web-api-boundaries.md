@@ -517,36 +517,132 @@ For an edge deployment, decide TLS, HSTS, allowed hosts, rate limits, request ti
 
 Choose middleware from the threat model. For example, CORS governs browser origins, while authentication and network controls govern other HTTP clients; a permissive CORS policy broadens browser access. Chapter 42 revisits deployment choices, while Chapter 38 adds the diagnostics and release checks required by this sample.
 
-## Avoid common API boundary mistakes {#boundary-mistakes}
-
-- Serializing `BookingCommand` or `Booking` directly turns compiler representation into a public protocol.
-- Treating a deserialized DTO as validated domain data skips smart constructors and accumulated rules.
-- Trusting only `Content-Length` leaves unknown-length bodies unbounded.
-- Letting persistence and HTTP use different JSON options creates two meanings for one DTO.
-- Mapping every refusal to `400` erases what clients can safely do next.
-- Returning `exception.Message` can disclose paths, provider details, or implementation names.
-- Catching client cancellation as `500` lies about both the request and the server.
-- Retrying after an ambiguous payment or notification failure can duplicate effects.
-- Assuming an in-memory server reproduces Kestrel transport behavior leaves a verification gap.
-- Putting production credentials in environment variables is not encryption or access control.
-- Enabling body logging before classification and redaction can turn diagnostics into a data leak.
-- Calling this unauthenticated loopback sample production-ready overstates its boundary.
-
 ## Exercises {#exercises}
 
 ### Exercise 1: change binding without changing the contract {#exercise-01}
 
 Redesign one command route to use automatic Minimal API parameter binding. Preserve the exact strict JSON policy, 16 KiB effective limit, `ApiErrorDto` representation, cancellation propagation, and all current status/code pairs. Identify which behavior belongs in configuration, an endpoint filter or middleware, and the handler. Specify contract tests that prevent framework defaults from changing the public response.
 
+
+::: details Answer
+
+#### Freeze observable behavior first {#exercise-01-contract}
+
+The refactor must preserve these invariants:
+
+- accepted JSON media types and exact case-sensitive property names;
+- rejection of unknown members and excessive nesting;
+- an effective 16 KiB byte limit with and without `Content-Length`;
+- `invalid_json` for malformed JSON or JSON with the wrong structure;
+- `invalid_request` for a null body or missing DTO field;
+- accumulated domain field errors before any port call;
+- the caller's request-aborted token on every port;
+- every success status, error status, stable code, and response DTO structure.
+
+Do not begin by deleting the contract tests. They are the specification that lets the mechanism change safely.
+
+#### Assign policy to the narrowest reusable layer {#exercise-01-layers}
+
+One viable design divides responsibility as follows:
+
+| Layer | Responsibility |
+|---|---|
+| HTTP JSON configuration | call `BookingJson.configure` on the options used by Minimal API binding |
+| Kestrel configuration | reject bodies above 16 KiB on the real server |
+| early middleware or endpoint filter | enforce the same streamed byte count when transport features do not provide it |
+| binding-failure boundary | convert malformed JSON and binding failures to the stable `ApiErrorDto` contract |
+| route handler | receive `PlaceBookingDto`, map it, validate it, and invoke the application workflow |
+| outer exception boundary | preserve request cancellation and hide operational or unexpected details |
+
+The handler can then have a compact conceptual signature:
+
+```fsharp
+PlaceBookingDto -> CancellationToken -> Task<IResult>
+```
+
+That signature does not define the whole public contract because framework binding runs before the handler. Depending on configuration and host, binding may return a framework-generated error body or throw through `TestServer`. The binding-failure layer must normalize both paths before either reaches the caller.
+
+Do not read the body once in middleware merely to measure it and then ask the binder to read the consumed stream. Either install a genuinely limiting stream wrapper before binding, or buffer only within the same declared small limit and replace the body with a rewound stream. The former avoids a duplicate buffer; the latter is simpler but must dispose its owned buffer after the request.
+
+#### Keep tests black-box {#exercise-01-tests}
+
+Run the existing HTTP cases unchanged. Add two requests without `Content-Length`: one exactly at the limit and one byte over it. Add `application/problem+json` or another valid `+json` media type to prove the content-type policy is intentional.
+
+Assert both the response and the layer responsible for it. Invalid input must produce `400` before `LoadBooking`. Cancellation must reach the blocked port before the client task completes as cancelled. Finally, repeat a real Kestrel smoke test for transport limits and headers outside `TestServer`'s model.
+
+If any status, code, field error, or side-effect count changes, the refactor changed the API. Decide that migration explicitly instead of calling it a binding implementation detail.
+
+:::
+
 ### Exercise 2: reason from the last visible effect {#exercise-02}
 
 For each interruption—payment authorized then append fails, append succeeds then notification fails, and notification succeeds then the client disconnects—state what the provider, snapshot, caller, and a retry can observe. Propose the minimum idempotency information Chapter 37 must persist. Do not claim a distributed transaction.
+
+
+::: details Answer
+
+#### Record ambiguity instead of guessing {#exercise-02-table}
+
+The three interruptions produce different facts:
+
+| Interruption | Provider sees | Snapshot contains | Caller sees | Blind retry risk |
+|---|---|---|---|---|
+| payment authorized, append fails | an authorization may exist | old state | `503` or lost response | a second authorization |
+| append succeeds, notification fails | authorization exists | new booking | `503` | duplicate command while notification remains missing |
+| notification succeeds, response is lost | authorization and notification exist | new booking | cancellation/no response | duplicate payment or notification despite complete work |
+
+The caller cannot infer durable truth from the presence or absence of an HTTP response. The server also cannot infer whether a provider acted merely because its connection failed after sending a request. Both need identifiers that survive a process and network failure.
+
+#### Persist the minimum replay state {#exercise-02-evidence}
+
+Chapter 37 needs a durable record keyed by the normalized request ID. At minimum it must retain:
+
+- a fingerprint of the original command, so reusing one ID for different input is a conflict;
+- the accepted booking or decision result;
+- a stable payment idempotency key and whether authorization is pending, known accepted, known declined, or ambiguous;
+- whether notification is pending or delivered;
+- enough response data to replay the same completed result without repeating external calls.
+
+“Pending” and “ambiguous” are different. Pending means no attempt is known to have begun. Ambiguous means an attempt began but its outcome is unknown; a provider status query or provider-supported idempotency key is required before another charge.
+
+For notification after the local commit, use a durable outbox record. Commit the booking and “notification pending” together, then deliver and mark completion separately. A deterministic stub can verify the state transitions, but it cannot verify a real broker or email provider's delivery semantics.
+
+This is not a distributed transaction. It is an explicit protocol for replay, reconciliation, and at-least-once attempts with deduplication where supported. Compensation, authorization expiry, and provider callbacks require additional business rules not present in this sample.
+
+:::
 
 ### Exercise 3: review two deployment topologies {#exercise-03}
 
 Compare exposing Kestrel directly with running it behind a reverse proxy. Produce a short responsibility table for TLS, forwarded headers, host filtering, request limits, rate limiting, authentication, secret retrieval, and log redaction. Mark which controls are required by this booking API and which depend on deployment requirements.
 
-[Read the chapter solutions](../solutions/ch-36-web-api-boundaries).
+
+::: details Answer
+
+#### Put each control where the required information is trustworthy {#exercise-03-table}
+
+Use this responsibility table as a starting point, not universal infrastructure policy:
+
+| Concern | Kestrel at the edge | Trusted reverse proxy in front | Booking requirement |
+|---|---|---|---|
+| TLS and HSTS | configure in the app/server | usually terminate at proxy; preserve secure scheme correctly | required on untrusted networks |
+| forwarded headers | leave disabled | enable only for explicit known proxies/networks | topology-dependent |
+| host filtering | configure allowed hosts | proxy validates; app may add defense in depth | required when host is security-relevant |
+| 16 KiB body limit | Kestrel plus application limit | proxy, Kestrel, and application limits should agree | required for these command routes |
+| rate limiting/timeouts | app/server policy | coordinate proxy and app policies | required before public exposure; values are workload-dependent |
+| authentication/authorization | application validates identity and permission | proxy may authenticate, but app must trust and authorize the resulting identity explicitly | required before exposing booking data |
+| secret retrieval | controlled store available to the process | controlled store or workload identity, never proxy headers carrying raw secrets | required for real providers |
+| HTTP logging | classify and redact in the app | classify and redact at both layers; avoid duplicate body capture | required diagnostic policy; body logging is optional |
+
+Forwarded headers are dangerous when every sender is trusted: a client could forge its scheme or address. Conversely, leaving them disabled behind a terminating proxy can make HTTPS redirects, secure links, and audit data wrong. Configuration follows the real trust boundary.
+
+CORS is necessary only for browser origins that must call this API directly. It does not authenticate callers and does not protect the API from scripts, servers, or command-line clients. If no cross-origin browser client exists, leaving CORS disabled is the smaller correct policy.
+
+Disabling `Server: Kestrel` reduces passive disclosure but does not repair missing authentication, TLS, or rate limiting. Likewise, moving a credential from source code to a plain environment variable prevents an accidental commit but does not encrypt it.
+
+For every required row, the release review should name the responsible component or team and the verification method. That method may be a configuration test, deployment probe, log sample, or security test. A checked box without a topology and observed result is not a control.
+
+:::
+
 
 ## Sources {#sources}
 

@@ -184,20 +184,6 @@ For a finite list of length `n`, all three summation versions perform a linear a
 
 Each implementation still needs separate checks for `int` overflow and the business meaning of its input. Stack safety, arithmetic safety, and domain correctness must be verified separately.
 
-## Check decrease before tail position {#debugging}
-
-When recursion fails, ask in order:
-
-1. is there a rule for every input constructor?
-2. does the base rule return the correct identity or terminating result?
-3. is the recursive argument strictly smaller or closer to termination?
-4. does any operation, construction, or side effect remain after the recursive call?
-5. does the accumulator invariant hold at initialization, advance, and completion?
-
-Reversed output usually comes from front accumulation without a final reversal. A `fold` type error often comes from swapping accumulator and element parameters; label `'State` and `'T` from the full signature first.
-
-When runtime grows unexpectedly, inspect both tail position and repeated work. Draw the call tree for a small input and see whether the same subproblem appears several times. A tail call addresses retained frames; memoization or a different algorithm addresses repeated work.
-
 ## Exercises {#exercises}
 
 Expand small inputs by hand rather than using stack overflow as an experiment. For every exercise, state the base case, decreasing argument, and result order.
@@ -211,11 +197,50 @@ For `sumRecursive [ 3; 0; 4 ]`:
 3. explain why the function terminates;
 4. circle the work still pending after each recursive return and use it to classify the function's tail position.
 
+
+::: details Answer
+
+The shared definition is:
+
+```fsharp:line-numbers
+let rec sumRecursive values =
+    match values with
+    | [] -> 0
+    | head :: tail -> head + sumRecursive tail
+```
+The full expansion is `3 + sumRecursive [0; 4]`, then `3 + (0 + sumRecursive [4])`, then `3 + (0 + (4 + sumRecursive []))`. The base rule supplies `0`, producing `7`.
+
+The three nonempty calls have `(head, tail)` values `(3, [0; 4])`, `(0, [4])`, and `(4, [])`. Tail length falls by one each time, so finite input eventually reaches the empty list and terminates.
+
+Every level must wait for the recursive result and then perform `head + result`. Those three additions are pending work, so the self-call is not in tail position and call depth grows with list length.
+
+:::
+
 ### Exercise 2: prove the accumulator meaning {#exercise-02}
 
 For `sumLoop 0 [ 3; 0; 4 ]`, list every `(accumulator, values)` pair. Check each one against “accumulator plus the sum of the remaining list equals the original list sum.”
 
 Then imagine changing the recursive branch to recurse first and add `head` afterward. Explain what `[<TailCall>]` should report, and which termination or numeric properties remain unproved even when a tail-call check succeeds.
+
+
+::: details Answer
+
+The tail-recursive definition is:
+
+```fsharp:line-numbers
+[<TailCall>]
+let rec sumLoop accumulator values =
+    match values with
+    | [] -> accumulator
+    | head :: tail -> sumLoop (accumulator + head) tail
+
+let sumTailRecursive values = sumLoop 0 values
+```
+The states are `(0, [3; 0; 4])`, `(3, [0; 4])`, `(3, [4])`, and `(7, [])`. At every step, accumulator plus remaining-list sum is `7`. At the end, the remaining sum is zero and the accumulator is the answer.
+
+If the function recurses first and adds `head` afterward, work remains after return. `[<TailCall>]` should report a non-tail recursive call, and the book's warnings-as-errors setting should reject the build. Even a passing attribute check proves neither finite input, decreasing arguments, arithmetic range safety, nor domain correctness. Reasoning, type choice, and tests verify those separately.
+
+:::
 
 ### Exercise 3: expand folds and choose an abstraction {#exercise-03}
 
@@ -224,7 +249,25 @@ Then imagine changing the recursive branch to recurse first and add `head` after
 3. write the initial state and folder type for counting list length with `List.fold`;
 4. choose a specialized function, fold, or direct recursion for ordinary summation, finding the first match early, and traversing a binary tree, explaining why.
 
-[Read the chapter solutions](../solutions/ch-06-recursion-folds).
+
+::: details Answer
+
+The order example is:
+
+```fsharp:line-numbers
+let leftAssociated = List.fold (fun state value -> state - value) 0 [ 1; 2; 3 ]
+let rightAssociated = List.foldBack (fun value state -> value - state) [ 1; 2; 3 ] 0
+
+printfn "Fold order: left=%d right=%d" leftAssociated rightAssociated
+```
+The left-fold parentheses are `((0 - 1) - 2) - 3`, producing `-6`. The right-fold parentheses are `1 - (2 - (3 - 0))`, producing `2`. Direction and folder parameter order both differ.
+
+To count with `List.fold`, initial state is `0`. The folder receives `count` and an ignored element and returns `count + 1`, with abstract type `int -> 'a -> int`. The complete operation folds an `'a list` into `int`.
+
+Prefer `List.sum` for ordinary summation because its name states intent. Prefer `List.tryFind` for the first match because it can stop early; ordinary `fold` normally visits the whole input. Use direct recursion aligned with leaf and branch structure for a binary tree, then extract a tree fold in Chapter 10.
+
+:::
+
 
 ## Part I checkpoint {#part-checkpoint}
 

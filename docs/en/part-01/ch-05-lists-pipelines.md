@@ -210,20 +210,6 @@ The example uses structural equality to show that all three implementations prod
 
 Either style can carry avoidable costs: a functional version may allocate too many intermediate lists, while an imperative version may become quadratic through mistaken tail appends. First establish the same results, ordering, and externally visible behavior; then benchmark or profile the real costs.
 
-## Check every pipeline stage {#debugging}
-
-Do not read a failing pipeline as one chain:
-
-1. write the current stage's input type;
-2. inspect the remaining parameter type after the right-side function is partially applied;
-3. confirm that the piped value fits that final parameter exactly;
-4. temporarily bind an intermediate result in FSI;
-5. check whether the next stage expects a value, a list, or an `option`.
-
-For incorrect output order, look for `::` prepending and a missing `List.rev`. For a loop that never ends, make sure every path advances state related to the condition. For a wrong result length, count `true` results from `filter` or `Some` results from `choose` separately.
-
-When an effect happens twice, check whether validation calls an effectful mapping function more than once. Lists in this chapter are eager, so each explicit call traverses again. Lazy sequences in Chapter 14 introduce a different repeated-enumeration risk.
-
 ## Exercises {#exercises}
 
 Write stage types and intermediate values before running each exercise. An equal final list is not enough; compare source data, ordering, and effects too.
@@ -237,11 +223,52 @@ For `filter-map-pipeline`:
 3. expand both uses of `|>` into an equivalent call without pipelines;
 4. state whether the source changes and how many list stages the pipeline traverses.
 
+
+::: details Answer
+
+The shared pipeline is:
+
+```fsharp:line-numbers
+let pipelineLabels =
+    requests |> List.filter isValidRequest |> List.map formatRequest
+
+printfn "Pipeline labels: %A" pipelineLabels
+```
+Both `requests` and the filtered result have type `(string * int) list`. The former contains Lin 3, Ada 0, Sam 2, and Mina -1 in order; the latter retains only Lin 3 and Sam 2. The mapped result has type `string list` and order `[ "Lin:3"; "Sam:2" ]`.
+
+Without pipelines, first evaluate `List.filter isValidRequest requests`, then supply that result as the final argument to `List.map formatRequest`. Nested, it is `List.map formatRequest (List.filter isValidRequest requests)`. The source list does not change.
+
+This runs two eager list stages: filtering traverses four elements and produces an intermediate list, then mapping traverses two elements and produces the final list. The number of calls and the number of visited elements are not identical concepts, but there are two list operations.
+
+:::
+
 ### Exercise 2: merge selection and transformation with `choose` {#exercise-02}
 
 State what `tryFormatRequest` returns for each of the four requests and write its full type. Then explain how `List.choose` obtains the same result as `filter` followed by `map`.
 
 Compare the forms: when is retaining a separate filtered result clearer? When is `choose` more exact? What information does `None` discard in this example?
+
+
+::: details Answer
+
+The answer region is:
+
+```fsharp:line-numbers
+let tryFormatRequest request =
+    if isValidRequest request then
+        Some(formatRequest request)
+    else
+        None
+
+let chosenLabels = requests |> List.choose tryFormatRequest
+
+printfn "Chosen labels: %A" chosenLabels
+```
+`tryFormatRequest` has full type `(string * int) -> string option`. In order it produces `Some "Lin:3"`, `None`, `Some "Sam:2"`, and `None`. `List.choose` extracts only the values inside the two `Some` cases while preserving order, producing the same `string list` as filter then map.
+
+If the valid-request list must be logged, tested, or passed to another step independently, separate `filter` and `map` stages are clearer. If an output can only be constructed for a valid item and the intermediate list has no domain meaning, `choose` is more exact. Here `None` discards why a request was invalid and the original request itself; use an error-carrying model when consumers need that reason.
+
+:::
 
 ### Exercise 3: compare loop state {#exercise-03}
 
@@ -252,7 +279,47 @@ For `labelsWithFor` and `labelsWithWhile`:
 3. identify the state the `while` must advance on every iteration and what happens if it does not;
 4. choose a preferred form for “print every label” and for “produce a new label list,” explaining each choice.
 
-[Read the chapter solutions](../solutions/ch-05-lists-pipelines).
+
+::: details Answer
+
+The `for` and `while` versions are:
+
+```fsharp:line-numbers
+let labelsWithFor source =
+    let mutable reversedLabels = []
+
+    for request in source do
+        match tryFormatRequest request with
+        | Some label -> reversedLabels <- label :: reversedLabels
+        | None -> ()
+
+    List.rev reversedLabels
+```
+```fsharp:line-numbers
+let labelsWithWhile source =
+    let mutable remaining = source
+    let mutable reversedLabels = []
+
+    while not (List.isEmpty remaining) do
+        match remaining with
+        | request :: tail ->
+            remaining <- tail
+
+            match tryFormatRequest request with
+            | Some label -> reversedLabels <- label :: reversedLabels
+            | None -> ()
+        | [] -> ()
+
+    List.rev reversedLabels
+```
+Both versions change `reversedLabels` in the same way. After Lin it is `[ "Lin:3" ]`. Ada produces `None`, so it stays unchanged. Prepending Sam produces `[ "Sam:2"; "Lin:3" ]`. Mina produces `None`, so it remains unchanged. `List.rev` restores relative input order; without it, valid items would be reversed.
+
+The `while` version must also move `remaining` from the full list through each successive `tail` until it reaches `[]`. Forgetting the update on any nonempty path leaves the condition true and repeats the same element forever.
+
+For “print every label,” prefer `for` or `List.iter` because the goal is a `unit` effect. For “produce a new label list,” prefer `choose` because its result type expresses the output. If profiling later proves a hot path needs a custom one-pass implementation, compare a local mutable loop rather than assuming first.
+
+:::
+
 
 The next chapter generalizes “accumulate at the front and reverse” into recursion and accumulators, then rewrites a class of explicit recursion with `fold` while describing tail-call boundaries accurately.
 
