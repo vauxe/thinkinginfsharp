@@ -22,6 +22,23 @@ F# 同时支持不可变变换与 `for`、`while`、`let mutable` 这些命令�
 
 每项包含来宾名称和请求座位数，所有项具有同一元素类型。列表字面量用方括号包围；同一行的项用分号分隔，按缩进分行时也可以省略分号。
 
+先把下面的完整起点保存为 `ch05-lists-pipelines.fsx`。本章后续代码块按出现顺序承接这些定义：
+
+```fsharp:line-numbers
+let requests =
+    [ ("Lin", 3)
+      ("Ada", 0)
+      ("Sam", 2)
+      ("Mina", -1) ]
+
+let isValidRequest (_, seats) = seats > 0
+
+let formatRequest (guest, seats) =
+    $"{guest}:{seats}"
+```
+
+`requests` 是待处理数据；`isValidRequest` 判断座位数是否有效；`formatRequest` 把一个请求变成显示标签。先给这些角色命名，后面的管道才有可追踪的上下文。
+
 F# 列表是不可变的单向链式结构。`item :: list` 在头部创建一个新节点，并让尾部共享原列表，通常是常数时间。`left @ right` 或 `List.append left right` 必须重建左侧链，成本与 `left` 长度成正比。因此，循环里反复向尾部追加会让总时间达到 O(n²)；常见做法是向头部累积，再在末尾调用一次 `List.rev`。
 
 列表节点本身不可变，但元素未必不可变。如果两个列表包含同一个可变对象，它们都能观察到对象内部的变化。第 14 章会分别讨论集合行为和元素行为。
@@ -92,6 +109,12 @@ let pipelineLabels =
 
 printfn "Pipeline labels: %A" pipelineLabels
 ```
+这段代码承接本章开头的三个定义，输出为：
+
+```text
+Pipeline labels: ["Lin:3"; "Sam:2"]
+```
+
 从上到下记录类型和值：
 
 | 阶段 | 类型 | 值摘要 |
@@ -129,6 +152,12 @@ let chosenLabels = requests |> List.choose tryFormatRequest
 
 printfn "Chosen labels: %A" chosenLabels
 ```
+这段代码继续使用开头的 `requests`、`isValidRequest` 和 `formatRequest`，输出为：
+
+```text
+Chosen labels: ["Lin:3"; "Sam:2"]
+```
+
 `tryFormatRequest` 的类型是 `(string * int) -> string option`。有效请求产生 `Some label`，无效请求产生 `None`；`List.choose` 提取 `Some` 内的文本并保持顺序，最终同样得到 `string list`。
 
 命名前缀 `try` 在 F#/.NET 代码中常提示操作可能返回正常值之外的结果，而类型会准确规定这种结果。这里的 `option` 只区分存在与缺失；需要解释原因的验证会在后续章节使用 `Result` 或累积验证。
@@ -137,7 +166,7 @@ printfn "Chosen labels: %A" chosenLabels
 
 变换函数回答“新数据是什么”。若目标是依次执行输出等副作用而不收集结果，`List.iter action` 或 `for item in source do ...` 更贴切。它们的动作或循环主体返回 `unit`，整个迭代也返回 `unit`。
 
-示例用 `for` 展示标签顺序：
+下面的代码承接前面的 `pipelineLabels`，用 `for` 展示标签顺序：
 
 ```fsharp:line-numbers
 printf "Iteration order:"
@@ -147,6 +176,12 @@ for label in pipelineLabels do
 
 printfn ""
 ```
+输出为：
+
+```text
+Iteration order: Lin:3 Sam:2
+```
+
 `for` 遍历可枚举输入，并可在循环变量位置使用模式。它适合日志、写入已有缓冲区或调用命令式 API。若真正需要一个新列表，循环必须另外管理累积状态，而 `map`/`filter` 已经把这个意图编码在返回类型中。
 
 用 `map` 产生数据，用 `iter` 或 `for` 对每项执行副作用。后两者返回 `unit`，既明确表达意图，也不会产生一份无用的结果列表。
@@ -158,6 +193,8 @@ printfn ""
 可变状态增加了时间顺序：要知道某一行的 `name` 是什么值，必须先确认此前哪些路径执行过 `<-`。把状态留在一个小函数内，并且不把其引用交给外部，就更容易追踪。示例中的两个命令式版本都遵守这条规则。
 
 ### `for` 版本：枚举由语言管理 {#for-version}
+
+这个版本承接前面定义的 `tryFormatRequest`：
 
 ```fsharp:line-numbers
 let labelsWithFor source =
@@ -175,6 +212,8 @@ let labelsWithFor source =
 `for` 主体的两条 `match` 分支都是 `unit`：更新 `<-` 的结果是 `()`，`None` 分支显式返回 `()`。函数最后一个表达式 `List.rev reversedLabels` 才产生 `string list`。
 
 ### `while` 版本：条件与进度都由代码管理 {#while-version}
+
+这个版本也承接 `tryFormatRequest`，但显式维护尚未处理的列表：
 
 ```fsharp:line-numbers
 let labelsWithWhile source =
@@ -199,7 +238,21 @@ let labelsWithWhile source =
 
 ## 三种实现怎样选择 {#choosing-style}
 
-示例用结构相等确认三种实现产生相同标签和顺序。应根据所需结果和实测成本选择：
+先运行下面的续接代码，用结构相等确认四个写法产生相同标签和顺序：
+
+```fsharp:line-numbers
+let forLabels = labelsWithFor requests
+let whileLabels = labelsWithWhile requests
+
+let sameLabels =
+    pipelineLabels = chosenLabels
+    && pipelineLabels = forLabels
+    && pipelineLabels = whileLabels
+
+printfn "All implementations agree: %b" sameLabels
+```
+
+输出为 `All implementations agree: true`。确认行为一致后，再根据所需结果和实测成本选择：
 
 | 目标 | 通常先考虑 | 原因 |
 | --- | --- | --- |
@@ -216,7 +269,7 @@ let labelsWithWhile source =
 
 ### 练习 1：逐阶段追踪管道 {#exercise-01}
 
-针对 `filter-map-pipeline`：
+针对“按阶段阅读”一节的 `pipelineLabels`：
 
 1. 写出 `requests`、过滤后列表和映射后列表的类型；
 2. 写出两个中间列表的确切元素顺序；
@@ -256,7 +309,7 @@ printfn "Pipeline labels: %A" pipelineLabels
 
 ::: details 参考答案
 
-答案区域是：
+使用本章开头的共享定义，核心代码是：
 
 ```fsharp:line-numbers
 let tryFormatRequest request =

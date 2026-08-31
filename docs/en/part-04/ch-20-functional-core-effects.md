@@ -10,6 +10,8 @@ A function can have no visible parameter and still depend on the world. `DateTim
 
 F# functions are values, so the repair can be small. Perform a side effect once and pass its result as data, or pass a narrow function that performs it. The domain core then receives every fact through ordinary arguments. Objects and interfaces remain useful when related operations form one component or require a lifecycle.
 
+The main-line code in this chapter forms one `.fsx` script in reading order: each type is defined once, and later blocks continue to use the preceding `Campaign`, `Candidate`, `RuntimeEffects`, and functions. The first block opens `System`, giving the later time, randomness, environment, and test-collection names an explicit source.
+
 ## Hidden input is still input {#hidden-input}
 
 Consider a function whose visible parameter is a request but whose body reads the current time, chooses a random number, and reads `BOOKING_REGION`. Its real input is closer to:
@@ -29,6 +31,8 @@ The goal is not “effects are forbidden.” A useful program must interact with
 The example models only facts needed by a campaign decision:
 
 ```fsharp:line-numbers
+open System
+
 type Campaign =
     { OpensAt: DateTimeOffset
       ClosesAt: DateTimeOffset
@@ -150,7 +154,7 @@ These closures are pure because their captured values are immutable and their bo
 Closures are especially useful for partial configuration:
 
 ```fsharp
-let campaignSettings = settingsFrom (Map [ "BOOKING_REGION", "eu-west" ])
+let campaignSettings = settingsFrom (Map [ ("BOOKING_REGION", "eu-west") ])
 ```
 
 The result has only the operation the consumer needs. It does not expose the map or require a new nominal type.
@@ -259,6 +263,12 @@ let closedDecision =
 
 assert (earlyDecision = NotOpen)
 assert (closedDecision = Closed)
+
+printfn
+    "decision=%A fallback=%A calls=%A"
+    firstDecision
+    fallbackDecision
+    (List.ofSeq calls)
 ```
 The assertions verify:
 
@@ -267,6 +277,14 @@ The assertions verify:
 - replaying the pure core on captured data produces the same decision without more dependency calls;
 - a missing setting uses the campaign's configured fallback;
 - the opening instant is included and the closing instant is excluded according to the code's comparisons.
+
+Save the chapter's main-line fragments in reading order as `effects.fsx`, then run `dotnet fsi effects.fsx`. After every assertion passes, it prints:
+
+```text
+decision=Accepted "BOOK-eu-west-0007" fallback=Accepted "BOOK-global-0042" calls=["clock"; "random:10000"; "environment:BOOKING_REGION"]
+```
+
+That line exposes the pure decision, the fallback-region path, and the actual call order of the three external dependencies.
 
 No test sleeps, changes the process environment, or guesses what `Random` will return for a seed. A seed can make one implementation reproducible, but asserting the framework's exact sequence couples a domain test to an algorithm the domain does not define. The fixed function states the actual requirement: return this in-range draw.
 

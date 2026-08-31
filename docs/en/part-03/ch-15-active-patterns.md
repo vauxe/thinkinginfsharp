@@ -50,6 +50,15 @@ The three principal forms differ in one question:
 
 ## Complete active patterns partition every input {#complete-active-patterns}
 
+First define the states this section observes. Save this starting point and the following complete active pattern as `ch15-active-patterns.fsx`:
+
+```fsharp:line-numbers
+type BookingStatus =
+    | Pending
+    | Confirmed of confirmationCode: string
+    | Cancelled of reason: string
+```
+
 The example groups three declared statuses into a two-case workflow view:
 
 ```fsharp:line-numbers
@@ -68,6 +77,14 @@ printfn "Complete: pending=%s" (describeStatus Pending)
 printfn "Complete: confirmed=%s" (describeStatus (Confirmed "C-42"))
 printfn "Complete: cancelled=%s" (describeStatus (Cancelled "duplicate"))
 ```
+This block continues from `BookingStatus` and prints:
+
+```text
+Complete: pending=open:pending
+Complete: confirmed=open:confirmed:C-42
+Complete: cancelled=closed:duplicate
+```
+
 `Open` and `Closed` cover every `BookingStatus`. The recognizer must return one of those active cases for every input, and a match containing both cases is exhaustive. Each case can carry a payload chosen for the consumer's view.
 
 This does not add new states to `BookingStatus`. `Pending` and `Confirmed` remain different domain states even though this workflow views both as open. The alternate partition is useful precisely because it does not rewrite the source model.
@@ -76,7 +93,7 @@ A complete active pattern can declare up to seven cases. That is a language limi
 
 ### A single complete case only decomposes {#single-case-complete}
 
-Sometimes every input has one useful projection:
+Sometimes every input has one useful projection. The next block is an API-shape sketch: it assumes an existing public `Booking` module with three observation functions, so it is not standalone.
 
 ```fsharp
 let (|BookingSummary|) booking =
@@ -102,7 +119,21 @@ let (|Positive|_|) value =
 
 `Some payload` means the named case matched and binds the payload. `None` means this pattern did not match, so the match expression tries a later clause. Partial patterns do not need to be mutually exclusive; top-to-bottom clause order resolves overlap.
 
-The example recognizes positive integer text as a seat count:
+First define the parsing function that preserves detailed failures. The active pattern then deliberately compresses either error into non-match:
+
+```fsharp:line-numbers
+type SeatCountError =
+    | NotAnInteger of raw: string
+    | NotPositive of actual: int
+
+let parseSeatCount (raw: string) =
+    match System.Int32.TryParse raw with
+    | true, value when value > 0 -> Ok value
+    | true, value -> Error(NotPositive value)
+    | false, _ -> Error(NotAnInteger raw)
+```
+
+Now positive integer text can be recognized as a seat count:
 
 ```fsharp:line-numbers
 let (|SeatCount|_|) raw =
@@ -121,11 +152,17 @@ printfn
     (describeRawSeatCount "0")
     (describeRawSeatCount "oops")
 ```
+This block continues from `parseSeatCount` and prints:
+
+```text
+Partial: three=matched:3 zero=not-matched text=not-matched
+```
+
 Both `"0"` and `"oops"` become “not matched.” That is appropriate only when the caller needs a yes/no classification.
 
 ### Non-match is smaller than a modeled error {#non-match-versus-error}
 
-The underlying `parseSeatCount` returns two distinct errors. Converting that `Result` to `Some`/`None` deliberately erases the reason. The script prints the explicit errors separately to make the loss visible.
+The underlying `parseSeatCount` returns two distinct errors: a direct call with `"0"` produces `Error(NotPositive 0)`, while `"oops"` produces `Error(NotAnInteger "oops")`. Converting that `Result` to `Some`/`None` deliberately erases those reasons.
 
 Use a partial active pattern when:
 
@@ -185,6 +222,8 @@ printfn
     singleLabel
     singleChecks
 ```
+This block runs by itself and prints `Parameterized: six=large:6/1 three=group:3/2 one=single:1/2`.
+
 Six seats satisfy the first clause after one check. Three seats fail `AtLeast 5`, then satisfy `AtLeast 2`, so the recognizer runs twice. One seat also checks both parameterized occurrences before reaching the fallback.
 
 The counter demonstrates evaluation frequency; it is not a recommended design. Each pattern occurrence performs executable work, and refactoring clauses can change how often it runs. Correctness must not depend on a hidden mutable call count.
@@ -200,7 +239,7 @@ An active pattern should normally inspect the value already being matched. Good 
 - swallowing exceptions or detailed domain errors;
 - mutation that changes later clauses' meaning.
 
-Make acquisition explicit, then match the acquired value:
+Make acquisition explicit, then match the acquired value. The next block is a dependency-injected workflow skeleton: it assumes `Booking.status` and the earlier `Open | Closed` view, so it explains the boundary rather than running by itself.
 
 ```fsharp
 let decide loadBooking bookingId =
@@ -315,7 +354,7 @@ Neither recognizer changes the domain's possible values. Each consumes an existi
 
 ### Exercise 2: preserve the useful failure {#exercise-02}
 
-A partial `SeatCount` pattern turns both nonnumeric text and nonpositive integers into non-match. Write an explicit `parseSeatCount : string -> Result<int, SeatCountError>` with separate errors, then state one call site suited to the partial pattern and one that must use the result.
+A partial `SeatCount` pattern turns both nonnumeric text and nonpositive integers into non-match. Inspect how this chapter's `parseSeatCount : string -> Result<int, SeatCountError>` retains separate errors, then state one call site suited to the partial pattern and one that must use the result.
 
 Show precisely what information is lost when the result becomes an option.
 

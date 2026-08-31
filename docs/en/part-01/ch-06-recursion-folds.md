@@ -21,7 +21,12 @@ let rec sumRecursive values =
     match values with
     | [] -> 0
     | head :: tail -> head + sumRecursive tail
+
+let recursiveTotal = sumRecursive [ 3; 0; 4 ]
+printfn "Recursive sum: %d" recursiveTotal
 ```
+This block runs by itself and prints `Recursive sum: 7`. The next section expands the same input step by step to show how the call reaches that result.
+
 `rec` changes binding visibility only. The programmer still supplies a base case and a decreasing step. Passing the original list back unchanged can recurse forever, while omitting `[]` makes the match non-exhaustive.
 
 Functions that call one another can be defined together with `let rec ... and ...`. Reserve that form for real mutual dependence; separate groups keep inference and comprehension scope smaller.
@@ -69,7 +74,12 @@ let rec sumLoop accumulator values =
     | head :: tail -> sumLoop (accumulator + head) tail
 
 let sumTailRecursive values = sumLoop 0 values
+
+let tailRecursiveTotal = sumTailRecursive [ 3; 0; 4 ]
+printfn "Tail-recursive sum: %d" tailRecursiveTotal
 ```
+This block also runs by itself and prints `Tail-recursive sum: 7`. It produces the same result as direct recursion but moves the pending additions into an accumulator.
+
 Each `sumLoop` step computes the new `accumulator + head` before calling itself with that value and `tail`. No addition or construction remains after the call. The branch result is exactly the call result, so it is in tail position.
 
 Understand an accumulator by writing its invariant: at every step, `accumulator + sum values` equals the original input sum. Initially the accumulator is `0`. Moving one `head` into it preserves the equation. When `values` is empty, the accumulator is the complete answer.
@@ -123,7 +133,12 @@ Tail-recursive summation has a general skeleton: begin with state, combine each 
 ```fsharp:line-numbers
 let sumWithFold values =
     values |> List.fold (fun accumulator value -> accumulator + value) 0
+
+let foldTotal = sumWithFold [ 3; 0; 4 ]
+printfn "Fold sum: %d" foldTotal
 ```
+This block runs by itself and prints `Fold sum: 7`. Here `List.fold` owns the traversal, while the anonymous function describes only how to update the accumulator.
+
 Its core type is:
 
 ```text
@@ -277,7 +292,17 @@ From the repository root, run the integrated booking script:
 dotnet fsi --warnaserror+ --exec examples/capstone/part-01/BookingBasics.fsx
 ```
 
-Its output must distinguish valid from invalid input rows, accept requests that fit, reject the over-capacity request, and finish with the correct booked and remaining capacity. This closes the Part I language path; persistence and concurrency guarantees arrive in later parts.
+Expected output:
+
+```text
+Rows: valid=4 invalid=2
+Labels: ["B-101:Lin:3"; "B-102:Ada:2"; "B-103:Sam:4"; "B-104:Mira:2"]
+Accepted IDs: ["B-101"; "B-102"; "B-104"]
+Rejected IDs: ["B-103"]
+Capacity: booked=7 remaining=1
+```
+
+These lines distinguish valid from invalid input, accept requests that fit, reject the over-capacity request, and report the correct booked and remaining capacity. This closes the Part I language path; persistence and concurrency guarantees arrive in later parts.
 
 [Continue to Chapter 7](../part-02/ch-07-records-equality), where records and unions turn more of those implicit rules into types.
 

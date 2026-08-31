@@ -10,6 +10,10 @@ F# 不需要独立的 Web 服务器才能使用现代 .NET。F# 项目可以直�
 
 实际问题不是“哪个 F# 框架获胜”，而是哪种 API 风格能降低系统复杂度，又不隐藏团队必须理解的平台行为。先验证平台原生样例，再依据一手资料比较当前包。
 
+本章的 Web 代码是页内完整项目模板，当前仓库并不包含原先的 `examples/ecosystem/web` 项目或其测试。下文用它说明 API 形状；若要采用，需先按所述结构重建项目，再执行构建、契约测试与真实进程冒烟验证。
+
+这一章混合了三类术语：`Minimal API`、`RequestDelegate` 和 `HttpContext` 属于 ASP.NET Core；`HttpHandler`、`EndpointHandler` 等属于具体社区库；记录、可区分联合、模式匹配与计算表达式才是 F# 语言构造。阅读时不应把某个 Web 库的类型名当成 F# 通用标准用语。
+
 ## 从共享平台开始 {#shared-platform}
 
 ASP.NET Core 提供服务器和大多数通用运行时行为。端点可以写成平台委托、控制器操作或 F# 库处理器；无论哪种形式，生产工作都包括：
@@ -28,9 +32,18 @@ Microsoft 的 [.NET 10 API 指南](https://learn.microsoft.com/en-us/aspnet/core
 
 ## 检查代表性 Minimal API {#representative-sample}
 
-Web 样例有意远小于最终预约项目。它只回答一个问题：当输入、输出与错误保持显式时，直接的 F# 端点是什么样？
+Web 模板有意远小于第六部分的预约设计。它只回答一个问题：当输入、输出与错误保持显式时，直接的 F# 端点是什么样？
 
-项目使用 `Microsoft.NET.Sdk.Web`、目标为 `net10.0`，没有第三方包引用。锁文件记录 `FSharp.Core` 10.1.301。公开 JSON 类型是普通 CLR 友好记录，而不是领域可辨识联合：
+重建时，项目应使用 `Microsoft.NET.Sdk.Web`、目标为 `net10.0`，且本模板不需要第三方包引用。还原后应保留新生成的锁文件，不应照抄已删除项目的旧解析版本。公开 JSON 类型是普通 CLR 友好记录，而不是领域可区分联合：
+
+阅读下方片段时，先补齐 `Program.fs` 的文件边界：
+
+- 文件以 `namespace ThinkingInFSharp.Ecosystem.Web` 开头，并导入 `System`、JSON、任务以及 ASP.NET Core Builder/HTTP 命名空间；
+- 三个 DTO 位于命名空间级；
+- `jsonOptions`、`writeJson`、`writeError`、`greet` 和 `map` 位于 `[<RequireQualifiedAccess>] module WebSample`；
+- 文件最后是入口模块 `Program`。
+
+代码块为了聚焦而省略了这层外壳，不能各自单独运行。
 
 ```fsharp:line-numbers [Program.fs]
 [<CLIMutable>]
@@ -118,7 +131,7 @@ let private greet (context: HttpContext) : Task =
 
 F# 10 空值检查还迫使处理器先匹配 `value.Name`，然后才能调用 `Trim`。这种摩擦在此边界很有价值：编译器拒绝假装反序列化字符串一定非空。
 
-最终映射与宿主没有隐藏框架：
+最终映射没有隐藏框架：
 
 ```fsharp:line-numbers [Program.fs]
 let map (application: WebApplication) =
@@ -126,17 +139,29 @@ let map (application: WebApplication) =
 
     application.MapPost("/api/greetings", RequestDelegate greet) |> ignore
 ```
+该函数仍在 `WebSample` 模块内。文件末尾的宿主才使它成为可执行程序：
+
+```fsharp:line-numbers [Program.fs]
+module Program =
+    [<EntryPoint>]
+    let main arguments =
+        let builder = WebApplication.CreateBuilder arguments
+        use application = builder.Build()
+        WebSample.map application
+        application.Run()
+        0
+```
 这种映射风格比自动 Minimal API 参数绑定更底层。这是为了稳定教学契约而作的刻意选择，并非建议手工反序列化每个请求。[.NET 10 Minimal API 参考](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis?view=aspnetcore-10.0) 记录了内建绑定、验证、响应、过滤器、授权及其他平台功能。自动绑定契合契约时就使用；只有兼容性或错误响应要求确实需要时，才接管控制。
 
-### 准确说明测试覆盖什么 {#sample-evidence}
+### 准确规划契约覆盖 {#sample-evidence}
 
-聚焦的 `TestServer` 用例运行真实路由与处理器：
+重建项目后，最低 `TestServer` 契约用例应运行实际路由与处理器，并验证：
 
 - 一个有效正文会被修剪，并返回完全符合预期的成功 JSON；
 - 格式错误 JSON、名称缺失、名称空白、属性大小写错误和未知成员都会安全失败；
 - 非 JSON 媒体类型返回 `415`，不会进入处理器契约。
 
-这个示例刻意保持很小。它没有测试真实套接字、代理、TLS、认证、速率限制、正文大小策略或部署；这些能力不会因为使用 Minimal API 就神秘出现。
+即使这些用例通过，它们也没有测试真实套接字、代理、TLS、认证、速率限制、正文大小策略或部署；这些能力不会因为使用 Minimal API 就神秘出现。
 
 ## 先选择抽象层次 {#abstraction-level}
 
@@ -245,16 +270,16 @@ F# 能定义控制器类、特性、方法、任务与 CLR DTO。摩擦来自架
 
 下表是带日期的观察，不是永恒排名：
 
-| 选择 | 2026-08-25 核对的稳定版本 | 本章状态 | 关键采用问题 |
+| 选择 | 2026-08-31 核对的稳定版本 | 本章状态 | 关键采用问题 |
 |---|---|---:|---|
-| ASP.NET Core Minimal API | .NET SDK 10.0.301；ASP.NET Core 运行时 10.0.9 | 已示例 | 团队能否把面向 C# 的 API 适配限制在边界处？ |
+| ASP.NET Core Minimal API | 本地核对：.NET SDK 10.0.302；ASP.NET Core 运行时 10.0.10 | 页内项目模板 | 团队能否把面向 C# 的 API 适配限制在边界处？ |
 | 控制器 API | ASP.NET Core 10 平台文档 | 仅研究 | 必要的控制器扩展点是否值得增加这些固定代码？ |
 | Giraffe | NuGet 8.3.0 | 仅研究 | 延续式处理器组合是否契合团队？ |
 | Falco | NuGet 5.2.0 稳定版 | 仅研究 | 聚焦端点与相关包能否覆盖必要集成？ |
 | Oxpecker | NuGet 2.1.1，`net10.0` 资产 | 仅研究 | 较新的端点和全栈 API 是否符合运维与升级要求？ |
 | Saturn | NuGet 0.17.0，`net6.0` 资产 | 仅研究 | 约定价值是否超过所需的 .NET 10 兼容性验证成本？ |
 
-“已示例”表示本章展示了这种方法，不表示书站附带可执行服务。“仅研究”也不是负面质量判断；采用前应在真实应用中评估。
+“页内项目模板”表示正文给出了重建结构，不表示书站附带可执行服务。“仅研究”也不是负面质量判断；采用前应在真实应用中评估。
 
 ## 分开那些经常被捆绑的决定 {#separate-decisions}
 
@@ -439,7 +464,7 @@ POST /api/greetings
 
 #### 运行同一套可执行检查 {#exercise-02-evidence}
 
-从 `WebSampleTests` 的副本引用试验，原样运行相同的契约用例。只添加真正重要的框架专属断言，例如端点元数据或中间件顺序。然后运行：
+先根据本章列出的期望行为为直接模板新建 `WebSampleTests`，再让 Falco 试验原样运行同一组契约用例。只添加真正重要的框架专属断言，例如端点元数据或中间件顺序。然后运行：
 
 - 锁定还原与警告即错误的 Release 构建；
 - 未修改的 `TestServer` 契约；

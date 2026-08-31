@@ -31,6 +31,13 @@ let noFurtherResult = ()
 
 printfn "%s (%c): capacity=%d, fill=%.2f, open=%b" eventName eventCode capacity fillRatio registrationOpen
 ```
+
+这个代码块可以单独运行，输出为：
+
+```text
+Functional Foundations (F): capacity=40, fill=0.45, open=true
+```
+
 ### 怎样读 `let` {#read-let}
 
 把 `let capacity = 40` 分三步读：
@@ -41,7 +48,7 @@ printfn "%s (%c): capacity=%d, fill=%.2f, open=%b" eventName eventCode capacity 
 
 这里的 `=` 分隔绑定左侧与右侧。在普通表达式中，`=` 用于结构相等比较；显式可变位置的更新使用 `<-`。按各自角色阅读这些符号，可以清楚区分绑定、比较与修改。
 
-在模块或脚本顶层，`let` 引入声明；在局部作用域中，一串 `let` 绑定及其后续主体共同形成表达式。两种位置都遵守相同的核心顺序：先求右侧，再让新名称在后续范围内可见。普通非递归名称不能在定义之前使用；递归绑定留到第 6 章。
+在模块或脚本顶层，`let` 引入声明。在局部作用域中，一串 `let` 绑定及其后续主体共同形成表达式。两种位置都先求右侧，再让新名称在后续范围内可见。普通非递归名称不能在定义之前使用；递归绑定留到第 6 章。
 
 ### 默认不可变到底意味着什么 {#immutability}
 
@@ -53,9 +60,11 @@ F# 也支持 `let mutable`，因为局部计数、数组更新和某些互操作
 
 ## 作用域与遮蔽 {#scope-shadowing}
 
-作用域决定名称在哪里可见。F# 用缩进表达很多局部结构；下面 `normalizedCapacity` 的右侧包含两个局部绑定：
+作用域决定名称在哪里可见。F# 用缩进表达很多局部结构。下面的代码块可以单独运行：第一行先建立值为 `40` 的外层绑定，`normalizedCapacity` 的右侧再建立两个局部绑定。
 
 ```fsharp:line-numbers
+let capacity = 40
+
 let normalizedCapacity =
     let capacity = 20
     let capacity = capacity + 4
@@ -63,6 +72,9 @@ let normalizedCapacity =
 
 printfn "Normalized capacity: %d; outer capacity: %d" normalizedCapacity capacity
 ```
+
+输出为 `Normalized capacity: 24; outer capacity: 40`。
+
 第二个局部 `capacity` **遮蔽**第一个局部同名绑定：它先使用早先的值计算 `24`，再建立一个新绑定。在后续局部范围里，名称 `capacity` 会解析到新值。
 
 局部表达式结束后，两个局部绑定都离开作用域，脚本顶层的 `capacity` 仍是 `40`。因此输出会同时显示 `normalizedCapacity` 是 `24`、外层 `capacity` 是 `40`。
@@ -151,7 +163,7 @@ val noFurtherResult: unit = ()
 
 ### 练习 1：读类型，不猜类型 {#exercise-01}
 
-针对 `basic-values` 区域：
+针对本章“从值到绑定”小节中的第一个代码块：
 
 1. 写出七个绑定各自的类型；
 2. 说明 `0.45` 与 `19.50m` 为什么不是同一类型；
@@ -212,7 +224,7 @@ printfn "Next attendee count: %d" nextAttendeeCount
 
 ### 练习 3：追踪遮蔽 {#exercise-03}
 
-逐行解释 `local-shadowing` 区域：
+逐行解释“作用域与遮蔽”小节中的代码块：
 
 1. 每次右侧求值时，名称 `capacity` 指向哪个值？
 2. `normalizedCapacity` 最终是多少？
@@ -225,6 +237,8 @@ printfn "Next attendee count: %d" nextAttendeeCount
 重新看同一段代码：
 
 ```fsharp:line-numbers
+let capacity = 40
+
 let normalizedCapacity =
     let capacity = 20
     let capacity = capacity + 4

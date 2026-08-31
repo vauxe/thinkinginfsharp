@@ -10,6 +10,8 @@ A pure function decides what should happen. A running application must also load
 
 The example builds the smallest useful shell around the earlier booking workflow. Its console application uses plain F# values, one composition root, direct construction, and local instrumentation. A stronger host becomes worthwhile when the process truly needs layered configuration, lifecycle scopes, background workers, or framework integration.
 
+The complete project is `examples/chapters/ch32/Ch32.App.fsproj`, compiled in F# file order. `Domain.fs` defines domain types and the pure workflow under `Booking.Domain`; `Ports.fs` defines configuration, the dependency record, and the in-memory adapter; `Composition.fs` defines application orchestration and the composition root; only `Program.fs` handles process arguments, listeners, and output. Later blocks are excerpts from those files and can use definitions from files compiled earlier.
+
 ## See one application as several layers {#application-boundaries}
 
 “The application” is too coarse a unit for reasoning. Separate responsibilities by the kinds of facts they know:
@@ -43,7 +45,9 @@ This sequence does not imply that every step belongs in one function. It shows w
 
 ## Derive dependencies from required side effects {#derive-ports}
 
-Start with the pure workflow's inputs and output. `decidePlaceBooking` needs an `Event`, current `BookingState`, and `PlaceBookingCommand`; it returns `Result<BookingEvent, PlaceBookingError>`. A running application must therefore obtain the current state and persist an accepted event. Those are the two effect capabilities in the sample:
+Start with the pure workflow's inputs and output. In `Domain.fs`, `decidePlaceBooking` needs an `Event`, current `BookingState`, and `PlaceBookingCommand`; it returns `Result<BookingEvent, BookingFailure>`. A running application must therefore obtain the current state and persist an accepted event. Those are the two effect capabilities in the sample.
+
+“Port” is an application-architecture term, not an F# keyword. This sample represents a port as a record of functions. `Ports.fs` has already opened `System`, `System.Threading`, `System.Threading.Tasks`, `Booking.Domain`, and `Booking.Domain.Workflow`, so every .NET and domain type in the excerpt has a defined source:
 
 ```fsharp:line-numbers [Ports.fs]
 type BookingPorts =
@@ -60,11 +64,13 @@ type BookingLog =
 ```
 The record contains functions, not implementation classes. Each signature says something useful:
 
-- `RequestId` reaches storage only after domain validation;
+- the application calls storage with `RequestId` only after validation;
 - every potentially blocking operation receives a `CancellationToken`;
 - `Task<'T>` represents asynchronous completion and .NET faults;
 - `AppendEvent` returns `Task<unit>` because the application needs completion, not storage-specific response data;
 - `OwnedResource` identifies the resource that the application must dispose.
+
+In this chapter, `RequestId` is only a type abbreviation for `string`; it documents intent but cannot reject an unvalidated string at compile time like a private single-case union could. The actual guarantee comes from `BookingApplication.Place` calling `validatePlaceBooking` before it invokes a port. Use a protected type with a smart constructor when the boundary needs a stronger static guarantee.
 
 Do not create one port per method merely to imitate an interface-heavy architecture. Group operations that share one adapter and lifecycle; split them when callers, failure policies, security requirements, or lifetimes differ. A record of functions is convenient for a small F# API and its test doubles. An interface may suit C# callers, framework activation, or a stateful protocol better.
 
@@ -131,7 +137,7 @@ The broader .NET configuration system unifies providers such as JSON, environmen
 
 ## Keep construction in one composition root {#composition-root}
 
-A composition root is the outermost place that selects concrete dependencies and assigns cleanup responsibility. In the sample, the reusable construction function remains intentionally simple:
+“Composition root” is also an architecture term, not F# syntax. It names the outermost place that selects concrete dependencies and assigns cleanup responsibility. The following module is at the end of `Composition.fs` and calls the `BookingApplication` constructor defined earlier in that file:
 
 ```fsharp:line-numbers [Composition.fs]
 module Composition =
@@ -140,13 +146,13 @@ module Composition =
 ```
 `Program` performs the remaining process-specific work: choose the lookup, install demo listeners, construct the in-memory store, create the application, run one command, and translate the result to output and an exit code. Domain modules contain none of those choices.
 
-Manual construction is dependency injection in its literal sense: dependencies arrive as arguments. A DI container automates registration, resolution, scopes, and disposal; it does not create inversion of control. A visible composition root remains valuable even when a container later performs the construction.
+Manual construction is dependency injection in its literal sense: dependencies arrive as arguments. A DI container can automate registration, resolution, scopes, and disposal, but a container is not a prerequisite for inversion of control. A visible composition root remains valuable even when a container later performs the construction.
 
 Avoid resolving dependencies from a global service locator inside domain or application functions. That hides requirements from signatures, makes lifetimes ambiguous, and forces tests to recreate ambient state. Function arguments make the dependency graph visible.
 
 ## Orchestrate effects around the pure decision {#orchestration}
 
-The application method controls sequencing while reusing the existing domain workflow:
+The application method controls sequencing while reusing the existing domain workflow. The block below is a member of `BookingApplication`, not a standalone function. Its constructor receives the validated `event`, `BookingPorts`, and `writeLog`; the class creates an `ActivitySource` and counter, `ensureActive` guards against use after disposal, and `observe` records activity status, a metric, and a structured log. This context accounts for every captured name in the member:
 
 ```fsharp:line-numbers [Composition.fs]
 member _.Place(command: PlaceBookingCommand, cancellationToken: CancellationToken) =
@@ -204,7 +210,7 @@ Read the method in order:
 
 The standalone domain function validates the command again. This repeats a cheap pure operation, not the rule itself: both calls use `validatePlaceBooking`. The first obtains a typed key before a side effect; the public workflow remains safe when called independently. A later API could accept `ValidPlaceBooking`, but only if that change improves the whole model.
 
-Expected business refusal remains `Error PlaceBookingError`. Cancellation remains `OperationCanceledException`, so .NET callers and hosts recognize it as cancellation. An unexpected adapter fault remains a faulted task. Converting all three into one undifferentiated `Result` would erase operational meaning.
+Expected business refusal remains `Error BookingFailure`. Cancellation remains `OperationCanceledException`, so .NET callers and hosts recognize it as cancellation. An unexpected adapter fault remains a faulted task. Converting all three into one undifferentiated `Result` would erase operational meaning.
 
 The sample does not retry. A retry policy must know whether the failure is transient and whether append is idempotent. Retrying an ambiguous write without an idempotency key can duplicate an event. Add retries only after defining those semantics.
 
@@ -281,10 +287,11 @@ Creating an `ActivitySource` supplies instrumentation. A collector such as OpenT
 
 ## Interpret the fixed output narrowly {#fixed-evidence}
 
-Run the deterministic demonstration after the Release build:
+After the Release build, run the deterministic demonstration from the repository root:
 
 ```console
-dotnet bin/Release/net10.0/Ch32.App.dll --demo
+dotnet run --project examples/chapters/ch32/Ch32.App.fsproj \
+  --configuration Release --no-build -- --demo
 ```
 
 It emits exactly:
@@ -297,7 +304,7 @@ trace: name=booking.place outcome=accepted
 lifecycle: store-disposed=true
 ```
 
-The output confirms that one fixed command passed through configuration, composition, the pure decision, the in-memory append, all three local signals, and deterministic disposal. Focused tests also show that independent configuration errors accumulate, the same cancellation token reaches both dependencies, one accepted event is appended, and a pre-canceled token calls neither dependency.
+The output confirms that one fixed command passed through configuration, composition, the pure decision, the in-memory append, all three local signals, and deterministic disposal. The executable contract script `examples/chapters/ch32/application-contracts.fsx` also verifies that independent configuration errors accumulate, the same cancellation token reaches both dependencies, one accepted event is appended, and a pre-canceled token calls neither dependency. Run it from the repository root with `dotnet fsi --exec examples/chapters/ch32/application-contracts.fsx`.
 
 These results cover only in-process wiring. External delivery, durable storage, and concurrent capacity each require integration tests. Because `LoadBooking` and `AppendEvent` are separate operations, two callers can read the same state before either appends. The in-memory adapter therefore demonstrates wiring; a production store must enforce consistency atomically.
 

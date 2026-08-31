@@ -10,6 +10,8 @@ An example test asks whether one chosen input produces one expected output. A pr
 
 The difficult part is not writing `[<Property>]`. It is stating a useful invariant, generating meaningful domain data, inspecting the distribution, and diagnosing failures without confusing a random seed with a business rule. This chapter develops those skills around a greedy seat allocator.
 
+The main-line code is not a set of unrelated snippets that can each be pasted into an empty file. The complete test project is `examples/chapters/ch29/Ch29.Tests.fsproj`. It compiles `Generators.fs`, which contains the domain types, allocator, property functions, generator, and shrinker, before `Properties.fs`, which contains the FsCheck/xUnit tests. Later blocks bearing those file names are consecutive excerpts, so a short block can use names introduced earlier.
+
 ## Generalize examples into invariants {#examples-to-invariants}
 
 Suppose an allocator starts with a capacity and processes positive seat requests in order. It accepts a request when it fits in the remaining capacity and otherwise rejects it. A useful example is capacity 5 with requests `[2; 4; 3]`: the first and last requests are accepted, the middle request is rejected, and zero seats remain.
@@ -23,6 +25,11 @@ That example is valuable because it communicates one policy decision. It does no
 The sample represents every request with a smart-constructed type and records each decision in a union:
 
 ```fsharp:line-numbers [Generators.fs]
+namespace ThinkingInFSharp.Ch29
+
+open FsCheck
+open FsCheck.FSharp
+
 type AllocationCaseError =
     | NegativeCapacity of capacity: int
     | NonPositiveRequest of seats: int
@@ -103,7 +110,14 @@ Not every domain has elegant algebra. A small model or a few concrete examples m
 
 FsCheck treats a function from generated arguments to `bool`, `Property`, or another supported testable form such as `Lazy`, `Async`, or `Task` as a property. The xUnit integration discovers functions marked with `FsCheck.Xunit.PropertyAttribute`; unlike `[<Fact>]`, such functions may take arguments.
 
-```fsharp
+```fsharp:line-numbers [Properties.fs]
+namespace ThinkingInFSharp.Ch29
+
+open FsCheck
+open FsCheck.FSharp
+open global.FsCheck.Xunit
+open global.Xunit
+
 [<Properties(
     Arbitrary = [| typeof<AllocationCaseArbitrary> |],
     QuietOnSuccess = true
@@ -264,7 +278,7 @@ Overaggressive shrinking can also hide useful context. If two fields must stay r
 
 A passing run says little if it generated mostly empty queues. `Prop.classify condition label property` records labels for cases satisfying each condition. Labels may overlap:
 
-```fsharp
+```fsharp [Properties.fs]
 [<Property(MaxTest = 300)>]
 let ``remaining capacity stays within bounds`` (sample: AllocationCase) =
     AllocationProperties.remainingIsBounded sample
@@ -284,29 +298,45 @@ Temporarily set `QuietOnSuccess = false`, or run the property interactively, to 
 
 This statement sounds plausible: “accepted requests form a prefix; after one rejection, every later request is rejected.” It is false for a greedy allocator that continues processing. With capacity 1 and requests `[2; 1]`, request 2 is rejected and request 1 is then accepted.
 
-The sample keeps the false property as a named function, runs it with a collecting runner, and expects `TestResult.Failed`. The suite remains green by asserting that FsCheck disproves the proposed property:
+The sample keeps the false property as a named function and supplies a small `IRunner` implementation that stores the result. `runner` is therefore not an unexplained FsCheck variable. The xUnit test expects `TestResult.Failed`, so the suite remains green by asserting that FsCheck disproves the proposed property:
 
-```fsharp
-let config =
-    Config.Quick
-        .WithMaxTest(300)
-        .WithArbitrary([ typeof<AllocationCaseArbitrary> ])
-        .WithReplay(13285693176119930639UL, 18364232908344279255UL, 4)
-        .WithRunner(runner)
+```fsharp:line-numbers [Properties.fs]
+type private CollectingRunner() =
+    let mutable result = None
 
-Check.One(
-    "accepted requests form a prefix",
-    config,
-    AllocationProperties.acceptedRequestsFormPrefix
-)
+    member _.Result = result
 
-match runner.Result with
-| Some(TestResult.Failed(data, _, shrunkArguments, _, _, _, _)) ->
-    let shrunk = shrunkArguments |> List.exactlyOne |> unbox<AllocationCase>
-    Assert.True(data.NumberOfShrinks > 0)
-    Assert.Equal(1, AllocationCase.capacity shrunk)
-    Assert.Equal<int list>([ 2; 1 ], AllocationCase.requests shrunk)
-| _ -> Assert.Fail("expected a falsified property")
+    interface IRunner with
+        member _.OnStartFixture _ = ()
+        member _.OnArguments(_, _, _) = ()
+        member _.OnShrink(_, _) = ()
+        member _.OnFinished(_, finishedResult) = result <- Some finishedResult
+
+type CounterexampleTests() =
+    [<Fact>]
+    member _.``false prefix property shrinks to the policy counterexample``() =
+        let runner = CollectingRunner()
+
+        let config =
+            Config.Quick
+                .WithMaxTest(300)
+                .WithArbitrary([ typeof<AllocationCaseArbitrary> ])
+                .WithReplay(13285693176119930639UL, 18364232908344279255UL, 4)
+                .WithRunner(runner)
+
+        Check.One(
+            "accepted requests form a prefix",
+            config,
+            AllocationProperties.acceptedRequestsFormPrefix
+        )
+
+        match runner.Result with
+        | Some(TestResult.Failed(data, _, shrunkArguments, _, _, _, _)) ->
+            let shrunk = shrunkArguments |> List.exactlyOne |> unbox<AllocationCase>
+            Assert.True(data.NumberOfShrinks > 0)
+            Assert.Equal(1, AllocationCase.capacity shrunk)
+            Assert.Equal<int list>([ 2; 1 ], AllocationCase.requests shrunk)
+        | _ -> Assert.Fail("expected a falsified property")
 ```
 
 The counterexample does not say whether code or property is wrong. Return to the requirement. Under “stop after the first rejection,” the allocator would be wrong; under the stated continue-processing rule, the proposed property is wrong. Property testing finds disagreement, while domain reasoning identifies its source.
@@ -341,14 +371,10 @@ More cases do not provide confidence for free. A cheap pure property may run tho
 
 One hundred well-distributed cases with a readable shrinker can be more useful than ten thousand nearly identical cases. When a failure report is enormous, improve representation and shrinking before merely increasing the count.
 
-## Run and diagnose this chapter {#running}
-
-After placing the shown properties in your test project, replace the template path and run:
+The repository project pins `FsCheck.Xunit` 3.4.0 and includes every required `open` declaration and test dependency. The F#-specific helpers `Gen`, `Arb`, `Prop`, and `gen {}` require `open FsCheck.FSharp`; the root `FsCheck` namespace supplies core types such as `Arbitrary<'T>`, `Config`, and `IRunner`. Run the project directly from the repository root; there is no template path to replace:
 
 ```console
-dotnet test path/to/YourTests.fsproj \
-  --configuration Release \
-  --filter FullyQualifiedName~Ch29
+dotnet test examples/chapters/ch29/Ch29.Tests.fsproj --configuration Release
 ```
 
 Three properties each require 300 successful cases. The fourth uses a fixed failing-step replay and asserts that the false prefix property shrinks to capacity 1 with requests `[2; 1]`. Then run the whole test project without the filter before committing.
@@ -356,6 +382,8 @@ Three properties each require 300 successful cases. The fourth uses a fixed fail
 When a new property fails, read the report in this order: property name and labels, exception or false result, shrunk argument, original argument, then replay triple. Reproduce it before editing. Decide whether the implementation, property, generator, or shrinker broke its rule; guessing from the smallest value alone often fixes the wrong layer.
 
 ## Exercises {#exercises}
+
+The short answer snippets continue to use the chapter project's types and the names opened from `FsCheck`, `FsCheck.FSharp`, and `Xunit`. Add the same `open` declarations as `Properties.fs` if you move an answer into a new file by itself.
 
 ### Exercise 1: derive independent properties {#exercise-01}
 
@@ -495,4 +523,4 @@ A corrected property could say that when total requested seats do not exceed cap
 - [FsCheck: writing and observing properties](https://fscheck.github.io/FsCheck/Properties.html)
 - [FsCheck: generators, shrinkers, and arbitrary instances](https://fscheck.github.io/FsCheck/TestData.html)
 - [FsCheck: runners, xUnit integration, and replay](https://fscheck.github.io/FsCheck/RunningTests.html)
-- [NuGet: FsCheck.Xunit 3.4.0 package and dependencies](https://www.nuget.org/packages/FsCheck.Xunit/)
+- [NuGet: FsCheck.Xunit 3.4.0 package and dependencies](https://www.nuget.org/packages/FsCheck.Xunit/3.4.0)

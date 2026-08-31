@@ -10,6 +10,34 @@ Two booking requests can overlap while waiting for storage, and two pricing calc
 
 F# makes immutable values easy, removing many accidental races. Shared mutable state still exists in queues, caches, counters, files, databases, and external services. Choose a synchronization mechanism based on the invariant that must remain true.
 
+The main-line example lives at `examples/chapters/ch24/concurrency.fsx`. Its blocks share the following namespaces and three test helpers. They create controlled gates, start dedicated workers, and make two participants rendezvous at a barrier:
+
+```fsharp:line-numbers
+open System
+open System.Collections.Concurrent
+open System.Threading
+open System.Threading.Tasks
+
+let newGate<'T> () =
+    TaskCompletionSource<'T>(TaskCreationOptions.RunContinuationsAsynchronously)
+
+let startLongRunning (action: unit -> unit) =
+    Task.Factory.StartNew(
+        Action action,
+        CancellationToken.None,
+        TaskCreationOptions.LongRunning,
+        TaskScheduler.Default
+    )
+
+let runTwoWithBarrier action =
+    use barrier = new Barrier(2)
+    let first = startLongRunning (fun () -> action barrier)
+    let second = startLongRunning (fun () -> action barrier)
+    Task.WaitAll [| first; second |]
+```
+
+These functions exist only to make the test schedule repeatable; they are not domain abstractions. Later uses of `newGate`, `runTwoWithBarrier`, and `startLongRunning` therefore have no hidden definitions.
+
 ## Three concepts, three questions {#three-concepts}
 
 | Concept | Question | Example |
@@ -318,6 +346,20 @@ cacheBarrier.Dispose()
 Competing dictionary factories may allocate more than one `Lazy`, but callers evaluate only the instance returned by the dictionary. Default `Lazy` execution-and-publication behavior makes the demonstrated computation run once. It also caches exceptions thrown during value creation, while the dictionary grows without eviction. Neither behavior is a universally desirable default.
 
 For remote work, a shared in-flight `Task<'T>` can implement single-flight behavior, but Chapter 23's lifecycle questions still apply. One caller must not accidentally cancel work shared by all.
+
+Run `dotnet fsi examples/chapters/ch24/concurrency.fsx` from the repository root. It prints:
+
+```text
+Concurrent waits: entered=2 pending=true
+Concurrent results: [|"first"; "second"|]
+Parallel map agrees: true
+Shared counter: race=1 lock=2 interlocked=2
+Locked capacity: accepted=1 remaining=1 invariant=true
+Agent capacity: accepted=1 remaining=1 invariant=true
+Cache: values=[|23; 23|] computations=1 entries=1
+```
+
+The first three observations cover concurrent overlap, result ordering, and value agreement under data parallelism. The final four expose the lost update and verify the invariants of three protected-state designs.
 
 ## Test forced schedules and stable invariants {#testing}
 

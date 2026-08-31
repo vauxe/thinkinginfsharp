@@ -10,6 +10,8 @@ Chapter 33 defined the vocabulary. This chapter connects it with one function. T
 
 The key design choice is where each kind of failure belongs. Independent malformed fields are useful together, so validation accumulates them. A state-dependent decision stops when a prerequisite fails because later rules no longer have meaningful inputs. Applying one combination policy to both categories would either lose useful errors or invent misleading ones.
 
+This chapter continues Chapter 33's in-page reference implementation; it does not assume a buildable repository project. The proposed file order inserts `Validation.fs` after `Commands.fs`, followed by `Events.fs`, `Workflow.fs`, and `Decider.fs`. Every fragment remains in the `Booking.Domain` namespace, and short blocks bearing the same file name use definitions introduced earlier in that file.
+
 ## Read the contract from left to right {#contract}
 
 The public decision contract is:
@@ -52,26 +54,45 @@ Accumulation is not “more functional” than short-circuiting. They answer dif
 
 ## Turn raw records into protected commands {#validated-commands}
 
-The place command already had a private validated form. This chapter adds corresponding forms for confirmation and cancellation:
+`Validation.fs` uses one module for validation errors, its compatibility alias, and protected commands. The block below first supplies the prerequisites for placement, then adds the confirmation and cancellation forms. Later uses of `ValidPlaceBooking`, `PlaceBookingCommand`, and the error cases therefore have explicit definitions:
 
 ```fsharp:line-numbers [Validation.fs]
-type ValidConfirmBooking =
-    private
-        { RequestId: RequestId
-          ConfirmationCode: ConfirmationCode }
+module Validation =
+    type CommandValidationError =
+        | InvalidRequestId of RequestIdError
+        | InvalidSeatCount of SeatCountError
+        | InvalidConfirmationCode of ConfirmationCodeError
+        | InvalidCancellationReason of CancellationReasonError
 
-module ValidConfirmBooking =
-    let requestId (command: ValidConfirmBooking) = command.RequestId
-    let confirmationCode (command: ValidConfirmBooking) = command.ConfirmationCode
+    // Compatibility name for the earlier teaching slice; no second runtime type is created.
+    type PlaceBookingCommand = PlaceBooking
 
-type ValidCancelBooking =
-    private
-        { RequestId: RequestId
-          Reason: CancellationReason }
+    type ValidPlaceBooking =
+        private
+            { RequestId: RequestId
+              Seats: SeatCount }
 
-module ValidCancelBooking =
-    let requestId (command: ValidCancelBooking) = command.RequestId
-    let reason (command: ValidCancelBooking) = command.Reason
+    module ValidPlaceBooking =
+        let requestId (command: ValidPlaceBooking) = command.RequestId
+        let seats (command: ValidPlaceBooking) = command.Seats
+
+    type ValidConfirmBooking =
+        private
+            { RequestId: RequestId
+              ConfirmationCode: ConfirmationCode }
+
+    module ValidConfirmBooking =
+        let requestId (command: ValidConfirmBooking) = command.RequestId
+        let confirmationCode (command: ValidConfirmBooking) = command.ConfirmationCode
+
+    type ValidCancelBooking =
+        private
+            { RequestId: RequestId
+              Reason: CancellationReason }
+
+    module ValidCancelBooking =
+        let requestId (command: ValidCancelBooking) = command.RequestId
+        let reason (command: ValidCancelBooking) = command.Reason
 ```
 The raw records use `string` and `int` because a caller or future DTO begins with representation data. The validated records contain `RequestId`, `SeatCount`, `ConfirmationCode`, or `CancellationReason`. Their record constructors are private; callers obtain them only through validators and observe them through module functions.
 
@@ -81,7 +102,7 @@ A validated command guarantees only that its fields are valid. `ValidConfirmBook
 
 ## Accumulate independent errors deliberately {#accumulation}
 
-The project uses a small local combinator rather than hiding the policy in a validation framework:
+The next block continues inside `module Validation`. It uses the error cases and protected placement record defined above and makes the validation policy visible through a small local combinator:
 
 ```fsharp:line-numbers [Validation.fs]
 let private applyValidation valueResult functionResult =
@@ -165,9 +186,12 @@ Do not add “booking exists” to these functions. Doing so would require state
 
 ## Give the workflow one error vocabulary {#decision-errors}
 
-The decider exposes expected refusal categories explicitly:
+`Decider.fs` follows `Validation.fs`, `Events.fs`, and `Workflow.fs`. It first opens `Booking.Domain.Validation` and `Booking.Domain.Workflow`, then exposes the expected refusal categories explicitly:
 
 ```fsharp:line-numbers [Decider.fs]
+open Booking.Domain.Validation
+open Booking.Domain.Workflow
+
 [<RequireQualifiedAccess>]
 type BookingDecisionError =
     | InvalidCommand of CommandValidationError list
@@ -192,7 +216,7 @@ These cases are expected values, not exceptions. A database timeout, cancellatio
 
 ## Route the closed command set {#routing}
 
-The unified function is an exhaustive match over `BookingCommand`:
+The unified function is an exhaustive match over `BookingCommand`. To show the overall entry point first, the chapter presents the function from the end of the file before all its helpers. `mapPlaceError` maps the three `PlaceBookingError` cases one-for-one into the corresponding `BookingDecisionError` cases; `decideConfirm` and `decideCancel` appear in full in the next section. All of them belong to the same `module Decider`:
 
 ```fsharp:line-numbers [Decider.fs]
 let decide
@@ -331,24 +355,7 @@ Rule ownership is easier to review when written down:
 
 “One authority” does not mean one giant function. It means another layer calls the rule instead of reimplementing its condition. Mapping an error into a broader union is not duplicating the rule; checking `requested > capacity` in two modules would be.
 
-## Test behavior without effects {#testing}
-
-The focused workflow tests call ordinary values and functions. They need no mocking framework because the decider has no external dependencies. They cover:
-
-- place, confirm, and cancel each accumulate their independent malformed fields in order;
-- invalid lifecycle fields win before a missing-state check;
-- valid placement emits `BookingPlaced` and evolves to `Booked`;
-- a capacity refusal preserves the exact measured domain error;
-- occupied state wins before a later placement capacity check;
-- valid confirmation normalizes its code and emits `BookingConfirmed`;
-- absent or mismatched target state returns `BookingDoesNotExist`;
-- a second confirmation preserves `CannotConfirmFrom`;
-- cancellation emits a normalized final fact;
-- repeated cancellation preserves `CannotCancelFrom`.
-
-The broader domain, workflow, property, and decider test filter also passes. The full example check restores locked dependencies, builds Release with null checking and warnings as errors, runs every test and script, and verifies expected compiler diagnostics.
-
-These results show deterministic decisions for the covered model. They do not show that several bookings cannot consume the same activity capacity, that state was loaded consistently, or that a fact was committed exactly once. Those guarantees require atomic persistence and integration tests.
+Because the decider has no external dependency, an implementation can test it with ordinary values and no mocking framework. A minimum matrix should preserve four distinctions: independent malformed fields accumulate in stable order; field errors precede state lookup; successful placement, confirmation, and cancellation produce the corresponding event and evolution; and capacity, duplicate booking, missing target, and illegal lifecycle transitions retain their exact errors. Such pure tests still cannot prove that several bookings do not consume the same activity capacity, that loaded state is consistent, or that a fact is committed only once. Those guarantees require atomic persistence and integration tests.
 
 ## Exercises {#exercises}
 
@@ -398,7 +405,7 @@ Imagine placement also receives `AttendeeEmail: string`, with a protected `Email
 
 #### Extend the constructor one argument at a time {#exercise-02-validation}
 
-The following self-contained extension uses the same pattern. It introduces different type names so it does not imply that the capstone already has an email policy:
+The following self-contained extension uses the same pattern. It introduces different type names so it does not imply that the reference model already has an email policy:
 
 ```fsharp
 open System

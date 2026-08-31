@@ -40,6 +40,8 @@ let missingAttendee = tryFindAttendee "B-999" |> Option.defaultValue "none"
 
 printfn "Lookup: known=%s missing=%s" knownAttendee missingAttendee
 ```
+This block runs by itself and prints `Lookup: known=Lin missing=none`.
+
 `List.tryFind` returns an option. `Option.map snd` transforms the tuple only when it exists: `Some (id, name)` becomes `Some name`, while `None` remains `None`. The function never invents a placeholder attendee.
 
 ### Consume absence deliberately {#consuming-option}
@@ -53,6 +55,8 @@ let lookupMessage bookingId =
     | None -> "booking not found"
 ```
 
+This definition continues from `tryFindAttendee` above. For example, `lookupMessage "B-101"` produces `"attendee:Lin"`, while `lookupMessage "B-999"` produces `"booking not found"`.
+
 When a genuine fallback is enough, `Option.defaultValue fallback option` collapses the two cases at that boundary. `Option.defaultWith` delays computing an expensive fallback until it is needed.
 
 Avoid treating `.Value` or `Option.get` as the normal way to unwrap an option. Both throw for `None`, discarding the safety expressed by the type. Use them only when nearby code has already established `Some`; a match usually makes that fact clearer.
@@ -61,10 +65,12 @@ Avoid treating `.Value` or `Option.get` as the normal way to unwrap an option. B
 
 Suppose finding a row and accepting its seat count can each return no value. Mapping the second function would create `int option option`:
 
-```fsharp
+```text
 // Produces a nested option because tryPositiveSeats already returns an option.
 rowOption |> Option.map tryPositiveSeats
 ```
+
+This is a type-shape sketch, not a standalone script. Given `rowOption : int option` and `tryPositiveSeats : int -> int option`, the whole expression has type `int option option`. The complete example below defines real data and functions.
 
 `Option.bind` joins those two absence-producing steps:
 
@@ -87,6 +93,8 @@ let nonPositiveSeats =
 
 printfn "Option bind: positive=%s nonPositive=%s" positiveSeats nonPositiveSeats
 ```
+This block runs by itself and prints `Option bind: positive=3 nonPositive=none`.
+
 Read the choice from the next function's return type:
 
 | Next function | Operation | Result for `Some x` | Result for `None` |
@@ -109,9 +117,20 @@ type Result<'T, 'TError> =
     | Error of 'TError
 ```
 
-`Ok value` carries the successful value. `Error error` carries a reason chosen by the domain. A discriminated union is usually better than a bare error string because each failure case remains available to program logic:
+`Ok value` carries the successful value. `Error error` carries a reason chosen by the domain. A discriminated union is usually better than a bare error string because each failure case remains available to program logic. The next block includes every required type and namespace, so it runs by itself:
 
 ```fsharp:line-numbers
+open System
+
+type BookingRequest =
+    { Attendee: string
+      Seats: int }
+
+type BookingError =
+    | EmptyAttendee
+    | NonPositiveSeats of actual: int
+    | TooManySeats of requested: int * maximum: int
+
 let validateAttendee request =
     if String.IsNullOrWhiteSpace request.Attendee then
         Error EmptyAttendee
@@ -149,6 +168,14 @@ printfn
     (validate 4 validRequest |> describeResult)
     (validate 4 emptyAttendeeRequest |> describeResult)
 ```
+It prints:
+
+```text
+Validation: success=ok:Lin:2 failure=error:attendee is empty
+```
+
+Save this complete example as `ch09-option-result.fsx`. The error-context and short-circuit blocks later in the chapter continue from these types and functions in reading order.
+
 `BookingError` distinguishes an empty attendee, a non-positive count with its actual value, and a request above a known maximum. Formatting is kept in `describeError`, so validation policy is not coupled to English UI text.
 
 `validateAttendee` and `validateSeats` return `Result<BookingRequest, BookingError>`. The `validate` pipeline uses `Result.bind` because the second validation itself returns a result. If attendee validation returns `Error`, seat validation is skipped and that same error is preserved.
@@ -185,6 +212,8 @@ match contextualFailure with
 | Ok _ -> printfn "Context: unexpected success"
 | Error failure -> printfn "Context: %s -> %s" failure.RequestId (describeError failure.Cause)
 ```
+This continuation prints `Context: R-9 -> requested 6 exceeds maximum 4`.
+
 `addRequestContext` changes only the error type. An `Ok request` passes through untouched; an `Error BookingError` becomes `Error RequestFailure`. Code farther out can log `RequestId`, translate `Cause`, or map the domain failure into an HTTP response without parsing text.
 
 Do not attach every possible detail in the deepest function. Let each layer add only the facts it knows, then add request, file, or endpoint context as the error moves outward. This keeps core domain functions reusable and preserves diagnostic fields instead of flattening them into strings.
@@ -198,6 +227,8 @@ let doublyInvalidRequest = { Attendee = ""; Seats = 0 }
 
 printfn "Short circuit: %s" (validate 4 doublyInvalidRequest |> describeResult)
 ```
+This continuation prints `Short circuit: error:attendee is empty`. The seat count is also invalid, but the second validation does not run after the first failure.
+
 That behavior is correct for dependent steps: seat validation may make sense only after earlier data is valid. It is not an accumulating validator. If a form should display all independent errors at once, collect those results explicitly or use an applicative validation design; Chapter 18 returns to that distinction.
 
 An `Error` should describe a failure the caller can reasonably inspect or handle. Do not catch every exception and turn it into a vague `Error "failed"`; that destroys stack and cause information. Bugs, cancellation, resource failures, and domain rejections need different treatment, as Chapter 21 explains.
@@ -231,6 +262,8 @@ let payloadIsNull =
 
 printfn "Some null: isSome=%b payloadIsNull=%b" riskyPayload.IsSome payloadIsNull
 ```
+This block runs by itself and prints `Some null: isSome=true payloadIsNull=true`. It requires a current toolchain that supports F# nullness-checking syntax.
+
 This produces three representable states: `None`, `Some null`, and `Some "Lin"`. That is usually accidental complexity. At a .NET boundary, normalize a nullable result into `None` or reject it before core code receives the value.
 
 Under F# nullness checking, `(string | null) option` states that the payload may be null. For now, remember that `Some` does not prove a reference payload is non-null. Chapter 19 explains `T | null`, `Nullable<T>`, legacy .NET annotations, and conversion at .NET interfaces.

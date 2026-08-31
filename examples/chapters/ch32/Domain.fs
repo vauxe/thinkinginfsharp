@@ -67,14 +67,17 @@ module Workflow =
         | ExceedsCapacity of requested: int * available: int
 
     let decidePlaceBooking event state command =
-        match state with
-        | Booked -> Error AlreadyBooked
-        | NotBooked ->
-            let available = event |> Event.capacity |> Capacity.value
+        match validatePlaceBooking command with
+        | Error errors -> Error(InvalidCommand errors)
+        | Ok _ ->
+            match state with
+            | Booked -> Error AlreadyBooked
+            | NotBooked ->
+                let available = event |> Event.capacity |> Capacity.value
 
-            if command.Seats > available then
-                Error(ExceedsCapacity(command.Seats, available))
-            else
-                Ok(BookingPlaced(command.RequestId, command.Seats))
+                if command.Seats > available then
+                    Error(ExceedsCapacity(command.Seats, available))
+                else
+                    Ok(BookingPlaced(command.RequestId, command.Seats))
 
     let evolve _ _ = Booked

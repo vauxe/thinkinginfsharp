@@ -27,6 +27,8 @@ let leafTree = Leaf 2
 
 let branchTree = Branch(Leaf 2, Branch(Leaf 3, Leaf 4))
 ```
+Save this complete starting point as `ch10-recursive-types.fsx`. Except for the independent mutual-type syntax example, later blocks continue from these definitions in reading order.
+
 `BookingTree<'T>` appears inside its own `Branch` case. That self-reference makes the type recursive. The type parameter says every leaf in one tree carries the same payload type, while the branching structure is independent of that type.
 
 Read the cases as construction rules:
@@ -63,6 +65,13 @@ printfn "Counts: empty=%d leaf=%d branch=%d" (countLeaves emptyTree) (countLeave
 
 printfn "Totals: empty=%d leaf=%d branch=%d" (totalSeats emptyTree) (totalSeats leafTree) (totalSeats branchTree)
 ```
+This block continues from the three example trees and prints:
+
+```text
+Counts: empty=0 leaf=1 branch=3
+Totals: empty=0 leaf=2 branch=9
+```
+
 `let rec` makes the function name available inside its own body. Both functions have the same structural skeleton:
 
 - `Empty` is a base case and makes no recursive call;
@@ -94,11 +103,19 @@ let labeledTree = branchTree |> mapTree (fun seats -> $"{seats} seats")
 
 printfn "Mapped: %s" (renderTree id labeledTree)
 ```
+This continuation prints:
+
+```text
+Mapped: Branch(Leaf(2 seats),Branch(Leaf(3 seats),Leaf(4 seats)))
+```
+
 Its inferred type is:
 
-```fsharp
+```text
 mapTree : ('T -> 'U) -> BookingTree<'T> -> BookingTree<'U>
 ```
+
+That is the type FSI displays, not a declaration to paste into the script.
 
 `Empty` remains `Empty`; `Leaf value` becomes `Leaf (mapping value)`; a `Branch` is rebuilt from mapped subtrees in the same positions. The mapping function knows nothing about branches, and the traversal knows nothing about the payload conversion.
 
@@ -136,9 +153,11 @@ printfn
     (countWithFold branchTree = countLeaves branchTree)
     (totalWithFold branchTree = totalSeats branchTree)
 ```
+This continuation prints `Fold agrees: count=true total=true`.
+
 Read its arguments from the type:
 
-```fsharp
+```text
 foldTree :
     onEmpty:'State ->
     onLeaf:('T -> 'State) ->
@@ -146,6 +165,8 @@ foldTree :
     tree:BookingTree<'T> ->
     'State
 ```
+
+This is also an inferred signature for reading, not a standalone code block.
 
 The fold replaces each constructor with a caller-supplied rule. `Empty` becomes `onEmpty`. A leaf becomes `onLeaf value`. A branch first folds both subtrees, then combines their results with `onBranch`.
 
@@ -155,7 +176,7 @@ A fold can produce more than numbers. Choose `'State` as a record to compute cou
 
 ### Derive `map` from `fold` {#map-from-fold}
 
-Once `foldTree` is trusted, map can be expressed without writing `let rec` again:
+Once the earlier `foldTree` is trusted, map can be expressed without writing `let rec` again:
 
 ```fsharp
 let mapTreeWithFold mapping =
@@ -182,6 +203,13 @@ printfn "Heights: empty=%d leaf=%d branch=%d" (height emptyTree) (height leafTre
 
 printfn "Shape preserved: before=%d after=%d" (countLeaves branchTree) (countLeaves labeledTree)
 ```
+This continuation prints:
+
+```text
+Heights: empty=0 leaf=1 branch=3
+Shape preserved: before=3 after=3
+```
+
 With the convention `Empty = 0` and `Leaf = 1`, a branch is one plus the greater subtree height. The example branch has three leaves and height three. Leaf count and height measure different facts: a balanced tree can hold many leaves with modest height, while a one-sided tree can have height proportional to its node count.
 
 For `countLeaves`, `mapTree`, and `foldTree`:
@@ -207,7 +235,7 @@ and Binding =
       Value: Expression }
 ```
 
-Use mutual recursion only when the domain genuinely has two distinct concepts. A single recursive union is easier to traverse and should not be split merely to demonstrate the syntax. Mutually recursive functions use the corresponding `let rec ... and ...` form.
+This is an independent syntax example that compiles without `BookingTree`. Use mutual recursion only when the domain genuinely has two distinct concepts. A single recursive union is easier to traverse and should not be split merely to demonstrate the syntax. Mutually recursive functions use the corresponding `let rec ... and ...` form.
 
 ## Exercises {#exercises}
 

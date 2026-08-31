@@ -10,6 +10,8 @@ translationKey: part-06/ch-34-pure-booking-workflow
 
 关键在于把不同失败放在正确的位置。互相独立的字段错误一起报告更有用，因此验证会累积它们。依赖状态的决策在前置条件失败后就会停止，因为后续规则已没有有效输入。两类问题若共用一种组合策略，要么丢掉有用错误，要么产生误导性错误。
 
+本章继续第 33 章的页内参考实现，不假定存在可直接构建的仓库项目。建议的文件顺序在 `Commands.fs` 之后加入 `Validation.fs`，再编译 `Events.fs`、`Workflow.fs` 与 `Decider.fs`。所有片段仍位于 `Booking.Domain` 命名空间；标为同一文件的短代码会使用该文件前面已经定义的名称。
+
 ## 从左向右阅读契约 {#contract}
 
 公共决策契约是：
@@ -52,26 +54,45 @@ Event
 
 ## 把原始记录变成受保护命令 {#validated-commands}
 
-预约命令已经有私有的已验证形式。本章为确认与取消增加了对应形式：
+`Validation.fs` 用一个模块集中放置验证错误、兼容别名和已验证命令。下面先给出预约命令所依赖的前置定义，再增加确认与取消形式；这样后面的 `ValidPlaceBooking`、`PlaceBookingCommand` 和错误用例都不再是隐含名称：
 
 ```fsharp:line-numbers [Validation.fs]
-type ValidConfirmBooking =
-    private
-        { RequestId: RequestId
-          ConfirmationCode: ConfirmationCode }
+module Validation =
+    type CommandValidationError =
+        | InvalidRequestId of RequestIdError
+        | InvalidSeatCount of SeatCountError
+        | InvalidConfirmationCode of ConfirmationCodeError
+        | InvalidCancellationReason of CancellationReasonError
 
-module ValidConfirmBooking =
-    let requestId (command: ValidConfirmBooking) = command.RequestId
-    let confirmationCode (command: ValidConfirmBooking) = command.ConfirmationCode
+    // Compatibility name for the earlier teaching slice; no second runtime type is created.
+    type PlaceBookingCommand = PlaceBooking
 
-type ValidCancelBooking =
-    private
-        { RequestId: RequestId
-          Reason: CancellationReason }
+    type ValidPlaceBooking =
+        private
+            { RequestId: RequestId
+              Seats: SeatCount }
 
-module ValidCancelBooking =
-    let requestId (command: ValidCancelBooking) = command.RequestId
-    let reason (command: ValidCancelBooking) = command.Reason
+    module ValidPlaceBooking =
+        let requestId (command: ValidPlaceBooking) = command.RequestId
+        let seats (command: ValidPlaceBooking) = command.Seats
+
+    type ValidConfirmBooking =
+        private
+            { RequestId: RequestId
+              ConfirmationCode: ConfirmationCode }
+
+    module ValidConfirmBooking =
+        let requestId (command: ValidConfirmBooking) = command.RequestId
+        let confirmationCode (command: ValidConfirmBooking) = command.ConfirmationCode
+
+    type ValidCancelBooking =
+        private
+            { RequestId: RequestId
+              Reason: CancellationReason }
+
+    module ValidCancelBooking =
+        let requestId (command: ValidCancelBooking) = command.RequestId
+        let reason (command: ValidCancelBooking) = command.Reason
 ```
 原始记录使用 `string` 和 `int`，因为调用方或未来 DTO 从表示数据开始。已验证记录包含 `RequestId`、`SeatCount`、`ConfirmationCode` 或 `CancellationReason`。它们的记录构造器是私有的；调用方只能通过验证器获得，再通过模块函数观察。
 
@@ -81,7 +102,7 @@ module ValidCancelBooking =
 
 ## 有意累积独立错误 {#accumulation}
 
-项目使用一个小型局部组合器，让验证策略直接可见：
+下面的代码继续位于 `module Validation`。它使用前一节已经声明的错误用例与已验证预约记录，通过一个小型局部组合器直接表达验证策略：
 
 ```fsharp:line-numbers [Validation.fs]
 let private applyValidation valueResult functionResult =
@@ -165,9 +186,12 @@ let validateCancelBooking (command: CancelBooking) =
 
 ## 为工作流提供统一错误词汇 {#decision-errors}
 
-决策器显式暴露预期拒绝类别：
+`Decider.fs` 位于 `Validation.fs`、`Events.fs` 与 `Workflow.fs` 之后。它先打开 `Booking.Domain.Validation` 和 `Booking.Domain.Workflow`，再显式暴露预期拒绝类别：
 
 ```fsharp:line-numbers [Decider.fs]
+open Booking.Domain.Validation
+open Booking.Domain.Workflow
+
 [<RequireQualifiedAccess>]
 type BookingDecisionError =
     | InvalidCommand of CommandValidationError list
@@ -192,7 +216,7 @@ type BookingDecisionError =
 
 ## 路由封闭的命令集合 {#routing}
 
-统一函数对 `BookingCommand` 做穷尽匹配：
+统一函数对 `BookingCommand` 做穷尽匹配。为先展示整体入口，正文先给出文件末尾的 `decide`；它调用的 `mapPlaceError` 只是把 `PlaceBookingError` 的三个用例逐一映射到同名的 `BookingDecisionError` 用例，`decideConfirm` 与 `decideCancel` 则在下一节完整给出。它们都位于同一个 `module Decider` 中：
 
 ```fsharp:line-numbers [Decider.fs]
 let decide
@@ -221,7 +245,7 @@ let decide
 
 决策器不会重复预约容量规则。委托让 `Workflow.decidePlaceBooking` 成为这项规则的唯一实现，同时提供统一命令入口。同样，两个生命周期分支也不会自行检查状态。
 
-因为命令是封闭的可辨识联合，增加一个案例会让这里的匹配不完整。在警告即错误设置下，构建会强制做出明确路由选择。通配符会丢弃这项维护信号，只应保留给真正开放或有意忽略的输入空间。
+因为命令是封闭的可区分联合，增加一个用例会让这里的匹配不完整。在警告即错误设置下，构建会强制做出明确路由选择。通配符会丢弃这项维护信号，只应保留给真正开放或有意忽略的输入空间。
 
 `BookingCommand` 上的 `[<RequireQualifiedAccess>]` 还要求调用处写成 `BookingCommand.Place`、`.Confirm` 或 `.Cancel`。多个联合都包含 `Cancel`、`Confirm` 等普通词时，限定名称会很有帮助。
 
@@ -331,24 +355,7 @@ match Decider.decide activity state command with
 
 “一个实现”并不表示一个巨型函数，而是其他层调用规则，不再重写条件。把错误映射进更宽的联合不是复制规则；在两个模块里都检查 `requested > capacity` 才是。
 
-## 在没有副作用的情况下测试行为 {#testing}
-
-聚焦工作流测试只调用普通值与函数。决策器没有外部依赖，因此不需要 mock 框架。测试覆盖：
-
-- 预约、确认与取消都会按顺序累积各自独立的格式错误字段；
-- 无效生命周期字段优先于缺失状态检查；
-- 有效预约发出 `BookingPlaced` 并演化为 `Booked`；
-- 容量拒绝保留带度量单位的具体领域错误；
-- 已占用状态优先于后续预约容量检查；
-- 有效确认规范化代码并发出 `BookingConfirmed`；
-- 目标状态不存在或不匹配时返回 `BookingDoesNotExist`；
-- 第二次确认保留 `CannotConfirmFrom`；
-- 取消发出经过规范化的终态事实；
-- 重复取消保留 `CannotCancelFrom`。
-
-范围更广的领域、工作流、属性和决策器测试也会通过。完整示例检查会按锁文件还原依赖，在启用空值检查和警告即错误的条件下构建 Release，运行所有测试与脚本，并核对预期的编译器诊断。
-
-这些结果表明，已覆盖的模型决策是确定的。它们不能说明多个预约不会共同超出活动容量、状态加载始终一致，或事实恰好提交一次。这些保证需要原子持久化和集成测试。
+由于决策器没有外部依赖，实际实现它时可以直接用普通值测试，无需 mock 框架。最小测试矩阵应覆盖四类区别：多个独立字段按稳定顺序累积；字段错误优先于状态查找；成功的预约、确认与取消各自产生正确事件并演化；容量、重复预约、缺失目标和非法生命周期转换保留具体错误。这样的纯测试仍不能证明多个预约不会共同超出活动容量、状态加载一致，或事实只提交一次；这些保证需要原子持久化与集成测试。
 
 ## 练习 {#exercises}
 
@@ -375,7 +382,7 @@ match Decider.decide activity state command with
 | 有效的五个座位，容量为四，状态为 `NotBooked` | `BookingCreationFailed (RequestedSeatsExceedCapacity (5<seat>, 4<seat>))` | 创建被拒绝之后的全部步骤 |
 | 同一有效命令，状态为 `Booked existing` | `BookingAlreadyExists (Booking.requestId existing)` | 不调用 `Booking.create`，所以不会重新检查容量 |
 | 空白 ID、空白确认码，状态为 `NotBooked` | `InvalidCommand [InvalidRequestId BlankRequestId; InvalidConfirmationCode BlankConfirmationCode]` | 预订查找与状态转换 |
-| 有效确认命令，当前已是 `Confirmed currentCode` | `BookingTransitionFailed (CannotConfirmFrom (Confirmed currentCode))` | 事件包装与演进 |
+| 有效确认命令，当前已是 `Confirmed currentCode` | `BookingTransitionFailed (CannotConfirmFrom (Confirmed currentCode))` | 事件包装与演化 |
 
 案例 (a) 即使第一个字段失败，也会运行两个纯字段验证器。它从不检查 `NotBooked`；把状态改为 `Booked existing` 仍会得到同一个验证列表。
 
@@ -398,7 +405,7 @@ match Decider.decide activity state command with
 
 #### 每次给构造函数扩展一个参数 {#exercise-02-validation}
 
-下面的自包含扩展沿用相同模式。它使用不同的类型名，避免让人误以为综合项目已经定义电子邮件策略：
+下面的自包含扩展沿用相同模式。它使用不同的类型名，避免让人误以为参考模型已经定义电子邮件策略：
 
 ```fsharp
 open System
@@ -504,5 +511,5 @@ let validate (command: PlaceBookingWithEmail) =
 - [Microsoft Learn：F# `Result` 类型](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/results)
 - [FSharp.Core 参考：`Result.bind`、`map` 与 `mapError`](https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-resultmodule.html)
 - [Microsoft Learn：匹配表达式、守卫与穷尽性](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/match-expressions)
-- [Microsoft Learn：可辨识联合与具名案例](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions)
+- [Microsoft Learn：可区分联合与联合用例](https://learn.microsoft.com/zh-cn/dotnet/fsharp/language-reference/discriminated-unions)
 - [Microsoft Learn：记录、不可变性与私有构造](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/records)

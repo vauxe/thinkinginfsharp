@@ -48,7 +48,11 @@
     {
       "id": "ch17-signature-library",
       "kind": "project",
-      "path": "examples/chapters/ch17/Ch17.fsproj"
+      "path": "examples/chapters/ch17/Ch17.fsproj",
+      "expectedOutput": [
+        "allocated requested=4 remaining=2",
+        "rejected requested=7 available=6"
+      ]
     },
     {
       "id": "ch17-hidden-representation",
@@ -56,6 +60,71 @@
       "path": "examples/expected-errors/ch17-hidden-representation/Ch17HiddenRepresentation.fsproj",
       "diagnostics": [
         "FS0800"
+      ]
+    },
+    {
+      "id": "ch18-validation-workflows",
+      "kind": "script",
+      "path": "examples/chapters/ch18/validation.fsx",
+      "expectedOutput": [
+        "first-error: true",
+        "all-errors: true",
+        "apply-agrees: true",
+        "valid-booking: true",
+        "dependent: parse=(Error [SeatsNotInteger \"oops\"], 0) over=(Error [ExceedsCapacity (5, 4)], 1) fit=(Ok (SeatCount 3), 1)"
+      ]
+    },
+    {
+      "id": "ch21-exceptions-resources-io",
+      "kind": "script",
+      "path": "examples/chapters/ch21/resources.fsx",
+      "expectedOutput": [
+        "Success: text=42 disposed=true",
+        "Failure: caught=true disposed=true",
+        "Read result: ok:42",
+        "Missing result: path-not-found",
+        "Cleanup: removed=true"
+      ]
+    },
+    {
+      "id": "ch22-async-task",
+      "kind": "script",
+      "path": "examples/chapters/ch22/async-task.fsx",
+      "expectedOutput": [
+        "Async before start: entered=false",
+        "Async after StartAsTask: entered=true completed=false",
+        "Async result: async-done",
+        "Task after call: entered=true completed=false",
+        "Task result: task-done",
+        "Interop: async-to-task=21 task-to-async=42"
+      ]
+    },
+    {
+      "id": "ch23-cancellation-timeouts",
+      "kind": "script",
+      "path": "examples/chapters/ch23/cancellation.fsx",
+      "expectedOutput": [
+        "Operation cancellation: canceled=true token=true",
+        "Abandoned wait: waiter-canceled=true operation-pending=true",
+        "Underlying after abandon: result=late-result",
+        "Timeout signal: timed-out=true operation-pending=true",
+        "Fault: type=InvalidOperationException message=quote-failed",
+        "Sync dispose: success=true fault=true cancel=true",
+        "Async dispose: pending=true success=true fault=true cancel=true"
+      ]
+    },
+    {
+      "id": "ch24-concurrency-agents-state",
+      "kind": "script",
+      "path": "examples/chapters/ch24/concurrency.fsx",
+      "expectedOutput": [
+        "Concurrent waits: entered=2 pending=true",
+        "Concurrent results: [|\"first\"; \"second\"|]",
+        "Parallel map agrees: true",
+        "Shared counter: race=1 lock=2 interlocked=2",
+        "Locked capacity: accepted=1 remaining=1 invariant=true",
+        "Agent capacity: accepted=1 remaining=1 invariant=true",
+        "Cache: values=[|23; 23|] computations=1 entries=1"
       ]
     },
     {
@@ -75,6 +144,21 @@
       ]
     },
     {
+      "id": "ch26-dotnet-runtime-boundaries",
+      "kind": "script",
+      "path": "examples/chapters/ch26/runtime-boundaries.fsx",
+      "expectedOutput": [
+        "Runtime type: declared=BookingRequest actual=BookingRequest",
+        "Pattern casts: [\"text:LIN\"; \"request:R-26/3\"; \"int:42\"]",
+        "Failed downcast: InvalidCastException",
+        "Delegates: add=7 labels=[|\"2\"; \"4\"; \"6\"|]",
+        "Event: observed=[\"4->2\"] after-remove=1",
+        ".NET list: live=[1; 2; 3] snapshot=[1; 2]",
+        "String comparer: count=1 found=true value=second",
+        "Class keys: same-reference=false default=2 domain=1 value=second"
+      ]
+    },
+    {
       "id": "ch27-csharp-contract",
       "kind": "project",
       "path": "examples/chapters/ch27/CSharpClient/CSharpClient.csproj",
@@ -89,6 +173,24 @@
       ]
     },
     {
+      "id": "ch29-property-testing",
+      "kind": "project",
+      "path": "examples/chapters/ch29/Ch29.Tests.fsproj"
+    },
+    {
+      "id": "ch30-diagnostic-probe",
+      "kind": "script",
+      "path": "examples/chapters/ch30/diagnostic-probe.fsx",
+      "expectedOutput": [
+        "Rejected (3, 2)"
+      ]
+    },
+    {
+      "id": "ch31-measure-before-optimizing",
+      "kind": "project",
+      "path": "examples/chapters/ch31/Ch31.Benchmarks.fsproj"
+    },
+    {
       "id": "ch32-functions-to-applications",
       "kind": "project",
       "path": "examples/chapters/ch32/Ch32.App.fsproj",
@@ -101,6 +203,17 @@
         "metric: name=booking.requests value=1 outcome=accepted",
         "trace: name=booking.place outcome=accepted",
         "lifecycle: store-disposed=true"
+      ]
+    },
+    {
+      "id": "ch32-application-contracts",
+      "kind": "script",
+      "path": "examples/chapters/ch32/application-contracts.fsx",
+      "expectedOutput": [
+        "Config errors: count=2 names=true",
+        "Accepted: ok=true load=1 append=1 same-token=true",
+        "Canceled: observed=true load=0 append=0",
+        "Lifecycle: accepted-store=true canceled-store=true"
       ]
     },
     {

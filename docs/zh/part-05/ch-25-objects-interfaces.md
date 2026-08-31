@@ -6,7 +6,7 @@ translationKey: part-05/ch-25-objects-interfaces
 
 # 第 25 章：在 F# 中定义对象 {#overview}
 
-F# 是 .NET 语言，类、成员、接口、继承和值类型都是原生工具。函数表达行为，记录表示带名称的数据，可辨识联合列出有限的状态；只有模型需要类的特定运行时语义时，才引入类。
+F# 是 .NET 语言，类、成员、接口、继承和值类型都是原生工具。函数表达行为，记录表示带名称的数据，可区分联合列出有限的状态；只有模型需要类的特定运行时语义时，才引入类。
 
 先确定类型必须保留哪些含义。只有引用身份、隐藏状态、构造逻辑、资源生命周期、运行时分派或 .NET 成员 API 确实有用时，才采用对象。无论使用函数式还是面向对象工具，都应选择能准确表达需求的最简单表示。
 
@@ -18,7 +18,7 @@ F# 是 .NET 语言，类、成员、接口、继承和值类型都是原生工�
 |---|---|---|
 | 一项变换或策略 | 函数 | 输入与输出行为已经构成抽象 |
 | 带命名字段的不可变数据 | 记录 | 字段与结构化操作直接描述该值 |
-| 一组有限选项或状态中的一种 | 可辨识联合 | 用例与穷尽匹配列出全部可能 |
+| 一组有限选项或状态中的一种 | 可区分联合 | 用例与穷尽匹配列出全部可能 |
 | 组合在一起的一组相关依赖 | 函数字段记录 | 调用者可以组装一小组清楚的操作 |
 | 身份、隐藏的变化状态或受管理的生命周期 | 类 | 一个引用可以封装状态与资源处理 |
 | .NET 成员 API 背后的多种实现 | 接口 | 明确需要运行时分派和 .NET 调用方式 |
@@ -34,7 +34,7 @@ F# 是 .NET 语言，类、成员、接口、继承和值类型都是原生工�
 
 ## 类是 .NET 引用类型 {#classes}
 
-示例对报价计算建模。`Quote` 仍是私有记录，错误仍用可辨识联合表示；只有计算器行为使用类：
+示例对报价计算建模。`Quote` 仍是私有记录，错误仍用可区分联合表示；只有计算器行为使用类。下面是仓库中 `examples/chapters/ch25/Types.fs` 的完整类型定义，后续片段都使用这些名称：
 
 ```fsharp:line-numbers [Types.fs]
 namespace ThinkingInFSharp.Ch25
@@ -144,10 +144,15 @@ module QuoteRevision =
 | 状态/生命周期 | 依赖只是普通值 | 实现需要管理身份、状态或释放 |
 | 演化 | 操作集合只在局部使用，易于整体替换 | 公开成员 API 有明确的兼容策略 |
 
-F# 接口实现通常是显式的。`PriceCalculator.Calculate` 是类成员，而 `IQuoteService.Quote` 要通过接口视图调用：
+F# 接口实现通常是显式的。`PriceCalculator.Calculate` 是类成员，而 `IQuoteService.Quote` 要通过接口视图调用。下面先创建无折扣策略和一项完整请求，因此代码块可以直接接在 `Types.fs` 之后运行：
 
 ```fsharp
-let calculator = PriceCalculator(policy)
+let noDiscount =
+    { new IDiscountPolicy with
+        member _.Rate _ = 0M }
+
+let request = { Seats = 2; UnitPrice = 10M }
+let calculator = PriceCalculator(noDiscount)
 let service = calculator :> IQuoteService
 let result = service.Quote request
 ```
@@ -217,15 +222,22 @@ F# 类可以继承一个直接基类，并实现多个接口。只有框架本�
 
 第 27 章会从 C# 调用方的角度重新讨论最后一个问题。第 31 章会先提供测量结果，再讨论表示层面的优化。
 
-## 运行示例 {#run-example}
-
-在仓库根目录执行：
+完整调用方位于 `examples/chapters/ch25/Program.fs`。在仓库根目录执行：
 
 ```console
 dotnet run --project examples/chapters/ch25/Ch25.fsproj --configuration Release
 ```
 
-程序用四行确定性输出覆盖类、接口、扩展和结构体；仓库检查会逐行核对结果。
+程序用四行确定性输出覆盖类、接口、扩展和结构体：
+
+```text
+Class: tax-rate=0.20 total=54.00
+Interface: total=12.00
+Extension: discounted=true
+Struct: value=2 copy=2 default=0
+```
+
+最后一行还直接展示了结构体复制与零初始化；仓库检查会逐行核对这些结果。
 
 ## 练习 {#exercises}
 

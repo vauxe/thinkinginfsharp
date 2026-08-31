@@ -10,6 +10,10 @@ The booking system began with values and functions, not an architecture diagram.
 
 Vocabulary is part of the design. `PlaceBooking` requests work; `BookingPlaced` records a fact; `BookingState` represents the current domain view; a future JSON request represents external data. Giving all four the same record type would save a few declarations but obscure when each value is valid and who may use it.
 
+Chapters 33–38 develop an **in-page reference implementation** in stages. The current static-book repository does not ship a complete buildable `Booking` solution. Only commands containing a concrete `examples/...` path refer to repository files.
+
+Block titles such as `Domain.fs` and `Commands.fs` name the proposed project files. Read this chapter's fragments as members of the `Booking.Domain` namespace, ordered `Domain.fs` → `Commands.fs` → `Events.fs` → `Workflow.fs` → `PublicApi.fs`. Later chapters insert validation and a unified decider into that sequence.
+
 ## Begin with one glossary {#glossary}
 
 The following words have precise local meanings in this project:
@@ -38,11 +42,22 @@ The earlier teaching slices were successive refinements, not six competing archi
 5. Part V tested invariants and projected a stable F#-facing public module without leaking workflow types.
 6. This part consolidates that language, then connects it to contracts, storage, adapters, and HTTP.
 
-Preserving every historical type would create two sources of truth. The capstone instead migrates callers toward one model and retains only small compatibility aliases where an earlier chapter still compiles against an old name.
+Preserving every historical type would create two sources of truth. The reference design instead migrates callers toward one model and retains only small compatibility aliases where an earlier chapter still uses an old name.
 
 ## Model the business before the transport {#domain-model}
 
-The core model names the activity, booking lifecycle, and failures in domain terms:
+`Domain.fs` first opens `System`, declares `[<Measure>] type seat`, and defines the protected values required by the main model. The following block is therefore not the first code in an empty file; it depends on these earlier definitions:
+
+| Type | Smart-construction rule | Accessor |
+|---|---|---|
+| `EventId` | Nonblank after trimming | `EventId.value` |
+| `RequestId` | Nonblank after trimming, at most 64 characters, URI-unreserved characters only, and not `.` or `..` | `RequestId.value` |
+| `Capacity` | Positive integer, represented internally as `int<seat>` | `Capacity.value` |
+| `SeatCount` | Positive integer, represented internally as `int<seat>` | `SeatCount.value` |
+| `ConfirmationCode` | Nonblank after trimming | `ConfirmationCode.value` |
+| `CancellationReason` | Nonblank after trimming | `CancellationReason.value` |
+
+Each smart constructor returns `Result`, and only its module can invoke the private union case. With that context, the core model names the activity, booking lifecycle, and failures in domain terms:
 
 ```fsharp:line-numbers [Domain.fs]
 type Event =
@@ -127,6 +142,8 @@ Several F# choices work together here:
 - module functions form the supported construction, observation, and transition surface.
 
 A type alone does not enforce every invariant. `BookingStatus` can express three legal states, but only `Booking.confirm` and `Booking.cancel` define which transitions are allowed. `Booking.create` compares requested seats with the activity capacity. Protection comes from the combination of representation, access control, and the small functions that may create new values.
+
+`Booking.restore` is reserved for a trusted persistence-rehydration boundary. Its caller must still convert raw fields into `RequestId`, `EventId`, `SeatCount`, and a valid `BookingStatus` first; an unchecked DTO must not be passed through directly.
 
 The model deliberately contains no JSON property names, database paths, HTTP status codes, logging levels, or dependency-injection services. Those concepts can change without changing what a booking means.
 
@@ -262,7 +279,7 @@ A DTO is not “bad domain modeling.” It is an anti-corruption boundary whose 
 
 ## Offer a stable public path {#public-surface}
 
-The capstone's intended F#-facing entry point begins with raw boundary values but returns an opaque model:
+The reference design's intended F#-facing entry point begins with raw boundary values but returns an opaque model. The next block is a continuation inside `module PublicApi`; before it, that module declares the complete `BookingError` union and the private wrapper `type BookingModel = private BookingModel of Event * BookingState`:
 
 ```fsharp:line-numbers [PublicApi.fs]
 let start rawEventId rawCapacity =
@@ -321,7 +338,7 @@ Returning a domain event commits the code to a vocabulary of facts. It does **no
 
 Event sourcing is a storage architecture: each entity's ordered event stream is the authoritative history, and current state is derived by replay. CQRS is another independent choice that separates write commands from read queries. They are often combined, but neither follows automatically from defining an F# union named `BookingEvent`.
 
-The capstone currently proves only a pure fact vocabulary and an evolution function. Its earlier in-memory adapter demonstrates wiring, not a durable event store. Later chapters may persist a current DTO, append selected facts, or map facts to integration messages without turning the event list into the sole source of truth.
+At this point, the in-page code defines only a pure fact vocabulary and an evolution function. Chapter 32's in-memory adapter demonstrates wiring, not a durable event store. Later chapters may persist a current DTO, append selected facts, or map facts to integration messages without turning the event list into the sole source of truth.
 
 Choose event sourcing only when access to history, temporal decisions, audit needs, or projection flexibility justify its migration and operational costs. “We already have events” is not sufficient evidence.
 
@@ -340,18 +357,7 @@ Names should use the language of the people defining the rule. Technical precisi
 
 Avoid generic containers such as `Request`, `Response`, `Data`, or `StatusChanged` at a domain-wide scope. They force readers to recover context from folders or comments. Also avoid encoding implementation promises into domain names: `BookingSavedToJson` is an adapter outcome, not a booking fact.
 
-## Interpret the domain-model checks narrowly {#evidence}
-
-The consolidated implementation and focused tests show that:
-
-- all three commands express intent and all three events express accepted facts;
-- booking construction and transitions still pass through the existing protected domain functions;
-- `PublicApi` does not expose internal domain or workflow types in its function signatures;
-- the old command and event names are aliases rather than second runtime models;
-- adding new event cases made an older pattern match fail exhaustiveness checking until it was updated;
-- domain, workflow, and property tests still pass under F# 10 with null checking and warnings as errors.
-
-These checks do not cover one decider for all commands, durable JSON compatibility, atomic persistence, idempotency, HTTP behavior, or restart recovery. Later chapters implement those capabilities explicitly; clean type names do not imply them.
+This chapter stops at domain vocabulary, protected construction, transitions, events, and evolution. The in-page fragments do not prove durable JSON compatibility, atomic persistence, idempotency, HTTP behavior, or restart recovery. Those capabilities require later boundary designs and real executable tests; clean type names do not imply that they already exist.
 
 ## Exercises {#exercises}
 

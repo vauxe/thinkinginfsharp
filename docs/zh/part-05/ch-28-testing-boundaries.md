@@ -10,6 +10,64 @@ translationKey: part-05/ch-28-testing-boundaries
 
 因此，应先问“这个测试要发现哪类错误”，再选择测试层。若每项测试都启动数据库，反馈会慢，失败也难以定位；若所有测试都替换序列化器和数据库，又无法检查真实集成是否匹配。大部分逻辑使用低成本测试，只为真实集成风险支付额外成本。
 
+本章代码是一份 xUnit 测试项目蓝图，不对应仓库中的独立示例项目。测试片段假定项目引用 xUnit，并以 `open Xunit` 开始；生产片段则共享下面这组完整的领域定义和 `System.Text.Json` 命名空间。这样，后文的 `PlaceOrderCommand`、`ProductSnapshot`、`OrderDraft` 与 `CommandError` 都不是未展示的前置条件。
+
+```fsharp:line-numbers [OrderWorkflow.fs — 共享模型]
+open System
+open System.Text.Json
+open System.Text.Json.Serialization
+
+type CommandError =
+    | MissingOrderId
+    | MissingSku
+    | NonPositiveQuantity of actual: int
+
+type PlaceOrderCommand =
+    private
+        { OrderId: string
+          Sku: string
+          Quantity: int }
+
+module PlaceOrderCommand =
+    let create (orderId: string | null) (sku: string | null) quantity =
+        if String.IsNullOrWhiteSpace orderId then
+            Error MissingOrderId
+        elif String.IsNullOrWhiteSpace sku then
+            Error MissingSku
+        elif quantity <= 0 then
+            Error(NonPositiveQuantity quantity)
+        else
+            Ok
+                { OrderId = orderId.Trim()
+                  Sku = sku.Trim().ToUpperInvariant()
+                  Quantity = quantity }
+
+    let orderId command = command.OrderId
+    let sku command = command.Sku
+    let quantity command = command.Quantity
+
+type ProductSnapshot =
+    { Sku: string
+      UnitPrice: decimal
+      Available: int }
+
+module ProductSnapshot =
+    let create sku unitPrice available =
+        { Sku = sku
+          UnitPrice = unitPrice
+          Available = available }
+
+type OrderDraft =
+    { OrderId: string
+      Sku: string
+      Quantity: int
+      Total: decimal }
+
+type OrderDecisionError =
+    | ProductNotFound of sku: string
+    | InsufficientStock of requested: int * available: int
+```
+
 ## 选择覆盖风险的最低成本测试 {#risk-matrix}
 
 “单元”不必等于一个类或一个函数。它是本次测试有意控制的工作单元。下面的层次各回答不同问题：
@@ -50,10 +108,30 @@ module OrderDecision =
 没有隐藏时钟、数据库或随机数，所以测试无需搭建对象图。安排输入，调用一次，再比较完整结果：
 
 ```fsharp
+open Xunit
+
 let private expectOk result =
     match result with
     | Ok value -> value
     | Error error -> failwithf "Expected Ok, received Error %A" error
+
+let acceptedRequest =
+    PlaceOrderCommand.create "ORD-28" "FSP-BOOK" 2 |> expectOk
+
+let acceptedSnapshot = ProductSnapshot.create "FSP-BOOK" 19.50M 5
+
+[<Fact>]
+let ``pure decision returns the complete accepted draft`` () =
+    let expected =
+        { OrderId = "ORD-28"
+          Sku = "FSP-BOOK"
+          Quantity = 2
+          Total = 39.00M }
+
+    Assert.Equal(
+        Ok expected,
+        OrderDecision.decide (Some acceptedSnapshot) acceptedRequest
+    )
 
 let request =
     PlaceOrderCommand.create "ORD-28" "FSP-BOOK" 3 |> expectOk
@@ -292,9 +370,7 @@ Arrange—Act—Assert 是一种阅读约定，并不要求机械地添加注释
 
 代码覆盖率显示哪些位置执行过，风险与不变量分析则决定哪些场景和断言真正重要。先完成后者，再用覆盖率寻找盲区。把精力放在行为上，而不是简单 getter、框架代码或目标百分比。
 
-## 运行聚焦测试与完整测试 {#running-tests}
-
-在自己的应用解决方案中，可用过滤器快速得到结果（请替换模板路径）：
+在自己的应用解决方案中，可用过滤器快速得到结果。下面是模板命令，必须把路径替换为真实解决方案：
 
 ```console
 dotnet test path/to/YourSolution.slnx --configuration Release --filter FullyQualifiedName~Ch28

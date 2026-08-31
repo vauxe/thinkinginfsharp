@@ -10,6 +10,19 @@ A collection type is not merely different punctuation around the same elements. 
 
 We will choose from F# `list`, array, `seq`, `Map`, and `Set` by starting with the required operations. We will also use .NET `Dictionary` and `HashSet` when the requirement is equality-based hashing.
 
+The chapter's main examples share a small assertion function and two .NET namespaces. Save this block as `ch14-collections.fsx`, then append each valid code block in reading order:
+
+```fsharp:line-numbers
+open System
+open System.Collections.Generic
+
+let ensureEqual label expected actual =
+    if expected <> actual then
+        failwithf "%s: expected %A, actual %A" label expected actual
+```
+
+`ensureEqual` throws only when a result differs. The `printfn` at the end of each section makes the successful path observable. Every later helper name now has a source.
+
 ## Begin with the dominant operation {#decision-first}
 
 Ask what the consumer will do most often:
@@ -55,6 +68,12 @@ ensureEqual "array element changes" [| 20; 4; 6 |] doubledArray
 ensureEqual "source stays unchanged" [ 1; 2; 3 ] source
 printfn "Eager: list=%A array=%A source=%A" doubledList doubledArray source
 ```
+This block prints:
+
+```text
+Eager: list=[2; 4; 6] array=[|20; 4; 6|] source=[1; 2; 3]
+```
+
 Neither representation is universally “faster.” The dominant access pattern, allocation profile, element type, and measured workload decide.
 
 ### Sequence: an enumeration contract, not stored data {#sequence}
@@ -95,9 +114,14 @@ let candidateSeatCounts maximum =
             if seats % 2 = 1 then
                 yield seats
     }
+
+let firstThree =
+    candidateSeatCounts 1_000_000 |> Seq.truncate 3 |> Seq.toList
+
+printfn "Sequence prefix: %A" firstThree
 ```
 
-Calling `candidateSeatCounts 1_000_000` creates a sequence value; it does not immediately build one million candidates. A consumer such as `Seq.truncate 3 >> Seq.toList` can request only a prefix. `yield!` can contribute every element from an inner sequence.
+This block can follow the shared starting point and prints `Sequence prefix: [1; 3; 5]`. Calling `candidateSeatCounts 1_000_000` creates a sequence value; it does not immediately build one million candidates. `Seq.truncate 3` requests only the first three, and `Seq.toList` materializes that prefix. `yield!` can contribute every element from an inner sequence.
 
 The body is executable code, not inert data. Its side effects run when elements are requested.
 
@@ -128,6 +152,14 @@ ensureEqual "second values" firstPass secondPass
 ensureEqual "second pass repeats production" 6 pulls
 printfn "Second enumeration: values=%A pulls=%d" secondPass pulls
 ```
+This block prints:
+
+```text
+Deferred before enumeration: pulls=0
+First enumeration: values=[1; 4; 9] pulls=3
+Second enumeration: values=[1; 4; 9] pulls=6
+```
+
 The counter remains zero after constructing `delayedSquares`. The first `Seq.toList` pulls three elements; the second starts a new enumeration of this sequence expression and runs the body three more times.
 
 That observation does not mean every `IEnumerable<'T>` is safely restartable. A concrete source controls its enumerators: it may query changing state, wrap a resource, be single-use by convention, or throw on another traversal. The `seq<'T>` type alone promises none of those behaviors.
@@ -160,6 +192,8 @@ ensureEqual "cached values" cachedFirst cachedSecond
 ensureEqual "cached production count" 3 cachedPulls
 printfn "Cached enumerations: first=%A second=%A pulls=%d" cachedFirst cachedSecond cachedPulls
 ```
+This block prints `Cached enumerations: first=[1; 4; 9] second=[1; 4; 9] pulls=3`.
+
 Caching is appropriate when one deferred calculation must be replayed and retaining its produced elements is acceptable. It is not a universal optimization: the cache consumes memory, preserves earlier observations instead of fetching fresh ones, and can grow without bound for a long or infinite source.
 
 When the program means “capture all values now,” say so with `Seq.toList` or `Seq.toArray`. A materialized snapshot has a clear completion point and predictable replay, at the cost of one full traversal and storage for all elements.
@@ -185,6 +219,8 @@ mutableArray[0] <- 99
 ensureEqual "list is an independent snapshot" [ 1; 2; 3 ] listSnapshot
 printfn "Conversion snapshot: array=%A list=%A" mutableArray listSnapshot
 ```
+This block prints `Conversion snapshot: array=[|99; 2; 3|] list=[1; 2; 3]`.
+
 Avoid chains that repeatedly bounce among `list`, array, and `seq` just to call a familiar module function. Keep the representation suited to the workflow, or convert once at a deliberate point.
 
 ## Ordered keys and hash keys answer different questions {#lookup-semantics}
@@ -202,6 +238,12 @@ ensureEqual "later map binding replaces earlier" "replacement" bookingByCode["B2
 
 printfn "Ordered collections: set=%A map=%A" (Set.toList uniqueSeats) (Map.toList bookingByCode)
 ```
+This block prints:
+
+```text
+Ordered collections: set=[1; 2; 3] map=[("A1", "only"); ("B2", "replacement")]
+```
+
 `Map` and `Set` need a total ordering to navigate their trees. That is why their type parameters carry `comparison`, not merely `equality`. The order must also be stable while a value acts as a key or element.
 
 ### Hash collections need equality and a compatible hash code {#hash-collections}
@@ -231,6 +273,8 @@ ensureEqual "hash equality replaces value" 1 recipients.Count
 ensureEqual "case-insensitive lookup" "second" recipients[{ Value = "Lin@Example.com" }]
 printfn "Hash dictionary: count=%d lookup=%s" recipients.Count recipients[{ Value = "Lin@Example.com" }]
 ```
+This block uses the `System` and `System.Collections.Generic` imports from the starting point. It prints `Hash dictionary: count=1 lookup=second`.
+
 The dictionary accepts the key because its equality and hash semantics suffice. Attempting `Map<EmailAddress,string>` produces FS0001: the type explicitly does not support the `comparison` constraint. This is a real capability difference, not merely a performance choice.
 
 For context-specific rules such as case-insensitive strings, supplying an `IEqualityComparer` to `Dictionary` or `HashSet` is often better than changing the domain type's global equality. The script embeds the rule only to make the equality-only constraint visible.

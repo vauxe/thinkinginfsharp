@@ -8,7 +8,11 @@ translationKey: part-07/ch-40-data-analytics
 
 F# makes data transformation pleasant because records, units of measure, pattern matching, sequences, and higher-order functions describe structure and flow directly. Library choice, schema trust, query placement, memory scale, and model usefulness still require separate engineering decisions and validation.
 
-There is no single “F# data stack.” Start by asking who controls the data and schema, where operations must run, how large and sensitive the workload is, and what must remain reproducible. A verified local CSV example leads into relational access, analysis, visualization, and machine learning.
+There is no single “F# data stack.” Start by asking who controls the data and schema, where operations must run, how large and sensitive the workload is, and what must remain reproducible. A small local CSV project template leads into relational access, analysis, visualization, and machine learning.
+
+The current repository no longer contains the former `examples/ecosystem/data` project or its CSV test fixture. The code in this chapter supplies a reconstructable file layout; it is not a currently executable repository path.
+
+Keep the vocabularies separate: “type provider” and “query expression” name F# language/tooling mechanisms; `CsvProvider`, Deedle, Dapper, and ML.NET are library or platform APIs; “data frame,” “feature,” and “model drift” are data/ML terms, not names for F# syntax.
 
 ## Start with the data contract {#data-contract}
 
@@ -38,16 +42,33 @@ Choose representation after answering those questions:
 
 No row library removes the need to model domain meaning. A database `NULL`, an empty CSV cell, an absent JSON property, `NaN`, and “not yet measured” should not collapse into one accidental value.
 
-## Inspect the verified local CSV slice {#representative-sample}
+## Inspect the reconstructable local CSV template {#representative-sample}
 
-The data sample targets `net10.0` and pins [FSharp.Data 8.2.0](https://www.nuget.org/packages/FSharp.Data/8.2.0). Its package lock records the resolved transitive graph. The only compile-time data source is `sample.csv`; no URL, database, account, or secret participates in compilation.
+The reconstructed `DataSample.fsproj` should target `net10.0`, compile only `Program.fs`, and reference exactly [FSharp.Data 8.2.0](https://www.nuget.org/packages/FSharp.Data/8.2.0). Keep the generated package lock after the first restore. Its only compile-time data source is `sample.csv` beside `Program.fs`; compilation should not depend on a URL, database, account, or secret.
+
+`Program.fs` starts with `namespace ThinkingInFSharp.Ecosystem.Data` and opens `System`, `System.Globalization`, and `FSharp.Data`. The two output records are namespace-level types; the provider type, `revenue`, and the two query functions belong to module `DataSample`; command-line parsing and printing belong to the final `Program` entry-point module. Every code block below is an excerpt from that one file and does not run independently.
+
+Use these six synthetic rows for `sample.csv` so that the inference contract is visible:
+
+```csv [sample.csv]
+OrderId,Region,Product,Units,UnitPrice,OrderedAt
+ORD-1001,North,Keyboard,2,75.50,2026-01-02
+ORD-1002,South,Monitor,1,240.00,2026-01-03
+ORD-1003,North,Mouse,4,25.00,2026-01-04
+ORD-1004,West,Dock,3,110.00,2026-01-05
+ORD-1005,South,Keyboard,2,80.00,2026-01-06
+ORD-1006,West,Cable,5,12.00,2026-01-07
+```
 
 The official [CSV provider guide](https://fsprojects.github.io/FSharp.Data/library/CsvProvider.html) explains the two distinct moments: a sample supplies column names and inferred types when code is checked, while `Load` or `Parse` supplies runtime data. The data sample makes the design-time location independent of the build working directory:
 
 ```fsharp:line-numbers [Program.fs]
+[<Literal>]
+let private ResolutionFolder = __SOURCE_DIRECTORY__
+
 type private Orders =
     CsvProvider<
-        "../../../sample.csv",
+        "sample.csv",
         ResolutionFolder=ResolutionFolder,
         Culture="en-US",
         PreferDateOnly=true
@@ -87,6 +108,8 @@ The records here are analytical outputs, not booking-domain entities. A real ing
 The regional summary groups the generated rows, materializes each group once, calculates totals, sorts, and returns a list:
 
 ```fsharp:line-numbers [Program.fs]
+let private revenue (row: Orders.Row) = decimal row.Units * row.UnitPrice
+
 let summarizeByRegion (path: string) : RegionSummary list =
     Orders.Load(path).Rows
     |> Seq.groupBy _.Region
@@ -127,7 +150,7 @@ let highValueOrders (minimumRevenue: decimal) (path: string) : HighValueOrder li
 ```
 Here `Orders.Load(path).Rows` is an in-process sequence, so filtering, sorting, and projection execute locally. The syntax resembles a database query, but no SQL exists.
 
-Focused tests assert the exact six-row aggregation, `DateOnly` values, threshold, and descending order. A locked restore followed by a Release `--no-restore` build and test passes without a network schema. The console resolves the supplied path to an absolute path and prints three deterministic summaries. These checks cover only the fixed local schema and calculations, not arbitrary uploads, huge files, encoding attacks, or a database provider.
+After reconstruction, focused tests should assert the six-row aggregation, `DateOnly` values, threshold, and descending order; also run a locked restore followed by Release `--no-restore` build and test. The console entry point should resolve the input path to an absolute path and print three deterministic summaries for this sample. Even when these checks pass, they cover only the fixed local schema and calculations, not arbitrary uploads, huge files, encoding attacks, or a database provider.
 
 ## Treat schema as a versioned dependency {#schema-dependency}
 
@@ -321,9 +344,9 @@ Do not train during web startup or construct a prediction engine per request unl
 
 These are dated observations, not a universal stack recommendation:
 
-| Choice | Stable surface checked on 2026-08-25 | Status in this chapter | Key adoption question |
+| Choice | Stable surface checked on 2026-08-31 | Status in this chapter | Key adoption question |
 |---|---|---|---|
-| FSharp.Data | 8.2.0; `net8.0` and `netstandard2.0` assets | illustrated | is a fixed sample an honest schema witness? |
+| FSharp.Data | 8.2.0; `net8.0` and `netstandard2.0` assets | in-page project template | is a fixed sample an honest schema witness? |
 | Dapper | 2.1.79 | research only | does explicit SQL plus DTO mapping fit ownership? |
 | EF Core | 10 LTS on .NET 10 | research only | do tracking, migrations, and LINQ translation repay entity friction? |
 | SQLProvider | 1.5.27 | research only | can design-time schema and target driver be reproduced safely? |
@@ -332,7 +355,7 @@ These are dated observations, not a universal stack recommendation:
 | Microsoft.ML | 5.0.0 stable; 6.0 preview exists | research only | is in-process classical .NET ML the right product boundary? |
 | TorchSharp | 0.107.0 plus a native LibTorch package | research only | can the team own native deployment and pre-1.0 evolution? |
 
-“Illustrated” means this chapter contains a small use or configuration. “Research only” means the adopting application must restore, compile, execute, benchmark, and security-review the relevant option. Computed target compatibility is not the same as an included target asset, and a stable package label is not proof of product suitability.
+“In-page project template” means the chapter supplies the files and context needed to reconstruct a small example; it does not claim that the project currently exists in this repository. “Research only” means the adopting application must restore, compile, execute, benchmark, and security-review the relevant option. Computed target compatibility is not the same as an included target asset, and a stable package label is not proof of product suitability.
 
 ## Run a bounded data-stack spike {#adoption-spike}
 

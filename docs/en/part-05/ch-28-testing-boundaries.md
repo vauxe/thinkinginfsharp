@@ -10,6 +10,64 @@ A test should demonstrate behavior that matters, not mirror source structure. A 
 
 Before choosing a test level, ask what failure it must detect. If every test starts a database, feedback is slow and failures are hard to locate. If every test replaces the serializer and database, no test checks that the real integrations still agree. Use inexpensive tests for most logic and pay the extra cost only for genuine integration risks.
 
+The code in this chapter is a blueprint for an xUnit test project, not a standalone example project in the repository. Test fragments assume an xUnit reference and begin with `open Xunit`; production fragments share the following complete domain definitions and `System.Text.Json` namespaces. Later uses of `PlaceOrderCommand`, `ProductSnapshot`, `OrderDraft`, and `CommandError` therefore have no hidden prerequisite.
+
+```fsharp:line-numbers [OrderWorkflow.fs — shared model]
+open System
+open System.Text.Json
+open System.Text.Json.Serialization
+
+type CommandError =
+    | MissingOrderId
+    | MissingSku
+    | NonPositiveQuantity of actual: int
+
+type PlaceOrderCommand =
+    private
+        { OrderId: string
+          Sku: string
+          Quantity: int }
+
+module PlaceOrderCommand =
+    let create (orderId: string | null) (sku: string | null) quantity =
+        if String.IsNullOrWhiteSpace orderId then
+            Error MissingOrderId
+        elif String.IsNullOrWhiteSpace sku then
+            Error MissingSku
+        elif quantity <= 0 then
+            Error(NonPositiveQuantity quantity)
+        else
+            Ok
+                { OrderId = orderId.Trim()
+                  Sku = sku.Trim().ToUpperInvariant()
+                  Quantity = quantity }
+
+    let orderId command = command.OrderId
+    let sku command = command.Sku
+    let quantity command = command.Quantity
+
+type ProductSnapshot =
+    { Sku: string
+      UnitPrice: decimal
+      Available: int }
+
+module ProductSnapshot =
+    let create sku unitPrice available =
+        { Sku = sku
+          UnitPrice = unitPrice
+          Available = available }
+
+type OrderDraft =
+    { OrderId: string
+      Sku: string
+      Quantity: int
+      Total: decimal }
+
+type OrderDecisionError =
+    | ProductNotFound of sku: string
+    | InsufficientStock of requested: int * available: int
+```
+
 ## Choose the cheapest test that covers the risk {#risk-matrix}
 
 A “unit” need not be one class or function. It is the amount of work that one test deliberately controls. The following levels answer different questions:
@@ -50,10 +108,30 @@ module OrderDecision =
 There is no hidden clock, database, or randomness, so a test needs no object graph. Arrange the inputs, call once, then compare the complete result:
 
 ```fsharp
+open Xunit
+
 let private expectOk result =
     match result with
     | Ok value -> value
     | Error error -> failwithf "Expected Ok, received Error %A" error
+
+let acceptedRequest =
+    PlaceOrderCommand.create "ORD-28" "FSP-BOOK" 2 |> expectOk
+
+let acceptedSnapshot = ProductSnapshot.create "FSP-BOOK" 19.50M 5
+
+[<Fact>]
+let ``pure decision returns the complete accepted draft`` () =
+    let expected =
+        { OrderId = "ORD-28"
+          Sku = "FSP-BOOK"
+          Quantity = 2
+          Total = 39.00M }
+
+    Assert.Equal(
+        Ok expected,
+        OrderDecision.decide (Some acceptedSnapshot) acceptedRequest
+    )
 
 let request =
     PlaceOrderCommand.create "ORD-28" "FSP-BOOK" 3 |> expectOk
@@ -287,9 +365,7 @@ By contrast, a serialized field name, exactly-once charge, suppressed save after
 
 Code coverage reveals which locations executed; risk and invariant analysis determines which scenarios and assertions matter. Use coverage afterward to find blind spots. Focus on behavior, not trivial getters, framework code, or a target percentage.
 
-## Run focused and complete tests {#running-tests}
-
-In your application solution, use a filter for quick feedback (replace the template path):
+In your application solution, use a filter for quick feedback. The command below is a template; replace it with the real solution path:
 
 ```console
 dotnet test path/to/YourSolution.slnx --configuration Release --filter FullyQualifiedName~Ch28

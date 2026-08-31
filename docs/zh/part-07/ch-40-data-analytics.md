@@ -8,7 +8,11 @@ translationKey: part-07/ch-40-data-analytics
 
 F# 的记录、度量单位、模式匹配、序列与高阶函数能直接描述数据结构和转换流程，因此数据转换写起来很自然。库选择、模式信任、查询位置、内存规模和模型价值仍需分别判断与验证。
 
-不存在唯一的“F# 数据栈”。先问谁控制数据与模式、操作在哪里执行、工作负载有多大和多敏感，以及结果如何复现。下面从一个已验证的小型本地 CSV 样例出发，再讨论关系访问、分析、可视化与机器学习。
+不存在唯一的“F# 数据栈”。先问谁控制数据与模式、操作在哪里执行、工作负载有多大和多敏感，以及结果如何复现。下面从一个小型本地 CSV 项目模板出发，再讨论关系访问、分析、可视化与机器学习。
+
+当前仓库已不包含原先的 `examples/ecosystem/data` 项目或 CSV 测试夹具。本章代码用于给出可重建的文件结构，不是当前可执行的仓库路径。
+
+术语也要分层：“类型提供程序”和“查询表达式”是 F# 语言/工具机制；`CsvProvider`、Deedle、Dapper 与 ML.NET 是具体库或平台 API；“数据帧”、“特征”、“模型漂移”是数据/机器学习术语，并非 F# 标准语法名称。
 
 ## 从数据契约开始 {#data-contract}
 
@@ -38,16 +42,33 @@ F# 的记录、度量单位、模式匹配、序列与高阶函数能直接描�
 
 没有任何行处理库能免除领域含义建模。数据库 `NULL`、空 CSV 单元格、缺失 JSON 属性、`NaN` 与“尚未测量”不应偶然混为同一个值。
 
-## 检查已验证的本地 CSV 样例 {#representative-sample}
+## 检查可重建的本地 CSV 模板 {#representative-sample}
 
-数据样例以 `net10.0` 为目标，并锁定 [FSharp.Data 8.2.0](https://www.nuget.org/packages/FSharp.Data/8.2.0)。其包锁文件记录解析后的完整传递图。唯一编译期数据源是 `sample.csv`；编译不依赖 URL、数据库、账号或机密。
+重建后的 `DataSample.fsproj` 应以 `net10.0` 为目标，只编译 `Program.fs`，并精确引用 [FSharp.Data 8.2.0](https://www.nuget.org/packages/FSharp.Data/8.2.0)。首次还原后保留新生成的包锁文件。唯一编译期数据源是与 `Program.fs` 同目录的 `sample.csv`；编译不应依赖 URL、数据库、账号或机密。
+
+`Program.fs` 以 `namespace ThinkingInFSharp.Ecosystem.Data` 开头，导入 `System`、`System.Globalization` 和 `FSharp.Data`。两个输出记录位于命名空间级；提供程序类型、`revenue`、两个查询函数位于 `DataSample` 模块；命令行解析与打印位于最后的 `Program` 入口模块。所有代码块都是这一文件的节选，不能分开运行。
+
+为了让推断契约可见，`sample.csv` 可使用以下六行合成数据：
+
+```csv [sample.csv]
+OrderId,Region,Product,Units,UnitPrice,OrderedAt
+ORD-1001,North,Keyboard,2,75.50,2026-01-02
+ORD-1002,South,Monitor,1,240.00,2026-01-03
+ORD-1003,North,Mouse,4,25.00,2026-01-04
+ORD-1004,West,Dock,3,110.00,2026-01-05
+ORD-1005,South,Keyboard,2,80.00,2026-01-06
+ORD-1006,West,Cable,5,12.00,2026-01-07
+```
 
 官方 [CSV 提供程序指南](https://fsprojects.github.io/FSharp.Data/library/CsvProvider.html) 解释了两个不同时刻：检查代码时由样本提供列名和推断类型，运行时则由 `Load` 或 `Parse` 提供数据。数据样例让设计期位置不受构建工作目录影响：
 
 ```fsharp:line-numbers [Program.fs]
+[<Literal>]
+let private ResolutionFolder = __SOURCE_DIRECTORY__
+
 type private Orders =
     CsvProvider<
-        "../../../sample.csv",
+        "sample.csv",
         ResolutionFolder=ResolutionFolder,
         Culture="en-US",
         PreferDateOnly=true
@@ -87,6 +108,8 @@ type HighValueOrder =
 区域汇总对生成行分组，每组只转换一次为数组，计算总数、排序并返回列表：
 
 ```fsharp:line-numbers [Program.fs]
+let private revenue (row: Orders.Row) = decimal row.Units * row.UnitPrice
+
 let summarizeByRegion (path: string) : RegionSummary list =
     Orders.Load(path).Rows
     |> Seq.groupBy _.Region
@@ -127,7 +150,7 @@ let highValueOrders (minimumRevenue: decimal) (path: string) : HighValueOrder li
 ```
 这里的 `Orders.Load(path).Rows` 是进程内序列，因此筛选、排序与投影都在本地执行。语法像数据库查询，但根本没有 SQL。
 
-聚焦测试断言六行数据的聚合、`DateOnly` 值、阈值与降序。锁定还原后，Release `--no-restore` 构建与测试无需网络模式即可通过。控制台把输入路径解析为绝对路径，并打印三条稳定汇总。这些检查只覆盖固定本地模式与计算，不覆盖任意上传、巨型文件、编码攻击或数据库提供程序。
+重建后的聚焦测试应断言六行数据的聚合、`DateOnly` 值、阈值与降序；还应执行锁定还原、Release `--no-restore` 构建和测试。控制台入口应把输入路径解析为绝对路径，并为这份样本打印三条稳定汇总。这些检查即使通过，也只覆盖固定本地模式与计算，不覆盖任意上传、巨型文件、编码攻击或数据库提供程序。
 
 ## 把模式视为版本化依赖 {#schema-dependency}
 
@@ -321,9 +344,9 @@ SDK 自带 [F# Interactive](https://learn.microsoft.com/en-us/dotnet/fsharp/tool
 
 以下是带日期观察，不是通用栈推荐：
 
-| 选择 | 2026-08-25 核对的稳定版本 | 本章状态 | 关键采用问题 |
+| 选择 | 2026-08-31 核对的稳定版本 | 本章状态 | 关键采用问题 |
 |---|---|---|---|
-| FSharp.Data | 8.2.0；含 `net8.0` 与 `netstandard2.0` 资产 | 已示例 | 固定样本能否真实代表数据模式？ |
+| FSharp.Data | 8.2.0；含 `net8.0` 与 `netstandard2.0` 资产 | 页内项目模板 | 固定样本能否真实代表数据模式？ |
 | Dapper | 2.1.79 | 仅研究 | 直接 SQL 加 DTO 映射是否契合团队职责？ |
 | EF Core | .NET 10 上的 10 LTS | 仅研究 | 跟踪、迁移与 LINQ 翻译能否偿还实体摩擦？ |
 | SQLProvider | 1.5.27 | 仅研究 | 能否安全复现设计期模式与目标驱动？ |
@@ -332,7 +355,7 @@ SDK 自带 [F# Interactive](https://learn.microsoft.com/en-us/dotnet/fsharp/tool
 | Microsoft.ML | 5.0.0 稳定；存在 6.0 预发布版 | 仅研究 | 进程内经典 .NET ML 是否是正确产品边界？ |
 | TorchSharp | 0.107.0 加一个原生 LibTorch 包 | 仅研究 | 团队能否负责原生部署与 1.0 前演进？ |
 
-“已示例”表示本章包含小型用法或配置。“仅研究”表示真实应用必须自行还原、编译、执行、基准测试并审阅安全性。计算出的目标兼容性不等于包内目标资产，稳定标签也不代表适合具体产品。
+“页内项目模板”表示本章给出了可重建的小型用法与配置。“仅研究”表示真实应用必须自行还原、编译、执行、基准测试并审阅安全性。计算出的目标兼容性不等于包内目标资产，稳定标签也不代表适合具体产品。
 
 ## 开展范围受限的数据栈试验 {#adoption-spike}
 

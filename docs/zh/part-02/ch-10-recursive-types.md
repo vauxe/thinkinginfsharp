@@ -1,6 +1,6 @@
 ---
 title: "第 10 章：递归类型与结构递归"
-description: "用递归可辨识联合建模树，再从类型案例直接推导遍历、map 与 fold。"
+description: "用递归可区分联合建模树，再从类型案例直接推导遍历、map 与 fold。"
 translationKey: part-02/ch-10-recursive-types
 ---
 
@@ -27,6 +27,8 @@ let leafTree = Leaf 2
 
 let branchTree = Branch(Leaf 2, Branch(Leaf 3, Leaf 4))
 ```
+把这段完整起点保存为 `ch10-recursive-types.fsx`。除相互递归类型的独立语法示例外，本章后续代码块都按出现顺序承接这些定义。
+
 `BookingTree<'T>` 出现在自己的 `Branch` 案例内部。这个自身引用让它成为递归类型。类型参数说明同一棵树的每个叶子都保存同一种类型的值，而分支结构与该类型无关。
 
 把这些案例读成构造规则：
@@ -63,6 +65,13 @@ printfn "Counts: empty=%d leaf=%d branch=%d" (countLeaves emptyTree) (countLeave
 
 printfn "Totals: empty=%d leaf=%d branch=%d" (totalSeats emptyTree) (totalSeats leafTree) (totalSeats branchTree)
 ```
+这段代码承接三棵示例树，输出：
+
+```text
+Counts: empty=0 leaf=1 branch=3
+Totals: empty=0 leaf=2 branch=9
+```
+
 `let rec` 让函数名可以在自己的主体中使用。两个函数具有相同的结构骨架：
 
 - `Empty` 是基础案例，不发起递归调用；
@@ -94,11 +103,19 @@ let labeledTree = branchTree |> mapTree (fun seats -> $"{seats} seats")
 
 printfn "Mapped: %s" (renderTree id labeledTree)
 ```
+这段续接代码输出：
+
+```text
+Mapped: Branch(Leaf(2 seats),Branch(Leaf(3 seats),Leaf(4 seats)))
+```
+
 它的推断类型是：
 
-```fsharp
+```text
 mapTree : ('T -> 'U) -> BookingTree<'T> -> BookingTree<'U>
 ```
+
+上面是 FSI 显示的类型签名，不是要粘贴进脚本的声明。
 
 `Empty` 仍是 `Empty`；`Leaf value` 变成 `Leaf (mapping value)`；`Branch` 用映射后的子树在原位置重新构造。映射函数无需知道分支，遍历也无需知道叶子值如何转换。
 
@@ -136,9 +153,11 @@ printfn
     (countWithFold branchTree = countLeaves branchTree)
     (totalWithFold branchTree = totalSeats branchTree)
 ```
+这段续接代码输出 `Fold agrees: count=true total=true`。
+
 从类型出发读取它的参数：
 
-```fsharp
+```text
 foldTree :
     onEmpty:'State ->
     onLeaf:('T -> 'State) ->
@@ -146,6 +165,8 @@ foldTree :
     tree:BookingTree<'T> ->
     'State
 ```
+
+这同样是供阅读的推断签名，不是独立代码块。
 
 fold 让调用方分别提供处理三个案例的规则：遇到 `Empty` 时返回 `onEmpty`；遇到叶子时调用 `onLeaf value`；遇到分支时先折叠两棵子树，再用 `onBranch` 组合两个结果。
 
@@ -155,7 +176,7 @@ fold 不只可以产生数字。把 `'State` 设为记录，就能一起计算�
 
 ### 从 `fold` 推导 `map` {#map-from-fold}
 
-信任 `foldTree` 后，就能不再编写 `let rec` 而表达 map：
+信任前面定义的 `foldTree` 后，就能不再编写 `let rec` 而表达 map：
 
 ```fsharp
 let mapTreeWithFold mapping =
@@ -182,6 +203,13 @@ printfn "Heights: empty=%d leaf=%d branch=%d" (height emptyTree) (height leafTre
 
 printfn "Shape preserved: before=%d after=%d" (countLeaves branchTree) (countLeaves labeledTree)
 ```
+这段续接代码输出：
+
+```text
+Heights: empty=0 leaf=1 branch=3
+Shape preserved: before=3 after=3
+```
+
 按照 `Empty = 0`、`Leaf = 1` 的约定，分支高度是较高子树的高度加一。示例分支有三个叶子，高度也为三。叶子数与高度衡量不同事实：平衡树可以用不高的高度容纳很多叶子；单侧树的高度却可能与节点数成正比。
 
 对于 `countLeaves`、`mapTree` 和 `foldTree`：
@@ -207,7 +235,7 @@ and Binding =
       Value: Expression }
 ```
 
-只有领域确实存在两个不同概念时，才使用相互递归。单个递归联合更容易遍历，不应只为展示语法而拆分。相互递归函数使用相应的 `let rec ... and ...` 形式。
+这是一个与 `BookingTree` 无关、可以单独编译的语法示例。只有领域确实存在两个不同概念时，才使用相互递归。单个递归联合更容易遍历，不应只为展示语法而拆分。相互递归函数使用相应的 `let rec ... and ...` 形式。
 
 ## 练习 {#exercises}
 
@@ -336,6 +364,6 @@ fold 会访问每个节点一次，因此时间为 `O(n)`。直接递归实现�
 
 ## 资料来源 {#sources}
 
-- [Microsoft Learn：可辨识联合](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions)
+- [Microsoft Learn：可区分联合](https://learn.microsoft.com/zh-cn/dotnet/fsharp/language-reference/discriminated-unions)
 - [Microsoft Learn：递归函数与 `rec`](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/recursive-functions-the-rec-keyword)
 - [Microsoft Learn：函数](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/)

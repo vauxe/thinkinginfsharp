@@ -11,7 +11,7 @@ F# 和 C# 共享 CLR、程序集与大部分基础类型。但惯用的 F# 类�
 | F# 源码形式 | C# 看到的内容 |
 |---|---|
 | `Result<_,_>` | `FSharpResult` |
-| 可辨识联合 | 联合案例类型与辅助成员 |
+| 可区分联合 | 联合案例类型与辅助成员 |
 | `option` | `FSharpOption` |
 | 柯里化函数 | `FSharpFunc` |
 | `Async<_>` | `FSharpAsync` |
@@ -287,7 +287,7 @@ Console.WriteLine("XML docs: evaluate=true");
 
 CLR 枚举的默认值是零，任意底层整数也能被转换成枚举。`BookingOutcome.None = 0` 因而让默认值有名称；库本身只由受控构造器产生 `Accepted` 或 `Rejected`。若枚举来自不可信输入，仍应验证已定义值或在 `switch` 中保留默认分支，不能把类型声明误当成运行时封闭集合。
 
-枚举适合稳定、无载荷的粗粒度标签，不等同于可辨识联合。案例各有不同数据时，让枚举选择响应解释，而不要建立多个互相矛盾的公开布尔标志。
+枚举适合稳定、无载荷的粗粒度标签，不等同于可区分联合。案例各有不同数据时，让枚举选择响应解释，而不要建立多个互相矛盾的公开布尔标志。
 
 ### 预期拒绝是数据，API 使用错误是异常 {#error-policy}
 
@@ -343,16 +343,26 @@ C# 公共类型也不应自动成为 JSON 模式。进程内调用方、网络�
 
 让 C# 测试客户端进入 CI，并保存已发布的程序集或包作为 API 基线。NuGet 包可以启用 package validation 和 baseline version。也可以用 `Microsoft.DotNet.ApiCompat.Tool` 比较程序集。这些工具能发现许多签名差异，但行为与序列化兼容仍需专项测试。
 
-## 运行共享 API 示例 {#run-example}
-
-从仓库根目录构建并运行真实 C# 调用方：
+真实 C# 调用方位于 `examples/chapters/ch27/CSharpClient/Program.cs`。从仓库根目录构建并运行：
 
 ```console
 dotnet build examples/chapters/ch27/CSharpClient/CSharpClient.csproj --configuration Release
 dotnet run --project examples/chapters/ch27/CSharpClient/CSharpClient.csproj --configuration Release --no-build
 ```
 
-客户端会断言业务结果、参数检查、四个导出类型、公开签名、可空元数据和 XML 文档，而不只是打印演示输出。修改公共 API 后，先重新编译这个调用程序，再运行旧二进制兼容性测试与行为测试。
+客户端会断言业务结果、参数检查、四个导出类型、公开签名、可空元数据和 XML 文档，而不只是打印演示输出。其固定输出为：
+
+```text
+Accepted: outcome=Accepted code=CONF-REQ-27 remaining=3
+Rejected: outcome=Rejected message=requested 8 exceeds available 5 suggested=5
+Invalid: outcome=Rejected message=seat count must be positive suggested=none
+Guards: request-id=true request=true capacity=true
+Public types: BookingApi,BookingOutcome,BookingRequest,BookingResponse
+Nullability: request-id=NotNull confirmation=Nullable
+XML docs: evaluate=true
+```
+
+修改公共 API 后，先重新编译这个调用程序，再运行旧二进制兼容性测试与行为测试。
 
 ## 练习 {#exercises}
 

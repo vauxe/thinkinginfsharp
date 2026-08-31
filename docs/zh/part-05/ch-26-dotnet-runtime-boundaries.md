@@ -10,6 +10,21 @@ F# 值运行在 .NET 类型系统中。记录可以装箱为 `obj`，函数可�
 
 在每个互操作位置，都要确定哪些静态信息已丢失、谁管理订阅与可变集合，以及哈希表采用哪种相等规则。随后应尽早转回常规 F# 值。
 
+本章主线代码按顺序组成 `examples/chapters/ch26/runtime-boundaries.fsx`。所有片段共享下面的命名空间、领域输入类型和断言辅助函数，因此首次出现的 `BookingRequest`、`IEnumerable`、`Dictionary` 与 `ensureEqual` 都有明确来源：
+
+```fsharp:line-numbers
+open System
+open System.Collections.Generic
+
+type BookingRequest =
+    { RequestId: string
+      Seats: int }
+
+let ensureEqual label expected actual =
+    if expected <> actual then
+        failwithf "%s: expected %A, got %A" label expected actual
+```
+
 ## 静态类型与运行时类型回答不同问题 {#static-runtime-types}
 
 编译器为每个表达式赋予静态类型。该类型决定哪些操作可以编译，并承载程序的大部分保证。运行时还会为每个对象实例保存具体的 `System.Type`，供反射与面向对象分派检查。
@@ -32,7 +47,7 @@ printfn "Runtime type: declared=%s actual=%s" declaredType.Name actualType.Name
 ```
 `typeof<BookingRequest>` 获取编译期已知类型的元数据。`value.GetType()` 获取非空运行时实例的具体类型，即使引用的静态类型是基类或 `obj`。启用可空检查后，类型为 `obj` 的 .NET 输入可能是 null，因此示例先匹配 `null`，只在非空分支调用 `GetType`。
 
-反射适合框架发现、序列化基础设施、插件加载、诊断和真正的动态协议。当领域选项集合已知时，不应让它替代可辨识联合。联合在编译期保留用例；检查 `System.Type` 则把漏掉用例的错误推迟到运行时。
+反射适合框架发现、序列化基础设施、插件加载、诊断和真正的动态协议。当领域选项集合已知时，不应让它替代可区分联合。联合在编译期保留用例；检查 `System.Type` 则把漏掉用例的错误推迟到运行时。
 
 ### 装箱会丢失原来的静态类型信息 {#boxing}
 
@@ -274,6 +289,21 @@ printfn
 7. 同时测试值与互操作生命周期：处理器移除、枚举时机、比较器行为和失败类型。
 
 这不是隔离 .NET，而是明确转换：适配器把宽泛的运行时协议翻译成领域真正需要的少量类型和操作。
+
+从仓库根目录运行 `dotnet fsi examples/chapters/ch26/runtime-boundaries.fsx`，输出为：
+
+```text
+Runtime type: declared=BookingRequest actual=BookingRequest
+Pattern casts: ["text:LIN"; "request:R-26/3"; "int:42"]
+Failed downcast: InvalidCastException
+Delegates: add=7 labels=[|"2"; "4"; "6"|]
+Event: observed=["4->2"] after-remove=1
+.NET list: live=[1; 2; 3] snapshot=[1; 2]
+String comparer: count=1 found=true value=second
+Class keys: same-reference=false default=2 domain=1 value=second
+```
+
+这些结果分别对应运行时类型、受控转换、委托调用、退订、实时视图/快照，以及两种字典相等策略；不是一组脱离上下文的独立片段。
 
 ## 练习 {#exercises}
 

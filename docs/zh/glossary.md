@@ -294,17 +294,17 @@ translationKey: glossary
 
 **首次讲解:** [第 7 章：记录、更新、相等与比较](./part-02/ch-07-records-equality#overview)
 
-### 可辨识联合 {#discriminated-union}
+### 可区分联合 {#discriminated-union}
 
 一种由若干具名用例组成的类型；一个值恰属其中一个用例，每个用例还可以携带数据。
 
-**首次讲解:** [第 8 章：可辨识联合与状态建模](./part-02/ch-08-discriminated-unions#overview)
+**首次讲解:** [第 8 章：可区分联合与状态建模](./part-02/ch-08-discriminated-unions#overview)
 
 ### 联合案例 {#union-case}
 
-可辨识联合中的一种具名选项。它可以不携带数据，也可以携带只对该选项有意义的字段。
+可区分联合中的一种具名选项。它可以不携带数据，也可以携带只对该选项有意义的字段。
 
-**首次讲解:** [第 8 章：可辨识联合与状态建模](./part-02/ch-08-discriminated-unions#overview)
+**首次讲解:** [第 8 章：可区分联合与状态建模](./part-02/ch-08-discriminated-unions#overview)
 
 ### Result {#result}
 
@@ -342,9 +342,9 @@ translationKey: glossary
 
 **首次讲解:** [第 11 章：泛型、约束与度量单位](./part-02/ch-11-generics-constraints#overview)
 
-### 静态解析类型参数 {#statically-resolved-type-parameter}
+### 静态解析的类型参数 {#statically-resolved-type-parameter}
 
-写作 ^T、在内联调用点解析并可携带成员约束的 F# 类型参数；它不同于普通的 'T 泛型参数。
+由 `inline` 和成员约束共同识别、在调用点解析的 F# 类型参数。当前简化签名常显示为 `'T`，旧式或复杂形式也可能写作 `^T`；它不同于普通泛型参数。
 
 **首次讲解:** [第 11 章：泛型、约束与度量单位](./part-02/ch-11-generics-constraints#overview)
 

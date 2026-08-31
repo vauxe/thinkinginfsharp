@@ -10,6 +10,34 @@ translationKey: part-04/ch-24-concurrency-agents-state
 
 F# 便于使用不可变值，可以消除许多意外竞争。但队列、缓存、计数器、文件、数据库和外部服务仍然存在共享可变状态。应根据必须维持的不变量选择同步机制。
 
+本章主线示例位于 `examples/chapters/ch24/concurrency.fsx`。正文中的代码块按顺序共享以下命名空间和三个测试辅助函数；它们负责创建受控信号、启动专用工作线程，以及让两个参与者在屏障处会合：
+
+```fsharp:line-numbers
+open System
+open System.Collections.Concurrent
+open System.Threading
+open System.Threading.Tasks
+
+let newGate<'T> () =
+    TaskCompletionSource<'T>(TaskCreationOptions.RunContinuationsAsynchronously)
+
+let startLongRunning (action: unit -> unit) =
+    Task.Factory.StartNew(
+        Action action,
+        CancellationToken.None,
+        TaskCreationOptions.LongRunning,
+        TaskScheduler.Default
+    )
+
+let runTwoWithBarrier action =
+    use barrier = new Barrier(2)
+    let first = startLongRunning (fun () -> action barrier)
+    let second = startLongRunning (fun () -> action barrier)
+    Task.WaitAll [| first; second |]
+```
+
+这些函数只用于让测试调度可重复，不是业务层抽象。后文第一次出现 `newGate`、`runTwoWithBarrier` 或 `startLongRunning` 时，不再依赖未展示的定义。
+
 ## 三个概念，三个问题 {#three-concepts}
 
 | 概念 | 问题 | 例子 |
@@ -318,6 +346,20 @@ cacheBarrier.Dispose()
 发生竞争时，字典工厂可能分配多个 `Lazy`，但调用方只会求值字典实际返回的那个实例。`Lazy` 默认的执行与发布方式使示例中的计算只运行一次。它也会缓存创建值时抛出的异常，而字典会在没有淘汰机制时持续增长；这两点并非任何场景都适合。
 
 对于远程工作，共享一个进行中的 `Task<'T>` 可以合并相同的并发请求（single-flight），但第 23 章讨论的生命周期问题仍然存在。任何一个调用方都不应意外取消大家共享的工作。
+
+从仓库根目录运行 `dotnet fsi examples/chapters/ch24/concurrency.fsx`，输出为：
+
+```text
+Concurrent waits: entered=2 pending=true
+Concurrent results: [|"first"; "second"|]
+Parallel map agrees: true
+Shared counter: race=1 lock=2 interlocked=2
+Locked capacity: accepted=1 remaining=1 invariant=true
+Agent capacity: accepted=1 remaining=1 invariant=true
+Cache: values=[|23; 23|] computations=1 entries=1
+```
+
+前三项分别观察并发重叠、结果顺序和数据并行的值等价；后四项则验证丢失更新及三种受保护状态的不变量。
 
 ## 用受控交错测试不变量 {#testing}
 

@@ -115,13 +115,13 @@ let planManifest sourceDirectory outputFile =
       Json = renderManifest entries }
 // #endregion manifest-plan
 
+// #region idempotent-write
 let readExisting outputPath =
     if File.Exists outputPath then
         Some(File.ReadAllText(outputPath, Encoding.UTF8))
     else
         None
 
-// #region idempotent-write
 let replaceFromSameDirectory (outputPath: string) (content: string) =
     let outputDirectory =
         match Path.GetDirectoryName outputPath with

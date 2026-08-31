@@ -34,7 +34,7 @@ Two quick tests expose ceremonial wrappers:
 
 ## A class is a .NET reference type {#classes}
 
-The example models quote calculation. `Quote` remains a private record, errors remain a discriminated union, and only the calculator behavior uses a class:
+The example models quote calculation. `Quote` remains a private record, errors remain a discriminated union, and only the calculator behavior uses a class. The following is the complete type definition from `examples/chapters/ch25/Types.fs`; later fragments use these names:
 
 ```fsharp:line-numbers [Types.fs]
 namespace ThinkingInFSharp.Ch25
@@ -144,10 +144,15 @@ An interface declares related abstract members and stores no data. `IQuoteServic
 | State/lifetime | Dependencies are plain values | Implementations manage identity, state, or disposal |
 | Evolution | The operation set is local and easy to replace together | The public member API has a deliberate compatibility policy |
 
-F# interface implementations are normally explicit. `PriceCalculator.Calculate` is a class member, but `IQuoteService.Quote` is callable through an interface view:
+F# interface implementations are normally explicit. `PriceCalculator.Calculate` is a class member, but `IQuoteService.Quote` is callable through an interface view. The following creates a no-discount policy and a complete request first, so the block can run directly after `Types.fs`:
 
 ```fsharp
-let calculator = PriceCalculator(policy)
+let noDiscount =
+    { new IDiscountPolicy with
+        member _.Rate _ = 0M }
+
+let request = { Seats = 2; UnitPrice = 10M }
+let calculator = PriceCalculator(noDiscount)
 let service = calculator :> IQuoteService
 let result = service.Quote request
 ```
@@ -217,15 +222,22 @@ Before publishing an object-based API, ask:
 
 Chapter 27 will revisit the last question from a C# consumer's view. Chapter 31 will supply measurement before representation-level optimization.
 
-## Run the verified example {#run-example}
-
-From the repository root:
+The complete consumer is `examples/chapters/ch25/Program.fs`. From the repository root, run:
 
 ```console
 dotnet run --project examples/chapters/ch25/Ch25.fsproj --configuration Release
 ```
 
-The program prints four deterministic lines covering classes, interfaces, extensions, and structs; the repository check compares them exactly.
+The program prints four deterministic lines covering classes, interfaces, extensions, and structs:
+
+```text
+Class: tax-rate=0.20 total=54.00
+Interface: total=12.00
+Extension: discounted=true
+Struct: value=2 copy=2 default=0
+```
+
+The final line also exposes struct copying and zero initialization directly. The repository check compares all four results exactly.
 
 ## Exercises {#exercises}
 

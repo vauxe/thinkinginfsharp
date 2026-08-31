@@ -22,6 +22,23 @@ The example's input is a list of pairs:
 
 Each element contains a guest name and requested seat count, and every element has the same element type. A list literal uses square brackets. Items on one line use semicolons; semicolons can be omitted when indentation separates items across lines.
 
+Save the following complete starting point as `ch05-lists-pipelines.fsx`. Later code blocks in this chapter continue from these definitions in reading order:
+
+```fsharp:line-numbers
+let requests =
+    [ ("Lin", 3)
+      ("Ada", 0)
+      ("Sam", 2)
+      ("Mina", -1) ]
+
+let isValidRequest (_, seats) = seats > 0
+
+let formatRequest (guest, seats) =
+    $"{guest}:{seats}"
+```
+
+`requests` is the data to process, `isValidRequest` decides whether a seat count is valid, and `formatRequest` turns one request into a display label. Naming those roles first makes the later pipeline traceable.
+
 An F# list is an immutable singly linked structure. `item :: list` creates a new front node whose tail shares the old list and is normally constant time. `left @ right`, or `List.append left right`, must rebuild the left spine, so its cost is proportional to the length of `left`. Repeated tail append inside a loop can therefore become quadratic; accumulating at the front and calling `List.rev` once is a common alternative.
 
 The list nodes themselves are immutable, but their elements may not be. If two lists contain the same mutable object, both can observe changes inside that object. Chapter 14 separates collection behavior from element behavior.
@@ -92,6 +109,12 @@ let pipelineLabels =
 
 printfn "Pipeline labels: %A" pipelineLabels
 ```
+This block continues from the three definitions at the start of the chapter and prints:
+
+```text
+Pipeline labels: ["Lin:3"; "Sam:2"]
+```
+
 Record types and values from top to bottom:
 
 | Stage | Type | Value summary |
@@ -129,6 +152,12 @@ let chosenLabels = requests |> List.choose tryFormatRequest
 
 printfn "Chosen labels: %A" chosenLabels
 ```
+This block continues to use `requests`, `isValidRequest`, and `formatRequest` from the starting point. It prints:
+
+```text
+Chosen labels: ["Lin:3"; "Sam:2"]
+```
+
 `tryFormatRequest` has type `(string * int) -> string option`. A valid request produces `Some label`, an invalid one produces `None`, and `List.choose` extracts the text inside each `Some` in order, again yielding `string list`.
 
 A `try` prefix often signals in F#/.NET code that an operation may return an alternative to its normal value, while the type defines that alternative precisely. Here, `option` distinguishes presence from absence. Validation that must explain failure uses `Result` or accumulating validation later in the book.
@@ -137,7 +166,7 @@ A `try` prefix often signals in F#/.NET code that an operation may return an alt
 
 Transformation functions answer “what is the new data?” When the goal is to perform an effect such as output for each item without collecting results, `List.iter action` or `for item in source do ...` is a better fit. Their action or loop body returns `unit`, and the whole iteration returns `unit` too.
 
-The example uses `for` to demonstrate label order:
+The following block continues from `pipelineLabels` and uses `for` to demonstrate label order:
 
 ```fsharp:line-numbers
 printf "Iteration order:"
@@ -147,6 +176,12 @@ for label in pipelineLabels do
 
 printfn ""
 ```
+It prints:
+
+```text
+Iteration order: Lin:3 Sam:2
+```
+
 A `for` loop enumerates its input and may use a pattern in the loop-variable position. It suits logging, writing to an existing buffer, or calling an imperative API. If the goal is a new list, a loop must manage accumulation separately, while `map` and `filter` already encode that intent in their return type.
 
 Use `map` to produce data. Use `iter` or `for` to perform an effect for every item; their `unit` result makes that intent explicit and avoids an unused result list.
@@ -158,6 +193,8 @@ Use `map` to produce data. Use `iter` or `for` to perform an effect for every it
 Mutable state adds a timeline: to know the value of `name`, you must know which earlier paths executed `<-`. Keep that state inside one small function and do not expose a reference to it; the two imperative implementations here follow this rule.
 
 ### The `for` version: the language manages enumeration {#for-version}
+
+This version continues from the earlier `tryFormatRequest` definition:
 
 ```fsharp:line-numbers
 let labelsWithFor source =
@@ -175,6 +212,8 @@ The loop calls `tryFormatRequest` in input order. A valid label is added to the 
 Both `match` branches in the `for` body return `unit`: update `<-` produces `()`, and the `None` branch explicitly returns `()`. The function's final expression, `List.rev reversedLabels`, produces the `string list` result.
 
 ### The `while` version: code manages condition and progress {#while-version}
+
+This version also continues from `tryFormatRequest`, but it explicitly tracks the unprocessed list:
 
 ```fsharp:line-numbers
 let labelsWithWhile source =
@@ -199,7 +238,21 @@ The version works and mutates only two local bindings, but it exposes more mecha
 
 ## How to choose among the three {#choosing-style}
 
-The example uses structural equality to show that all three implementations produce the same labels in the same order. Choose according to the required result and measured cost:
+First run this continuation, which uses structural equality to confirm that all four forms produce the same labels in the same order:
+
+```fsharp:line-numbers
+let forLabels = labelsWithFor requests
+let whileLabels = labelsWithWhile requests
+
+let sameLabels =
+    pipelineLabels = chosenLabels
+    && pipelineLabels = forLabels
+    && pipelineLabels = whileLabels
+
+printfn "All implementations agree: %b" sameLabels
+```
+
+It prints `All implementations agree: true`. After confirming equivalent behavior, choose according to the required result and measured cost:
 
 | Goal | Usually consider first | Reason |
 | --- | --- | --- |
@@ -216,7 +269,7 @@ Write stage types and intermediate values before running each exercise. An equal
 
 ### Exercise 1: trace a pipeline stage by stage {#exercise-01}
 
-For `filter-map-pipeline`:
+For `pipelineLabels` in “Read one stage at a time”:
 
 1. write the types of `requests`, the filtered list, and the mapped list;
 2. write the exact element order in both intermediate lists;
@@ -251,7 +304,7 @@ Compare the forms: when is retaining a separate filtered result clearer? When is
 
 ::: details Answer
 
-The answer region is:
+Using the shared definitions from the start of the chapter, the core code is:
 
 ```fsharp:line-numbers
 let tryFormatRequest request =

@@ -8,7 +8,9 @@ translationKey: part-05/ch-32-functions-to-applications
 
 纯函数决定应该发生什么。运行中的应用还要读取配置、调用存储或网络、传播取消、报告结果并释放资源。这些职责构成函数式核心外围的应用外壳。
 
-本章为此前的预约工作流构建最小可用的应用外壳。控制台应用只使用普通 F# 值、一个组合根、直接构造和本地插桩。确实需要分层配置、生命周期作用域、后台工作器或框架集成时，再采用更强的宿主。
+本章为此前的预约工作流构建最小可用的应用外壳。控制台应用只使用普通 F# 值、一个组合根、直接构造和进程内插桩（instrumentation）。确实需要分层配置、生命周期作用域、后台工作器或框架集成时，再采用更强的宿主。
+
+完整项目位于 `examples/chapters/ch32/Ch32.App.fsproj`，并按 F# 的固定文件顺序编译：`Domain.fs` 定义 `Booking.Domain` 中的领域类型与纯工作流；`Ports.fs` 定义配置、依赖记录和内存适配器；`Composition.fs` 定义应用编排与组合根；`Program.fs` 才处理进程参数、监听器和输出。后文代码块是这些文件的连续摘录，会使用排在前面的文件中已经定义的名称。
 
 ## 把应用拆成多层 {#application-boundaries}
 
@@ -43,7 +45,9 @@ translationKey: part-05/ch-32-functions-to-applications
 
 ## 从所需副作用推导依赖 {#derive-ports}
 
-从纯工作流的输入和输出开始。`decidePlaceBooking` 需要一个 `Event`、当前 `BookingState` 和 `PlaceBookingCommand`；它返回 `Result<BookingEvent, PlaceBookingError>`。因此，运行中的应用必须取得当前状态并持久化被接受的事件。样例中只有这两种副作用能力：
+从纯工作流的输入和输出开始。`Domain.fs` 中的 `decidePlaceBooking` 需要一个 `Event`、当前 `BookingState` 和 `PlaceBookingCommand`；它返回 `Result<BookingEvent, BookingFailure>`。因此，运行中的应用必须取得当前状态并持久化被接受的事件。样例中只有这两种副作用能力。
+
+这里的“端口”（port）是应用架构术语，不是 F# 关键字。样例用函数记录表示端口；`Ports.fs` 已经打开 `System`、`System.Threading`、`System.Threading.Tasks`、`Booking.Domain` 和 `Booking.Domain.Workflow`，所以下面的 .NET 与领域类型都有明确来源：
 
 ```fsharp:line-numbers [Ports.fs]
 type BookingPorts =
@@ -60,11 +64,13 @@ type BookingLog =
 ```
 这条记录包含函数，而不是实现类。每个签名都表达了有用的信息：
 
-- 只有验证通过后，存储才会收到 `RequestId`；
+- 应用只在验证通过后才调用存储并传入 `RequestId`；
 - 每个可能阻塞的操作都接收 `CancellationToken`；
 - `Task<'T>` 表示异步完成，也保留 .NET 异常；
 - `AppendEvent` 返回 `Task<unit>`，因为应用只需知道操作完成，不需要存储特有的数据；
 - `OwnedResource` 表明该资源由应用释放。
+
+本章的 `RequestId` 只是 `string` 的类型别名，用来标注意图；它不会像私有单用例联合那样在编译期阻止未验证字符串。真正的保证来自 `BookingApplication.Place` 先调用 `validatePlaceBooking`，再调用端口。若边界需要更强的静态保证，应把请求 ID 建模为带智能构造函数的受保护类型。
 
 不要为了模仿接口繁多的架构而给每个方法创建一个端口。由同一适配器实现且生命周期相同的操作可以放在一起；只有调用者、故障策略、安全要求或生命周期不同时才拆分。函数记录适合小型 F# API 和测试替身；面对 C# 调用者、框架激活或有状态协议时，接口可能更合适。
 
@@ -131,7 +137,7 @@ module AppConfig =
 
 ## 把构造集中在一个组合根中 {#composition-root}
 
-组合根是选择具体依赖并分配清理责任的最外层位置。样例中的可复用构造函数很简单：
+“组合根”（composition root）同样是架构术语：它是选择具体依赖并分配清理责任的最外层位置，不是一种 F# 语法。下面的模块位于 `Composition.fs` 末尾；它调用同一文件中先定义的 `BookingApplication` 构造函数：
 
 ```fsharp:line-numbers [Composition.fs]
 module Composition =
@@ -140,13 +146,13 @@ module Composition =
 ```
 `Program` 完成其余进程特定工作：选择查找函数、安装演示监听器、构造内存存储、创建应用、运行一条命令，并把结果转换成输出和退出码。领域模块不包含这些选择。
 
-手工构造本身就是依赖注入：依赖通过参数传入。DI 容器只负责自动注册、解析、作用域和释放，并不创造控制反转。即使日后由容器构造对象，清晰的组合根仍然有价值。
+手工构造本身就是依赖注入：依赖通过参数传入。DI 容器可以自动完成注册、解析、作用域和释放，但使用容器并不是实现控制反转的前提。即使日后由容器构造对象，清晰的组合根仍然有价值。
 
 不要在领域或应用函数中通过全局服务定位器解析依赖。这样会隐藏签名中的需求、模糊生命周期，并迫使测试重建环境状态。函数参数能让依赖图一目了然。
 
 ## 围绕纯决策编排副作用 {#orchestration}
 
-应用方法控制执行顺序，同时复用现有领域工作流：
+应用方法控制执行顺序，同时复用现有领域工作流。下面不是独立函数，而是 `BookingApplication` 的成员。该类的构造函数接收已验证配置中的 `event`、`BookingPorts` 和 `writeLog`；类内部创建 `ActivitySource` 与计数器，`ensureActive` 检查对象尚未释放，`observe` 统一记录活动状态、指标和结构化日志。有了这些定义，成员中每个名称都能追溯到来源：
 
 ```fsharp:line-numbers [Composition.fs]
 member _.Place(command: PlaceBookingCommand, cancellationToken: CancellationToken) =
@@ -204,7 +210,7 @@ member _.Place(command: PlaceBookingCommand, cancellationToken: CancellationToke
 
 独立的领域函数会再次验证命令。重复的只是一次廉价纯操作，两处都调用 `validatePlaceBooking`，没有复制规则。第一次验证用于在副作用前取得类型化键；公共工作流被单独调用时仍然安全。将来可以让 API 接受 `ValidPlaceBooking`，但前提是这能改善整体模型。
 
-预期的业务拒绝仍然是 `Error PlaceBookingError`。取消仍然是 `OperationCanceledException`，因此 .NET 调用者和宿主能把它识别为取消。非预期的适配器故障仍然是故障任务。把三者都转成一个无法区分的 `Result` 会抹除运维含义。
+预期的业务拒绝仍然是 `Error BookingFailure`。取消仍然是 `OperationCanceledException`，因此 .NET 调用者和宿主能把它识别为取消。非预期的适配器故障仍然是故障任务。把三者都转成一个无法区分的 `Result` 会抹除运维含义。
 
 样例不会重试。重试前必须知道故障是否暂时、追加是否幂等。没有幂等键时重试结果不明的写入，可能产生重复事件。先定义这些语义，再添加重试策略。
 
@@ -245,7 +251,7 @@ member _.Place(command: PlaceBookingCommand, cancellationToken: CancellationToke
 
 但它仍然只是教学适配器。生产应用通常会用稳定的消息模板、事件 ID、级别、作用域、脱敏和已配置提供程序，把这个事件映射到 `ILogger`。提供程序决定日志去往何处；仅有控制台输出并不是持久存储。在日志系统能够过滤之前，不要插值机密或不受控负载。
 
-样例把被接受或拒绝的领域决策分类为已完成操作，把抛出的适配器异常分类为 `faulted`。拒绝并不自动等于警告或追踪错误：“超出容量”可以是普通业务结果。严重程度应由运维处置方式决定，而不是由联合类型案例的拼写决定。
+样例把被接受或拒绝的领域决策分类为已完成操作，把抛出的适配器异常分类为 `faulted`。拒绝并不自动等于警告或追踪错误：“超出容量”可以是普通业务结果。严重程度应由运维处置方式决定，而不是由联合用例的名称决定。
 
 ### 指标发布测量；收集器负责聚合 {#metrics}
 
@@ -281,10 +287,11 @@ module DiagnosticNames =
 
 ## 谨慎解读固定输出 {#fixed-evidence}
 
-完成 Release 构建后运行确定性演示：
+完成 Release 构建后，从仓库根目录运行确定性演示：
 
 ```console
-dotnet bin/Release/net10.0/Ch32.App.dll --demo
+dotnet run --project examples/chapters/ch32/Ch32.App.fsproj \
+  --configuration Release --no-build -- --demo
 ```
 
 它会输出：
@@ -297,7 +304,7 @@ trace: name=booking.place outcome=accepted
 lifecycle: store-disposed=true
 ```
 
-输出表明，一条固定命令经过了配置、组合、纯决策、内存追加、三种本地信号和确定性释放。聚焦测试还表明：独立配置错误会累积；同一个取消令牌到达两个依赖；被接受的事件只追加一次；预先取消时不会调用依赖。
+输出表明，一条固定命令经过了配置、组合、纯决策、内存追加、三种本地信号和确定性释放。可执行契约脚本 `examples/chapters/ch32/application-contracts.fsx` 还验证了：独立配置错误会累积；同一个取消令牌到达两个依赖；被接受的事件只追加一次；预先取消时不会调用依赖。可从仓库根目录运行 `dotnet fsi --exec examples/chapters/ch32/application-contracts.fsx`。
 
 这些结果只覆盖进程内装配。外部交付、持久存储和并发容量各自需要集成测试。`LoadBooking` 与 `AppendEvent` 是两项独立操作，因此两个调用者可能在任一方追加前读到同一状态。内存适配器只演示装配；生产存储必须原子地保证一致性。
 

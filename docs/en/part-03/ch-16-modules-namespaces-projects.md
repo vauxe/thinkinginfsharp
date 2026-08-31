@@ -34,6 +34,8 @@ Every source file begins with the same namespace:
 namespace ThinkingInFSharp.Ch16
 ```
 
+This chapter is backed by complete files, not only snippets: `examples/chapters/ch16/Domain.fs`, `Workflow.fs`, `Program.fs`, and `Ch16.fsproj`. The discussion below refers to that buildable source set.
+
 Each then places definitions in a focused module:
 
 - `Domain` defines protected identifiers, seat counts, capacity, requests, and validation;
@@ -88,11 +90,13 @@ This minimal expected-error project deliberately lists `Workflow.fs` first:
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Workflow.fs" />
-    <Compile Include="Domain.fs" />
+    <Compile Include="../../chapters/ch16/Workflow.fs" Link="Workflow.fs" />
+    <Compile Include="../../chapters/ch16/Domain.fs" Link="Domain.fs" />
   </ItemGroup>
 </Project>
 ```
+These relative paths match the repository fixture. `Link` supplies a display name inside the project; it does not change compilation order.
+
 When the compiler reaches this line in `Workflow.fs`:
 
 ```fsharp
@@ -180,6 +184,8 @@ Read settings by the question they answer:
 
 These settings govern separate decisions. The SDK selects the build toolset, `TargetFramework` selects the APIs and runtime, and `LangVersion` selects accepted F# features. A reproducible project records each choice.
 
+The table explains possible settings; it does not claim that this chapter's project explicitly sets every one. The current `Ch16.fsproj` records `TargetFramework`, `Nullable`, and `OutputType`. It does not set `LangVersion` or `TreatWarningsAsErrors`, and the repository root has no `global.json`. Read the actual build contract from the project file and command being run.
+
 Shared policy can live in `Directory.Build.props`; MSBuild imports it for descendant projects. A larger codebase can centralize `LangVersion`, nullable checking, warnings as errors, deterministic output, and locked package restore there. Keep a small standalone teaching project self-contained; centralize stable policy only when several real projects share it.
 
 Prefer fixing a diagnostic to globally suppressing it. Warnings-as-errors makes that discipline reproducible in local builds and CI; it does not mean every possible optional warning has been enabled.
@@ -188,7 +194,7 @@ Prefer fixing a diagnostic to globally suppressing it. Warnings-as-errors makes 
 
 With F# null checking enabled, `string` means a non-null reference and `string | null` admits null. The annotation guides compile-time analysis but still uses an ordinary .NET reference at runtime. Validate values that arrive from foreign or unchecked code.
 
-The domain constructor deliberately accepts nullable text:
+The next block is the core branch of the `BookingId` companion module in the complete `Domain.fs`. `MissingBookingId` and the private `BookingId` case are defined immediately before it, so this is a sourced excerpt rather than a standalone script:
 
 ```fsharp
 let create (raw: string | null) =
@@ -204,7 +210,7 @@ Use `option` for absence in an F# domain model. Use `T | null` when an external 
 
 ### Wrappers must preserve nullable annotations {#nullable-propagation}
 
-`BookingRequest.create` forwards its text to `BookingId.create`, so its own public input states the same contract:
+`BookingRequest.create` forwards its text to `BookingId.create`, so its own public input states the same contract. The next sketch uses an ellipsis to isolate annotation propagation; the runnable complete implementation is in the same `Domain.fs`:
 
 ```fsharp
 let create (rawId: string | null) rawSeats =

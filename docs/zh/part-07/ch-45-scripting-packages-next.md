@@ -16,6 +16,8 @@ F# 脚本并不比编译项目低一等。两者使用相同的语言、FSharp.C
 
 正确的执行方式是能让所需行为可重复的最简单方式。这里的“简单”指需要管理的运行条件少，而不只是文件数量少。
 
+先区分本章术语的来源：FSI、`.fsx` 和 F# Interactive 属于 F# 工具链；NuGet、PackageReference、目标框架与 .NET 工具属于 .NET 平台；CLI、锁文件、幂等性和供应链则是通用工程概念。它们会在同一脚本中相遇，但并非都是 F# 语言特性。
+
 | 执行方式 | 最适合的首次用途 | 可复现范围 | 迁移信号 |
 |---|---|---|---|
 | REPL 提交 | 检查一个表达式、类型或 API | 当前 FSI 进程及其隐藏状态 | 结果需要重复或评审 |
@@ -34,9 +36,11 @@ F# 脚本并不比编译项目低一等。两者使用相同的语言、FSharp.C
 
 会话会记住此前的绑定、已打开命名空间、已加载文件、已引用程序集与包解析结果。探索时这很方便，却不能作为可复现结论的依据。保存结果前，应把必要代码放进脚本并在全新进程中执行。
 
+不要再把 Polyglot Notebooks 或 .NET Interactive 当作默认的新项目入口：维护方已分别在 2026 年 3 月和 4 月弃用它们，并归档仓库。已有 notebook 应规划迁移；本章需要可重复执行时使用仍受支持的 FSI 脚本。
+
 ### 用脚本承载完整、可评审的操作 {#script-operation}
 
-脚本应像小型应用一样清楚说明输入、输出、失败行为和可能产生的副作用。它仍可很简洁。清单脚本只有一个文件，只使用 .NET 随附的库，不建立全局安装，并可从示例所在目录调用。
+脚本应像小型应用一样清楚说明输入、输出、失败行为和可能产生的副作用。它仍可很简洁。仓库中的 `examples/scripts/ch45-scripting-packages-next.fsx` 是完整清单脚本：它只有一个文件，只使用 .NET 随附的库，不建立全局安装，并可从仓库根目录运行。
 
 真正有用的区分不是“一次性还是生产”，而是“范围明确的操作还是不断增长的产品”。一次数据修复对验证、备份和审计记录的要求，可能比长期开发辅助工具更严格。
 
@@ -84,6 +88,8 @@ FSI 按顺序处理脚本声明。其主要指令包括：
 ## 清单脚本：生成稳定的产物清单 {#x45}
 
 清单脚本解决一个实用的本地问题。它枚举产物目录下的文件，把规范化相对路径、字节长度与 SHA-256 摘要写入确定性 JSON。随后可以更新清单，或检查现有清单是否匹配。
+
+下面四个命名代码块都按源码顺序摘自同一个完整文件，合起来才是主体实现，不是四份可独立运行的片段。文件开头先 `open System`、`System.IO`、`System.Security.Cryptography`、`System.Text` 和 `System.Text.Json`；后一块会继续使用前一块定义的类型与函数。阅读时可以分块理解，运行时请执行完整 `.fsx` 文件。
 
 它只承担以下几项明确职责：
 
@@ -235,6 +241,12 @@ let planManifest sourceDirectory outputFile =
 应用层会比较现有文本与期望文本。只有存在差异时，才创建临时文件并替换目标：
 
 ```fsharp:line-numbers [ch45-scripting-packages-next.fsx]
+let readExisting outputPath =
+    if File.Exists outputPath then
+        Some(File.ReadAllText(outputPath, Encoding.UTF8))
+    else
+        None
+
 let replaceFromSameDirectory (outputPath: string) (content: string) =
     let outputDirectory =
         match Path.GetDirectoryName outputPath with
@@ -281,13 +293,13 @@ let checkManifest sourceDirectory outputFile =
 
 无参数时，清单脚本会在 `Path.GetTempPath()` 下的唯一目录创建两个文件。它先写入一次，再把输出时间戳设为哨兵值，然后再次写入、执行只读检查并验证 ordinal 规范化路径。最后，`finally` 只删除脚本自己创建的目录。
 
-在仓库根目录运行已验证样例：
+本次校订在 2026-08-31 使用 .NET SDK 10.0.302，从仓库根目录重新运行了完整脚本：
 
 ```console
 dotnet fsi --exec examples/scripts/ch45-scripting-packages-next.fsx
 ```
 
-登记的样例要求以下有序观察：
+这次运行产生了以下有序输出：
 
 ```text
 First write: updated files=2
@@ -403,7 +415,7 @@ NuGet audit 会在还原期间把已解析依赖与已知漏洞数据比较。�
 
 | 层 | 本书中的例子 | 第一个兼容性问题 |
 |---|---|---|
-| F# 语言与 FSharp.Core | 联合、模式匹配、集合、async、quotations | 需要哪个语言/编译器和 FSharp.Core 契约？ |
+| F# 语言与 FSharp.Core | 可区分联合、模式匹配、集合、async、代码引用 | 需要哪个语言/编译器和 FSharp.Core 契约？ |
 | .NET 运行时与 BCL | 文件、JSON、HTTP、task、诊断、密码学 | 需要哪个 TFM、运行时、OS 与 API 行为？ |
 | Microsoft 平台框架 | ASP.NET Core、hosting、容器、Aspire 集成 | 适用哪个受支持平台版本与部署模型？ |
 | F# 社区库 | FsCheck、Giraffe/Falco/Oxpecker、FSharp.Data、Elmish | 哪种 API 价值足以抵消包与维护成本？ |
@@ -428,12 +440,12 @@ F# 可以使用整个 NuGet 生态，而不仅是名称含“FSharp”的包。�
 
 | 特性 | 识别信号 | 可能遇到它的原因 | 下一步 |
 |---|---|---|---|
-| quotations | `<@ expression @>`、`<@@ expression @@>`、`Expr<'T>`、quotation 模式 | 库把 F# 代码表示成数据，用于 DSL、查询、分析或生成 | 区分构造/遍历表达式树与执行它；阅读库契约 |
-| SRTP | `inline` 加静态/成员约束；当前简化语法可能使用 `'T`，旧式/复杂形式可能出现 `^T` | 运算符或基于成员的编译期抽象 | 不要同普通泛型混淆；检查推断约束与特化成本 |
+| 代码引用（quotations） | `<@ expression @>`、`<@@ expression @@>`、`Expr<'T>`、代码引用模式 | 库把 F# 代码表示成数据，用于 DSL、查询、分析或生成 | 区分构造/遍历表达式树与执行它；阅读库契约 |
+| 静态解析的类型参数（SRTP） | `inline` 加静态/成员约束；当前简化语法可能使用 `'T`，旧式/复杂形式可能出现 `^T` | 运算符或基于成员的编译期抽象 | 不要同普通泛型混淆；检查推断约束与特化成本 |
 | 灵活类型 | 类型标注内的 `#SomeBase`，等价于带子类型约束的泛型 | 高阶或嵌套输入应接受任何子类型/接口实现 | 同预处理指令和普通向上转型区分；保持公开签名可读 |
 | byref 与 Span | `&value`、`byref<'T>`、`inref<'T>`、`outref<'T>`、`Span<'T>`、`ReadOnlySpan<'T>` | 互操作或经测量的同步缓冲区/复制热点 | 遵守栈与生命周期规则；不要跨 async 或堆边界捕获；采用前先测量 |
 
-Quotations 表示表达式；它们不会自行执行。SRTP 在编译期特化内联代码，日常 `'T` 函数并不需要它。灵活 `#Type` 语法表达对象层次中的兼容性，不是注释或编译器命令。Byref-like 值用普通可组合性换取受限生命周期。
+代码引用把表达式表示成数据；它们不会自行执行。静态解析的类型参数会在编译期特化内联代码，日常 `'T` 函数并不需要它。灵活 `#Type` 语法表达对象层次中的兼容性，不是注释或编译器命令。类似 byref 的值用普通可组合性换取受限生命周期。
 
 [附录 H：高级特性识别索引](../appendices/h-advanced-index)提供聚焦入口与交叉链接。它有意不把这些特性变成第二套入门课程。第 11 章锚定泛型约束与 SRTP；第 31 章锚定经过测量的 Span/byref 决策。
 
@@ -604,15 +616,15 @@ Quotations 表示表达式；它们不会自行执行。SRTP 在编译期特化�
 
 Shell 补全与原生 AOT 值得考虑，但不是发布要求。
 
-#### 截至 2026-08-25 的候选记录 {#candidate-record}
+#### 截至 2026-08-31 的候选记录 {#candidate-record}
 
 为本答案核对的 NuGet 官方页面显示：
 
 | 选择 | 核对版本 | 适用点 | 成本或待验证问题 |
 |---|---:|---|---|
 | 手写解析器 | 仓库代码 | 无依赖图；能准确控制当前三个参数 | 帮助、重复选项、别名、诊断和未来子命令都要自行维护 |
-| Argu | 6.2.5 | 面向 F#、使用可辨识联合的声明式解析器；目标为 .NET Standard 2.0 | 包最后更新于 2024 年 12 月；引入 FSharp.Core 与 `System.Configuration.ConfigurationManager`；裁剪/AOT 行为需要真实试验 |
-| System.CommandLine | 2.0.11 | 命令、选项、参数、验证、帮助、补全与异步 action；目标为 .NET 8 和 .NET Standard 2.0 | API 使用 C# 中常见的 object/builder 模式；F# 重载与 null 适配、帮助和错误文本的稳定性需要试验 |
+| [Argu](https://www.nuget.org/packages/Argu) | 6.2.5 | 面向 F#、使用可区分联合的声明式解析器；目标为 .NET Standard 2.0 | 包最后更新于 2024 年 12 月；引入 FSharp.Core 与 `System.Configuration.ConfigurationManager`；裁剪/AOT 行为需要真实试验 |
+| [System.CommandLine](https://www.nuget.org/packages/System.CommandLine) | 2.0.11 | 命令、选项、参数、验证、帮助、补全与异步 action；目标为 .NET 8 和 .NET Standard 2.0 | API 使用 C# 中常见的对象/构建器模式；F# 重载与 null 适配、帮助和错误文本的稳定性需要试验 |
 
 两个包版本都是在该日期核对的事实，都不是书站依赖。运行针对包的试验之前，清单脚本只验证了自己的 BCL 解析器。
 
@@ -734,9 +746,9 @@ type ParseFailure =
 
 #### 高级特性预算 {#advanced-budget}
 
-三个增量都不需要 quotation、SRTP、灵活类型或自定义 byref。常规记录、联合类型与函数已经足够。用接口隔离副作用，用 task 支持取消，用数组或流传输数据。
+三个增量都不需要代码引用、静态解析的类型参数（SRTP）、灵活类型或自定义 byref。常规记录、联合类型与函数已经足够。用接口隔离副作用，用 task 支持取消，用数组或流传输数据。
 
-只有性能分析表明跨边界复制占主要成本，而且生命周期确定为同步时，才考虑 `Span`。只有多个具体算法需要同一种成员约束抽象时，才考虑 SRTP。只有产品需要读取或生成表达式树时，quotation 才有意义。库签名中可能出现灵活类型；决定是否暴露前，应先识别它们。
+只有性能分析表明跨边界复制占主要成本，而且生命周期确定为同步时，才考虑 `Span`。只有多个具体算法需要同一种成员约束抽象时，才考虑 SRTP。只有产品需要读取或生成表达式树时，代码引用才有意义。库签名中可能出现灵活类型；决定是否暴露前，应先识别它们。
 
 这种克制是计划的一部分，而不是缺少雄心。学习目标是交付越来越可信的 F#，再在系统给出理由时深入某项语言特性。
 
@@ -749,6 +761,7 @@ type ParseFailure =
 
 - [Microsoft Learn：使用 F# 进行交互式编程](https://learn.microsoft.com/en-us/dotnet/fsharp/tools/fsharp-interactive/)
 - [Microsoft Learn：F# Interactive 选项](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/fsharp-interactive-options)
+- [.NET Interactive：Polyglot Notebooks 与 .NET Interactive 弃用公告](https://github.com/dotnet/interactive/issues/4163)
 - [Microsoft Learn：PackageReference 与锁文件行为](https://learn.microsoft.com/en-us/nuget/consume-packages/package-references-in-project-files)
 - [Microsoft Learn：查找与评估 NuGet 包](https://learn.microsoft.com/en-us/nuget/consume-packages/finding-and-choosing-packages)
 - [Microsoft Learn：审计包依赖](https://learn.microsoft.com/en-us/nuget/concepts/auditing-packages)
@@ -756,8 +769,8 @@ type ParseFailure =
 - [Microsoft Learn：.NET 工具](https://learn.microsoft.com/en-us/dotnet/core/tools/global-tools)
 - [FAKE 文档](https://fake.build/)
 - [Paket 文档](https://fsprojects.github.io/Paket/)
-- [Microsoft Learn：代码 quotations](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/code-quotations)
-- [Microsoft Learn：静态解析类型参数](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/statically-resolved-type-parameters)
+- [Microsoft Learn：代码引用](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/code-quotations)
+- [Microsoft Learn：静态解析的类型参数](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/statically-resolved-type-parameters)
 - [Microsoft Learn：灵活类型](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/flexible-types)
 - [Microsoft Learn：byref 与 byref-like 结构体](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/byrefs)
 - [Microsoft Learn：F# 导览](https://learn.microsoft.com/en-us/dotnet/fsharp/tour)

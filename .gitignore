@@ -11,6 +11,7 @@ obj/
 # Local example outputs
 /artifacts/
 /artifacts.manifest.json
+/BenchmarkDotNet.Artifacts/
 
 # Local configuration and secrets
 .env

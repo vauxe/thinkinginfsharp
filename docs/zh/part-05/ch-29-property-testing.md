@@ -10,6 +10,8 @@ translationKey: part-05/ch-29-property-testing
 
 难点不在于写出 `[<Property>]`，而在于提出有用的不变量、生成符合领域的数据、检查输入分布，并在失败时区分随机种子与业务规则。下面以贪心座位分配器为例说明这些步骤。
 
+本章主线代码不是一组互不相关、可分别粘贴的片段。完整测试项目位于 `examples/chapters/ch29/Ch29.Tests.fsproj`：项目先编译 `Generators.fs`，其中包含领域类型、分配器、属性函数、生成器和缩减器；再编译 `Properties.fs`，其中包含 FsCheck/xUnit 测试。后文标出文件名的代码块都按阅读顺序摘自这两个文件，因此后面的短片段会使用前面已经定义的名称。
+
 ## 从示例推广到不变量 {#examples-to-invariants}
 
 设一个分配器从某个容量开始，按顺序处理正数座位请求。请求不超过剩余容量时接受，否则拒绝。容量 5、请求 `[2; 4; 3]` 是一个有用示例：第一个和最后一个请求被接受，中间请求被拒绝，最后剩余零个座位。
@@ -23,6 +25,11 @@ translationKey: part-05/ch-29-property-testing
 示例用智能构造类型表示每个请求，并用联合类型记录每项决策：
 
 ```fsharp:line-numbers [Generators.fs]
+namespace ThinkingInFSharp.Ch29
+
+open FsCheck
+open FsCheck.FSharp
+
 type AllocationCaseError =
     | NegativeCapacity of capacity: int
     | NonPositiveRequest of seats: int
@@ -103,7 +110,14 @@ let allocationMatchesItself sample =
 
 FsCheck 会把“从生成参数返回 `bool`、`Property`、`Lazy`、`Async` 或 `Task` 等可测试类型”的函数视为属性。xUnit 集成会发现带 `FsCheck.Xunit.PropertyAttribute` 的函数；与 `[<Fact>]` 不同，这类函数可以接收参数。
 
-```fsharp
+```fsharp:line-numbers [Properties.fs]
+namespace ThinkingInFSharp.Ch29
+
+open FsCheck
+open FsCheck.FSharp
+open global.FsCheck.Xunit
+open global.Xunit
+
 [<Properties(
     Arbitrary = [| typeof<AllocationCaseArbitrary> |],
     QuietOnSuccess = true
@@ -264,7 +278,7 @@ type AllocationCaseArbitrary =
 
 如果生成的几乎都是空队列，那么即使测试通过也说明不了多少问题。`Prop.classify condition label property` 会为满足条件的案例记录标签，多个标签可以重叠：
 
-```fsharp
+```fsharp [Properties.fs]
 [<Property(MaxTest = 300)>]
 let ``remaining capacity stays within bounds`` (sample: AllocationCase) =
     AllocationProperties.remainingIsBounded sample
@@ -284,29 +298,45 @@ let ``remaining capacity stays within bounds`` (sample: AllocationCase) =
 
 这个说法听起来合理：“接受的请求构成前缀；一旦拒绝，后续请求全被拒绝。”对于会继续处理的贪心分配器，它是错的。容量为 1、请求为 `[2; 1]` 时，请求 2 被拒绝，随后请求 1 被接受。
 
-示例把错误属性保留为具名函数，用收集结果的运行器执行，并期待 `TestResult.Failed`。测试套件通过断言 FsCheck 能推翻该属性而保持绿色：
+示例把错误属性保留为具名函数，再由一个实现 `IRunner` 的小型收集器保存结果。`runner` 因而不是 FsCheck 内置的隐含变量。xUnit 测试期待 `TestResult.Failed`，通过断言 FsCheck 能推翻该属性而保持绿色：
 
-```fsharp
-let config =
-    Config.Quick
-        .WithMaxTest(300)
-        .WithArbitrary([ typeof<AllocationCaseArbitrary> ])
-        .WithReplay(13285693176119930639UL, 18364232908344279255UL, 4)
-        .WithRunner(runner)
+```fsharp:line-numbers [Properties.fs]
+type private CollectingRunner() =
+    let mutable result = None
 
-Check.One(
-    "accepted requests form a prefix",
-    config,
-    AllocationProperties.acceptedRequestsFormPrefix
-)
+    member _.Result = result
 
-match runner.Result with
-| Some(TestResult.Failed(data, _, shrunkArguments, _, _, _, _)) ->
-    let shrunk = shrunkArguments |> List.exactlyOne |> unbox<AllocationCase>
-    Assert.True(data.NumberOfShrinks > 0)
-    Assert.Equal(1, AllocationCase.capacity shrunk)
-    Assert.Equal<int list>([ 2; 1 ], AllocationCase.requests shrunk)
-| _ -> Assert.Fail("expected a falsified property")
+    interface IRunner with
+        member _.OnStartFixture _ = ()
+        member _.OnArguments(_, _, _) = ()
+        member _.OnShrink(_, _) = ()
+        member _.OnFinished(_, finishedResult) = result <- Some finishedResult
+
+type CounterexampleTests() =
+    [<Fact>]
+    member _.``false prefix property shrinks to the policy counterexample``() =
+        let runner = CollectingRunner()
+
+        let config =
+            Config.Quick
+                .WithMaxTest(300)
+                .WithArbitrary([ typeof<AllocationCaseArbitrary> ])
+                .WithReplay(13285693176119930639UL, 18364232908344279255UL, 4)
+                .WithRunner(runner)
+
+        Check.One(
+            "accepted requests form a prefix",
+            config,
+            AllocationProperties.acceptedRequestsFormPrefix
+        )
+
+        match runner.Result with
+        | Some(TestResult.Failed(data, _, shrunkArguments, _, _, _, _)) ->
+            let shrunk = shrunkArguments |> List.exactlyOne |> unbox<AllocationCase>
+            Assert.True(data.NumberOfShrinks > 0)
+            Assert.Equal(1, AllocationCase.capacity shrunk)
+            Assert.Equal<int list>([ 2; 1 ], AllocationCase.requests shrunk)
+        | _ -> Assert.Fail("expected a falsified property")
 ```
 
 反例不会自动说明代码与属性谁错了，必须回到需求。如果规则是“首次拒绝后停止”，那么分配器有误；在既定的继续处理规则下，则是提出的属性有误。属性测试发现分歧，领域推理判断原因。
@@ -341,14 +371,10 @@ match runner.Result with
 
 一百个分布良好且缩减清晰的案例，可能比一万个近乎相同的案例更有用。当失败报告巨大时，应先改善表示与缩减，而不是只提高数量。
 
-## 运行并诊断示例 {#running}
-
-把本章属性放入自己的测试项目后，替换模板路径并运行：
+仓库中的项目已经固定 `FsCheck.Xunit` 3.4.0，并包含全部 `open` 声明和测试依赖。要使用 `Gen`、`Arb`、`Prop` 和 `gen {}` 等 F# 专用辅助 API，需要同时打开 `FsCheck.FSharp`；`FsCheck` 本身则提供 `Arbitrary<'T>`、`Config`、`IRunner` 等核心类型。从仓库根目录可以直接运行，不需要替换模板路径：
 
 ```console
-dotnet test path/to/YourTests.fsproj \
-  --configuration Release \
-  --filter FullyQualifiedName~Ch29
+dotnet test examples/chapters/ch29/Ch29.Tests.fsproj --configuration Release
 ```
 
 三个属性各要求 300 个成功案例。第四项重放固定的失败步骤，并断言错误的前缀属性会缩减到容量 1、请求 `[2; 1]`。提交前还应去掉过滤器，运行整个测试项目。
@@ -356,6 +382,8 @@ dotnet test path/to/YourTests.fsproj \
 新属性失败时，按以下顺序阅读报告：属性名称与标签、异常或 false 结果、缩减参数、原始参数，最后是重放三元组。修改代码前先复现，再判断实现、属性、生成器或缩减器中的哪一个违反了规则。只凭最小值猜测，常会修错位置。
 
 ## 练习 {#exercises}
+
+答案中的短代码继续使用本章项目已经定义的类型以及 `FsCheck`、`FsCheck.FSharp`、`Xunit` 中的名称；若把答案单独放进新文件，需要加入与 `Properties.fs` 相同的 `open` 声明。
 
 ### 练习 1：推导独立属性 {#exercise-01}
 
@@ -495,4 +523,4 @@ Assert.Equal(Ok 2, reversed)
 - [FsCheck：编写和观察属性](https://fscheck.github.io/FsCheck/Properties.html)
 - [FsCheck：生成器、缩减器与 Arbitrary 实例](https://fscheck.github.io/FsCheck/TestData.html)
 - [FsCheck：运行器、xUnit 集成与重放](https://fscheck.github.io/FsCheck/RunningTests.html)
-- [NuGet：FsCheck.Xunit 3.4.0 包及其依赖](https://www.nuget.org/packages/FsCheck.Xunit/)
+- [NuGet：FsCheck.Xunit 3.4.0 包及其依赖](https://www.nuget.org/packages/FsCheck.Xunit/3.4.0)

@@ -10,6 +10,8 @@ translationKey: part-03/ch-18-workflow-validation
 
 两种策略都可以返回 `Result`，区别在组合函数而非返回类型名称。下面先用普通函数实现两种策略，让求值方式和错误顺序清楚可见，再讨论计算表达式。
 
+本章主线代码是同一个脚本的连续片段，完整文件位于 `examples/chapters/ch18/validation.fsx`。按正文顺序放入一个 `.fsx` 文件即可运行；后文若只展示某个函数，会明确说明它依赖前面已经定义的类型或函数。
+
 ## 先问后续检查是否需要前一步的值 {#dependency-question}
 
 选择语法之前，先画出数据依赖：
@@ -38,7 +40,9 @@ translationKey: part-03/ch-18-workflow-validation
 
 示例把原始文本与成功检查后的值分开：
 
-```fsharp:line-numbers
+```fsharp:line-numbers [validation.fsx — 从这里开始]
+open System
+
 type ValidationError =
     | MissingRequestId
     | MissingAttendee
@@ -64,7 +68,7 @@ type ValidBooking =
 
 错误联合类型保留事实，而不是格式化后的 UI 消息。每个字段验证器返回 `Result<'Value, ValidationError list>`：
 
-```fsharp:line-numbers
+```fsharp:line-numbers [validation.fsx — 继续]
 let validateRequestId raw =
     if String.IsNullOrWhiteSpace raw then
         Error [ MissingRequestId ]
@@ -101,7 +105,7 @@ match input with
 
 第一种策略嵌套了三个依赖的延续：
 
-```fsharp:line-numbers
+```fsharp:line-numbers [validation.fsx — 继续]
 let validateFirstError (raw: RawBooking) =
     validateRequestId raw.RequestId
     |> Result.bind (fun requestId ->
@@ -127,7 +131,7 @@ let validateFirstError (raw: RawBooking) =
 
 累积策略会先求值三个字段函数，然后才判断是否能构造结果：
 
-```fsharp:line-numbers
+```fsharp:line-numbers [validation.fsx — 继续]
 let errorsOf result =
     match result with
     | Ok _ -> []
@@ -152,8 +156,8 @@ let validateAccumulating (raw: RawBooking) =
 ```
 如果所有结果都是 `Ok`，匹配就构造一个 `ValidBooking`。否则，`errorsOf` 按字段顺序贡献每份失败列表。因此，无效示例会产生：
 
-```text
-[missing-request-id; missing-attendee; seats-not-integer:oops]
+```fsharp
+Error [ MissingRequestId; MissingAttendee; SeatsNotInteger "oops" ]
 ```
 
 这就是验证错误累积：求值彼此独立的检查，并按规定顺序合并失败。普通 F# 仍依次求值，但不会因为另一个字段失败而跳过任何检查。
@@ -170,7 +174,7 @@ let validateAccumulating (raw: RawBooking) =
 
 直接写出的三路匹配很容易审计。当这种模式重复出现时，只提取组合机制：
 
-```fsharp:line-numbers
+```fsharp:line-numbers [validation.fsx — 继续]
 let applyValidation valueResult functionResult =
     match functionResult, valueResult with
     | Ok mapping, Ok value -> Ok(mapping value)
@@ -205,7 +209,7 @@ let validateAccumulatingWithApply (raw: RawBooking) =
 
 座位数一旦存在，与容量比较就是依赖性的业务检查：
 
-```fsharp:line-numbers
+```fsharp:line-numbers [validation.fsx — 继续]
 let ensureWithin capacity (SeatCount requested as seats) =
     if requested <= capacity then
         Ok seats
@@ -233,6 +237,52 @@ let observeDependentValidation rawSeats =
 | 容量为 4 时输入 `"3"` | `Ok(SeatCount 3)` | 1 |
 
 零次直接展示了短路行为，并非基于耗时的优化结论。计数只是测试工具；正确性不能依赖它。
+
+脚本最后用一组具体输入把上述定义连起来。`invalid` 同时包含三个独立错误，`valid` 则展示修剪后的成功值：
+
+```fsharp:line-numbers [validation.fsx — 最终检查]
+let invalid: RawBooking =
+    { RequestId = " "
+      Attendee = ""
+      Seats = "oops" }
+
+let valid: RawBooking =
+    { RequestId = " REQ-18 "
+      Attendee = " Lin "
+      Seats = "3" }
+
+let expectedErrors =
+    Error [ MissingRequestId; MissingAttendee; SeatsNotInteger "oops" ]
+
+let expectedValid =
+    Ok
+        { RequestId = RequestId "REQ-18"
+          Attendee = Attendee "Lin"
+          Seats = SeatCount 3 }
+
+printfn "first-error: %b" (validateFirstError invalid = Error [ MissingRequestId ])
+printfn "all-errors: %b" (validateAccumulating invalid = expectedErrors)
+printfn "apply-agrees: %b" (validateAccumulatingWithApply invalid = expectedErrors)
+printfn "valid-booking: %b" (validateAccumulating valid = expectedValid)
+
+printfn
+    "dependent: parse=%A over=%A fit=%A"
+    (observeDependentValidation "oops")
+    (observeDependentValidation "5")
+    (observeDependentValidation "3")
+```
+
+从仓库根目录运行 `dotnet fsi examples/chapters/ch18/validation.fsx`，会得到：
+
+```text
+first-error: true
+all-errors: true
+apply-agrees: true
+valid-booking: true
+dependent: parse=(Error [SeatsNotInteger "oops"], 0) over=(Error [ExceedsCapacity (5, 4)], 1) fit=(Ok (SeatCount 3), 1)
+```
+
+这些布尔值不是业务输出，而是可执行的等值检查：它们把正文声称的首错、错误顺序、两种累积实现等价和成功构造固定下来。
 
 真实预约工作流通常同时使用两种策略：
 

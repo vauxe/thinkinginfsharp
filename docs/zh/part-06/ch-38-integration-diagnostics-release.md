@@ -8,13 +8,19 @@ translationKey: part-06/ch-38-integration-diagnostics-release
 
 前几章从内向外构建了预约系统：领域模型、纯决策器、端口与适配器、HTTP API，最后是一致性协议。但任何一层都无法单独确认可执行程序按预期顺序连接了它们。本章补上这项验证。
 
-本章连接唯一的组合根，让另一种 .NET 语言调用公开契约，并在不暴露敏感数据的前提下观察结果。最后用一条可复现命令验证完整路径。成品仍是教学系统，因此还要准确说明它**没有**验证什么。
+本章设计唯一的组合根，让另一种 .NET 语言调用公开契约，并在不暴露敏感数据的前提下观察结果。最后把完整验收路径规划为一条可复现命令，并准确说明它**不能**证明什么。
+
+本章仍是页内参考实现：当前仓库没有完整的 Booking 解决方案、可运行 API、C# 客户端或下文所述验收脚本。若落成项目，`Booking.Api` 应在引用前三层后按 `Diagnostics.fs` → `Endpoints.fs` → `Program.fs` 编译。
+
+`Program.fs` 依赖第 36 章的启动配置和端点，以及第 37 章的存储和服务。`Diagnostics.fs` 还需要 `System.Diagnostics`、`System.Diagnostics.Metrics` 与 ASP.NET Core 日志/依赖注入类型。
+
+“组合根”、“关联 ID”、“指标基数”和“插桩”是架构与可观测性术语，不是 F# 语法名称。F# 在这里用函数记录表示边界接口，用模式匹配映射结果，用 `task` 组合请求管线。
 
 ## 在可执行程序中验证组合 {#composition-proof}
 
 组合根回答一个具体问题：运行中的进程究竟会使用哪些实现？如果可执行程序把旧工作流接在外层，再漂亮的领域函数和再强的适配器测试也无济于事。
 
-第 37 章有意保留了这处缺口。较早的 `BookingEndpoints.map` 接收 `AsyncPorts`，无法提供聚合级幂等与容量保证。最终入口点改为构造 `AtomicBookingStore`、受控支付与通知适配器以及 `IdempotentBookingService`。它只向 HTTP 层暴露两个操作。
+第 37 章有意保留了这处缺口。较早的 `BookingEndpoints.map` 接收 `AsyncPorts`，无法提供聚合级幂等与容量保证。建议的最终入口点改为构造 `AtomicBookingStore`、受控支付与通知适配器以及 `IdempotentBookingService`。它只向 HTTP 层暴露两个操作。
 
 ```fsharp:line-numbers [Program.fs]
 [<EntryPoint>]
@@ -111,7 +117,7 @@ let mapConsistent (application: WebApplication) (dependencies: ConsistentBooking
 
 ## 建立分层验证路径 {#evidence-ladder}
 
-必须说明每个测试穿过了哪些组件，“测试通过”才有准确含义。本项目采用几个有意重叠的层次：
+必须说明每个测试穿过了哪些组件，“测试通过”才有准确含义。将参考设计落成项目时，应使用几个有意重叠的层次：
 
 | 测试层次 | 穿过的真实组件 | 支持的结论 | 不支持的结论 |
 |---|---|---|---|
@@ -125,9 +131,9 @@ Microsoft 的 [ASP.NET Core 集成测试指南](https://learn.microsoft.com/en-u
 
 ### 在测试中观察 HTTP 副作用 {#http-effects}
 
-端到端测试环境构建真实 `WebApplication`，选择 `TestServer`，注册相同诊断中间件，映射相同的一致性端点，并使用临时快照。受控支付与通知函数通过线程安全计数器记录调用。
+端到端测试环境应构建真实 `WebApplication`，选择 `TestServer`，注册相同诊断中间件，映射相同的一致性端点，并使用临时快照。受控支付与通知函数通过线程安全计数器记录调用。
 
-聚焦集成测试表明：
+最低的聚焦集成测试应证明：
 
 - 规范化后完全相同的放置命令重放相同 `201` 正文，而且不重复副作用；
 - 同一操作身份下变更座位数会返回 `409 idempotency_conflict`；
@@ -135,21 +141,23 @@ Microsoft 的 [ASP.NET Core 集成测试指南](https://learn.microsoft.com/en-u
 - 结果不明的支付首次返回 `503`，随后返回 `409 payment_outcome_unknown`，支付只调用一次；
 - 诊断测试把响应关联 ID、受限指标和一个已停止的子活动对齐起来。
 
-前两个结论放在同一项测试中，因为副作用计数器才能揭示因果关系。只断言响应会漏掉藏在重放正文后的重复支付。
+前两个结论应放在同一项测试中，因为副作用计数器才能揭示因果关系。只断言响应会漏掉藏在重放正文后的重复支付。
 
-`TestServer` 在内存中传送 HTTP 抽象，因此管道测试快速且确定，但它刻意绕过端口分配、TLS 和内核网络。发布冒烟测试于是增加了第二种更小的测试，穿过真实回环套接字。
+`TestServer` 在内存中传送 HTTP 抽象，因此管道测试快速且确定，但它刻意绕过端口分配、TLS 和内核网络。因此还应加入第二种更小的发布冒烟测试，穿过真实回环套接字。
 
 ### 用信号代替延迟猜测 {#causal-tests}
 
-最终项目其他位置的并发测试使用屏障和任务完成信号，迫使两个操作共同进入风险窗口；重启测试则针对持久快照启动真正独立的进程。这些事实强于“多运行几次，期待调度器恰好触发问题”。
+项目落地后，其他位置的并发测试应使用屏障和任务完成信号，迫使两个操作共同进入风险窗口；重启测试则针对持久快照启动真正独立的进程。这些证据强于“多运行几次，期待调度器恰好触发问题”。
 
 重复仍有价值：它能发现共享状态泄漏和非确定性清理。但它不能代替控制定义缺陷的因果交错。
 
 ## 从 C# 验证公开契约 {#csharp-contract}
 
-F# 与 C# 共享 CLR，但使用方式不同。公开 F# API 即使能编译，也可能暴露 C# 调用者难以使用的柯里化函数、F# 联合、选项或泛型结构。第 27 章设计了 CLR 友好的 DTO；本章由真实 C# 程序使用它们。
+F# 与 C# 共享 CLR，但使用方式不同。公开 F# API 即使能编译，也可能暴露 C# 调用者难以使用的柯里化函数、F# 可区分联合、选项或泛型结构。第 27 章设计了 CLR 友好的 DTO；项目落地后，应由独立 C# 程序真正消费它们。
 
-客户端只引用 `Booking.Contracts`，不引用 `Booking.Domain` 或 `Booking.Infrastructure`。它仅通过 `HttpClient` 和 JSON 与服务通信。
+建议的客户端只引用 `Booking.Contracts`，不引用 `Booking.Domain` 或 `Booking.Infrastructure`。它仅通过 `HttpClient` 和 JSON 与服务通信。
+
+下方代码是 C# 控制台顶级程序的中段，不是完整文件。它假定前面已经导入 `System.Net`、`System.Net.Http.Json` 和 Contracts 命名空间；还已经创建 `requestId`、`HttpClient client`、`JsonSerializerOptions json`，并定义 `ReadBooking` 与 `Require` 辅助函数。
 
 ```csharp:line-numbers [Program.cs]
 var place = new PlaceBookingDto
@@ -187,7 +195,7 @@ using var loadedResponse = await client.GetAsync($"api/bookings/{escapedRequestI
 var loaded = await ReadBooking(loadedResponse, json);
 Require(loaded.Body == confirmed.Body, "GET must return the current confirmed booking.");
 ```
-这一条流程检查四项契约性质：
+这条流程应检查四项契约性质：
 
 | 步骤 | 契约检查 |
 |---|---|
@@ -198,7 +206,7 @@ Require(loaded.Body == confirmed.Body, "GET must return the current confirmed bo
 
 客户端刻意使用严格、区分大小写的反序列化，并拒绝未映射属性。这是在测试所选契约，不要求每个消费者照搬。比较成功响应的原始正文，只能确认当前版本输出稳定；属性顺序不同的 JSON 文本仍可能语义相同。
 
-C# 客户端成功运行，不代表与每个历史程序集版本都二进制兼容。后者需要保留消费者测试项目，或用 API 兼容性工具对照已声明基线。当前检查只确认主要跨语言路径可用。
+该 C# 客户端验收通过，也不代表与每个历史程序集版本都二进制兼容。后者需要保留消费者测试项目，或用 API 兼容性工具对照已声明基线。这项验收只能确认主要跨语言路径可用。
 
 ## 为边界插桩，但绝不采集机密 {#diagnostics}
 
@@ -243,7 +251,7 @@ Booking request completed correlationId=<trace-id> method=<method> endpoint=<rou
 
 官方 [.NET 追踪指南](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/distributed-tracing-instrumentation-walkthroughs) 同样说明了返回 `null` 的行为，以及释放活动会停止它。
 
-最重要的是，`Meter`、`ActivitySource` 和日志调用只是生产者，不会自动创建收集器、持久存储、仪表板、告警、保留策略或访问策略。样例通过 `MeterListener` 与 `ActivityListener` 测试信号生产；部署仍须单独配置并测试收集过程。
+最重要的是，`Meter`、`ActivitySource` 和日志调用只是生产者，不会自动创建收集器、持久存储、仪表板、告警、保留策略或访问策略。项目落地后，可用 `MeterListener` 与 `ActivityListener` 验证信号生产；部署仍须单独配置并测试收集过程。
 
 ## 把验证收束为一条命令 {#release-check}
 
@@ -321,9 +329,9 @@ Microsoft 的 [.NET 发布概述](https://learn.microsoft.com/en-us/dotnet/core/
 
 这份清单不是要求把每一种机制都加进教学仓库，而是一份边界清单。只有存在命名明确的需求与测试环境时，架构才应该增长。
 
-## 维护已验证保证清单 {#guarantee-ledger}
+## 规划验收后的保证清单 {#guarantee-ledger}
 
-现在，最终项目可以作出以下范围明确且经过测试的主张：
+只有在页内设计被实现、且上述验收全部通过后，项目才可以作出以下范围明确的主张：
 
 - 受保护的 F# 构造器与决策器执行已建模的预约状态和转换；
 - 严格 DTO 映射会在领域工作前拒绝格式错误与未知的传输数据；
@@ -364,7 +372,7 @@ F# 也让策略核心自然地小于宿主；可执行程序绝大部分只负�
 
 ### 练习 1：审计三项夸大主张 {#exercise-01}
 
-一份发布说明写道：“预约 API 在三个副本之间是安全的，支付与通知都恰好执行一次，而且所有测试已通过，所以系统已经生产就绪。”请把它重写成已验证保证清单。对每项主张指出最强现有证据、缺失的拓扑或依赖、下一项机制，以及能产生缺失证据的测试。不要只是把每句话都替换成“不保证”。
+假设一支团队已按本章实现项目并运行了所述验收。一份发布说明写道：“预约 API 在三个副本之间是安全的，支付与通知都恰好执行一次，而且所有测试已通过，所以系统已经生产就绪。”请把它重写成已验证保证清单。对每项主张指出该假设项目的最强证据、缺失的拓扑或依赖、下一项机制，以及能产生缺失证据的测试。不要只是把每句话都替换成“不保证”。
 
 
 ::: details 参考答案
@@ -419,11 +427,11 @@ F# 也让策略核心自然地小于宿主；可执行程序绝大部分只负�
 
 从部署配置取得收集器端点和凭证，实施 TLS 与最小权限。在应用和收集器两端都使用属性允许列表或脱敏，因为收集器规则不能成为发送已知机密的理由。限制队列内存，定义导出超时，并决定遥测丢失是否可以影响请求成功；对多数服务而言不应影响。
 
-Microsoft 的 [.NET 追踪指南](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/distributed-tracing-instrumentation-walkthroughs) 区分插桩创建与收集；其[指标指南](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/metrics-instrumentation) 推荐在依赖注入宿主中使用 `IMeterFactory`，与这里经过测试的设计一致。
+Microsoft 的 [.NET 追踪指南](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/distributed-tracing-instrumentation-walkthroughs) 区分插桩创建与收集；其[指标指南](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/metrics-instrumentation) 推荐在依赖注入宿主中使用 `IMeterFactory`，与这里计划验证的设计一致。
 
 #### 测试关联关系与时间序列增长 {#exercise-02-tests}
 
-保留现有进程内监听器测试，因为它能在不依赖厂商的情况下验证信号已经产生。再增加收集器集成测试：使用受控且有效的 `traceparent`，分别发送成功请求和无效请求，然后检查：
+先实现进程内监听器测试，在不依赖厂商的情况下验证信号已经产生。再增加收集器集成测试：使用受控且有效的 `traceparent`，分别发送成功请求和无效请求，然后检查：
 
 - 响应头与完成日志使用同一追踪 ID；
 - 采样时，自定义活动是服务器活动的子级；

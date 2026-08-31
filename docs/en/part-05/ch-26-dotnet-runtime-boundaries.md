@@ -10,6 +10,21 @@ F# values run in the .NET type system. A record can be boxed as `obj`, a functio
 
 At each interop point, determine which static information was erased, who manages subscriptions and mutable collections, and which equality rule a hash table uses. Then convert back to normal F# values as early as possible.
 
+The main-line code forms `examples/chapters/ch26/runtime-boundaries.fsx` in reading order. Every fragment shares the following namespaces, domain input type, and assertion helper, so the first uses of `BookingRequest`, `IEnumerable`, `Dictionary`, and `ensureEqual` all have an explicit source:
+
+```fsharp:line-numbers
+open System
+open System.Collections.Generic
+
+type BookingRequest =
+    { RequestId: string
+      Seats: int }
+
+let ensureEqual label expected actual =
+    if expected <> actual then
+        failwithf "%s: expected %A, got %A" label expected actual
+```
+
 ## Static type and runtime type answer different questions {#static-runtime-types}
 
 The compiler assigns every expression a static type. That type determines which operations compile and carries most of the program's guarantees. The runtime also associates each object instance with an exact `System.Type`, which reflection and object-oriented dispatch can inspect.
@@ -274,6 +289,21 @@ Use this sequence when integrating an object-based API:
 7. Test both values and integration lifetimes: handler removal, enumeration timing, comparer behavior, and failure types.
 
 This does not isolate F# from .NET. The adapter narrows a broad runtime protocol to the few types and operations that domain logic actually needs.
+
+Run `dotnet fsi examples/chapters/ch26/runtime-boundaries.fsx` from the repository root. It prints:
+
+```text
+Runtime type: declared=BookingRequest actual=BookingRequest
+Pattern casts: ["text:LIN"; "request:R-26/3"; "int:42"]
+Failed downcast: InvalidCastException
+Delegates: add=7 labels=[|"2"; "4"; "6"|]
+Event: observed=["4->2"] after-remove=1
+.NET list: live=[1; 2; 3] snapshot=[1; 2]
+String comparer: count=1 found=true value=second
+Class keys: same-reference=false default=2 domain=1 value=second
+```
+
+Those observations cover runtime type, controlled casts, delegate invocation, unsubscription, live view versus snapshot, and two dictionary equality policies. They are one cumulative example rather than unrelated fragments.
 
 ## Exercises {#exercises}
 

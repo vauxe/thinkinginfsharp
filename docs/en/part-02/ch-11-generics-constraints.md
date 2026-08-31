@@ -28,11 +28,20 @@ let oneAttendee = "Ada" :: genericEmpty
 
 printfn "Simple generic value: ints=%A strings=%A" oneInteger oneAttendee
 ```
+This block runs by itself and prints:
+
+```text
+Generalized function: ints=[3; 3] strings=["Lin"; "Lin"]
+Simple generic value: ints=[1] strings=["Ada"]
+```
+
 F# infers:
 
-```fsharp
+```text
 duplicate : 'T -> 'T list
 ```
+
+That is the signature FSI displays, not another declaration in the script.
 
 `'T` is a generic type parameter. It does not mean “a dynamically typed value.” At each call, the argument and both result elements have one consistent concrete type. One call instantiates `'T` as `int`; another instantiates it as `string`. Both calls remain statically checked.
 
@@ -119,6 +128,8 @@ printfn
     attendeeBuckets.Length
     (not (LanguagePrimitives.PhysicalEquality integerBuckets anotherIntegerBuckets))
 ```
+This block runs by itself and prints `Value restriction fixes: ints=2 strings=2 fresh=true`. The final `true` confirms that the two factory calls returned different arrays.
+
 Adding `()` changes semantics: each call allocates a new array. That is correct for a factory, not for a shared singleton cache. Eta-expanding `alwaysKeep` exposes its data argument but retains its pure transformation meaning. An annotation instead commits one value to one type. Choose the remedy from the intended sharing and lifetime, not merely to silence FS0030.
 
 Explicit generic value syntax exists for rare cases, but it is not the default repair. A clear ordinary function is easier to call and makes evaluation timing visible.
@@ -144,12 +155,16 @@ let sortedLabels =
 
 printfn "Constraints: equal=%b ordered=%b sorted=%A" (same first firstAgain) (comesBefore first second) sortedLabels
 ```
+This block includes the required `Envelope` definition and runs by itself. It prints `Constraints: equal=true ordered=true sorted=["A"; "B"]`.
+
 The important inferred signatures are conceptually:
 
-```fsharp
+```text
 same : 'T -> 'T -> bool when 'T : equality
 comesBefore : 'T -> 'T -> bool when 'T : comparison
 ```
+
+These are inferred signatures for reading.
 
 `=` introduces the **equality constraint**. `compare`, relational operators, and ordered operations such as `List.sort` introduce the **comparison constraint**. Explicit declarations are possible when a public signature needs them:
 
@@ -221,13 +236,17 @@ let bookingRate = 12.0<seat> / 3.0<minute>
 
 printfn "Measures: requested=%d remaining=%d rate=%.1f" requested remaining bookingRate
 ```
+This block runs by itself and prints `Measures: requested=5 remaining=35 rate=4.0`. Runtime output shows only the underlying numbers; the compiler still checks each expression's dimensions.
+
 `[<Measure>] type seat` declares a measure, not a runtime record or wrapper. `int<seat>` is a seat-count quantity. Addition and subtraction require compatible measures; multiplication and division combine them, so `bookingRate` has type `float<seat/minute>`.
 
 The measure variable in `addMeasured` allows any one measure but requires both arguments to share it:
 
-```fsharp
+```text
 addMeasured : int<'Measure> -> int<'Measure> -> int<'Measure>
 ```
+
+This is also an inferred signature and should not be pasted into the script.
 
 This diagnostic-only expression fails because its dimensions disagree:
 
@@ -268,7 +287,7 @@ Then decide which definitions can accept a function value as an argument.
 
 The most general signatures are:
 
-```fsharp
+```text
 pair : 'Left -> 'Right -> 'Left * 'Right
 
 contains : 'T -> 'T list -> bool

@@ -12,7 +12,7 @@ We establish that conversion point before performing substantial I/O. First we c
 
 ## Read a .NET call as a typed expression {#dotnet-calls}
 
-The example begins without I/O:
+The example begins without I/O. Every fragment labeled `NullBoundaries.fs` below lives in the same `NullBoundaries` module; the file already opens `System` and `System.Collections.Generic`, so `Uri`, `String`, and `IReadOnlyCollection` all have an explicit source:
 
 ```fsharp:line-numbers [NullBoundaries.fs]
 let createAbsoluteUri (raw: string) : Uri = Uri(raw, UriKind.Absolute)
@@ -220,9 +220,7 @@ Nullable checking catches some accidental dereferences at compile time. Whitespa
 
 Use `option` when ordinary absence needs no explanation. Use `Result` when callers need a reason. Let unexpected exceptions retain diagnostics until a layer has enough context to translate them. Chapters 20 and 21 add side effects and exception/resource policy without changing this null model.
 
-## Build the checked example {#run-tests}
-
-From the repository root:
+The complete context for the chapter fragments is `examples/chapters/ch19/NullBoundaries.fs`. From the repository root, run:
 
 ```console
 dotnet build examples/chapters/ch19/Ch19.fsproj --configuration Release
@@ -230,7 +228,7 @@ dotnet build examples/chapters/ch19/Ch19.fsproj --configuration Release
 
 The project compiles with null checking enabled. Its source covers ordinary constructor, member, overload, and interface calls; null-input narrowing; the nullable return of `Type.GetType`; both conversion directions for `Nullable<int>` and nullable references; and the `Some null` counterexample.
 
-This fixture covers the APIs shown here, not every .NET library. Always inspect the current target-framework annotations and documentation for the API you call.
+The project compiles every fragment with null checking enabled. It covers the APIs shown here, not every .NET library; always inspect the current target-framework annotations and documentation for the API you call.
 
 ## Exercises {#exercises}
 

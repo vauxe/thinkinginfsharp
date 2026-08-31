@@ -26,7 +26,7 @@ aside: false
 ## 第二部分 · 用类型建立模型 {#part-2}
 
 - [第 7 章：记录、更新、相等与比较](./part-02/ch-07-records-equality)
-- [第 8 章：可辨识联合与状态建模](./part-02/ch-08-discriminated-unions)
+- [第 8 章：可区分联合与状态建模](./part-02/ch-08-discriminated-unions)
 - [第 9 章：缺失与预期失败](./part-02/ch-09-option-result)
 - [第 10 章：递归类型与结构递归](./part-02/ch-10-recursive-types)
 - [第 11 章：泛型、约束与度量单位](./part-02/ch-11-generics-constraints)

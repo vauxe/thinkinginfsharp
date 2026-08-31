@@ -12,13 +12,42 @@ The form of those calls also influences API design. A curried function whose pri
 
 ## Repeated nesting reveals a data path {#repeated-nesting}
 
-The example begins with ordinary application:
+First save this complete starting point as `ch13-composition.fsx`. Later valid blocks continue from these definitions in reading order:
+
+```fsharp:line-numbers
+type BookingDraft =
+    { Attendee: string
+      RequestedSeats: int
+      Channel: string option }
+
+let rawDraft =
+    { Attendee = "  Lin  "
+      RequestedSeats = 6
+      Channel = None }
+
+let trimAttendee draft =
+    { draft with Attendee = draft.Attendee.Trim() }
+
+let capSeats maximum draft =
+    { draft with RequestedSeats = min maximum draft.RequestedSeats }
+
+let addChannel channel draft =
+    { draft with Channel = Some channel }
+
+let toLabel draft =
+    let channel = draft.Channel |> Option.defaultValue "unknown"
+    $"{draft.Attendee}:{draft.RequestedSeats}:{channel}"
+```
+
+`rawDraft` supplies observable unnormalized input. The four functions trim whitespace, cap seats, set a channel, and create a label. The example now begins with ordinary application:
 
 ```fsharp:line-numbers
 let nestedLabel = toLabel (addChannel "web" (capSeats 4 (trimAttendee rawDraft)))
 
 printfn "Nested: %s" nestedLabel
 ```
+This block prints `Nested: Lin:4:web`.
+
 Read from the innermost parentheses outward:
 
 1. trim the attendee;
@@ -34,7 +63,7 @@ Do not introduce a pipeline merely because one call is nested. The signal is a g
 
 The forward pipe has the essential behavior:
 
-```fsharp
+```text
 value |> functionValue
 // means
 functionValue value
@@ -48,6 +77,8 @@ let pipedLabel =
 
 printfn "Pipeline matches nested: %b" (pipedLabel = nestedLabel)
 ```
+This continuation prints `Pipeline matches nested: true`.
+
 Now source order follows data flow. Each line transforms the value from the preceding line, and the final result is computed immediately.
 
 The type between stages must fit. If `trimAttendee : BookingDraft -> BookingDraft` and `toLabel : BookingDraft -> string`, then `trimAttendee` can precede `toLabel`. A function requiring some unrelated input cannot be inserted merely by adding `|>`.
@@ -62,13 +93,15 @@ For more than a very short expression, begin with the value and put one `|>` sta
 
 Forward composition connects two functions without supplying the input yet:
 
-```fsharp
+```text
 (>>) : ('A -> 'B) -> ('B -> 'C) -> ('A -> 'C)
 
 let composed = first >> second
 let result = composed input
 // equivalent to: second (first input)
 ```
+
+This is the composition type and equivalence, not a standalone script. `first`, `second`, and `input` are placeholders.
 
 The example composes all four stages:
 
@@ -80,11 +113,18 @@ let prepareLabelBackward = toLabel << addChannel "web" << capSeats 4 << trimAtte
 printfn "Forward composition: %s" (prepareLabel rawDraft)
 printfn "Backward composition: %s" (prepareLabelBackward rawDraft)
 ```
+This continuation prints:
+
+```text
+Forward composition: Lin:4:web
+Backward composition: Lin:4:web
+```
+
 `prepareLabel` is a function value that can be stored, passed, tested, and applied to many drafts. In contrast, the earlier pipeline computes one label from `rawDraft` immediately.
 
 Backward composition reverses how the functions are written:
 
-```fsharp
+```text
 second << first
 // also means: first runs, then second
 ```
@@ -102,6 +142,8 @@ capSeats : int -> BookingDraft -> BookingDraft
 addChannel : string -> BookingDraft -> BookingDraft
 ```
 
+These are the signatures FSI displays.
+
 Configuration comes first; the primary flowing value comes last. Partial application turns `capSeats 4` and `addChannel "desk"` into `BookingDraft -> BookingDraft`, exactly the function type a pipeline or composition needs:
 
 ```fsharp:line-numbers
@@ -116,6 +158,8 @@ let deskLabel =
 
 printfn "Configured pipeline: %s" deskLabel
 ```
+This block depends only on the starting types and functions. It prints `Configured pipeline: Mira:2:desk`.
+
 A common F#-facing function order is:
 
 1. dependencies or policy values that remain fixed across calls;
@@ -151,6 +195,8 @@ let fits = fitsWithin capacity requested
 
 printfn "Direct predicate: requested=%d capacity=%d fits=%b" requested capacity fits
 ```
+This block runs by itself and prints `Direct predicate: requested=3 capacity=4 fits=true`.
+
 `fitsWithin capacity requested` displays the relation in one place. `requested |> fitsWithin capacity` is also valid, but it does not reveal a longer transformation path and may make a simple comparison feel procedural.
 
 Prefer a direct call when:

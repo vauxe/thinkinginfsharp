@@ -12,8 +12,10 @@ A library that builds under `dotnet` may still fail Unity's reference validation
 
 The deliberately small design keeps game rules in a normal F# library, publishes a C#-friendly API, and puts Unity-specific behavior in a thin C# component. It also shows when to test a direct F# component, when F# adds little value, and why a successful class-library build says nothing about a Player build.
 
+Separate the vocabularies first: records, discriminated unions, pattern matching, modules, and functions are F# concepts; assemblies, value types, AOT, and boxing are CLR/.NET concepts; `MonoBehaviour`, Editor, Player, IL2CPP, UnityLinker, Burst, and Jobs are Unity concepts. They appear in one pipeline but are not all “standard F# terms.”
+
 ::: tip Two reading passes
-For a first pass, follow the [integration stack](#unity-contract-stack), [decision map](#decision-map), and [managed plug-in slice](#x44-verified-slice). When preparing a representative Player build, return to the sections on serialization, the game loop, IL2CPP, verification, and release.
+For a first pass, follow the [integration stack](#unity-contract-stack), [decision map](#decision-map), and [in-page plug-in template](#x44-verified-slice). When preparing a representative Player build, return to the sections on serialization, the game loop, IL2CPP, verification, and release.
 :::
 
 ## Unity integration is a stack of contracts {#unity-contract-stack}
@@ -87,9 +89,11 @@ Do not introduce an F# DLL merely to wrap calls such as `transform.Translate`, p
 
 Likewise, do not push a frame-critical Burst kernel through F# because the rest of the game uses F#. Burst documents an HPC# subset and a Unity IL post-processing pipeline. Keep such kernels in the supported C# data-oriented form unless an exact F# experiment validates the package, attributes, IL, Editor, AOT, performance, and Player behavior.
 
-## The managed plug-in sample: one verified managed plug-in boundary {#x44-verified-slice}
+## In-page project template: one managed plug-in boundary {#x44-verified-slice}
 
-The managed plug-in sample implements one horizontal-motion rule. It is intentionally too small to justify a production architecture. Its purpose is to expose the build, API, dependency, host, allocation, linker, and verification boundaries.
+The current repository no longer contains the former `examples/ecosystem/unity/FSharpGameplay` project. This section preserves a reconstructable template implementing one horizontal-motion rule. It is intentionally too small to justify a production architecture and exists only to expose the build, API, dependency, host, allocation, linker, and verification boundaries.
+
+The four files have different owners: `FSharpGameplay.fsproj` compiles only `Gameplay.fs`; `UnityAdapter.cs` depends on `UnityEngine` and must be copied into a real Unity project's `Assets/Scripts/` for Unity to compile it; `link.xml` participates in stripping only after it is placed under `Assets`. Do not expect the `.fsproj` below to compile the C# adapter, and do not assume an external `link.xml` is active.
 
 ### The project contract and dependency output {#project-contract}
 
@@ -120,11 +124,11 @@ The managed plug-in sample implements one horizontal-motion rule. It is intentio
   </Target>
 </Project>
 ```
-The project targets `netstandard2.1`, names the assembly `FSharpGameplay`, and compiles only `Gameplay.fs`. `FSharp.Core` is already an implicit F# SDK package; `Update` fixes that one reference at 10.1.301 for this project instead of adding a duplicate.
+The project targets `netstandard2.1`, names the assembly `FSharpGameplay`, and compiles only `Gameplay.fs`. `FSharp.Core` is already an implicit F# SDK package; `Update` fixes that one reference at 10.1.301 for this template instead of adding a duplicate. As of 2026-08-31, NuGet lists the newer stable 10.1.400; an upgrade requires a regenerated lock, assembly-identity inspection, and repeated Unity import and Player verification—not just a changed number in the prose.
 
 `CopyLocalLockFileAssemblies` matters because Unity is not restoring this `.fsproj` when it imports the DLL. The post-build target turns a deployment assumption into a failure: both `FSharpGameplay.dll` and `FSharp.Core.dll` must exist in the output directory.
 
-Package version and assembly version are not the same identifier. The locked NuGet package is 10.1.301; the built plug-in records an assembly reference to `FSharp.Core, Version=10.1.0.0`. Import the dependency produced by the locked build rather than guessing from either number.
+Package version and assembly version are not the same identifier. After reconstruction and compilation, inspect the assembly reference actually recorded by `FSharpGameplay.dll` and import the `FSharp.Core.dll` emitted by that same locked build. Do not guess assembly identity from the NuGet version or take an arbitrary file from a global cache.
 
 ### Pure logic behind a CLR-shaped surface {#pure-gameplay}
 
@@ -177,7 +181,7 @@ type Gameplay private () =
 ```
 `Gameplay.Create` and `Gameplay.Step` are tupled static methods, so C# sees ordinary method calls instead of curried `FSharpFunc` values. `MotionState` exposes read-only float properties and hides its fields and non-default constructor.
 
-The state is a struct. An earlier implementation used a class and therefore allocated a new managed object on every `FixedUpdate`. A regression test now checks `IsValueType` and decodes the managed body of `Gameplay.Step` to reject an explicit `box` instruction. This removes that specific state-object allocation in the managed build without pretending the whole Player allocates zero bytes. A large struct would introduce copying costs, so keep state small and profile the real target.
+The state is a struct, so `Gameplay.Step` need not allocate a class for each returned state. An external test in the reconstructed project should check `IsValueType` and, when a performance budget justifies it, inspect the public call path for accidental boxing; this repository has no Unity plug-in regression test now. Even a passing test excludes only that one managed allocation source and does not prove the whole Player allocates zero bytes per frame. A large struct introduces copying costs, so keep it small and profile the real target.
 
 The transition clamps directional input, rejects non-finite values and negative time or speed, calculates velocity, and returns a new state. It has no `UnityEngine` reference, no current time lookup, and no mutation. Tests can supply every input directly.
 
@@ -245,20 +249,20 @@ The C# file is illustrative because the book site does not include UnityEngine a
   </assembly>
 </linker>
 ```
-Direct calls from the C# adapter should be visible to static reachability analysis. The managed plug-in sample still includes two explicit roots to make the intended cross-assembly bridge visible and to provide a concrete stripping artifact for the chapter.
+Direct calls from the C# adapter should be visible to static reachability analysis. The in-page template still supplies two explicit roots to show the intended cross-assembly bridge and a concrete stripping configuration.
 
 The file does not preserve all of `FSharp.Core`. Broad preservation can hide missing reflection design, enlarge the Player, and increase IL2CPP work. Add a type or member only when an actual dynamic path needs it, then test the relevant stripping level.
 
 Copy `link.xml` under the Unity project's `Assets` tree. A source file next to the external `.fsproj` has no effect until it becomes a Unity asset.
 
-### Record exactly what has been verified {#evidence-ledger}
+### Separate the in-page design from execution evidence {#evidence-ledger}
 
 The chapter provides the design; an adopting Unity project must complete this verification record:
 
 | Layer | Required check | What it verifies |
 | --- | --- | --- |
-| Locked .NET restore | Run in the copied project | The `netstandard2.1` graph resolves to the chosen FSharp.Core package |
-| Release plug-in build | Run in the copied project | F# source compiles with the selected SDK |
+| Locked .NET restore | Run in the reconstructed project | The `netstandard2.1` graph resolves to the chosen FSharp.Core package |
+| Release plug-in build | Run in the reconstructed project | F# source compiles with the selected SDK |
 | Output inspection | Check both DLLs and assembly identity | The plug-in and its exact FSharp.Core dependency are ready for import |
 | Focused rule/API test | Run outside Unity | Clamp/step behavior, struct state, and the CLR-facing API |
 | Unity import and C# compilation | Run in the selected Editor | UnityEngine host integration compiles |
@@ -335,7 +339,7 @@ Units of measure are erased in emitted .NET signatures. A C# float does not expr
 
 Do not throw on every expected gameplay branch. Model domain outcomes internally with unions or results, then translate them once into a C#-friendly result class, enum plus payload, `Try...` method, or explicit callback message.
 
-Reserve exceptions for broken contracts and failures the current call cannot represent. The managed plug-in sample rejects NaN, infinity, negative speed, and negative delta time because they indicate an invalid boundary call. The C# adapter prevents ordinary authoring errors before reaching it.
+Reserve exceptions for broken contracts and failures the current call cannot represent. The in-page plug-in code rejects NaN, infinity, negative speed, and negative delta time because they indicate an invalid boundary call. The C# adapter prevents ordinary authoring errors before reaching it.
 
 For asynchronous work, do not leak an F# `Async<'T>` into Unity. Publish `Task`, `ValueTask`, a C#-friendly polling handle, or a message interface according to the host. Define who can cancel and which thread receives completion. Unity object access still belongs to the main thread even if pure computation or I/O runs elsewhere.
 
@@ -377,7 +381,7 @@ Unity can reload scripts and assemblies, recreate components from serialized fie
 
 Treat `Awake` or another explicit composition point as construction from serialized configuration. Use `OnEnable` and `OnDisable` to pair subscriptions and cancellation. Do not assume a private managed cache survives reload, or that a non-null-looking `UnityEngine.Object` is still backed by a live native object.
 
-The managed plug-in sample reconstructs `MotionState` in `Awake` and resets input in `OnDisable`. It does not validate save-game persistence or domain reload; those require a larger Unity project test.
+The in-page adapter reconstructs `MotionState` in `Awake` and resets input in `OnDisable`. It neither implements nor validates save-game persistence or domain reload; those require a larger Unity project test.
 
 ## Respect the game loop and allocation budget {#game-loop}
 
@@ -460,7 +464,7 @@ Preservation prevents removal; it does not make an unsupported API, runtime code
 
 Burst documents HPC#, a restricted high-performance C#/.NET subset built around unmanaged values, Unity collections, jobs or function pointers, attributes, and IL post-processing. Managed objects, many runtime services, and ordinary exception behavior are outside that kernel model.
 
-The managed plug-in sample is a managed F# plug-in and does not validate Burst or the Job System. Adding `[BurstCompile]` to an F#-produced method does not establish support.
+The in-page template is only a managed F# plug-in design and does not validate Burst or the Job System. Adding `[BurstCompile]` to an F#-produced method does not establish support.
 
 When profiling justifies Burst, a practical boundary is:
 
@@ -492,7 +496,7 @@ Unity is part of the compiler and asset pipeline. Version it like one.
 
 ### Pin the Editor, modules, packages, and plug-in {#pin-editor}
 
-Record the full Editor patch, not only “Unity 6.3.” This sample selects 6000.3.22f1, the current 6.3 LTS patch when checked on 2026-08-25. It is a review target, not a claim about an installed tool.
+Record the full Editor patch, not only “Unity 6.3.” The in-page template selects 6000.3.22f1; Unity's official page records its release on 2026-08-13. This chapter rechecked that target on 2026-08-31, but does not claim it will remain the latest patch or that it is installed locally.
 
 Lock Unity packages and the F# NuGet graph. Build the F# DLL once from a clean locked restore, copy the exact dependency set into the Unity project, and hash or otherwise identify the imported artifacts. Avoid rebuilding the plug-in differently inside each platform job unless platform-specific output is intentional.
 
@@ -628,9 +632,9 @@ Invoke a specific Editor executable once with `-batchmode`, `-quit`, `-projectPa
 
 :::
 
-### Exercise 2: turn the managed plug-in sample into a Unity vertical slice {#exercise-02}
+### Exercise 2: turn the in-page plug-in template into a Unity vertical slice {#exercise-02}
 
-Design the smallest Unity project and verification record that could move the sample from “managed DLL builds” to “representative macOS ARM64 IL2CPP Player works.” Organize the record into four groups:
+Design the smallest Unity project and verification record that could move the in-page code from “reconstructable design only” to “representative macOS ARM64 IL2CPP Player works.” Organize the record into four groups:
 
 - **Assembly import:** artifact copying, `FSharp.Core` identity, assembly definitions, and Validate References.
 - **Editor behavior:** scene and input setup, Edit/Play Mode tests, reload behavior, and allocation profiling.

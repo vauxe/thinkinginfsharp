@@ -10,6 +10,12 @@ translationKey: part-06/ch-36-web-api-boundaries
 
 每一步都要回答同一个问题：由哪一层决定？HTTP 决定媒体类型与状态码；JSON 契约决定传输格式；DTO 映射检查必需数据；领域决定业务有效性与状态转换；适配器执行副作用；API 只负责协调，并翻译已声明的结果。
 
+本章仍是第 33–38 章的页内参考设计；当前仓库没有可直接运行的 `Booking.Api.fsproj`。若把设计落成项目，应先引用第 33–35 章的 Domain、Contracts 和 Infrastructure，再按 `Endpoints.fs` → `Program.fs` 编译。
+
+所有 `Endpoints.fs` 片段都位于 `namespace Booking.Api`，并依赖 ASP.NET Core、`System.Text.Json` 以及前三层的类型。片段之间还省略了依赖记录、输入准备和写响应辅助函数，所以它们不是可以分别复制运行的小程序。
+
+“Minimal API”和“路由处理程序”是 ASP.NET Core 术语，`RequestDelegate`、`HttpContext` 和 `WebApplication` 是 .NET/ASP.NET Core 类型，并非 F# 专有语法。F# 在这一边界主要提供函数、记录、可区分联合、模式匹配和 `task` 计算表达式。
+
 ## HTTP 负责解释外部请求 {#outer-interpreter}
 
 请求在产生副作用前会穿过多种表示：
@@ -68,7 +74,7 @@ let mapConsistent (application: WebApplication) (dependencies: ConsistentBooking
 
 ## 只发布四条职责明确的路由 {#route-contract}
 
-API 暴露命令，而不是用一个通用端点接收可辨识联合的序列化结果：
+API 暴露命令，而不是用一个通用端点接收可区分联合的序列化结果：
 
 | 方法与路由 | 请求表示 | 成功结果 | 含义 |
 |---|---|---|---|
@@ -323,9 +329,9 @@ API 不会查看私有预约字段来重新实现状态转换。它使用 `Decid
 | 事件追加 | 预约快照已更新 | 通知失败则为 `503` | 重试可能看到“已存在”，而通知仍缺失 |
 | 通知 | 所有已建模副作用完成 | 响应仍可能因取消丢失 | 没有响应不代表操作失败 |
 
-这层 HTTP 边界暴露这些事实，而不是用通用 `try/with` 把它们藏起来。第 37 章会加入原子容量与幂等策略，再定义重试和重启行为。在那之前，这个 API 是可运行的边界演示，不是具备一致性安全的商业预约服务。
+这层 HTTP 边界暴露这些事实，而不是用通用 `try/with` 把它们藏起来。第 37 章会加入原子容量与幂等策略，再定义重试和重启行为。在那之前，这只是边界设计，不是具备一致性安全的商业预约服务。
 
-对应测试确认了一个现象：通知失败时返回安全的 `503`，但记录状态已经是 `Booked`。测试揭示了问题，并没有解决问题。
+将设计落成项目时，应加入一项契约测试：通知失败返回安全的 `503`，但已追加的状态仍是 `Booked`。这项测试用来固定部分失败窗口，并不解决它。
 
 ## 把异常细节留在进程内 {#safe-errors}
 
@@ -382,6 +388,8 @@ let private safely handler (context: HttpContext) =
 
 宿主读取 `BOOKING_STORE_PATH`，还可读取 `BOOKING_EVENT_ID` 和 `BOOKING_CAPACITY`。随后，它构造经过验证的配置与领域值。无效设置只产生 `invalid_booking_store`、`invalid_event_id` 或 `invalid_capacity`，不会打印原始值。
 
+下方 `Program.fs` 是第 38 章完成后的最终宿主预览，不是只有本章就能编译的程序。`AtomicBookingStore` 和 `IdempotentBookingService` 由第 37 章定义，`BookingDiagnostics` 由第 38 章定义。若按章节顺序实现，可暂时使用前文的 `BookingEndpoints.map` 与第 35 章端口，或等后两章完成后再编写这个文件。
+
 ```fsharp:line-numbers [Program.fs]
 [<EntryPoint>]
 let main arguments =
@@ -425,15 +433,15 @@ let main arguments =
 
 环境变量能让值不进入已提交代码，但 Microsoft 明确警告，它们通常以明文保存；进程或机器失陷时仍然可见。开发 Secret Manager 只用于开发，部署时应选择受控的生产机密存储。
 
-冒烟测试中观察到的默认宿主日志会记录方法、路由、状态、内容类型、长度和耗时，不记录请求体或配置值。不要随意启用请求/响应体日志：它会缓冲数据，并可能捕获个人信息或凭据。应先分类与脱敏。
+将项目落地后，应在冒烟验证中确认宿主日志只包含允许的方法、路由、状态、内容类型、长度和耗时，不包含请求体或配置值。不要随意启用请求/响应体日志：它会缓冲数据，并可能捕获个人信息或凭据。应先分类与脱敏。
 
 Kestrel 的 `Server` 头已关闭，以减少无必要的实现披露。这是加固，不是身份验证或授权。
 
-## 同时测试管线与传输 {#testing}
+## 规划管线与传输验证 {#testing}
 
-契约测试使用官方 `Microsoft.AspNetCore.TestHost` 包。每个测试都构建真实 `WebApplication`、映射真实端点、注入受控端口、启动内存管线，再通过 `HttpClient` 发送请求。
+把参考设计落成项目后，契约测试应使用官方 `Microsoft.AspNetCore.TestHost` 包。每个测试构建真实 `WebApplication`、映射实际端点、注入受控端口、启动内存管线，再通过 `HttpClient` 发送请求。
 
-聚焦用例覆盖：
+最低用例应覆盖：
 
 - 成功 JSON 的具体格式、`Location`、查询、确认与取消；
 - 格式错误 JSON、属性大小写错误、未知属性、缺失字段、空请求体与错误媒体类型；
@@ -448,9 +456,9 @@ Kestrel 的 `Server` 头已关闭，以减少无必要的实现披露。这是�
 
 两种测试都不能取代另一种。为每条契约断言启动随机真实端口会增加噪声；只依赖 `TestServer` 又会让 Kestrel 配置得不到观察。
 
-## 在本地运行 API {#local-run}
+## 组装后的本地运行模板 {#local-run}
 
-把本章文件组装进 ASP.NET Core 项目后，请替换下方模板项目路径。命令使用临时快照，并且只绑定到回环地址。
+当前仓库不能直接执行下方命令。把第 33–38 章的文件组装进 ASP.NET Core 项目并通过构建后，再把 `path/to/Booking.Api.fsproj` 替换为实际路径。这份命令模板使用临时快照，并且只绑定到回环地址。
 
 ### 启动宿主 {#local-start}
 
@@ -488,7 +496,7 @@ curl --fail-with-body -i \
   http://127.0.0.1:5086/api/bookings/REQ-36
 ```
 
-第一个响应是 `201`，包含 `Location: /api/bookings/REQ-36`，并返回待确认的 `BookingDto`。第二个响应是 `200`，内容是已持久化表示。
+若组装后的实现符合本章契约，第一个响应应是 `201`，包含 `Location: /api/bookings/REQ-36`，并返回待确认的 `BookingDto`。第二个响应应是 `200`，内容是已持久化表示。
 
 ### 观察严格失败 {#local-failure}
 

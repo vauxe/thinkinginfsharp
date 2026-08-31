@@ -10,6 +10,8 @@ File I/O adds three concerns that pure code does not have: an operation can thro
 
 Keep these concerns separate. `use` disposes a resource when its lexical scope ends. `try/with` translates only exceptions the caller can act on. Once bytes or text have been read, domain parsing remains an ordinary typed function. This design states each responsibility clearly without inventing a universal error wrapper.
 
+The first `try/with` block below is a syntax skeleton: `operation`, `KnownException`, and `KnownFailure` are placeholders. The file-reading blocks that follow belong to one executable example at `examples/chapters/ch21/resources.fsx`; required namespaces, helpers, inputs, and outputs are introduced before their first use.
+
 ## Exceptions interrupt normal expression evaluation {#exception-flow}
 
 An F# `try/with` has a value:
@@ -64,6 +66,9 @@ For asynchronous resources, the computation-expression builder determines how `u
 The shared helper accepts acquisition and an operation:
 
 ```fsharp:line-numbers
+open System
+open System.IO
+
 let withReader (openReader: string -> StreamReader) path operation =
     use reader = openReader path
     operation reader
@@ -122,7 +127,28 @@ Do not log the same exception at every layer. Either handle it and record the ou
 
 ## Test both completion paths with real resources {#resource-tests}
 
-The example creates a unique directory beneath `Path.GetTempPath()`, writes one file, and opens actual `StreamReader` instances:
+The example creates a unique directory beneath `Path.GetTempPath()`, writes one file, and opens actual `StreamReader` instances. The test block first uses these two helpers: one observes whether a reader has been disposed, and the other converts internal results containing exception objects into stable demonstration text.
+
+```fsharp:line-numbers
+let readerIsDisposed (reader: StreamReader option) =
+    match reader with
+    | None -> false
+    | Some value ->
+        try
+            value.Peek() |> ignore
+            false
+        with :? ObjectDisposedException ->
+            true
+
+let renderReadResult result =
+    match result with
+    | Ok text -> $"ok:{text}"
+    | Error(PathNotFound _) -> "path-not-found"
+    | Error(AccessDenied _) -> "access-denied"
+    | Error(IoFailure _) -> "io-failure"
+```
+
+The resource test then runs:
 
 ```fsharp:line-numbers
 let tempName = Guid.NewGuid().ToString("N")
@@ -191,6 +217,9 @@ finally
         Directory.Delete(tempDirectory, recursive = true)
 
     cleanupRemoved <- not (Directory.Exists tempDirectory)
+
+assert cleanupRemoved
+printfn "Cleanup: removed=%b" cleanupRemoved
 ```
 Two opener functions retain reader references solely for test observation. After the success operation returns, calling `Peek` on the retained reader raises `ObjectDisposedException`. A second operation reads the file and then raises `InvalidDataException`; after the exception is caught outside `withReader`, that reader is disposed too.
 
@@ -199,6 +228,18 @@ This directly tests both control paths. It proves more than checking for a `use`
 The outer `try/finally` handles directory cleanup. The directory name contains a fresh GUID, and deletion targets only that resolved child of the platform temporary directory. The final assertion confirms that the directory no longer exists.
 
 Testing with real temporary files proves the .NET boundary. Pure parsing tests should still use in-memory strings; they do not need a filesystem fixture.
+
+Run `dotnet fsi examples/chapters/ch21/resources.fsx` from the repository root. It prints:
+
+```text
+Success: text=42 disposed=true
+Failure: caught=true disposed=true
+Read result: ok:42
+Missing result: path-not-found
+Cleanup: removed=true
+```
+
+The final line follows an assertion after `finally`, so it confirms that the task-owned directory was actually removed rather than merely recording an intention to clean it up.
 
 ## Review more than the success value {#io-contract}
 

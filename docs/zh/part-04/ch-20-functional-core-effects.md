@@ -10,6 +10,8 @@ translationKey: part-04/ch-20-functional-core-effects
 
 F# 函数本身就是值，因此改法可以很小：读取一次外部信息并把结果作为数据传入，或者传入一个只执行所需操作的函数。这样，领域核心会通过普通实参接收全部必要信息。当一组相关操作或生命周期需要对象时，仍然可以使用对象与接口。
 
+本章主线代码按顺序组成一个 `.fsx` 脚本：类型只定义一次，后续代码块继续使用前文的 `Campaign`、`Candidate`、`RuntimeEffects` 和函数。第一个代码块先打开 `System`，因此后文的时间、随机数、环境和测试集合都有明确来源。
+
 ## 隐藏输入仍然是输入 {#hidden-input}
 
 设想一个函数的可见形参是请求，但其函数体读取当前时间、选择随机数并读取 `BOOKING_REGION`。它的真实输入更接近：
@@ -29,6 +31,8 @@ F# 函数本身就是值，因此改法可以很小：读取一次外部信息�
 示例只建模活动决策所需的事实：
 
 ```fsharp:line-numbers
+open System
+
 type Campaign =
     { OpensAt: DateTimeOffset
       ClosesAt: DateTimeOffset
@@ -151,7 +155,7 @@ let settingsFrom values = fun name -> Map.tryFind name values
 闭包尤其适合部分配置：
 
 ```fsharp
-let campaignSettings = settingsFrom (Map [ "BOOKING_REGION", "eu-west" ])
+let campaignSettings = settingsFrom (Map [ ("BOOKING_REGION", "eu-west") ])
 ```
 
 结果只公开调用方需要的操作，不会暴露映射表，也无需新建具名类型。
@@ -260,6 +264,12 @@ let closedDecision =
 
 assert (earlyDecision = NotOpen)
 assert (closedDecision = Closed)
+
+printfn
+    "decision=%A fallback=%A calls=%A"
+    firstDecision
+    fallbackDecision
+    (List.ofSeq calls)
 ```
 断言验证：
 
@@ -268,6 +278,14 @@ assert (closedDecision = Closed)
 - 在已捕获数据上重放纯核心会产生相同决策，且不会增加依赖调用；
 - 缺失设置使用活动中配置的后备值；
 - 根据代码中的比较，开放时刻包含在内，关闭时刻排除在外。
+
+把本章主线片段按顺序保存为 `effects.fsx` 并运行 `dotnet fsi effects.fsx`，全部断言通过后会输出：
+
+```text
+decision=Accepted "BOOK-eu-west-0007" fallback=Accepted "BOOK-global-0042" calls=["clock"; "random:10000"; "environment:BOOKING_REGION"]
+```
+
+这行输出同时说明纯决策的结果、缺省区域路径，以及三个外部依赖的实际调用顺序。
 
 测试不会 sleep、修改进程环境，也不会猜测某个种子会让 `Random` 返回什么。种子可以让某种实现可重现，但断言框架生成的具体序列会让领域测试耦合到领域并未定义的算法。固定函数直接表达真实要求：返回这个范围内的抽取值。
 

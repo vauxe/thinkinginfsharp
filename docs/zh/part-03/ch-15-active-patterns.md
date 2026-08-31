@@ -12,7 +12,7 @@ translationKey: part-03/ch-15-active-patterns
 
 ## 优先使用普通模式 {#ordinary-patterns-first}
 
-若可见可辨识联合已经准确表达消费者所需案例，就直接匹配。若只有一个调用位置需要某项计算，返回 `option` 或 `Result` 的具名函数通常更容易调用、测试与组合。当反复出现的另一种视图能让多处匹配使用领域语言阅读时，活动模式才值得引入这套语法。
+若可见可区分联合已经准确表达消费者所需案例，就直接匹配。若只有一个调用位置需要某项计算，返回 `option` 或 `Result` 的具名函数通常更容易调用、测试与组合。当反复出现的另一种视图能让多处匹配使用领域语言阅读时，活动模式才值得引入这套语法。
 
 它尤其适合：
 
@@ -50,6 +50,15 @@ let (|Recognized|_|) input =
 
 ## 完整活动模式划分全部输入 {#complete-active-patterns}
 
+先定义本节要观察的状态。把这段起点和后续完整活动模式保存为 `ch15-active-patterns.fsx`：
+
+```fsharp:line-numbers
+type BookingStatus =
+    | Pending
+    | Confirmed of confirmationCode: string
+    | Cancelled of reason: string
+```
+
 示例把三个声明状态归入一个双案例工作流视图：
 
 ```fsharp:line-numbers
@@ -68,6 +77,14 @@ printfn "Complete: pending=%s" (describeStatus Pending)
 printfn "Complete: confirmed=%s" (describeStatus (Confirmed "C-42"))
 printfn "Complete: cancelled=%s" (describeStatus (Cancelled "duplicate"))
 ```
+这段代码承接 `BookingStatus`，输出：
+
+```text
+Complete: pending=open:pending
+Complete: confirmed=open:confirmed:C-42
+Complete: cancelled=closed:duplicate
+```
+
 `Open` 与 `Closed` 覆盖每个 `BookingStatus`。识别器必须为每个输入返回其中一个活动案例，同时包含两者的匹配具有穷尽性。每个案例都可以携带该视图所需的数据。
 
 这不会向 `BookingStatus` 添加新状态。即使该工作流把 `Pending` 与 `Confirmed` 都归为打开，二者仍是不同领域状态。这种重新分类没有改写原模型，因而可以按不同用途提供不同视图。
@@ -76,7 +93,7 @@ printfn "Complete: cancelled=%s" (describeStatus (Cancelled "duplicate"))
 
 ### 单一完整案例只负责分解 {#single-case-complete}
 
-有时每个输入都具备一种有用投影：
+有时每个输入都具备一种有用投影。下面只是 API 形状示意：它假设前文已有一个公开 `Booking` 模块及其三个读取函数，不是独立脚本。
 
 ```fsharp
 let (|BookingSummary|) booking =
@@ -102,7 +119,21 @@ let (|Positive|_|) value =
 
 `Some payload` 表示具名案例匹配，并绑定其中的数据。`None` 表示该模式没有匹配，因此匹配表达式会尝试后续子句。部分模式不必彼此互斥；由上到下的子句顺序会解决重叠。
 
-示例把正整数文本识别为座位量：
+先定义保留详细失败的解析函数；随后，活动模式有意把错误压缩成“不匹配”：
+
+```fsharp:line-numbers
+type SeatCountError =
+    | NotAnInteger of raw: string
+    | NotPositive of actual: int
+
+let parseSeatCount (raw: string) =
+    match System.Int32.TryParse raw with
+    | true, value when value > 0 -> Ok value
+    | true, value -> Error(NotPositive value)
+    | false, _ -> Error(NotAnInteger raw)
+```
+
+现在可以把正整数文本识别为座位量：
 
 ```fsharp:line-numbers
 let (|SeatCount|_|) raw =
@@ -121,11 +152,17 @@ printfn
     (describeRawSeatCount "0")
     (describeRawSeatCount "oops")
 ```
+这段代码承接 `parseSeatCount`，输出：
+
+```text
+Partial: three=matched:3 zero=not-matched text=not-matched
+```
+
 `"0"` 与 `"oops"` 都变成“不匹配”。只有当调用方只需要是/否分类时，这才合适。
 
 ### 不匹配比有类型的错误信息更少 {#non-match-versus-error}
 
-底层 `parseSeatCount` 返回两种不同错误。把该 `Result` 转成 `Some`/`None` 会有意擦除原因。脚本另外打印明确错误，让这项损失可见。
+底层 `parseSeatCount` 返回两种不同错误：直接调用时，`"0"` 得到 `Error(NotPositive 0)`，`"oops"` 得到 `Error(NotAnInteger "oops")`。把该 `Result` 转成 `Some`/`None` 会有意擦除这些原因。
 
 以下情况使用部分活动模式：
 
@@ -185,6 +222,8 @@ printfn
     singleLabel
     singleChecks
 ```
+这段代码可单独运行，输出 `Parameterized: six=large:6/1 three=group:3/2 one=single:1/2`。
+
 六个座位经过一次检查就满足第一条子句。三个座位先不满足 `AtLeast 5`，再满足 `AtLeast 2`，所以识别器运行两次。一个座位也会检查子句中的两个参数化模式，随后才进入后备分支。
 
 计数器用于展示求值次数，并非推荐设计。每个模式位置都会执行代码；重构子句可能改变运行次数。正确性绝不能依赖隐藏的可变调用计数。
@@ -200,7 +239,7 @@ printfn
 - 吞掉异常或详细领域错误；
 - 让后续子句含义发生变化的可变操作。
 
-应先取得数据，再匹配所得值：
+应先取得数据，再匹配所得值。下面是依赖注入的工作流骨架：它假设 `Booking.status` 和前面的 `Open | Closed` 已存在，因此用于说明边界，而不是独立运行。
 
 ```fsharp
 let decide loadBooking bookingId =
@@ -315,7 +354,7 @@ let renderStatus (StatusLabel label) = label
 
 ### 练习 2：保留有用失败 {#exercise-02}
 
-部分 `SeatCount` 模式会把非数字文本与非正整数都转成不匹配。另写一个返回不同错误的 `parseSeatCount : string -> Result<int, SeatCountError>`。再分别指出一个适合部分模式的调用处，以及一个必须使用 `Result` 的调用处。
+部分 `SeatCount` 模式会把非数字文本与非正整数都转成不匹配。检查本章的 `parseSeatCount : string -> Result<int, SeatCountError>` 如何保留不同错误，再分别指出一个适合部分模式的调用处，以及一个必须使用 `Result` 的调用处。
 
 准确说明结果变成 option 时丢失了什么信息。
 

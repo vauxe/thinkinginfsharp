@@ -10,6 +10,8 @@ translationKey: part-04/ch-22-async-task
 
 先确定谁创建工作、何时启动、由谁等待并处理结果，再讨论语法。明确这些责任后，`async {}` 和 `task {}` 才是用途不同的两种工具，而不是可以互换的写法。
 
+本章三个主线代码块按顺序组成 `examples/chapters/ch22/async-task.fsx`。其中 `newGate` 是本章定义的测试辅助函数，不是 F# 或 .NET 的内置名称；下面会在第一次使用前给出定义。
+
 ## 稍后完成的操作不只由结果类型决定 {#three-questions}
 
 面对任何稍后完成的操作，都要问三个问题：
@@ -34,6 +36,11 @@ translationKey: part-04/ch-22-async-task
 示例创建两个控制信号：`asyncEntered` 记录是否进入主体，`asyncRelease` 阻止主体完成。测试不使用计时器，也不假设调度器速度。
 
 ```fsharp:line-numbers
+open System.Threading.Tasks
+
+let newGate<'T> () =
+    TaskCompletionSource<'T>(TaskCreationOptions.RunContinuationsAsynchronously)
+
 let asyncEntered = newGate<bool> ()
 let asyncRelease = newGate<unit> ()
 
@@ -171,6 +178,19 @@ F# 任务表达式也可以直接用 `let!` 绑定 `Async<'T>`。选择能让外
 ```
 
 反复进行 `Async` → `Task` → `Async` 转换，会掩盖哪个调用启动工作、哪个取消策略生效。
+
+从仓库根目录运行 `dotnet fsi examples/chapters/ch22/async-task.fsx`，会按发生顺序输出：
+
+```text
+Async before start: entered=false
+Async after StartAsTask: entered=true completed=false
+Async result: async-done
+Task after call: entered=true completed=false
+Task result: task-done
+Interop: async-to-task=21 task-to-async=42
+```
+
+前两行是本章最关键的对比：构造 `Async` 值后主体尚未进入；调用任务工厂后，任务主体已经运行到第一个未完成的等待点。
 
 ## 根据周边 API 选择 {#choice}
 

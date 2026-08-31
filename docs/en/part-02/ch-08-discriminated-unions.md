@@ -33,6 +33,12 @@ printfn
     contradictoryFlags.IsConfirmed
     contradictoryFlags.IsCancelled
 ```
+This deliberately weak model runs by itself and prints:
+
+```text
+Flag model contradiction: pending=true confirmed=true cancelled=false
+```
+
 The record ensures that all three fields exist and are `bool`, but cannot say “exactly one is true.” Each added switch doubles the combination space. A validation function must reject contradictions after every construction and update.
 
 Worse, case-specific data often gets flattened into nullable or optional fields. Why does `ConfirmationCode` exist when a booking is unconfirmed? What should `CancellationReason` contain for a confirmed booking? The data relationship survives only as convention.
@@ -49,6 +55,8 @@ type BookingStatus =
     | Confirmed of confirmationCode: string
     | Cancelled of reason: string
 ```
+Save this definition as `ch08-discriminated-unions.fsx`. Except for the non-exhaustive counterexample, later blocks continue from it in reading order.
+
 `BookingStatus` is a discriminated union. `Pending`, `Confirmed`, and `Cancelled` are its three **union cases**. A value is constructed by exactly one case at a time, so no value can be both pending and confirmed.
 
 `Pending` carries no data. `Confirmed` carries a `string` field named `confirmationCode`, while `Cancelled` carries a `reason`. These are not optional properties shared by all three cases; each field is part of its particular case.
@@ -86,6 +94,12 @@ let descriptions = statuses |> List.map describeStatus
 
 printfn "Statuses: %A" descriptions
 ```
+This block continues from `BookingStatus` and prints:
+
+```text
+Statuses: ["pending"; "confirmed:C-42"; "cancelled:duplicate"]
+```
+
 Every branch returns `string`, so the whole `match` is a `string` expression. The compiler knows the closed set of `BookingStatus` cases and checks whether the patterns cover all of them.
 
 If the type later gains `Waitlisted of position: int`, every explicit match that omits it produces a diagnostic. Model evolution becomes a compiler-located change list instead of an omission discovered on a rare runtime path.
@@ -118,6 +132,8 @@ let confirmationCode status =
 
 printfn "Confirmed case carries code: %s" (confirmationCode (Confirmed "C-42") |> Option.defaultValue "none")
 ```
+This block continues from `BookingStatus` and prints `Confirmed case carries code: C-42`.
+
 `confirmationCode` returns `string option`: confirmed state yields `Some code`, and other states yield `None`. This reuses the minimal `option` intuition established for `List.choose` in Chapter 5. The next chapter treats missing-value composition systematically.
 
 Code cannot read a nonexistent confirmation code from `Pending`. A successful `Confirmed code` pattern establishes both the case and the availability of `code`.
@@ -147,6 +163,13 @@ let transitioned = Pending |> confirm "C-99"
 printfn "Transition: pending -> %s" (describeStatus transitioned)
 printfn "All descriptions: %d" (List.length descriptions)
 ```
+This block also continues from the earlier `describeStatus` and `descriptions` definitions. It prints:
+
+```text
+Transition: pending -> confirmed:C-99
+All descriptions: 3
+```
+
 `confirm` constructs `Confirmed code` from `Pending`; for already confirmed or cancelled state, it returns the original value. The function does not mutate its input, and its output remains inside the legal `BookingStatus` cases.
 
 “Keep the original state on an invalid transition” is a teaching choice, not a general booking rule. Repeated confirmation might be an idempotent success or a conflict; confirmation after cancellation usually deserves a contextual failure. Chapter 9 uses `Result` to put that decision in the return type.

@@ -20,7 +20,7 @@ translationKey: part-01/ch-01-first-session
 dotnet --version
 ```
 
-第一章只使用 .NET SDK。编辑器或 IDE 可以按需选择，示例直接使用 SDK 自带的包。命令前的提示符用于标明终端环境，实际输入从提示符后开始。
+第一章只使用 .NET SDK 提供的工具和库，不需要另外安装包。编辑器或 IDE 可以按需选择。若命令示例带有终端提示符，只输入提示符后面的内容。
 
 ## 选择最快的验证方式 {#feedback-loop}
 
@@ -71,7 +71,7 @@ dotnet run --project HelloFSharp
 
 ## 把第一个程序理解为一组表达式 {#expressions}
 
-先看每个表达式产生什么值，以及这些值如何进入后续计算。暂时不熟悉的符号会在后文逐一解释。
+把下面的代码保存为 `ch01-first-session.fsx`，再运行前文给出的脚本命令。这个代码块包含运行所需的全部定义。先观察输出顺序；暂时不熟悉的符号会在后文逐一解释。
 
 ```fsharp:line-numbers
 let eventName = "Functional Foundations"
@@ -85,6 +85,15 @@ let printResult = printfn "%s" summary
 printfn "Seats available: %b" hasSeats
 printfn "Printing returned: %A" printResult
 ```
+
+输出为：
+
+```text
+Functional Foundations: 22 seats remaining
+Seats available: true
+Printing returned: ()
+```
+
 ### 字面量产生值 {#literals-and-values}
 
 `"Functional Foundations"`、`40`、`18` 和 `0` 是**字面量**：它们直接在源码中表示值。`let eventName = ...` 为右侧计算出的值建立名称。显式可变存储使用另一种构造，后续章节会介绍。

@@ -33,15 +33,17 @@ Library.fsi  ── 约束 ──▶  Library.fs
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
+    <OutputType>Exe</OutputType>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Include="Library.fsi" />
     <Compile Include="Library.fs" />
+    <Compile Include="Program.fs" />
   </ItemGroup>
 </Project>
 ```
-签名和实现使用相同的基本文件名，而且签名紧邻实现之前：先是 `Library.fsi`，然后是 `Library.fs`。颠倒顺序会让编译器过早处理实现；在两者之间插入依赖代码，则会破坏这对文件应有的编译位置。
+这是仓库中 `examples/chapters/ch17/Ch17.fsproj` 的完整内容。签名和实现使用相同的基本文件名，而且签名紧邻实现之前：先是 `Library.fsi`，然后是 `Library.fs`；最后的 `Program.fs` 充当调用方。颠倒前两个文件的顺序会让编译器过早处理实现；在两者之间插入依赖代码，则会破坏这对文件应有的编译位置。
 
 一个实现文件至多对应一个这样的同名签名文件。签名不是供多个无关 `.fs` 文件不断追加的头文件，后续文件也不能重新打开实现以访问签名省略的声明。
 
@@ -192,7 +194,7 @@ module SeatAllocation =
 - 柯里化与元组化的参数结构——即元数——必须匹配；
 - 相关的可访问性、`inline` 与 `mutable` 修饰符必须匹配；
 - 字面量属性和值必须匹配；
-- 记录或可辨识联合要么公开全部字段/案例，要么通过抽象声明全部隐藏；
+- 记录或可区分联合要么公开全部字段/案例，要么通过抽象声明全部隐藏；
 - 公开声明的顺序必须与实现顺序兼容。
 
 例如，下面是两个不同的 API：
@@ -239,9 +241,11 @@ F# 自身编写的声明不使用 `protected` 关键字。也要记得第 12 章
 - 用于预期拒绝的 `Result` 与透明错误联合类型；
 - 对构造时建立不变量的值使用抽象表示。
 
-这些选择让消费者代码保持直接：
+这些选择让消费者代码保持直接。下面的片段假定已经打开本章模块；`capacity` 是先前由 `Capacity.create` 得到的值：
 
 ```fsharp
+open ThinkingInFSharp.Ch17.SeatAllocation
+
 let tryAllocate capacity requested =
     requested |> allocate capacity
 ```
@@ -252,9 +256,22 @@ let tryAllocate capacity requested =
 
 ## 通过调用方可见的公共 API 测试 {#consumer-tests}
 
-本章测试位于另一个项目中，并引用库程序集。它们只能通过 `Capacity.create` 和 `SeatCount.create` 构造值，只能通过公共函数分配，并通过已发布模块观察结果。它们覆盖两个智能构造函数、成功分配和容量不足。
+本章用两个调用方检查契约。`Program.fs` 排在签名/实现之后，只能通过 `Capacity.create` 和 `SeatCount.create` 构造值，再通过公共函数完成分配和读取结果：
 
-这些成功用例证明 API 可以正常使用。另一个预期编译失败的独立用例证明它确实隐藏了实现：
+```fsharp:line-numbers [Program.fs — 核心调用]
+let capacity = Capacity.create 6 |> getOk "capacity"
+let requested = SeatCount.create 4 |> getOk "requested seats"
+let allocation = allocate capacity requested |> getOk "allocation"
+
+printfn
+    "allocated requested=%d remaining=%d"
+    (allocation |> Allocation.requested |> SeatCount.value)
+    (allocation |> Allocation.remaining)
+```
+
+这里的 `getOk` 是同一文件中用于示例断言的辅助函数：收到 `Ok value` 就返回 `value`，收到 `Error` 就让示例立即失败。完整文件还检查容量不足路径。这样，片段中的 `capacity`、`requested` 和输出来源都明确，不需要猜测隐藏上下文。
+
+成功调用方证明公开 API 足以完成任务。另一个独立项目引用该程序集，并用预期编译失败的调用证明实现确实被隐藏：
 
 ```fsharp:line-numbers [Consumer.fs — 预期错误]
 namespace ThinkingInFSharp.Ch17.InvalidConsumer
@@ -276,6 +293,27 @@ module Consumer =
 | 行为测试通过 | 已发布操作保持所声明的结果与不变量 |
 
 这些检查都不能抵御恶意反射、不安全代码、损坏的持久化数据或可信实现内部的 bug。应准确说明保证范围。
+
+在仓库根目录运行正向示例：
+
+```console
+dotnet run --project examples/chapters/ch17/Ch17.fsproj -c Release
+```
+
+输出固定为：
+
+```text
+allocated requested=4 remaining=2
+rejected requested=7 available=6
+```
+
+再运行隐藏表示用例：
+
+```console
+dotnet build examples/expected-errors/ch17-hidden-representation/Ch17HiddenRepresentation.fsproj -c Release
+```
+
+第二条命令必须以 `FS0800` 失败；若它构建成功，才表示封装发生了回归。
 
 ## 把签名修改视为 API 修改 {#evolution}
 
@@ -304,22 +342,6 @@ module Consumer =
 对于短期实验、快速变化的私有应用代码，或者普通访问修饰符已经足够的文件，签名可能为时过早。维护两份文件需要精力；若 API 尚未稳定，频繁而无害的实现修改也可能产生噪声。
 
 应在代表性调用方式显示出合适的 API 后，再生成或编写签名，不要在问题尚未清楚时过早固定它。一旦采用，就让签名与实现文件相邻，认真处理构建警告，并把签名差异作为公共 API 修改来评审。
-
-## 构建并验证示例 {#build-test}
-
-在仓库根目录运行：
-
-```console
-dotnet build examples/chapters/ch17/Ch17.fsproj -c Release
-```
-
-下面这条命令被有意设计为失败，并由独立检查验证：
-
-```console
-dotnet build examples/expected-errors/ch17-hidden-representation/Ch17HiddenRepresentation.fsproj -c Release
-```
-
-它必须产生 `FS0800`，以验证表示确实被隐藏。如果这个无效调用方构建成功，那是回归，不是示例通过。
 
 ## 练习 {#exercises}
 

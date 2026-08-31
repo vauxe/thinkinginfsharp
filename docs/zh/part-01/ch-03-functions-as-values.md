@@ -14,7 +14,7 @@ translationKey: part-01/ch-03-functions-as-values
 
 ## 函数绑定仍然是绑定 {#function-binding}
 
-先看一个计算预约行金额的函数：
+先看一个计算预约金额的自包含示例。单价是 `decimal`，座位数是 `int`；函数先固定单价，再计算三个座位的金额：
 
 ```fsharp:line-numbers
 let lineTotal unitPrice seats = unitPrice * decimal seats
@@ -23,6 +23,9 @@ let totalForThree = standardLineTotal 3
 
 printfn "Curried total: %M" totalForThree
 ```
+
+输出为 `Curried total: 58.50`。
+
 `let lineTotal unitPrice seats = ...` 建立名称 `lineTotal` 与一个函数值之间的绑定。`unitPrice` 和 `seats` 是**形参**：它们代表函数以后接收的输入。调用 `lineTotal 19.50m 3` 时，`19.50m` 与 `3` 是**实参**：调用方实际提供的值。
 
 定义函数会创建函数值。函数收到足够实参后，主体 `unitPrice * decimal seats` 开始求值。最后一个表达式直接提供结果，因此普通 F# 函数用该值取代 `return` 语句。
@@ -86,6 +89,9 @@ let tupledTotal = lineTotalTupled (19.50m, 3)
 
 printfn "Tupled total: %M" tupledTotal
 ```
+
+这个代码块也可以单独运行，输出同样是 `58.50`。
+
 这里 `(unitPrice, seats)` 是一个元组模式，拆开单个实参中的两个位置。签名是：
 
 ```text
@@ -94,13 +100,13 @@ decimal * int -> decimal
 
 类型中的 `*` 连接元组各项的类型。柯里化版本连续接收两个实参；元组版本接收一个包含两项的实参。它们通过不同的函数类型算出相同结果。
 
-惯用的 `let` 绑定函数通常优先柯里化，便于部分应用和高阶组合。如果一个输入在领域上天然就是成组数据，元组也很清楚。.NET 方法的调用写法经常包含括号和逗号，但其 CLR 调用方式不能简单当成普通元组函数；互操作章节会单独处理。
+惯用的 `let` 绑定函数通常优先柯里化，便于部分应用和高阶组合。如果几个值在问题中本来就是一组数据，元组输入也很清楚。.NET 方法虽然经常使用括号和逗号，但不能因此把它们都当成普通的元组函数；互操作章节会单独解释两者的区别。
 
 ## 部分应用保留剩余工作 {#partial-application}
 
 向柯里化函数提供少于全部的实参，会得到等待剩余实参的新函数。这叫**部分应用**，不是错误的“不完整调用”。
 
-在第一个示例中，`lineTotal 19.50m` 得到 `int -> decimal`，并绑定为 `standardLineTotal`。单价被固定，调用方以后只需提供座位数。相同思路也用于服务费：
+在第一个示例中，`lineTotal 19.50m` 得到 `int -> decimal`，并绑定为 `standardLineTotal`。单价被固定，以后只需提供座位数。下面的代码继续使用第一个示例定义的 `totalForThree`，为金额加上固定服务费：
 
 ```fsharp:line-numbers
 let addFee fee subtotal = subtotal + fee
@@ -109,6 +115,9 @@ let finalTotal = addServiceFee totalForThree
 
 printfn "With service fee: %M" finalTotal
 ```
+
+与第一个代码块一起运行时，最后一行输出 `With service fee: 60.50`。
+
 `addFee` 的类型是 `decimal -> decimal -> decimal`。`addFee 2.00m` 返回 `decimal -> decimal`，新函数在以后调用时仍能使用已经提供的 `2.00m`。这种会记住周围值的函数称为**闭包**。运行时可以优化它的具体表示，但函数仍会保留并使用这个值。
 
 参数顺序因此是 API 设计的一部分。较稳定、适合预先固定的配置通常放在前面；频繁变化、最终流经计算的数据通常放在后面。第 13 章会系统讨论面向管道的参数顺序，现在先从部分应用观察这一后果。
@@ -123,13 +132,16 @@ let incrementAnonymous = fun seats -> seats + 1
 
 printfn "Named and anonymous: %d, %d" (increment 3) (incrementAnonymous 3)
 ```
+
+这个代码块可以单独运行，两个调用都得到 `4`。
+
 `fun seats -> seats + 1` 可以读作“接收 seats，产生 seats 加一”。箭头左侧是形参模式，右侧是主体表达式。`increment` 与 `incrementAnonymous` 都推断为 `int -> int`，调用结果也相同。
 
 名称能记录意图并改善诊断，所以不要为了短而把所有函数改成匿名形式。匿名函数最适合局部行为，尤其是作为另一个函数的实参；相同逻辑被多处使用或本身代表领域概念时，命名通常更清楚。
 
 ## 高阶函数组合行为 {#higher-order-functions}
 
-**高阶函数**至少做一件事：接收函数值，或返回函数值。部分应用已经展示了返回函数；下面展示接收函数：
+**高阶函数**至少做一件事：接收函数值，或返回函数值。部分应用已经展示了返回函数；下面的代码继续使用上一小节定义的 `increment`，展示如何接收函数：
 
 ```fsharp:line-numbers
 let applyTwice transform value = transform (transform value)
@@ -137,6 +149,9 @@ let incrementedTwice = applyTwice increment 3
 
 printfn "Applied twice: %d" incrementedTwice
 ```
+
+与上一代码块一起运行时，结果是 `Applied twice: 5`。
+
 `applyTwice` 不知道 `transform` 的具体业务含义。它只要求第一次变换的输出能再次作为同一变换的输入，因此 FSI 推断：
 
 ```text
@@ -158,6 +173,9 @@ let unchangedText = identity "F#"
 
 printfn "Identity values: %d, %s" unchangedNumber unchangedText
 ```
+
+这个代码块可以单独运行，输出 `Identity values: 42, F#`。
+
 `identity` 只返回它收到的值，主体没有要求具体类型。编译器把其类型**自动泛化**为：
 
 ```text
@@ -239,7 +257,7 @@ printfn "Applied twice: %d" incrementedTwice
 1. 写出两者完整类型与合法调用；
 2. 只固定单价 `19.50m` 时，哪个版本可以直接部分应用？
 3. `addServiceFee` 保留了什么值，剩余输入类型是什么？
-4. 若单价和座位数在领域中始终作为一个不可分的坐标对传递，元组版本为何可能更清楚？
+4. 若单价和座位数在问题中始终作为一组不可分的输入传递，元组版本为何可能更清楚？
 
 
 ::: details 参考答案

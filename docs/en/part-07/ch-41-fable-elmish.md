@@ -10,6 +10,8 @@ F# remains F# in a Fable project: records, discriminated unions, pattern matchin
 
 That distinction prevents two opposite mistakes. A .NET team must not assume every BCL or NuGet API works in a browser. A JavaScript team must not treat Fable as an isolated platform that replaces npm, bundlers, DOM knowledge, accessibility, or browser diagnostics. The useful question is: “Which logic benefits from F# modeling, which boundary belongs to JavaScript or the browser, and how much state architecture does this interface actually need?”
 
+Keep the vocabularies separate: records, discriminated unions, pattern matching, modules, and type inference are F# language concepts; Fable is a transpiler and toolchain; Elmish, Feliz, and React are libraries or UI architectures; DOM, Web APIs, Vite, and npm belong to the browser and JavaScript ecosystem. The latter terms are not “standard F# syntax.”
+
 ## Fable changes the target, not the source language {#target-runtime}
 
 A browser Fable pipeline has four distinct products:
@@ -23,7 +25,7 @@ F# source + .fsproj + compatible NuGet packages
 
 The F# compiler still type-checks the project. Fable then translates the supported program. Vite or another JavaScript tool resolves modules, tree-shakes, minifies, hashes, and emits assets. The browser loads those assets; it does not load the project's `.dll` or start the CLR.
 
-This is transpilation to a target ecosystem, not remote control of a .NET process and not the same mechanism as .NET WebAssembly. Fable can also target other languages, but this chapter and the browser sample verify only JavaScript in a browser.
+This is transpilation to a target ecosystem, not remote control of a .NET process and not the same mechanism as .NET WebAssembly. Fable can also target other languages, but this chapter uses only the JavaScript browser target to explain the boundary.
 
 ### Keep three compatibility questions separate {#three-compatibility-questions}
 
@@ -35,9 +37,11 @@ For every dependency or API, ask:
 
 A `netstandard2.0` asset answers neither the second nor the third question by itself. Conversely, a JavaScript library can work well through a typed Fable binding even though it has no .NET implementation.
 
-## The browser sample: one minimal browser boundary {#verified-slice}
+## In-page project template: one minimal browser boundary {#verified-slice}
 
-The browser sample intentionally avoids React and Elmish packages. It isolates the smallest useful path: F# source becomes a production JavaScript bundle, attaches accessible DOM events, and updates visible state. A real application must still test that bundle in its supported browsers.
+The current repository no longer contains the former `examples/ecosystem/fable` project. This section preserves a reconstructable template, not a currently executable repository sample. It intentionally avoids React and Elmish and shows only the smallest path: F# becomes JavaScript, the page loads the generated module, and DOM events update visible state.
+
+To reconstruct it, place `FableSample.fsproj`, `App.fs`, `index.html`, `package.json`, and `vite.config.mjs` in one directory; pin the Fable tool in `.config/dotnet-tools.json`, and pin the two dependency graphs with NuGet and JavaScript lock files. `App.fs` is the project's only F# compile item, `index.html` is the Vite entry, and `generated/` and `dist/` are generated directories.
 
 ### The locked project surface {#locked-project}
 
@@ -57,7 +61,7 @@ The browser sample intentionally avoids React and Elmish packages. It isolates t
   </ItemGroup>
 </Project>
 ```
-To reproduce this sample in an application, record these independently moving inputs:
+To reproduce this template in an application, record these independently moving inputs:
 
 - the .NET SDK and F# language versions;
 - the local Fable tool version;
@@ -67,7 +71,20 @@ To reproduce this sample in an application, record these independently moving in
 
 The compiler, Fable.Core, and browser bindings have separate release cadences. Matching their major or minor numbers by appearance is not a compatibility strategy; restore their declared graph, compile it, and run the target.
 
-### Read the F# before the generated JavaScript {#sample-code}
+### Connect the HTML prerequisite to the F# entry first {#sample-code}
+
+`App.fs` looks up three fixed IDs, so the HTML must provide those elements before the module runs. This excerpt omits only page styling and explanatory copy; its script path matches Fable's output directory:
+
+```html:line-numbers [index.html]
+<main>
+  <output id="count" aria-live="polite">Count: 0</output>
+  <button id="increment" type="button">Increment count</button>
+  <button id="reset" type="button">Reset count</button>
+</main>
+<script type="module" src="/generated/App.js"></script>
+```
+
+The next block is the complete `App.fs`, not a set of unrelated snippets:
 
 ```fsharp:line-numbers [App.fs]
 module FableSample.App
@@ -121,13 +138,13 @@ document.documentElement.setAttribute ("data-fable-ready", "true")
 
 The final attribute is a readiness contract for the browser smoke. It is set only after elements are found, listeners are attached, and the initial model is rendered.
 
-### What the checks cover—and do not {#sample-evidence}
+### What to check after reconstruction {#sample-evidence}
 
-The production command performs locked .NET tool/package restore, Fable compilation without cache reuse, and a Vite production build. The current output transforms 15 modules into an HTML entry and a hashed JavaScript asset. The exact file name and size are build outputs, not public application contracts.
+After reconstruction, the production sequence should perform locked .NET tool/package restore, Fable compilation without cache reuse, and a Vite production build. Check that `dist` contains an HTML entry and hashed JavaScript asset, but do not turn module count, file name, or size into a permanent contract.
 
-The automated smoke serves only `dist` and launches installed Chrome through a locked Playwright client. It waits for Fable readiness, verifies `0 -> 3 -> 0` and reset state, rejects browser or network errors, and checks for page overflow at 360 pixels. An independent DevTools run also produced 100 for accessibility, best practices, SEO, and agentic browsing.
+A browser smoke should serve only `dist`, wait for `data-fable-ready`, verify `0 -> 3 -> 0` and reset-button state, and fail on browser errors, failed network requests, or overflow at 360 pixels. Then use the keyboard and accessibility tree to inspect button names, focus, and the live region. This repository no longer has that project or test, so the chapter does not claim these checks have run.
 
-These checks cover one DOM interaction, the current tool graph, a production build, and the observed Chrome environment. They do not cover React or Elmish compatibility, every browser, routing, HTTP, offline behavior, authentication, localization, hydration, server-side rendering, long-session memory behavior, or production hosting headers.
+Even if those checks pass, they cover only one DOM interaction, the locked tool graph, a production build, and the tested browser environment. They do not cover React or Elmish compatibility, every browser, routing, HTTP, offline behavior, authentication, localization, hydration, server-side rendering, long-session memory behavior, or production hosting headers.
 
 ## Know the supported F# and .NET surface {#compatibility}
 
@@ -208,7 +225,7 @@ Prefer `textContent` or renderer text nodes for untrusted content. Raw HTML requ
 
 ### Accessibility belongs to the rendering boundary {#accessibility}
 
-F# types can make states explicit, but they do not automatically produce semantic HTML, accessible names, focus movement, keyboard operation, announcements, contrast, reduced motion, or responsive layout. The browser sample uses a real heading hierarchy, buttons, a live `output`, a disabled reset state, visible focus, and narrow-screen tests because those are browser contracts.
+F# types can make states explicit, but they do not automatically produce semantic HTML, accessible names, focus movement, keyboard operation, announcements, contrast, reduced motion, or responsive layout. When reconstructing the template, add a real heading hierarchy, buttons, a live `output`, a disabled reset state, visible focus, and narrow-screen tests because those are browser contracts.
 
 Test with the accessibility tree and keyboard, not only CSS selectors. A virtual DOM, Feliz DSL, or Elmish loop changes construction mechanics; none exempts the resulting DOM from accessibility requirements.
 
@@ -238,7 +255,7 @@ view Model dispatch -> rendered UI
 
 The model is an immutable snapshot. A message names what happened. `update` decides the next state and describes commands. The runtime executes commands, dispatches later messages, and asks the renderer to update the view.
 
-The browser sample already implements the core of this pattern without the library: `Message`, `Model`, and pure `update`. Its hand-written mutable shell performs dispatch and rendering. Elmish earns its dependency when standard commands, subscriptions, composition, instrumentation, or renderer integration replace enough custom lifecycle code.
+The in-page template already writes the core of this pattern without the Elmish library: `Message`, `Model`, and pure `update`. Its hand-written mutable shell performs dispatch and rendering. Elmish earns its dependency when standard commands, subscriptions, composition, instrumentation, or renderer integration replace enough custom lifecycle code.
 
 ### Commands describe effects; they do not purify them {#commands}
 
@@ -283,7 +300,7 @@ These tools solve different problems:
 - Elmish supplies model-message-update-command organization;
 - Fable.Elmish.React connects an Elmish program to the React renderer.
 
-Adding all four is not automatically more functional. For a small isolated component, Feliz hooks may be enough. For application-wide workflows and coordinated effects, Elmish may help. For one counter, the browser sample's direct DOM shell is easier to audit.
+Adding all four is not automatically more functional. For a small isolated component, Feliz hooks may be enough. For application-wide workflows and coordinated effects, Elmish may help. For one counter, the in-page template's direct DOM shell is easier to audit.
 
 The Fable.React package page recommends Feliz for new React projects because Fable.React is less actively maintained. Treat that as current maintainer guidance, not a reason to rewrite a stable application without migration checks.
 
@@ -322,7 +339,7 @@ Form typing needs restraint. Raw text belongs in editing state because partially
 
 If a state should survive reload, deep links, history navigation, or sharing, decide whether it belongs in the URL. Parse the route into a validated application case and render unknown routes explicitly. Do not maintain unrelated copies in router state, the global model, and component state without a synchronization rule.
 
-Client-side routing requires hosting fallback configuration. The browser sample is an MPA with one entry and deliberately does not verify SPA rewrites. A bundle that works on `/` may still return 404 when a user directly requests `/bookings/42` from static hosting.
+Client-side routing requires hosting fallback configuration. The in-page template is designed as an MPA with one entry and does not define SPA rewrites. A bundle that works on `/` may still return 404 when a user directly requests `/bookings/42` from static hosting.
 
 ## Test the browser application at several levels {#testing}
 
@@ -348,7 +365,7 @@ Use source maps and browser diagnostics for interop, bundle, network, accessibil
 
 The official Fable/Vite workflow can run Fable in watch mode and Vite for fast development. Production must still start from locked clean inputs and create an immutable artifact.
 
-The browser sample's production sequence is conceptually:
+The in-page template's production sequence is conceptually:
 
 ```sh
 dotnet tool restore
@@ -366,7 +383,7 @@ Deploy `dist` to static hosting with correct MIME types, cache rules, compressio
 
 Choose MPA, SPA fallback, or server routing deliberately. Define how old HTML behaves with new assets during rollout, how a service worker updates if one exists, and how to roll back both assets and API compatibility.
 
-No application server is required for the browser sample's artifact. A local preview server is a development tool, not a production dependency or a hosting choice.
+No application server is required for this template's static artifact. A local preview server is a development tool, not a production dependency or a hosting choice.
 
 ### Measure bundle and runtime cost {#browser-performance}
 
@@ -378,18 +395,18 @@ Use code splitting for proven route or feature boundaries, not as automatic frag
 
 These are dated observations, not a preapproved stack:
 
-| Choice | Stable surface checked on 2026-08-25 | Status in this chapter | Adoption question |
+| Choice | Stable surface checked on 2026-08-31 | Status in this chapter | Adoption question |
 |---|---|---|---|
-| Fable tool | 5.13.0; tool targets .NET 10 | illustrated | does the generated JavaScript preserve the semantics this app needs? |
-| Fable.Core | 5.2.0; `netstandard2.0` asset | illustrated | is every used helper supported on the JavaScript target? |
-| Fable.Browser.Dom | 2.20.0; browser binding graph | illustrated | are the required Web APIs and target browsers covered? |
-| Vite | 6.4.3 | illustrated | are base path, assets, production mode, and hosting behavior verified? |
+| Fable tool | 5.13.0; tool targets .NET 10 | in-page project template | does the generated JavaScript preserve the semantics this app needs? |
+| Fable.Core | 5.2.0; `netstandard2.0` asset | in-page project template | is every used helper supported on the JavaScript target? |
+| Fable.Browser.Dom | 2.20.0; browser binding graph | in-page project template | are the required Web APIs and target browsers covered? |
+| Vite | template pins 6.4.3 | in-page project template | are base path, assets, production mode, and hosting behavior verified? |
 | Fable.Elmish | 5.0.2 | research only | does coordinated state/effect complexity justify the loop? |
 | Fable.Elmish.React | 5.6.0 stable; 6.0 beta exists | research only | is the F# binding compatible with the chosen React/npm matrix? |
 | Feliz | 3.3.3 | research only | does its typed React surface fit component and upgrade needs? |
 | Fable.React | 9.4.0 stable; package recommends Feliz for new work | research only | is this an existing-stack maintenance case rather than a new default? |
 
-“Illustrated” means the chapter includes a minimal configuration or use; it does not mean this book repository contains an executable browser project. “Research only” means the option must be evaluated in the adopting application before use.
+“In-page project template” means the text supplies the key files and context needed to reconstruct the example; it does not mean this book repository contains an executable browser project. “Research only” means the option must be evaluated in the adopting application before use.
 
 ## Run a reversible browser-stack spike {#adoption-spike}
 

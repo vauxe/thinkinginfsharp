@@ -343,16 +343,26 @@ Prefer adding a member or overload while keeping the old member as a forwarding 
 
 Put the C# test client in CI and retain a released assembly or package as an API baseline. NuGet packages can enable package validation and a baseline version; `Microsoft.DotNet.ApiCompat.Tool` can also compare assemblies. These tools detect many signature differences, but behavior and serialization compatibility still need focused tests.
 
-## Run the shared API sample {#run-example}
-
-Build and run the real C# caller from the repository root:
+The real C# consumer is `examples/chapters/ch27/CSharpClient/Program.cs`. Build and run it from the repository root:
 
 ```console
 dotnet build examples/chapters/ch27/CSharpClient/CSharpClient.csproj --configuration Release
 dotnet run --project examples/chapters/ch27/CSharpClient/CSharpClient.csproj --configuration Release --no-build
 ```
 
-The client asserts business outcomes, argument checks, four exported types, public signatures, nullable metadata, and XML documentation instead of merely printing a demonstration. After changing a public API, recompile this consumer first, then run existing-binary compatibility and behavioral tests.
+The client asserts business outcomes, argument checks, four exported types, public signatures, nullable metadata, and XML documentation instead of merely printing a demonstration. Its fixed output is:
+
+```text
+Accepted: outcome=Accepted code=CONF-REQ-27 remaining=3
+Rejected: outcome=Rejected message=requested 8 exceeds available 5 suggested=5
+Invalid: outcome=Rejected message=seat count must be positive suggested=none
+Guards: request-id=true request=true capacity=true
+Public types: BookingApi,BookingOutcome,BookingRequest,BookingResponse
+Nullability: request-id=NotNull confirmation=Nullable
+XML docs: evaluate=true
+```
+
+After changing a public API, recompile this consumer first, then run existing-binary compatibility and behavioral tests.
 
 ## Exercises {#exercises}
 

@@ -34,6 +34,8 @@ translationKey: part-03/ch-16-modules-namespaces-projects
 namespace ThinkingInFSharp.Ch16
 ```
 
+本章不是只有片段：完整文件位于 `examples/chapters/ch16/Domain.fs`、`Workflow.fs`、`Program.fs` 和 `Ch16.fsproj`。下面的讲解引用这组可构建源码。
+
 然后，每个文件把定义放入职责集中的模块：
 
 - `Domain` 定义受保护的标识符、座位数、容量、请求和验证；
@@ -93,11 +95,13 @@ namespace ThinkingInFSharp.Ch16
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Workflow.fs" />
-    <Compile Include="Domain.fs" />
+    <Compile Include="../../chapters/ch16/Workflow.fs" Link="Workflow.fs" />
+    <Compile Include="../../chapters/ch16/Domain.fs" Link="Domain.fs" />
   </ItemGroup>
 </Project>
 ```
+这里的相对路径与仓库中的真实夹具一致；`Link` 只指定项目中的显示名称，不改变编译顺序。
+
 当编译器到达 `Workflow.fs` 中这一行时：
 
 ```fsharp
@@ -185,6 +189,8 @@ let requested = request |> Domain.BookingRequest.seats |> Domain.SeatCount.value
 
 这些设置分别控制不同决策。SDK 选择构建工具集，`TargetFramework` 选择 API 与运行时，`LangVersion` 选择可用的 F# 语言特性。可复现项目应记录每项选择。
 
+上表是设置释义，并不表示本章项目已经逐项显式设置。当前 `Ch16.fsproj` 明确写了 `TargetFramework`、`Nullable` 和 `OutputType`；它没有设置 `LangVersion`、`TreatWarningsAsErrors`，仓库根目录也没有 `global.json`。因此阅读实际构建契约时，应以项目文件和执行命令为准。
+
 共享策略可以放在 `Directory.Build.props` 中；MSBuild 会为其子目录中的项目导入它。较大的代码库可以在那里集中设置 `LangVersion`、空值检查、警告视为错误、可复现构建和锁定包还原。小型独立教学项目应保持自包含；只有多个真实项目共享策略时才值得集中配置。
 
 应优先修复诊断，而不是全局抑制它。警告视为错误让这项纪律在本地构建和 CI 中可复现；这并不表示所有可能的可选警告都已经启用。
@@ -193,7 +199,7 @@ let requested = request |> Domain.BookingRequest.seats |> Domain.SeatCount.value
 
 启用 F# 空值检查后，`string` 表示非空引用，`string | null` 则允许 null。标注用于编译期分析，运行时仍是普通 .NET 引用。来自外部或未检查代码的值仍需验证。
 
-领域构造函数有意接收可空文本：
+下面是完整 `Domain.fs` 中 `BookingId` 伴生模块的核心分支。`MissingBookingId` 与私有案例 `BookingId` 已在同一模块前面定义，因此这是有来源的摘录，而不是独立脚本：
 
 ```fsharp
 let create (raw: string | null) =
@@ -209,7 +215,7 @@ let create (raw: string | null) =
 
 ### 包装函数必须保留可空标注 {#nullable-propagation}
 
-`BookingRequest.create` 会把文本转交给 `BookingId.create`，所以自己的公共输入也要使用同一可空类型：
+`BookingRequest.create` 会把文本转交给 `BookingId.create`，所以自己的公共输入也要使用同一可空类型。下面先用省略号突出标注传播；可运行的完整实现位于同一个 `Domain.fs`：
 
 ```fsharp
 let create (rawId: string | null) rawSeats =

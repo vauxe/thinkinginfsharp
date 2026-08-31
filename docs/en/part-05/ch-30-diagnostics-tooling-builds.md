@@ -10,6 +10,8 @@ Tooling is useful when it shortens the path from symptom to cause. A compiler di
 
 The examples use project commands rather than one editor or CI vendor. An IDE may put buttons around them, but project files, lock files, tool manifests, and repeatable commands remain the common source of truth.
 
+This chapter contains two kinds of paths. A path beginning with `examples/...` names a real file in this repository and can be run from the repository root. `path/to/YourSolution.slnx` is explicitly a template to replace. This repository currently has no `global.json`, `.config/dotnet-tools.json`, solution file, or NuGet lock file, so later examples of those files describe configuration an application could adopt; they do not claim that this repository already uses it.
+
 ## Read the first relevant diagnostic {#diagnostic-anatomy}
 
 A typical F# compiler line has this shape:
@@ -20,7 +22,7 @@ path/File.fs(12,9): error FS0039: The value or constructor 'name' is not defined
 
 The path identifies the source seen by the build, while line and column mark where the compiler detected a problem. `error` is the severity, `FS0039` is a searchable diagnostic code, and the remaining text supplies context. With warnings-as-errors, a warning may become a failure while retaining its code.
 
-The reported position is not a promise about root cause. A missing closing delimiter may be noticed several lines later. One unresolved type can make later member lookups fail. F# compilation order can make every name from an earlier-needed file appear absent. Compilers recover after an error so they can report more, but recovered interpretation may generate secondary noise.
+The reported position is not a promise about root cause. A missing closing delimiter may be noticed several lines later. One unresolved type can make later member lookups fail. F# compilation order can make every name from an earlier-needed file appear absent. The compiler tries to continue analysis so it can report more, and many later diagnostics may therefore share the first defect.
 
 Begin with the earliest relevant diagnostic in source you own, fix or explain it, then rebuild. Do not mechanically edit every red line from bottom to top. If the first line belongs to generated code or a dependency, find the first preceding restore/build failure that caused it.
 
@@ -114,6 +116,27 @@ Compiler output often includes the useful inferred type. Read the complete messa
 
 Use `#r` to reference an assembly or package and `#load` to load a script when the experiment needs them. Keep experiments deterministic and small. Once the idea matters to the product, move it into a compiled source file and an automated test.
 
+For example, `examples/chapters/ch30/diagnostic-probe.fsx` explicitly loads two real Chapter 16 source files. `Capacity`, `BookingRequest`, and `Workflow` can therefore all be traced to definitions rather than appearing as unexplained placeholders:
+
+```fsharp:line-numbers [diagnostic-probe.fsx]
+#load "../ch16/Domain.fs"
+#load "../ch16/Workflow.fs"
+
+open ThinkingInFSharp.Ch16
+open ThinkingInFSharp.Ch16.Domain
+
+let expectOk = function
+    | Ok value -> value
+    | Error error -> failwithf "invalid probe: %A" error
+
+let capacity = Capacity.create 2 |> expectOk
+let request = BookingRequest.create "B-30" 3 |> expectOk
+
+Workflow.decide capacity request |> printfn "%A"
+```
+
+Run `dotnet fsi --exec examples/chapters/ch30/diagnostic-probe.fsx` from the repository root. It prints `Rejected (3, 2)`. This answers the pure decision question for those inputs; it does not prove that a real application supplied the same capacity.
+
 ### FSI is not equivalent to a project build {#fsi-boundary}
 
 An FSI session retains earlier bindings and loaded assemblies. Restart it when stale state could explain success. A pasted expression does not automatically inherit project file order, all MSBuild properties, target-framework assets, conditional symbols, or the actual assembly context.
@@ -136,7 +159,7 @@ Place a breakpoint where information changes: immediately before a domain decisi
 
 For an unexpected `Rejected(requested, capacity)`, inspect the validated request and capacity before `decide`, then the caller frame that supplied them. If both inputs are correct, step through the decision. If one is wrong, move outward to its producer. This follows data provenance rather than control-flow tourism.
 
-Debug builds usually provide the clearest stepping and locals. Release optimization can reorder, inline, or omit observable locals even though program behavior remains correct. Reproduce the actual Release-only defect when necessary, but recognize the debugger's source view may be less literal.
+Debug builds usually provide the clearest stepping and locals. Release optimization can reorder, inline, or omit observable locals even though program behavior remains correct. Reproduce the actual Release-only defect when necessary, but recognize that source lines may no longer correspond one-for-one with execution steps.
 
 ### Do not alter the execution accidentally {#debugger-cautions}
 
@@ -146,7 +169,7 @@ A debugger session is not a regression test. After finding the cause, write the 
 
 ## Check formatting with a pinned tool {#formatting}
 
-Fantomas is a source formatter, not a type checker or linter. A project can declare it as a local .NET tool:
+Fantomas is a source formatter, not a type checker or linter. The following is an example local-tool manifest an application could use; it is not a file currently present in this repository:
 
 ```json
 {
@@ -186,9 +209,9 @@ Reproducibility has several layers:
 
 | Layer | Repository input | What remains outside it |
 |---|---|---|
-| SDK selection | `global.json` selects 10.0.301 | Host runtime and operating system still differ |
+| SDK selection | Example `global.json` selects 10.0.301 | Host runtime and operating system still differ |
 | Direct and transitive packages | `PackageReference` plus committed `packages.lock.json` | Feed availability and external credentials |
-| Local tools | `.config/dotnet-tools.json` pins Fantomas 7.0.5 | Host runtime capable of running the tool |
+| Local tools | Example `.config/dotnet-tools.json` pins Fantomas 7.0.5 | Host runtime capable of running the tool |
 | Compiler outputs | `Deterministic=true` with the same inputs | OS-specific native assets, paths, timestamps outside compiler control |
 | Behavior | tests and example-output assertions | Unmodelled external services and machine state |
 
@@ -198,7 +221,7 @@ A PackageReference such as `Version="3.4.0"` alone may allow more than one trans
 
 ### Separate restore, build, and test {#build-stages}
 
-Use separate stages when reproducibility matters:
+Use separate stages when reproducibility matters. The solution path below is a template; `--locked-mode` and `dotnet tool restore` express a real repository contract only after that project commits lock files and a tool manifest:
 
 ```console
 dotnet tool restore
@@ -261,9 +284,15 @@ A compiled booking workflow returns `Rejected(3, 2)` when a caller expected acce
 
 The value `Rejected(3, 2)` is correct under the current rule: three requested seats do not fit capacity two. Before changing `decide`, determine why the caller expected acceptance.
 
-Use FSI to isolate the pure rule with controlled values:
+The repository's `diagnostic-probe.fsx` uses `#load` to make its dependencies explicit and isolate the pure rule with controlled values:
 
 ```fsharp
+#load "../ch16/Domain.fs"
+#load "../ch16/Workflow.fs"
+
+open ThinkingInFSharp.Ch16
+open ThinkingInFSharp.Ch16.Domain
+
 let expectOk = function
     | Ok value -> value
     | Error error -> failwithf "invalid probe: %A" error
@@ -277,15 +306,25 @@ Workflow.decide capacity request
 
 This confirms smart construction and the pure function's result for controlled inputs. It does not show what values the application supplied or preserve a regression test after the session closes.
 
-Add a focused example test when this policy is intentional:
+When this policy is intentional, add a focused example to an xUnit project that compiles or references Chapter 16's `Domain.fs` and `Workflow.fs`. The test below constructs its own inputs rather than relying on bindings left in an FSI session:
 
 ```fsharp
+open Xunit
+open ThinkingInFSharp.Ch16
+open ThinkingInFSharp.Ch16.Domain
+open ThinkingInFSharp.Ch16.Workflow
+
+let expectOk = function
+    | Ok value -> value
+    | Error error -> failwithf "invalid test setup: %A" error
+
 [<Fact>]
 let ``three seats do not fit capacity two`` () =
-    Assert.Equal(
-        Rejected(3, 2),
-        Workflow.decide capacity request
-    )
+    let capacity = Capacity.create 2 |> expectOk
+    let request = BookingRequest.create "B-30" 3 |> expectOk
+    let actual = Workflow.decide capacity request
+
+    Assert.Equal(Rejected(3, 2), actual)
 ```
 
 The test is the durable artifact. If the real requirement says capacity should have been four, instead preserve a test at the conversion or caller boundary that currently produces two; do not freeze an incorrect expectation around the pure core.
@@ -298,7 +337,7 @@ The debugger traces one real execution back to its inputs. FSI answers a small m
 
 ### Exercise 3: audit a reproducible build {#exercise-03}
 
-A teammate changes one package version but forgets its lock file, has a global Fantomas version, and reports that Debug succeeds from a warm tree. Give an ordered, platform-neutral command sequence that should expose each mismatch and state which repository files must be updated deliberately.
+A teammate changes one package version but forgets to update its lock file, uses a globally installed Fantomas, and reports that Debug succeeds in a workspace containing old build outputs. Give an ordered, platform-neutral command sequence that should expose each mismatch and state which repository files must be updated deliberately.
 
 
 ::: details Answer
@@ -331,7 +370,6 @@ After the locked graph agrees, prove Release compilation and tests without impli
 
 ```console
 dotnet build path/to/YourSolution.slnx --configuration Release --no-restore
-dotnet test path/to/YourSolution.slnx --configuration Release --no-build
 dotnet test path/to/YourSolution.slnx --configuration Release --no-build
 ```
 

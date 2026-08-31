@@ -10,10 +10,12 @@ An F# user interface is not “some controls around the real program.” It is a
 
 Avalonia is a cross-platform .NET UI framework with official F# templates. It draws its own controls and provides desktop, mobile, and browser hosts, but that does not make every platform identical. A shared view can compile while its font, input, lifecycle, permission, native integration, package, signing, or accessibility path fails on one target. “Cross-platform” describes an architecture and support surface; it is not a test result.
 
-Start with product and platform constraints, not XAML syntax. A small desktop sample with a defined verification scope leads into state patterns, binding boundaries, threading, platform services, mobile hosts, testing, packaging, and release checks.
+Start with product and platform constraints, not XAML syntax. An in-page desktop project template then explains the file relationships before state patterns, binding boundaries, threading, platform services, mobile hosts, testing, packaging, and release checks.
+
+This chapter mixes several vocabularies: records, discriminated unions, pattern matching, modules, and functions are F# language concepts; AXAML, controls, binding, and `AppBuilder` belong to Avalonia; MVU and MVVM are UI architecture patterns; RIDs, AOT, signing, and app stores belong to .NET or platform delivery. The latter three groups are not “standard F# terms.”
 
 ::: tip Two reading passes
-For a first pass, follow the [UI stack](#ui-stack-contracts), [decision map](#decision-map), and [verified desktop slice](#verified-slice). When implementing or adopting a toolkit, return to the sections on state, binding, lifetime, platforms, verification, and release as needed.
+For a first pass, follow the [UI stack](#ui-stack-contracts), [decision map](#decision-map), and [in-page desktop template](#verified-slice). When implementing or adopting a toolkit, return to the sections on state, binding, lifetime, platforms, verification, and release as needed.
 :::
 
 ## A UI application is a stack of contracts {#ui-stack-contracts}
@@ -73,11 +75,13 @@ Avalonia supplies a retained control tree, styling, layout, input routing, data 
 
 AXAML is compiled by XamlX and creates the same runtime object graph that code can create. XAML offers declarative layout, styles, resources, previews, and familiar designer workflows. Code-only UI keeps construction in the language, can improve refactoring and F# expression flow, and can use community F#-first libraries such as Avalonia.FuncUI. They can be mixed.
 
-Choose from team fluency, tooling, binding needs, styling scale, hot reload or preview requirements, generated-code tolerance, and library maturity. Code-only does not make mutable controls pure. XAML does not require domain logic in a view model. The desktop sample uses AXAML plus a tiny F# code-behind because that exposes the boundary without another framework.
+Choose from team fluency, tooling, binding needs, styling scale, hot reload or preview requirements, generated-code tolerance, and library maturity. Code-only does not make mutable controls pure. XAML does not require domain logic in a view model. The in-page template uses AXAML plus a tiny F# code-behind because that exposes the boundary without another framework.
 
-## The desktop sample: one verified desktop slice {#verified-slice}
+## In-page project template: one minimal desktop application {#verified-slice}
 
-The verified slice is deliberately one `net10.0` desktop executable with five primary files. Mobile target frameworks, platform workloads, MVVM infrastructure, and packaging enter later slices when their corresponding requirements are tested.
+The current repository no longer contains the former `examples/ecosystem/avalonia` project. This section preserves a reconstructable template with `AvaloniaSample.fsproj`, `App.axaml`, `MainWindow.axaml`, `MainWindow.fs`, and `Program.fs` in one directory. Mobile target frameworks, platform workloads, MVVM infrastructure, and packaging are not part of the template.
+
+Read all five files together: the project file defines F# compile order; the two AXAML files declare application resources and the window; `MainWindow.fs` implements the window class; and `Program.fs` defines `App` and the desktop entry point. The blocks below are the complete minimal contents of those files, not fragments to paste independently into F# Interactive.
 
 ### A pinned ordinary .NET project {#pinned-project}
 
@@ -102,7 +106,7 @@ The verified slice is deliberately one `net10.0` desktop executable with five pr
   </ItemGroup>
 </Project>
 ```
-`Avalonia`, `Avalonia.Desktop`, and `Avalonia.Themes.Fluent` are pinned to 12.1.1 and resolved through a lock file. A copied project can also pin FSharp.Core 10.1.301. `WinExe` selects a graphical executable; `net10.0` remains a generic desktop target rather than `net10.0-macos` or `net10.0-windows`.
+`Avalonia`, `Avalonia.Desktop`, and `Avalonia.Themes.Fluent` are pinned to 12.1.1. After reconstruction, the first restore should generate a lock and a locked-mode restore should verify it. The project has no explicit `FSharp.Core` reference; its resolved version comes from the selected SDK and graph, so inspect the lock rather than guessing from prose. `WinExe` selects a graphical executable; `net10.0` remains a generic desktop target rather than `net10.0-macos` or `net10.0-windows`.
 
 The explicit F# compile order matters: `MainWindow.fs` defines types consumed by `Program.fs`. AXAML files are processed by Avalonia build targets and are not F# compile items.
 
@@ -214,6 +218,22 @@ Markup defines layout, control identity, labels, and initial visual values. Text
 
 ### The host chooses a desktop lifetime {#desktop-lifetime}
 
+`App.Initialize()` in `Program.fs` loads `App.axaml`. Without this file, the `FluentTheme` is not registered; that is a runtime prerequisite the preceding four blocks cannot express by themselves:
+
+```xml:line-numbers [App.axaml]
+<Application
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    x:Class="ThinkingInFSharp.AvaloniaSample.App"
+    RequestedThemeVariant="Default">
+  <Application.Styles>
+    <FluentTheme />
+  </Application.Styles>
+</Application>
+```
+
+Its `x:Class` must exactly match the F# `App` type below:
+
 ```fsharp:line-numbers [Program.fs]
 namespace ThinkingInFSharp.AvaloniaSample
 
@@ -249,15 +269,15 @@ Desktop assumptions are explicit here. iOS and browser use `ISingleViewApplicati
 
 ### The focused test does not start a UI {#focused-test}
 
-A focused xUnit test can reference the pure state module and check three additions, reset, lower-bound removal, and the unchanged initial value. It runs without Avalonia initialization because the tested function has no toolkit dependency. That speed and determinism are the payoff of the boundary.
+After reconstruction, add a separate test project that references the pure state module and checks three additions, reset, lower-bound removal, and the unchanged initial value. Those tests require no Avalonia initialization because the tested function has no toolkit dependency. This repository has no Avalonia test project now, so this paragraph defines the testing boundary rather than reporting an executed result.
 
 ### State the native launch result exactly {#native-launch-result}
 
 | Check | Status in this chapter | What it verifies when run | What it does not verify |
 | --- | --- | --- | --- |
-| Project and lock configuration | Shown | The recorded NuGet graph resolves | Future versions or other runtime graphs |
-| Release build | Run after copying | F# and AXAML compile for `net10.0` | A usable native window or package |
-| Pure transition test | Shown | The checked state transitions | Control lookup, layout, input, rendering |
+| Project and lock configuration | In-page template | Whether the graph resolves after reconstruction | The template itself is not restore evidence |
+| Release build | Run after reconstruction | F# and AXAML compile for `net10.0` | A usable native window or package |
+| Pure transition test | Write and run after reconstruction | The checked state transitions | Control lookup, layout, input, rendering |
 | Native start | Run on every supported desktop OS | A real window starts in that environment | Other operating systems or packages |
 | Mobile/package/store | Not covered | Nothing | Mobile lifetime, signing, installation, or store behavior |
 
@@ -274,7 +294,7 @@ F# offers several useful boundaries; toolkit choice does not dictate one archite
 | Code-behind orchestration | Small local state and event handlers in the view, domain calls delegated outward | Direct control references | Easy to let business decisions, I/O, and cancellation accumulate in the window |
 | Code-only/FuncUI-style | UI tree expressed in F# and commonly driven by messages/state | Language-level combinators or DSL | Community dependency, API churn, tooling and performance need their own evaluation |
 
-The desktop sample uses manual MVU at the smallest useful scale: one pure update and one imperative renderer. A larger application would normally separate model, update, effect descriptions, view adapters, navigation, and composition into modules or projects.
+The in-page template uses manual MVU at the smallest useful scale: one pure update and one imperative renderer. A larger application would normally separate model, update, effect descriptions, view adapters, navigation, and composition into modules or projects.
 
 ### Effects are messages, not hidden branches {#effects-as-messages}
 
@@ -309,7 +329,7 @@ Named lookup and event hookup are simple for small views. Binding scales better 
 
 In Avalonia 12, ordinary `{Binding ...}` maps to compiled binding by default. A compiled binding needs an `x:DataType`; the XAML compiler can then reject missing paths and incompatible types. Use `{ReflectionBinding ...}` only for an intentionally dynamic value, not as a blanket escape from type errors.
 
-The desktop sample contains no binding expression, so it does not need an `x:DataType` and does not validate a view-model binding surface. A real binding spike should include nested templates, two-way editing, commands, validation, design data, trimming or AOT if planned, and the actual IDE used by the team.
+The in-page template contains no binding expression, so it does not need an `x:DataType` and does not validate a view-model binding surface. A real binding spike should include nested templates, two-way editing, commands, validation, design data, trimming or AOT if planned, and the actual IDE used by the team.
 
 ### Adapt functional types instead of weakening them {#binding-adapters}
 
@@ -354,7 +374,7 @@ Implement them in the platform host and inject them during composition. Model �
 
 ## Desktop is already three platform programs {#desktop-platforms}
 
-Avalonia's one desktop project can target Windows, macOS, and Linux, but each backend and distribution system remains distinct. Support tiers and minimum OS versions change; this chapter checked the official matrix on 2026-08-25, and an application should recheck it before release.
+Avalonia's one desktop project can target Windows, macOS, and Linux, but each backend and distribution system remains distinct. Support tiers and minimum OS versions change; this chapter checked the official matrix on 2026-08-31, and an application should recheck it before release.
 
 ### Windows {#windows}
 
@@ -366,7 +386,7 @@ Test keyboard and high-DPI behavior, multiple monitors, clipboard and dialogs, r
 
 The default Avalonia macOS backend ships its own native library and can be built without the `net10.0-macos` workload. Distribution still needs a correctly structured `.app` bundle and `Info.plist`; normal external distribution requires code signing and notarization, and those signing steps require macOS/Xcode tooling even when bundle construction was cross-platform.
 
-Publish and test Apple Silicon and Intel artifacts when both are supported. Verify native menus, shortcuts, file dialogs, sandbox or entitlement choices, accessibility, app identity, quarantine/Gatekeeper behavior, upgrade, and uninstall. The desktop sample's `-6661` launch result is specifically not a passed macOS smoke test.
+Publish and test Apple Silicon and Intel artifacts when both are supported. Verify native menus, shortcuts, file dialogs, sandbox or entitlement choices, accessibility, app identity, quarantine/Gatekeeper behavior, upgrade, and uninstall. The in-page template has no macOS launch result; a successful build cannot substitute for that smoke test.
 
 ### Linux {#linux}
 
@@ -553,19 +573,19 @@ The comparison should measure:
 
 :::
 
-### Exercise 2: turn the desktop sample into a desktop release {#exercise-02}
+### Exercise 2: turn the in-page desktop template into a desktop release {#exercise-02}
 
-Produce two artifacts for turning the desktop sample into a supported Windows/macOS/Linux application:
+Produce two artifacts for turning the in-page template into a supported Windows/macOS/Linux application:
 
 - **Application plan:** module boundaries, asynchronous effects, persistence, settings migration, accessibility, and localization.
 - **Verification matrix:** headless tests, native smoke, runtime identifiers, framework-dependent and self-contained delivery, native assets, packages, signing or notarization, clean install, update, rollback, crash diagnostics, and the exact platform matrix.
 
-Keep the existing `-6661` native-launch result in the matrix until a later run supplies stronger evidence.
+Mark unexecuted matrix cells as “no evidence” until an interactive desktop session on the corresponding system supplies a result.
 
 
 ::: details Answer
 
-Begin with a verification ledger. This chapter shows a locked Avalonia 12.1.1 project, `net10.0` source, AXAML, and pure-state tests. After copying it, run restore, Release compilation, tests, and native launch before claiming they pass. Windows, macOS, Linux, publish output, packages, signing, installation, updates, and accessibility each require their own result.
+Begin with a verification ledger. This chapter shows a project pinned to Avalonia 12.1.1, `net10.0` source, and AXAML, and describes the pure-state tests to add. After reconstruction, run restore, Release compilation, tests, and native launch before claiming they pass. Windows, macOS, Linux, publish output, packages, signing, installation, updates, and accessibility each require their own result.
 
 #### Restructure without losing the small core {#desktop-structure}
 
@@ -600,7 +620,7 @@ For local documents:
 
 #### Close view and accessibility gaps {#desktop-view-quality}
 
-Adopt compiled bindings with explicit `x:DataType` if the application moves from the desktop sample renderer to MVVM. Add stable automation IDs and labels, keyboard navigation and shortcuts, focus restoration, error/live announcements, contrast, large text, high DPI, reduced motion where relevant, and screen-reader checks.
+Adopt compiled bindings with explicit `x:DataType` if the application moves from the in-page template's renderer to MVVM. Add stable automation IDs and labels, keyboard navigation and shortcuts, focus restoration, error/live announcements, contrast, large text, high DPI, reduced motion where relevant, and screen-reader checks.
 
 Externalize strings and test English, Chinese, long translations, missing glyphs, number/date formats, and narrow layouts. Do not infer touch support from pointer clicks; test touch targets, scrolling, selection, drag behavior, and software keyboards on representative hardware.
 
@@ -627,7 +647,7 @@ Test clean install; upgrade from every supported predecessor; interrupted downlo
 
 #### State the limit of native verification {#desktop-evidence-limit}
 
-Rerun the macOS smoke test in an unlocked interactive session. Record the OS, CPU, display, locale, scale, commit, and result. If it passes, report only: “This build displayed and accepted input on this macOS target.” Do not generalize that result to every macOS system. If `-6661` recurs in a valid display session, reduce the case to the official template. Then investigate configuration, dependency, and framework issues with a minimal reproduction.
+Run the macOS smoke test in an interactive session. Record the OS, CPU, display, locale, scale, commit, and result. If it passes, report only: “This build displayed and accepted input on this macOS target.” Do not generalize that result to every macOS system. If startup fails, reduce the case to the official template, then investigate configuration, dependency, and framework issues with a minimal reproduction.
 
 Do not close the Windows or Linux rows using macOS results. Release only the matrix rows the team is prepared to support, diagnose, patch, and retire.
 
@@ -735,7 +755,7 @@ Release one immutable backend contract and compatible client sequence. Mobile cl
 
 #### State the desktop inference limit {#mobile-inference-limit}
 
-The desktop sample build verifies only that the compiler can build the current desktop project and that its pure counter transitions pass. After extracting mobile-neutral Domain and Presentation projects, those pure tests can also verify shared logic.
+The in-page template alone proves no desktop or mobile behavior. After reconstruction, a successful build proves only that the current desktop project compiles; the pure counter transitions are evidence only after their separate tests run. Once mobile-neutral Domain and Presentation projects are extracted, the same pure tests can also verify shared logic.
 
 It does not verify any of the following:
 

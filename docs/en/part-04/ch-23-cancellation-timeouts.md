@@ -10,6 +10,29 @@ An asynchronous booking operation can finish in more ways than “a value arrive
 
 Treat completion as a set of distinct rules: cancellation requires cooperation, a timeout expresses policy, a fault is not cancellation, and cleanup is part of completion. Controlled signals test each behavior without racing the scheduler against `sleep`.
 
+The main-line example is directly runnable at `examples/chapters/ch23/cancellation.fsx`. All of its blocks share the following namespaces, controlled gate, and exit-path definitions. `newGate` and `pathLabel` are chapter helpers, not built-in F# names:
+
+```fsharp:line-numbers
+open System
+open System.IO
+open System.Runtime.ExceptionServices
+open System.Threading
+open System.Threading.Tasks
+
+let newGate<'T> () =
+    TaskCompletionSource<'T>(TaskCreationOptions.RunContinuationsAsynchronously)
+
+type ExitPath =
+    | Success
+    | Failure
+    | Cancellation
+
+let pathLabel = function
+    | Success -> "success"
+    | Failure -> "failure"
+    | Cancellation -> "cancel"
+```
+
 ## Cancellation is a request carried by a token {#cooperative-cancellation}
 
 .NET cancellation separates roles:
@@ -24,7 +47,7 @@ Cancellation is cooperative and cannot undo completed work. An operation checks 
 F# `task {}` does not implicitly obtain or check a token. Make it an argument and pass the same token down every cancelable call:
 
 ```fsharp
-let reserve load save request cancellationToken =
+let reserve load decide save request cancellationToken =
     task {
         cancellationToken.ThrowIfCancellationRequested()
         let! state = load request.EventId cancellationToken
@@ -395,6 +418,20 @@ asyncCancellation.Dispose()
 All three outer tasks remain incomplete after disposal starts. Only after the corresponding gate is released does each task expose success, the original fault, or cancellation. This proves that disposal is awaited rather than merely invoked.
 
 If cleanup fails while a body failure is already propagating, decide how diagnostics will retain both. Normal language-level cleanup may expose the cleanup exception and obscure the first one. At infrastructure integration points, log or aggregate them according to a stated policy; never silently discard a disposal failure.
+
+Run `dotnet fsi examples/chapters/ch23/cancellation.fsx` from the repository root to get this fixed output:
+
+```text
+Operation cancellation: canceled=true token=true
+Abandoned wait: waiter-canceled=true operation-pending=true
+Underlying after abandon: result=late-result
+Timeout signal: timed-out=true operation-pending=true
+Fault: type=InvalidOperationException message=quote-failed
+Sync dispose: success=true fault=true cancel=true
+Async dispose: pending=true success=true fault=true cancel=true
+```
+
+The lines keep operation cancellation, canceled waiting, timeout, fault, and synchronous/asynchronous cleanup visibly distinct. None relies on a delay to guess state.
 
 ## Manage cancellation helper lifetimes {#helper-lifetimes}
 

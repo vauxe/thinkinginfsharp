@@ -10,6 +10,29 @@ translationKey: part-04/ch-23-cancellation-timeouts
 
 应分别处理各种结束情况：取消需要操作主动配合，超时体现业务策略，故障不等于取消，清理也是完成过程的一部分。测试用受控信号触发每种行为，不依赖 `sleep` 或调度速度。
 
+本章主线示例可以直接运行，完整文件位于 `examples/chapters/ch23/cancellation.fsx`。所有代码块共享下面的命名空间、测试信号和退出路径定义；`newGate` 与 `pathLabel` 是本章辅助函数，不是 F# 内置名称：
+
+```fsharp:line-numbers
+open System
+open System.IO
+open System.Runtime.ExceptionServices
+open System.Threading
+open System.Threading.Tasks
+
+let newGate<'T> () =
+    TaskCompletionSource<'T>(TaskCreationOptions.RunContinuationsAsynchronously)
+
+type ExitPath =
+    | Success
+    | Failure
+    | Cancellation
+
+let pathLabel = function
+    | Success -> "success"
+    | Failure -> "failure"
+    | Cancellation -> "cancel"
+```
+
 ## 取消是由令牌携带的请求 {#cooperative-cancellation}
 
 .NET 取消模型分开了几种角色：
@@ -24,7 +47,7 @@ translationKey: part-04/ch-23-cancellation-timeouts
 F# `task {}` 不会隐式取得或检查令牌。把它作为参数，并向下传递给每个可取消调用：
 
 ```fsharp
-let reserve load save request cancellationToken =
+let reserve load decide save request cancellationToken =
     task {
         cancellationToken.ThrowIfCancellationRequested()
         let! state = load request.EventId cancellationToken
@@ -395,6 +418,20 @@ asyncCancellation.Dispose()
 释放开始后，三个外层任务都保持未完成。只有相应信号触发后，每个任务才返回成功、原始故障或取消。这证明外层任务会等待释放完成，而不只是调用释放方法。
 
 如果主体故障正在传播时清理也失败，就要决定如何在诊断信息中保留两者。语言内置的清理机制可能只暴露清理异常，从而遮蔽第一个异常。在基础设施接入处，应按既定策略记录或聚合两者，绝不能静默丢弃释放失败。
+
+从仓库根目录运行 `dotnet fsi examples/chapters/ch23/cancellation.fsx`，会得到以下固定输出：
+
+```text
+Operation cancellation: canceled=true token=true
+Abandoned wait: waiter-canceled=true operation-pending=true
+Underlying after abandon: result=late-result
+Timeout signal: timed-out=true operation-pending=true
+Fault: type=InvalidOperationException message=quote-failed
+Sync dispose: success=true fault=true cancel=true
+Async dispose: pending=true success=true fault=true cancel=true
+```
+
+输出把取消操作、只取消等待、超时、故障，以及同步/异步清理分开呈现；任何一行都不靠延时猜测状态。
 
 ## 取消辅助对象也有生命周期 {#helper-lifetimes}
 

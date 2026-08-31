@@ -12,7 +12,7 @@ F# 本身就是一门 .NET 语言。调用 `Uri`、`String.Join` 或 `IReadOnlyC
 
 ## 把 .NET 调用读成有类型的表达式 {#dotnet-calls}
 
-示例从不含 I/O 的代码开始：
+示例从不含 I/O 的代码开始。以下所有标为 `NullBoundaries.fs` 的片段都位于同一个 `NullBoundaries` 模块中；文件开头已经写有 `open System` 和 `open System.Collections.Generic`，因此 `Uri`、`String` 与 `IReadOnlyCollection` 都有明确来源：
 
 ```fsharp:line-numbers [NullBoundaries.fs]
 let createAbsoluteUri (raw: string) : Uri = Uri(raw, UriKind.Absolute)
@@ -72,7 +72,7 @@ countItems items
 |---|---|---|---|
 | `T | null` | 一个引用可能是空引用 | 引用本身可能为 null | 可空 .NET 标注与互操作 |
 | `Nullable<T>` | 一个值类型可能没有值 | 带 `HasValue` 和 `Value` 的 `System.Nullable<T>` | 使用可空结构体的 .NET API |
-| `T option` | 程序把缺失建模为 `None`，存在建模为 `Some value` | F# 可辨识联合 | F# 领域与工作流 API |
+| `T option` | 程序把缺失建模为 `None`，存在建模为 `Some value` | F# 可区分联合 | F# 领域与工作流 API |
 
 没有任何一种可以普遍替代另外两种。启用空值检查后，`T | null` 用于引用类型；`Nullable<T>` 要求值类型。`option` 可包装值类型或引用类型，并让调用方匹配领域缺失，但内部值的类型仍然重要。
 
@@ -220,9 +220,7 @@ let someNullText: (string | null) option = Some null
 
 普通缺失无需解释时使用 `option`；调用方需要原因时使用 `Result`。让意外异常保留诊断信息，直到某一层有足够上下文进行翻译。第 20 与 21 章会加入副作用及异常、资源策略，但不会改变这里的空值模型。
 
-## 构建已检查的示例 {#run-tests}
-
-在仓库根目录运行：
+本章片段的完整上下文位于 `examples/chapters/ch19/NullBoundaries.fs`。在仓库根目录运行：
 
 ```console
 dotnet build examples/chapters/ch19/Ch19.fsproj --configuration Release
@@ -230,7 +228,7 @@ dotnet build examples/chapters/ch19/Ch19.fsproj --configuration Release
 
 该项目启用空值检查。源码覆盖普通构造函数、成员、重载和接口调用，null 输入收窄，`Type.GetType` 的可空返回，`Nullable<int>` 与可空引用的双向转换，以及 `Some null` 反例。
 
-这个夹具只覆盖此处展示的 API，并不代表每个 .NET 库。实际调用 API 时，始终要检查目标框架当前的标注与文档。
+该项目会在启用空值检查的条件下编译所有片段。它只覆盖此处展示的 API，并不代表每个 .NET 库；实际调用 API 时，始终要检查目标框架当前的标注与文档。
 
 ## 练习 {#exercises}
 

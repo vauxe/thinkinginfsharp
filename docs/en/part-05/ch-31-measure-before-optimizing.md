@@ -10,6 +10,8 @@ Performance is behavior under a workload, on an environment, against a requireme
 
 Efficient F# does not require abandoning expressions, immutability, or domain types. Clear code provides the baseline for testing an optimization hypothesis. When measurement identifies a hot loop, tightly scoped local mutation or a lower-level representation may be appropriate. Keep the public API as simple and accurate as requirements allow.
 
+The main-line code comes from the runnable `examples/chapters/ch31/Ch31.Benchmarks.fsproj` project. `Benchmarks.fs` defines the reference and candidate implementations, the equivalence gate, and the BenchmarkDotNet benchmarks in that order. `Program.fs` defines the `--verify-only`, `--smoke`, and default ShortRun entry paths. Read later fragments in that file context; they are not independent programs for otherwise empty files.
+
 ## Define the performance question first {#performance-question}
 
 A useful performance statement contains four parts:
@@ -46,6 +48,11 @@ Stop when the target is met or the measured benefit no longer justifies complexi
 The sample sums positive seat values no greater than a configured maximum. Its baseline is an idiomatic array pipeline; its candidate performs the same decision and addition in one pass:
 
 ```fsharp:line-numbers [Benchmarks.fs]
+namespace ThinkingInFSharp.Ch31
+
+open System
+open BenchmarkDotNet.Attributes
+
 module RequestAggregation =
     let arrayPipeline maxSeats (requests: int array) =
         requests
@@ -105,12 +112,15 @@ module Equivalence =
 ```
 The reference implementation and candidate use different structures, which makes comparison useful. Cases include empty input, values exactly at the limit, rejected and negative values, and varying lengths. Passing 260 cases is not a mathematical proof; production rules may require more properties, overflow cases, or domain-level tests.
 
-Run only the semantic gate while editing:
+The project pins BenchmarkDotNet 0.15.8 and commits `packages.lock.json`. Restore that graph once, then run only the deterministic semantic gate while editing:
 
 ```console
-dotnet run --project path/to/Ch31.Benchmarks.fsproj \
+dotnet restore examples/chapters/ch31/Ch31.Benchmarks.fsproj --locked-mode
+dotnet run --project examples/chapters/ch31/Ch31.Benchmarks.fsproj \
   --configuration Release --no-restore -- --verify-only
 ```
+
+It prints `Equivalence cases: 260` and does not start a timing job.
 
 Do not encode a noisy time limit in this check. Correctness checks should be deterministic. Performance history can reveal a suspected regression, but a CI threshold requires controlled runners, repeated measurements, and a policy for variance.
 
@@ -135,9 +145,40 @@ type RequestAggregationBenchmarks() =
     member _.ArrayPipeline() =
         RequestAggregation.arrayPipeline 6 requests
 
-    [<Benchmark>]
+[<Benchmark>]
     member _.SinglePass() =
         RequestAggregation.singlePass 6 requests
+```
+The attributes come from `open BenchmarkDotNet.Attributes` at the top of the file, and `Random` comes from `open System`. The command-line behavior is not hidden scaffolding either; this is the complete `Program.fs`:
+
+```fsharp:line-numbers [Program.fs]
+namespace ThinkingInFSharp.Ch31
+
+open BenchmarkDotNet.Configs
+open BenchmarkDotNet.Jobs
+open BenchmarkDotNet.Running
+
+module Program =
+    let private benchmarkConfig job =
+        ManualConfig.Create(DefaultConfig.Instance).AddJob([| job |])
+
+    [<EntryPoint>]
+    let main arguments =
+        let verifiedCases = Equivalence.verify ()
+
+        if Array.contains "--verify-only" arguments then
+            printfn "Equivalence cases: %d" verifiedCases
+        else
+            let job =
+                if Array.contains "--smoke" arguments then
+                    Job.Dry.WithId("Dry")
+                else
+                    Job.ShortRun.WithId("ShortRun")
+
+            BenchmarkRunner.Run<RequestAggregationBenchmarks>(benchmarkConfig job)
+            |> ignore
+
+        0
 ```
 Each choice closes a common loophole:
 
@@ -148,12 +189,12 @@ Each choice closes a common loophole:
 - `Baseline = true` gives ratios within each parameter group;
 - `MemoryDiagnoser` reports managed allocation per operation and GC frequency.
 
-A project using this sample should lock BenchmarkDotNet 0.15.8 and its resolved dependencies. Run it from the command line in Release without an attached debugger. BenchmarkDotNet builds benchmark executables, performs warmup and measurement iterations, and reports the runtime environment; a hand-written `Stopwatch` loop would need to reimplement those controls.
+The sample project locks BenchmarkDotNet 0.15.8 and its resolved dependencies. Run it from the command line in Release without an attached debugger. BenchmarkDotNet builds benchmark executables, performs warmup and measurement iterations, and reports the runtime environment; a hand-written `Stopwatch` loop would need to reimplement those controls.
 
 The quick mode is only an execution check:
 
 ```console
-dotnet run --project path/to/Ch31.Benchmarks.fsproj \
+dotnet run --project examples/chapters/ch31/Ch31.Benchmarks.fsproj \
   --configuration Release --no-restore -- --smoke
 ```
 
@@ -368,6 +409,7 @@ In every case, the next tool is chosen by the unresolved question. Counters clas
 - [BenchmarkDotNet: getting started and Release execution](https://benchmarkdotnet.org/articles/guides/getting-started.html)
 - [BenchmarkDotNet: good practices and limits on extrapolation](https://benchmarkdotnet.org/articles/guides/good-practices.html)
 - [BenchmarkDotNet: diagnosers and allocation reporting](https://benchmarkdotnet.org/articles/configs/diagnosers.html)
+- [NuGet: BenchmarkDotNet 0.15.8](https://www.nuget.org/packages/BenchmarkDotNet/0.15.8)
 - [Microsoft Learn: .NET diagnostics, counters, traces, and profilers](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/)
 - [Microsoft Learn: F# inline functions](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/inline-functions)
 - [Microsoft Learn: F# value options](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/value-options)

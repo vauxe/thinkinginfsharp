@@ -10,10 +10,12 @@ An F# service runs as a .NET process in the cloud. Its domain types, functions, 
 
 Start by naming the deployment problem, then choose the product and layer. A container packages a process. A compute platform such as Kubernetes runs it. Serverless changes the execution and billing contract. Aspire describes an application model and can drive local orchestration or target-specific deployment work; a separate target runtime hosts production.
 
-Start with the process and artifact, then move outward. That order keeps the F# design visible and limits each cloud claim to what has been verified.
+Start with the process and artifact, then move outward. That order keeps the F# design visible and separates in-page design, locally verifiable facts, and evidence still required from the target platform.
+
+This chapter uses vocabulary from three layers: records, discriminated unions, functions, and modules belong to F#; `WebApplication`, `HttpContext`, and container publishing belong to .NET/ASP.NET Core; Serverless, Kubernetes, probes, AppHost, SBOMs, and progressive rollout belong to cloud platforms or operations. The latter two groups are not F# syntax; they are boundaries that an F# application calls or encounters.
 
 ::: tip Two reading passes
-For a first pass, follow the [deployment stack](#deployment-contracts), [decision map](#compute-decision-map), and [verified local slice](#verified-slice). Return to the [release plan](#release-observe-rollback), [evidence ladder](#evidence-ladder), and [adoption spike](#adoption-spike) when preparing a real deployment.
+For a first pass, follow the [deployment stack](#deployment-contracts), [decision map](#compute-decision-map), and [in-page project template](#verified-slice). Return to the [release plan](#release-observe-rollback), [evidence ladder](#evidence-ladder), and [adoption spike](#adoption-spike) when preparing a real deployment.
 :::
 
 ## Deployment is a stack of contracts {#deployment-contracts}
@@ -54,9 +56,22 @@ The answer may be one small managed Web service. Distributed topology is not a m
 
 These are starting points, not a ranking. A managed container product can scale to zero; a Serverless product may accept container images; Kubernetes may be managed; a VM can run containers. Decide from the responsibilities the team must retain, not the marketing category.
 
-## The local cloud sample: one verified local slice {#verified-slice}
+## In-page project template: an F# service and Aspire AppHost {#verified-slice}
 
-The local cloud sample deliberately contains one F# HTTP service, one C# project-based AppHost, and no cloud account or external service. It demonstrates the boundary between application code, development orchestration, and container packaging without pretending to validate a provider deployment.
+The current repository no longer contains the former `examples/ecosystem/cloud` project. This section preserves a reconstructable template: one F# HTTP service, one C# project-based AppHost, and no cloud account or external service. It explains the boundary between application code, development orchestration, and container packaging; it is not a currently executable repository project and proves no provider deployment.
+
+Use these relative locations when reconstructing it; this layout makes the AppHost project reference and the generated type used below valid:
+
+```text
+CloudTemplate/
+  CloudService.fsproj
+  Program.fs
+  AppHost/
+    AppHost.csproj
+    Program.cs
+```
+
+`CloudService.fsproj` compiles only the root `Program.fs`. `AppHost.csproj` references the F# project one level above, allowing the Aspire SDK to generate `Projects.CloudService` for the C# code. After the first restore, generate and keep a dependency lock for each project, then verify with locked mode.
 
 ### The F# service and pinned image base {#fsharp-service}
 
@@ -73,7 +88,7 @@ The local cloud sample deliberately contains one F# HTTP service, one C# project
   </ItemGroup>
 </Project>
 ```
-The Web SDK targets `net10.0`; a copied sample can pin FSharp.Core 10.1.301 in its project file. The image base is explicitly `mcr.microsoft.com/dotnet/aspnet:10.0.10`; a floating `10.0` tag would silently move the runtime beneath an unchanged commit. .NET 10 unqualified Microsoft image tags use Ubuntu rather than the Debian base used by earlier releases, so OS assumptions need testing.
+The Web SDK targets `net10.0`. There is no explicit `FSharp.Core` package reference here; its default version comes from the selected SDK, so inspect the resolved lock rather than guessing a version from this text. The image base is explicitly `mcr.microsoft.com/dotnet/aspnet:10.0.10`; check its support status before adoption and preferably pin a digest as well. A floating `10.0` tag can move the runtime beneath an unchanged commit, and both OS and architecture assumptions require target-environment testing.
 
 ```fsharp:line-numbers [Program.fs]
 namespace ThinkingInFSharp.Ecosystem.Cloud
@@ -159,7 +174,7 @@ The two probe paths are separate even though their current implementations are b
 ```
 The AppHost SDK is pinned to 13.5.2 and targets .NET 10. Its project reference points to the F# service. Aspire generates the `Projects.CloudService` metadata type from that reference; the service does not become C# and does not reference the AppHost.
 
-The project opts into the Aspire CLI bundle and selects `DnxPinned`. The SDK therefore resolves the matching `Aspire.Cli@13.5.2` instead of adding host-specific Dashboard and orchestration packages to the AppHost lock file. No global CLI install is required, but first use needs the package source or a populated cache. This is an optional ecosystem sample, not a dependency of the book site.
+The project opts into the Aspire CLI bundle and selects `DnxPinned`. When this version is reconstructed and restored, the SDK should resolve the matching `Aspire.Cli@13.5.2` instead of requiring a global CLI install; first use still needs the package source or a populated cache. This is an optional in-page ecosystem template, not a dependency of the book site.
 
 ```csharp:line-numbers [AppHost Program.cs]
 using Aspire.Hosting;
@@ -174,30 +189,26 @@ builder
 
 builder.Build().Run();
 ```
-The AppHost names the resource, explicitly declares an `http` endpoint, injects `DEPLOYMENT_MODE=aspire-local`, and attaches an HTTP health check. The explicit endpoint matters: without launch-profile endpoint metadata, the first real run failed before orchestration because the health check had no `http` or `https` endpoint to select.
+The AppHost names the resource, explicitly declares an `http` endpoint, injects `DEPLOYMENT_MODE=aspire-local`, and attaches an HTTP health check. The explicit endpoint matters: this template has no `launchSettings.json` supplying endpoint metadata; without `.WithHttpEndpoint`, the health check has no eligible `http` or `https` endpoint to reference.
 
 This is a good inter-language boundary. F# implements the application and its typed behavior. C# contains a small infrastructure DSL whose current templates, generated metadata, and examples are C#-first. No domain type crosses the boundary, so replacing the orchestration tool does not rewrite the service.
 
-### What was actually executed {#executed-evidence}
+### Evidence required after reconstruction {#executed-evidence}
 
-The verified sequence established the following:
+Readable code is not evidence that the template has run. After reconstruction, complete at least these checks:
 
-- .NET SDK 10.0.301 restored the F# and AppHost projects from lock files;
-- both projects built in Release with zero warnings and zero errors;
-- direct service requests returned `healthy`, `ready`, and `standalone`;
-- Aspire 13.5.2 started the F# child process and injected `aspire-local`;
-- a loopback-only HTTP dashboard showed the resource as `Running`, health state `Healthy`, and the `/health/ready` check as `Healthy`;
-- the service reached through the Aspire-assigned port returned `aspire-local`;
-- the .NET container target produced an approximately 89 MB `linux/arm64` archive from the pinned ASP.NET Core 10.0.10 base;
-- archive metadata showed non-root UID 1654, port 8080, and entry point `dotnet /app/CloudService.dll`;
-- the final publish command left the ordinary `net10.0` lock-file hash unchanged;
-- the full locked solution build, tests, Fable production build, and browser smoke still passed.
+- generate locks with the selected SDK, then restore in locked mode and build Release;
+- start the F# service directly and confirm the three endpoints return `healthy`, `ready`, and `standalone` respectively;
+- start through AppHost, confirm the resource health check completes, and confirm `/api/runtime` returns `aspire-local`;
+- publish a container archive for the target OS/architecture and inspect its base, digest, non-root user, port, entry point, and architecture;
+- compare the ordinary `net10.0` lock before and after publishing so container arguments cannot silently change the graph;
+- actually start the image in a constrained container and verify probes, cancellation, shutdown, and resource limits.
 
-The machine had Docker CLI but no running daemon. The archive was inspected and then deleted; no container start is claimed. No registry push, signature, SBOM attestation, vulnerability decision, cloud identity, external dependency, load test, production telemetry export, deployment, or rollback occurred.
+Even if every local check passes, it does not prove registry push, signing, SBOM attestation, vulnerability decisions, cloud identity, external dependencies, load, production telemetry, deployment, or rollback. This chapter did not perform those operations.
 
 ### Local HTTP was an explicit test exception {#local-http-exception}
 
-The machine also lacked a trusted Aspire development certificate. A first HTTPS dashboard started the service but could not validate its own resource-service certificate, so the UI remained disconnected. The final check used fixed, anonymous HTTP endpoints bound strictly to `127.0.0.1`, as permitted by Aspire's local configuration.
+If a development machine lacks a trusted Aspire development certificate, a controlled experiment can explicitly enable unsecured transport while binding the Dashboard, resource service, and OTLP endpoints strictly to `127.0.0.1`. Record the environment variables, ports, and cleanup steps in the local run instructions; trusted development HTTPS remains the better team default.
 
 That mode is not production guidance. Other local processes can read or submit dashboard telemetry. Never bind an anonymous unsecured dashboard or OTLP receiver to a LAN or public address. Normal team use should establish trusted development HTTPS; remote and production endpoints require authentication, encryption, network policy, and secret handling appropriate to the environment.
 
@@ -242,7 +253,7 @@ Different consumers need different answers:
 | Synthetic/user journey | Can an important operation succeed through real boundaries? | Alert, halt rollout, or investigate |
 | Business health | Are domain outcomes, queues, latency, errors, and cost within objectives? | Operational or product response |
 
-Kubernetes explicitly gives startup, liveness, and readiness probes different effects. Aspire also distinguishes AppHost resource checks from service endpoint checks. The local cloud sample connects the AppHost check to the service's readiness URL, but one green local check does not configure a production load balancer.
+Kubernetes explicitly gives startup, liveness, and readiness probes different effects. Aspire also distinguishes AppHost resource checks from service endpoint checks. The in-page template connects the AppHost check to the service's readiness URL, but that declaration does not configure a production load balancer.
 
 Keep liveness cheap and independent of transient downstream systems. Readiness may include required dependencies, but an unbounded dependency chain can make every instance unready during a shared outage. Set timeouts, avoid leaking internals, control caching, restrict exposure, and test both failure and recovery.
 
@@ -263,11 +274,11 @@ Tags are convenient names; a digest identifies image content. Promote the same d
 
 Multi-architecture indexes do not prove identical behavior. Native libraries, globalization, JIT behavior, available images, and performance can differ between `amd64` and `arm64`. Build and smoke each deployed architecture, then test under the target's security context and resource limits.
 
-### The lock-file lesson from the local cloud sample {#lock-file-lesson}
+### Keep publish commands from silently changing locks {#lock-file-lesson}
 
-The first container command added `--os linux`. Restore then rewrote the project's lock graph with runtime identifier `linux-arm64`, and the next ordinary solution `--locked-mode` restore failed because the project itself declared no RID.
+Some cross-OS or cross-architecture publish arguments trigger a RID-specific restore and can change the ordinary project lock graph. Do not assume that a command “only packages” because it looks that way; compare the lock before and after publishing, then repeat the ordinary `--locked-mode` restore.
 
-The final checked command lets the container target choose the Linux image platform without changing the application project's runtime identifier. The lock hash remains stable. When a self-contained or cross-architecture release truly needs a RID-specific graph, isolate and commit that release contract deliberately; do not let an ad hoc publish mutate the development lock unnoticed.
+When a self-contained or cross-architecture release genuinely needs a RID-specific graph, declare, lock, and test it as a separate release contract. If only the container target must select a Linux image platform, choose a command that does not accidentally rewrite the development graph and prove that with a clean-worktree check.
 
 ## Serverless is an invocation contract {#serverless-contract}
 
@@ -311,9 +322,9 @@ Every provider defines supported .NET versions, CPU architectures, duration, mem
 
 A provider advertising “.NET” does not prove first-class F# templates, analyzers, generated bindings, local tools, Native AOT behavior, or documentation. F# can consume ordinary .NET libraries, but code generation and tooling APIs may favor one language.
 
-As of 2026-08-25, Azure Functions 4.x isolated worker documentation lists .NET 10 and notes that F# applications may need explicit registration for some binding extensions. It also records plan-specific restrictions and minimum worker package versions. This chapter reviewed that documentation but did not build or deploy an Azure Function.
+As of 2026-08-31, Azure Functions 4.x isolated worker documentation lists .NET 10 and notes that F# applications may need explicit registration for some binding extensions. It also records plan-specific restrictions and minimum worker package versions. This chapter reviewed that documentation but did not build or deploy an Azure Function.
 
-AWS currently documents a .NET 10 Lambda base image and .NET packaging paths, mostly using C# terminology and examples. A compiled F# handler can be a candidate only after an F# project spike verifies handler discovery, serializer behavior, packages, architecture, local invocation, cold path, deployment, and telemetry. The local cloud sample did none of those steps.
+AWS currently documents a .NET 10 Lambda base image and .NET packaging paths, mostly using C# terminology and examples. A compiled F# handler can be a candidate only after an F# project spike verifies handler discovery, serializer behavior, packages, architecture, local invocation, cold path, deployment, and telemetry. The in-page template implements no Lambda handler and performs none of those steps.
 
 Do not choose Serverless to avoid learning deployment. It adds a provider runtime, trigger contract, identity, limits, pricing dimensions, local emulator/tooling, and event failure semantics. Choose it when those additions remove more owned infrastructure than they create application risk.
 
@@ -333,13 +344,13 @@ Name resources as stable operational concepts. Treat generated connection data a
 
 AppHost resource health answers whether orchestration considers a resource ready, including whether a dependent `WaitFor` may proceed. Service endpoint health answers whether a running application instance should receive traffic or restart under its production platform.
 
-The dashboard can display an HTTP resource check, as the local cloud sample verified. Production still needs platform probe configuration aimed at the right service path, port, timeout, threshold, and security boundary. Copying a green dashboard screenshot into a runbook does not create that configuration.
+The Aspire dashboard can display an HTTP resource check declared by AppHost; verify that wiring when reconstructing the template. Production still needs platform probe configuration aimed at the right service path, port, timeout, threshold, and security boundary. Copying a green dashboard screenshot into a runbook does not create that configuration.
 
 ### Service Defaults are source code, not magic {#service-defaults}
 
 The current C# Service Defaults template composes OpenTelemetry, health checks, service discovery, and standard `HttpClient` resilience. It is a customizable shared project. Calling `AddServiceDefaults` and `MapDefaultEndpoints` is what installs those behaviors; merely running under AppHost does not instrument an application.
 
-The local cloud sample intentionally omits Service Defaults. The AppHost injects OTLP-related environment variables, but the F# service has no OpenTelemetry SDK/exporter packages, so the chapter claims no traces or metrics. Its health endpoints are explicit teaching handlers, not ASP.NET Core `IHealthCheck` registrations.
+The in-page template intentionally omits Service Defaults. Even if AppHost injects OTLP-related environment variables, the F# service has no OpenTelemetry SDK/exporter packages and therefore does not gain traces or metrics automatically. Its health endpoints are explicit teaching handlers, not ASP.NET Core `IHealthCheck` registrations.
 
 For a real F# solution, choose one of three honest paths:
 
@@ -357,7 +368,7 @@ Current Aspire deployment is pipeline-based. A deployment target or compute envi
 - `aspire deploy` evaluates the model, resolves parameters, generates target output, and applies it directly.
 - `aspire do <step>` invokes named pipeline steps when CI/CD needs a split flow.
 
-These commands require an appropriate CLI and target integrations. The local cloud sample uses the pinned CLI bundle for development orchestration, but configures no deployment target and runs no publish or deploy command. Its AppHost build is only a local application-model and orchestration check.
+These commands require an appropriate CLI and target integrations. The in-page template declares only a pinned CLI bundle and development orchestration; it configures no deployment target and supplies no publish or deploy flow. Even a successful AppHost build is only local application-model evidence.
 
 ### Environment is not execution mode {#environment-execution-mode}
 
@@ -405,16 +416,16 @@ Emulators are not evidence for provider control planes, identities, quotas, netw
 
 | Surface | Checked version or statement | What an adopting application must verify |
 | --- | --- | --- |
-| .NET SDK | 10.0.301 | Locked restore, Release build, tests, and publish |
-| FSharp.Core | 10.1.301 | Resolved graph and runtime compatibility |
-| Aspire.AppHost.Sdk | 13.5.2 locally verified; 13.5.3 current on 2026-08-28 | Use only if local multi-service orchestration repays its cost; then test startup and health |
-| ASP.NET Core base image | 10.0.10 | Image metadata, operating system, architecture, vulnerabilities, and container startup |
-| Aspire CLI bundle/deployment targets | CLI 13.5.2 | Bundle output and the chosen deployment target, if used |
+| .NET SDK | local editing environment is 10.0.302; template targets `net10.0` | Select and pin an SDK, then perform locked restore, Release build, tests, and publish |
+| FSharp.Core | not explicitly pinned by the template | Inspect the resolved lock version and runtime compatibility |
+| Aspire.AppHost.Sdk | template pins 13.5.2; NuGet lists 13.5.3 on 2026-08-31 | Use only if local multi-service orchestration repays its cost; then test startup and health |
+| ASP.NET Core base image | template pins tag 10.0.10 | Check support and digest, then verify metadata, operating system, architecture, vulnerabilities, and container startup |
+| Aspire CLI bundle/deployment targets | template requests CLI 13.5.2; not executed | Bundle output and the chosen deployment target, if used |
 | Azure Functions isolated worker | Docs list .NET 10 and F# binding caveats | Package, emulate, and deploy the actual trigger path |
 | AWS Lambda .NET 10 image/runtime path | Current official docs reviewed | Package, invoke, and deploy the actual handler |
 | Kubernetes probes/deployment | Current official semantics reviewed | Manifest, cluster behavior, and real probe execution |
 
-The sample remains on the verified 13.5.2. Adopting NuGet's listed 13.5.3 requires updating the SDK and matching CLI together, then repeating restore through deployment. Versions record what was considered, not application support; keep provider plan, region, architecture, trigger, packages, CLI, base digest, and date with the evidence.
+The template remains on 13.5.2 so `AppHost.csproj` and its CLI bundle agree; that is not current execution evidence. Adopting NuGet's listed 13.5.3 requires updating the SDK and matching CLI together, then repeating restore through deployment. Versions record what was considered, not application support; keep provider plan, region, architecture, trigger, packages, CLI, base digest, and date with the evidence.
 
 ## Run a bounded adoption spike {#adoption-spike}
 
@@ -502,36 +513,36 @@ Reverse an individual workload when the platform adds more latency, cost, coupli
 
 :::
 
-### Exercise 2: turn the local cloud sample into a release proposal {#exercise-02}
+### Exercise 2: turn the in-page cloud template into a release proposal {#exercise-02}
 
-Design the minimum work required to deploy the F# service from the local cloud sample to a managed container environment. Organize the proposal into four parts:
+Design the minimum work required to deploy the F# service from the in-page template to a managed container environment. Organize the proposal into four parts:
 
 - **Artifact and supply chain:** architecture, immutable image identity, registry, SBOM, signing, and vulnerability policy.
 - **Runtime contract:** configuration and secret identity, Service Defaults or alternative telemetry, production probes, non-root/read-only execution, resource limits, and shutdown.
 - **Release path:** staging smoke, representative load, progressive rollout, rollback, and data compatibility.
 - **Responsibility:** cost, cleanup, and the team responsible for each operational response.
 
-Label each claim as either illustrated by this chapter or awaiting evidence from the target environment.
+Label each claim as coming from the in-page code design, a local reconstruction check, or evidence still required from the target environment.
 
 
 ::: details Answer
 
-#### Begin with the exact baseline {#exercise-02-baseline}
+#### Establish a repeatable local baseline first {#exercise-02-baseline}
 
-Before proposing a release, a copied sample must first verify:
+Before proposing a release, the reconstructed template must first verify:
 
-- the F# service and C# AppHost restore from locks and build on the checked macOS arm64 environment;
-- the direct service and Aspire-orchestrated service answer the three tested endpoints;
+- the F# service and C# AppHost restore from locks and build in a team-supported environment;
+- the direct service and Aspire-orchestrated service answer the three endpoints;
 - AppHost's local resource check becomes healthy;
-- the SDK produces and exposes metadata for one `linux/arm64` image archive;
-- the base tag is 10.0.10, the image user is 1654, the port is 8080, and the entry point is known;
-- the ordinary package lock remains unchanged after the final container command.
+- the SDK produces an image archive for the target architecture whose metadata can be inspected;
+- the base digest, image user, port, architecture, and entry point meet a written contract;
+- the ordinary package lock remains unchanged after the container command.
 
 Those local checks do not verify the target platform, cloud identity, registry, production probes, telemetry export, load, security policy, rollout, or rollback. The release proposal starts at that boundary instead of relabeling local results.
 
 #### Define one immutable artifact {#exercise-02-artifact}
 
-Choose the managed environment's supported CPU architecture. Build that architecture in CI with SDK 10.0.301, locked dependencies, and the pinned base; run the full test suite before packaging. Generate an image digest, SBOM, provenance record, license inventory, and vulnerability report.
+Choose the managed environment's supported CPU architecture. Build that architecture in CI with the team's pinned .NET 10 SDK, locked dependencies, and pinned base digest; run the full test suite before packaging. Generate an image digest, SBOM, provenance record, license inventory, and vulnerability report.
 
 Push once to a restricted registry. Sign or attest the digest through the organization's approved identity. Promotion records refer to that digest, never just `latest`, branch, or commit. Registry retention must preserve both the active and rollback digests.
 
@@ -541,7 +552,7 @@ The policy gate checks base support, non-root user, unexpected writable or privi
 
 Run the image locally or in CI under the target architecture, UID, read-only root filesystem, temporary writable mount, dropped capabilities, CPU/memory limits, and port 8080. Verify startup, all API responses, liveness, readiness, signal-driven drain, forced termination, and recovery after restart.
 
-The platform service account receives only the permission required by this sample. Because the local cloud sample has no data dependency, no database or secret is invented. Add non-secret `DEPLOYMENT_MODE` through versioned configuration. If a future secret appears, use the platform secret/identity path and test rotation without printing its value.
+The platform service account receives only the permission required by the template. Because the template has no data dependency, no database or secret is invented. Add non-secret `DEPLOYMENT_MODE` through versioned configuration. If a future secret appears, use the platform secret/identity path and test rotation without printing its value.
 
 Expose application traffic and probe paths only through intended platform routes. Protect or isolate operational endpoints. Use encrypted authenticated management and telemetry connections; the anonymous loopback dashboard exception is not copied into the deployment.
 
@@ -565,7 +576,7 @@ Use separate staging and production configuration, but the same digest. A stagin
 
 Release to a small traffic slice or revision. Gate expansion on error rate, tail latency, readiness churn, restarts, resource pressure, one synthetic request, and cost. Define numbers and observation windows before deployment.
 
-Rollback routes traffic to the retained previous digest and compatible configuration. The local cloud sample has no data migration, so reversal is simple; the first persistent dependency must add schema compatibility and forward-fix analysis. Rehearse rollback from a deliberately unhealthy candidate.
+Rollback routes traffic to the retained previous digest and compatible configuration. This template has no data migration, so reversal in the exercise is comparatively simple; the first persistent dependency must add schema compatibility and forward-fix analysis. Rehearse rollback from a deliberately unhealthy candidate.
 
 After the observation window, retain the release records, remove failed revisions and unused temporary resources, and reconcile registry, telemetry, egress, and compute cost. Cleanup is part of the proposal because abandoned environments are both an expense and an attack surface.
 

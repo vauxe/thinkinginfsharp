@@ -14,17 +14,23 @@ F# can enforce that rule through the API. Expose a `Capacity` type, hide its rep
 
 ## Validation without a protected result is bypassable {#bypassable-validation}
 
-This type abbreviation creates no new runtime or compile-time distinction:
+The following counterexample includes its measure definition and runs by itself. It shows that a type abbreviation creates no new runtime or compile-time distinction:
 
 ```fsharp
+[<Measure>]
+type seat
+
 type Capacity = int<seat>
 
 let validateCapacity capacity =
     if capacity > 0<seat> then Ok capacity
     else Error "capacity must be positive"
+
+let bypassed: Capacity = 0<seat>
+printfn "Bypassed capacity: %d" bypassed
 ```
 
-Even if one path calls `validateCapacity`, another can write `let capacity: Capacity = 0<seat>`. A type abbreviation is only another name for the same type; it cannot control construction.
+It prints `Bypassed capacity: 0`. Even if one path calls `validateCapacity`, another can construct zero directly. A type abbreviation is only another name for the same type; it cannot control construction.
 
 A public record has the same weakness when callers can fill its fields directly. Validation that returns the unchanged public representation is useful when accepting input, but later code still cannot distinguish validated from unchecked data.
 
@@ -37,21 +43,27 @@ Either part alone is incomplete. A private wrapper with a public unchecked const
 
 ## Expose the type and hide the constructor {#private-representation}
 
-The example defines the domain inside an explicit module:
+The next block starts a new cumulative example. Save it as `ch12-domain.fsx`. Append the next two valid blocks in order and retain their four-space indentation because they remain inside `BookingDomain`:
 
 ```fsharp:line-numbers
-type CapacityError = NonPositiveCapacity of actual: int
+module BookingDomain =
+    open System
 
-type Capacity = private Capacity of int<seat>
+    [<Measure>]
+    type seat
 
-module Capacity =
-    let create raw =
-        if raw > 0 then
-            raw |> LanguagePrimitives.Int32WithMeasure<seat> |> Capacity |> Ok
-        else
-            Error(NonPositiveCapacity raw)
+    type CapacityError = NonPositiveCapacity of actual: int
 
-    let value (Capacity capacity) = capacity
+    type Capacity = private Capacity of int<seat>
+
+    module Capacity =
+        let create raw =
+            if raw > 0 then
+                raw |> LanguagePrimitives.Int32WithMeasure<seat> |> Capacity |> Ok
+            else
+                Error(NonPositiveCapacity raw)
+
+        let value (Capacity capacity) = capacity
 ```
 Notice the modifier position:
 
@@ -63,7 +75,7 @@ The type `Capacity` is visible, while its union representation is private to the
 
 The outer `Capacity` name denotes the type; the inner case constructs or matches its representation. Code outside `BookingDomain` can pass and store a `Capacity` or call public functions over it, but cannot invoke that case.
 
-This diagnostic-only bypass was verified with F# 10:
+The following is a diagnostic counterexample from consumer code; do not add it to the valid script. It was verified with F# 10:
 
 ```fsharp
 let invalid = BookingDomain.Capacity 0<BookingDomain.seat>
@@ -76,10 +88,12 @@ F# union cases are not individually less accessible than their union representat
 
 F# allows a type and module to share a name. This produces a focused API:
 
-```fsharp
+```text
 Capacity.create : int -> Result<Capacity, CapacityError>
 Capacity.value : Capacity -> int<seat>
 ```
+
+These are API signatures for reading, not code to paste into the script.
 
 The module is inside the same enclosing `BookingDomain` module, so it can construct and pattern-match the private case. Callers use qualified names and never need the representation.
 
@@ -91,34 +105,34 @@ Keep the trusted code small. Every function that can invoke the private `Capacit
 
 ## Smart construction may validate and normalize {#validation-and-normalization}
 
-The other protected components show two policies:
+Append the following code inside `BookingDomain`. It shows two policies for protected components:
 
 ```fsharp:line-numbers
-type EventIdError = | BlankEventId
+    type EventIdError = | BlankEventId
 
-type EventId = private EventId of string
+    type EventId = private EventId of string
 
-module EventId =
-    let create raw =
-        if String.IsNullOrWhiteSpace raw then
-            Error BlankEventId
-        else
-            raw.Trim() |> EventId |> Ok
+    module EventId =
+        let create raw =
+            if String.IsNullOrWhiteSpace raw then
+                Error BlankEventId
+            else
+                raw.Trim() |> EventId |> Ok
 
-    let value (EventId eventId) = eventId
+        let value (EventId eventId) = eventId
 
-type SeatCountError = NonPositiveSeatCount of actual: int
+    type SeatCountError = NonPositiveSeatCount of actual: int
 
-type SeatCount = private SeatCount of int<seat>
+    type SeatCount = private SeatCount of int<seat>
 
-module SeatCount =
-    let create raw =
-        if raw > 0 then
-            raw |> LanguagePrimitives.Int32WithMeasure<seat> |> SeatCount |> Ok
-        else
-            Error(NonPositiveSeatCount raw)
+    module SeatCount =
+        let create raw =
+            if raw > 0 then
+                raw |> LanguagePrimitives.Int32WithMeasure<seat> |> SeatCount |> Ok
+            else
+                Error(NonPositiveSeatCount raw)
 
-    let value (SeatCount seats) = seats
+        let value (SeatCount seats) = seats
 ```
 `EventId.create` rejects blank input and trims surrounding whitespace. `SeatCount.create` rejects non-positive counts and restores the compile-time measure. Once constructed:
 
@@ -133,32 +147,32 @@ Do not publish an unchecked escape hatch merely for convenience. If trusted migr
 
 ## Compose protected values into larger states {#composing-invariants}
 
-The request model combines the two protected component types and also hides its record representation:
+Finally, append the request model to the same module. It combines the two protected component types and hides its record representation:
 
 ```fsharp:line-numbers
-type BookingRequestError =
-    | InvalidEventId of EventIdError
-    | InvalidSeatCount of SeatCountError
+    type BookingRequestError =
+        | InvalidEventId of EventIdError
+        | InvalidSeatCount of SeatCountError
 
-type BookingRequest =
-    private
-        { EventId: EventId
-          Seats: SeatCount }
+    type BookingRequest =
+        private
+            { EventId: EventId
+              Seats: SeatCount }
 
-module BookingRequest =
-    let create rawEventId rawSeats =
-        rawEventId
-        |> EventId.create
-        |> Result.mapError InvalidEventId
-        |> Result.bind (fun eventId ->
-            rawSeats
-            |> SeatCount.create
-            |> Result.mapError InvalidSeatCount
-            |> Result.map (fun seats -> { EventId = eventId; Seats = seats }))
+    module BookingRequest =
+        let create rawEventId rawSeats =
+            rawEventId
+            |> EventId.create
+            |> Result.mapError InvalidEventId
+            |> Result.bind (fun eventId ->
+                rawSeats
+                |> SeatCount.create
+                |> Result.mapError InvalidSeatCount
+                |> Result.map (fun seats -> { EventId = eventId; Seats = seats }))
 
-    let eventId request = request.EventId |> EventId.value
+        let eventId request = request.EventId |> EventId.value
 
-    let seats request = request.Seats |> SeatCount.value
+        let seats request = request.Seats |> SeatCount.value
 ```
 `BookingRequest.create` first creates an `EventId`, then a `SeatCount`, mapping each component error into request context. Only after both succeed does it construct the private record. The resulting value cannot contain a blank identifier or non-positive seat count through this API.
 
@@ -296,7 +310,7 @@ Favor the private record when there is a cross-field rule, a derived field that 
 
 If no additional validation can fail, the minimal private API is:
 
-```fsharp
+```text
 BookingRequest.create : EventId -> SeatCount -> BookingRequest
 BookingRequest.eventId : BookingRequest -> EventId
 BookingRequest.seats : BookingRequest -> SeatCount
@@ -317,7 +331,7 @@ Write the public portion of a `.fsi` signature for `Capacity` plus a `tryReserve
 
 The proposed signature reveals a modeling error:
 
-```fsharp
+```text
 tryReserve : SeatCount -> Capacity -> Result<Capacity, ReservationError>
 ```
 
@@ -374,7 +388,48 @@ If the original signature were retained, the implementation would have to reject
 
 ## Part II checkpoint {#part-checkpoint}
 
-Test the constructors above with a valid request, a blank event ID, non-positive capacity, and non-positive seat count. The valid request must be constructed; each invalid value must fail at its own boundary. Later chapters add state transitions and external adapters.
+Append this consumer code to `ch12-domain.fsx`. Its top-level indentation closes `BookingDomain` and tests a valid request, a blank event ID, non-positive capacity, and non-positive seat count:
+
+```fsharp:line-numbers
+open BookingDomain
+
+let validRequestWorks =
+    match BookingRequest.create "  EVT-1  " 2 with
+    | Ok request ->
+        BookingRequest.eventId request = "EVT-1"
+        && BookingRequest.seats request = 2<seat>
+    | Error _ -> false
+
+let blankEventIdRejected =
+    match BookingRequest.create "   " 2 with
+    | Error(InvalidEventId BlankEventId) -> true
+    | _ -> false
+
+let nonPositiveCapacityRejected =
+    match Capacity.create 0 with
+    | Error(NonPositiveCapacity 0) -> true
+    | _ -> false
+
+let nonPositiveSeatCountRejected =
+    match BookingRequest.create "EVT-1" 0 with
+    | Error(InvalidSeatCount(NonPositiveSeatCount 0)) -> true
+    | _ -> false
+
+printfn
+    "Constructors: valid=%b blank=%b capacity=%b seats=%b"
+    validRequestWorks
+    blankEventIdRejected
+    nonPositiveCapacityRejected
+    nonPositiveSeatCountRejected
+```
+
+Run `dotnet fsi --warnaserror+ --exec ch12-domain.fsx`. Expected output:
+
+```text
+Constructors: valid=true blank=true capacity=true seats=true
+```
+
+The valid request is constructed and its ID normalized; each invalid value is rejected at its own boundary. Later chapters add state transitions and external adapters.
 
 [Continue to Chapter 13](../part-03/ch-13-composition-pipeline-api), which begins composing these typed operations.
 

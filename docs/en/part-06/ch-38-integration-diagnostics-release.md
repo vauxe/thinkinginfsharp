@@ -8,13 +8,19 @@ translationKey: part-06/ch-38-integration-diagnostics-release
 
 The preceding chapters built the booking system from the inside out: a precise domain model, a pure decider, ports and adapters, an HTTP API, and finally a consistency protocol. No layer alone verifies that the executable connects them in the intended order. This chapter closes that gap.
 
-The goal is to connect one composition root, exercise the public contract from another .NET language, and observe results without exposing sensitive data. One reproducible command will verify the complete path. The result remains a teaching system, so the chapter also states exactly what it does **not** verify.
+The goal is to design one composition root, exercise the public contract from another .NET language, and observe results without exposing sensitive data. The chapter then plans the complete acceptance path as one reproducible command and states exactly what that command **cannot** prove.
+
+This remains an in-page reference implementation: the current repository has no complete Booking solution, runnable API, C# client, or acceptance script described below. If implemented as projects, `Booking.Api` should reference the prior three layers and compile `Diagnostics.fs` → `Endpoints.fs` → `Program.fs`.
+
+`Program.fs` depends on Chapter 36's startup configuration and endpoints plus Chapter 37's store and service. `Diagnostics.fs` additionally requires `System.Diagnostics`, `System.Diagnostics.Metrics`, and ASP.NET Core logging/dependency-injection types.
+
+“Composition root,” “correlation ID,” “metric cardinality,” and “instrumentation” are architecture and observability terms, not F# syntax terms. F# supplies function records for boundary interfaces, pattern matching for outcome mapping, and `task` for composing the request pipeline.
 
 ## Verify composition at the executable {#composition-proof}
 
 A composition root answers a concrete question: which implementations will the running process actually use? Beautiful domain functions and strong adapter tests are irrelevant if the executable wires an older workflow around them.
 
-Chapter 37 deliberately left this gap visible. The earlier `BookingEndpoints.map` path accepted `AsyncPorts`, so it could not provide aggregate idempotency and capacity guarantees. The final entry point constructs `AtomicBookingStore`, controlled payment and notification adapters, and `IdempotentBookingService`. It exposes only two operations to the HTTP layer.
+Chapter 37 deliberately left this gap visible. The earlier `BookingEndpoints.map` path accepted `AsyncPorts`, so it could not provide aggregate idempotency and capacity guarantees. The proposed final entry point constructs `AtomicBookingStore`, controlled payment and notification adapters, and `IdempotentBookingService`. It exposes only two operations to the HTTP layer.
 
 ```fsharp:line-numbers [Program.fs]
 [<EntryPoint>]
@@ -111,7 +117,7 @@ That boundary also explains a useful testing seam. An HTTP contract test can pro
 
 ## Build a verification ladder {#evidence-ladder}
 
-“The tests pass” is incomplete unless you can say which boundary each test crosses. This project uses several deliberately overlapping levels:
+“The tests pass” is incomplete unless you can say which boundary each test crosses. An implemented project should use several deliberately overlapping levels:
 
 | Test level | Real components crossed | Supported conclusion | Unsupported conclusion |
 |---|---|---|---|
@@ -125,9 +131,9 @@ Microsoft's [ASP.NET Core integration-testing guidance](https://learn.microsoft.
 
 ### Make HTTP effects observable in tests {#http-effects}
 
-The end-to-end fixture builds a real `WebApplication`, selects `TestServer`, registers the same diagnostic middleware, maps the same consistent endpoints, and uses a temporary snapshot. Controlled payment and notification functions increment thread-safe counters.
+The end-to-end fixture should build a real `WebApplication`, select `TestServer`, register the same diagnostic middleware, map the same consistent endpoints, and use a temporary snapshot. Controlled payment and notification functions increment thread-safe counters.
 
-Focused integration tests show that:
+The minimum focused integration tests should show that:
 
 - normalized exact placement replays the same `201` body and does not repeat effects;
 - changed seats under the same operation identity return `409 idempotency_conflict`;
@@ -135,21 +141,23 @@ Focused integration tests show that:
 - an ambiguous payment returns `503` first, then `409 payment_outcome_unknown`, with one payment call;
 - the diagnostic test aligns the response correlation ID with bounded metrics and one stopped child activity.
 
-The first two facts share one test because the effect counters are the causal observation. A response assertion alone would miss a duplicate payment hidden behind a replayed body.
+The first two facts should share one test because the effect counters are the causal observation. A response assertion alone would miss a duplicate payment hidden behind a replayed body.
 
-`TestServer` sends HTTP abstractions in memory. That makes the pipeline fast and deterministic, but it intentionally avoids port allocation, TLS, and kernel networking. The release smoke therefore adds a second, smaller test across a real loopback socket.
+`TestServer` sends HTTP abstractions in memory. That makes the pipeline fast and deterministic, but it intentionally avoids port allocation, TLS, and kernel networking. The release smoke should therefore add a second, smaller test across a real loopback socket.
 
 ### Prefer signals over delays {#causal-tests}
 
-Concurrency tests elsewhere in the capstone use barriers and task-completion signals to force both operations into the dangerous interval. Restart tests launch a genuinely separate process against the persisted snapshot. Those facts are stronger than “run it many times and hope the scheduler is unlucky.”
+After implementation, concurrency tests elsewhere in the project should use barriers and task-completion signals to force both operations into the dangerous interval. Restart tests should launch a genuinely separate process against the persisted snapshot. That evidence is stronger than “run it many times and hope the scheduler is unlucky.”
 
 Repetition still has a role: it can detect leaked shared state and nondeterministic cleanup. It is not a substitute for controlling the causal interleaving that defines the bug.
 
 ## Verify the public contract from C# {#csharp-contract}
 
-F# and C# share the CLR, but they do not share identical ergonomics. A public F# API can compile while exposing curried functions, F#-specific unions, options, or generic shapes that are awkward to ordinary C# callers. Chapter 27 designed separate CLR-friendly DTOs; this chapter consumes them from an actual C# executable.
+F# and C# share the CLR, but they do not share identical ergonomics. A public F# API can compile while exposing curried functions, F#-specific unions, options, or generic shapes that are awkward to ordinary C# callers. Chapter 27 designed separate CLR-friendly DTOs; after implementation, an independent C# executable should consume them for real.
 
-The client references only `Booking.Contracts`, never `Booking.Domain` or `Booking.Infrastructure`. It communicates with the service exclusively through `HttpClient` and JSON.
+The proposed client references only `Booking.Contracts`, never `Booking.Domain` or `Booking.Infrastructure`. It communicates with the service exclusively through `HttpClient` and JSON.
+
+The block below is the middle of a top-level C# console program, not a complete file. It assumes earlier imports for `System.Net`, `System.Net.Http.Json`, and the Contracts namespace. It also assumes existing `requestId`, `HttpClient client`, and `JsonSerializerOptions json` values plus `ReadBooking` and `Require` helpers.
 
 ```csharp:line-numbers [Program.cs]
 var place = new PlaceBookingDto
@@ -187,7 +195,7 @@ using var loadedResponse = await client.GetAsync($"api/bookings/{escapedRequestI
 var loaded = await ReadBooking(loadedResponse, json);
 Require(loaded.Body == confirmed.Body, "GET must return the current confirmed booking.");
 ```
-This one flow checks four contract properties:
+That flow should check four contract properties:
 
 | Step | Contract check |
 |---|---|
@@ -198,7 +206,7 @@ This one flow checks four contract properties:
 
 The client deliberately configures strict, case-sensitive deserialization and rejects unmapped properties. That tests compatibility with the chosen contract; other consumers need not copy the policy. Comparing raw successful bodies confirms deterministic output in this contract version. It does not imply that JSON texts with different property order are semantically unequal.
 
-A successful C# client does not establish binary compatibility with every previous assembly version. That requires retained consumer fixtures or an API-compatibility tool against a declared baseline. It does show that the current public surface works for the primary cross-language path.
+Passing this C# acceptance flow does not establish binary compatibility with every previous assembly version. That requires retained consumer fixtures or an API-compatibility tool against a declared baseline. This acceptance step proves only that the primary cross-language path works.
 
 ## Instrument the boundary, not the secret {#diagnostics}
 
@@ -243,7 +251,7 @@ The child activity adds booking-specific outcome tags beneath ASP.NET Core's ser
 
 The official [.NET tracing guide](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/distributed-tracing-instrumentation-walkthroughs) likewise notes the `null` behavior and that disposing an activity stops it.
 
-Most importantly, `Meter`, `ActivitySource`, and log calls are producers. They do not create a collector, durable store, dashboard, alert, retention policy, or access policy. The sample tests production of signals with `MeterListener` and `ActivityListener`; deployment must separately configure and test collection.
+Most importantly, `Meter`, `ActivitySource`, and log calls are producers. They do not create a collector, durable store, dashboard, alert, retention policy, or access policy. After implementation, `MeterListener` and `ActivityListener` can verify signal production; deployment must separately configure and test collection.
 
 ## Put verification behind one command {#release-check}
 
@@ -321,9 +329,9 @@ Before this service handles real bookings, a concrete system must decide and ver
 
 That list is not a request to add every mechanism to the teaching repository. It is a boundary checklist. Architecture should grow when a named requirement and test environment exist.
 
-## Keep a guarantee ledger {#guarantee-ledger}
+## Plan the post-acceptance guarantee ledger {#guarantee-ledger}
 
-The capstone can now make these narrow, tested claims:
+Only after the in-page design has been implemented and the acceptance path above has passed may the project make these narrow claims:
 
 - protected F# constructors and deciders enforce the modeled booking states and transitions;
 - strict DTO mapping rejects malformed and unknown transport data before domain work;
@@ -364,7 +372,7 @@ The language does not select a production database, make a provider idempotent, 
 
 ### Exercise 1: audit three inflated claims {#exercise-01}
 
-A release note says: “The booking API is safe across three replicas, performs payment and notifications exactly once, and is production ready because all tests pass.” Rewrite it as a guarantee ledger. For each claim, identify the strongest current evidence, the missing topology or dependency, the next mechanism, and a test that would produce the missing evidence. Do not merely replace every sentence with “not guaranteed.”
+Assume a team has implemented this chapter's project and run the described acceptance path. Its release note says: “The booking API is safe across three replicas, performs payment and notifications exactly once, and is production ready because all tests pass.” Rewrite it as a guarantee ledger. For each claim, identify that hypothetical project's strongest evidence, the missing topology or dependency, the next mechanism, and a test that would produce the missing evidence. Do not merely replace every sentence with “not guaranteed.”
 
 
 ::: details Answer
@@ -419,11 +427,11 @@ Do not sample metrics. Aggregate every request measurement in process and let th
 
 Use a collector endpoint and credentials from deployment configuration. Enforce TLS and least privilege. Apply attribute allowlists or redaction in both the application and collector, because a collector rule is not a reason to emit known secrets. Bound queue memory, define export timeouts, and decide whether telemetry loss may ever affect request success; in most services it should not.
 
-Microsoft's [.NET tracing guide](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/distributed-tracing-instrumentation-walkthroughs) distinguishes instrument creation from collection. Its [metrics guide](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/metrics-instrumentation) recommends `IMeterFactory` in dependency-injection hosts, matching the tested design here.
+Microsoft's [.NET tracing guide](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/distributed-tracing-instrumentation-walkthroughs) distinguishes instrument creation from collection. Its [metrics guide](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/metrics-instrumentation) recommends `IMeterFactory` in dependency-injection hosts, matching the design planned for verification here.
 
 #### Test correlation and series growth {#exercise-02-tests}
 
-Retain the current in-process listener test because it verifies local signal production without a vendor. Add a collector integration test that sends one successful and one invalid request with a controlled valid `traceparent`, then asserts:
+First implement an in-process listener test that verifies local signal production without a vendor. Then add a collector integration test that sends one successful and one invalid request with a controlled valid `traceparent`, and assert:
 
 - the response header and completion log use the same trace ID;
 - the custom activity is a child of the server activity when sampled;

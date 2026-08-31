@@ -10,6 +10,18 @@ translationKey: part-06/ch-35-ports-persistence-config
 
 核心问题是每项规则由谁决定。领域决定命令是否合法；映射器决定外部表示能否变成受保护数据；文件适配器决定如何替换字节；组合根决定哪些实现提供能力，以及由谁释放它们。分开这些决策，才能如实表示失败并进行测试。
 
+本章继续第 33–38 章的页内参考实现；当前仓库没有由这些文件组成的可构建解决方案。文件名表示建议拆分，不是可单独运行的脚本。阅读或将其落为项目时，按以下顺序理解依赖：
+
+| 项目 | 本章的建议编译顺序 | 主要前置 |
+|---|---|---|
+| `Booking.Domain` | 第 33–34 章的领域文件 | `Booking`、命令、事件、`AsyncPorts` 及智能构造函数 |
+| `Booking.Contracts` | `Dtos.fs` → `Mapping.fs` | `System`、`System.Text.Json`与 `Booking.Domain` |
+| `Booking.Infrastructure` | `Configuration.fs` → `FileStore.fs` → `PaymentStub.fs` → `NotificationStub.fs` → `Composition.fs` | `System.IO`、线程/任务 API、`Booking.Domain` 与 `Booking.Contracts` |
+
+`Dtos.fs` 在所示类型前还需要 `namespace Booking.Contracts`、相关 `open` 声明、`BookingContract.CurrentSchemaVersion` 与三种命令 DTO；`FileStore.fs` 还会先定义存储错误和 `FileStoreImplementation`。后文短片段只聚焦当前设计点，并不声称已列出整个文件。
+
+这里的“端口”、“DTO”、“组合根”和“测试替身”是架构或测试术语，不是 F# 语法名称。实现它们时用到的 F# 构造是记录、可区分联合、模块、函数值和 `task` 计算表达式。
+
 ## 遵循依赖方向 {#dependency-direction}
 
 项目依赖向内指向：
@@ -607,15 +619,7 @@ type NotificationStub(behavior: NotificationStubBehavior) =
 
 一个通用 `Error of string` 会抹掉哪个层有权恢复或报告。相反，为每种领域拒绝发明独立异常类，又会把普通业务结果变成出人意料的控制流。
 
-## 用真实实现验证副作用 {#testing}
-
-文件存储契约测试只写入各自唯一的系统临时目录。测试覆盖真实 JSON 往返、替换后无临时文件残留、缺失文件行为、严格编码、损坏分类、大小上限与路径验证。测试还确认，保存前取消会保留原有完整快照。
-
-适配器测试运行真实文件适配器和结果固定的测试替身。它们覆盖授权、拒绝、交付、指定故障、取消且不记录副作用、令牌传递到时钟、通过组合端口持久化、类型化损坏错误、重复释放，以及释放后拒绝使用。
-
-Release 解决方案构建在 F# 10 空值检查和警告即错误下通过。完整示例检查会还原锁定依赖、构建每个已注册项目，并运行测试与脚本。贯穿项目的运行时工程不增加第三方运行时包，也不需要服务账号；测试与工具检查仍会还原其锁定包。
-
-这些测试尚未覆盖 HTTP 输入、并发容量、重试、多预约存储重启或 C# 客户端。接下来三章会逐项处理，而不是在本章中默认它们已经成立。
+若把这份页内参考设计落成可构建项目，最低验证集应使用真实文件适配器，且每个测试使用独立的系统临时目录。要覆盖 JSON 往返、缺失/损坏/超大快照、替换后的临时文件清理、保存前取消保留旧快照，以及替身的授权、拒绝、故障、取消和释放后调用。这些检查仍不能证明 HTTP 输入、并发容量、重试、多预约重启或 C# 互操作正确；后续章节会分别定义这些边界。
 
 ## 练习 {#exercises}
 

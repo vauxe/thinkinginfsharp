@@ -10,7 +10,7 @@ translationKey: part-01/ch-04-branching-patterns
 
 `if` 根据一个布尔条件在两个结果之间选择；`match` 则把一个值与按顺序排列的**模式**比较。模式既能识别输入结构，也能在成功分支中为组成部分建立名称。编译器还会检查分支类型和模式是否穷尽。
 
-本章只用元组和列表熟悉模式。第 7、8 章会把记录、可辨识联合与穷尽性用于领域建模；列表变换则留到下一章。
+本章只用元组和列表熟悉模式。第 7、8 章会把记录、可区分联合与穷尽性用于领域建模；列表变换则留到下一章。
 
 ## `if` 选择一个结果 {#if-expression}
 
@@ -22,6 +22,9 @@ let availability remaining =
 
 printfn "Availability: %s" (availability 3)
 ```
+
+这个代码块可以单独运行，输出 `Availability: available`。
+
 求值顺序是：先计算 `remaining > 0`；结果为 `true` 时求 `then` 分支，否则求 `else` 分支。恰好一个分支为整个 `if` 提供值，所以 `availability` 返回 `string`。
 
 ### 条件必须真的是 `bool` {#boolean-only}
@@ -44,7 +47,7 @@ F# 允许结果为 `unit` 的表达式省略 `else`，此时 `then` 分支也要
 
 ## `match` 检查一个值的结构 {#match-expression}
 
-`match input with` 先求值 `input` 一次，再从上到下尝试规则。每条规则由模式、可选守卫和结果表达式构成：
+`match input with` 先求值 `input` 一次，再从上到下尝试规则。下面只是语法骨架，其中的名称是占位符，不能直接运行：
 
 ```text
 match input with
@@ -90,6 +93,9 @@ let capacityBand remaining =
 
 printfn "Capacity bands: %s, %s, %s, %s" (capacityBand 0) (capacityBand 1) (capacityBand 4) (capacityBand 8)
 ```
+
+这个代码块可以单独运行，四个结果依次是 `full`、`last seat`、`limited` 和 `available`。
+
 对输入 `4`，第一条变量模式初步匹配，但 `4 <= 0` 为假，所以继续尝试。字面量 `1` 不匹配；第三条变量模式匹配且守卫为真，因此结果是 `"limited"`。
 
 只有对应模式先匹配成功，程序才会计算守卫。守卫为真时选择当前规则，为假时继续尝试下一条。守卫最好是容易理解且没有副作用的布尔表达式，这样更容易判断每条规则何时生效。
@@ -107,11 +113,14 @@ let bookingSummary (guest, seats) =
 
 printfn "Booking: %s" (bookingSummary ("Lin", 3))
 ```
+
+这个代码块可以单独运行，输出 `Booking: Lin requested 3 seats`。
+
 `(guest, seats)` 同时要求输入是二元组，并在函数主体中建立两个局部名称。元组模式按位置工作，项数和各位置类型都必须与输入相符。
 
 模式负责分解结构并建立名称，`seats = 1` 这样的值判断仍是布尔表达式。这里用 `if` 选择单复数，因为问题只有一个直接的真假条件；把 `match` 留给真正受益于模式结构的决策。
 
-在 `match remaining, requested with` 中，逗号先构造一个二元组作为匹配输入；规则中的 `(remaining, requested)` 拆开它。F# 常省略规则模式外层不必要的括号，因此 `| remaining, requested ->` 与二元组模式含义相同。
+在 `match remaining, requested with` 中，逗号先构造一个二元组作为匹配输入，规则中的两个名称再拆开它。规则模式外层不需要括号，所以 `| remaining, requested ->` 仍然是二元组模式。
 
 ## 用列表模式区分结构 {#list-patterns}
 
@@ -128,6 +137,9 @@ let describeQueue queue =
 
 printfn "Queues: %s | %s | %s" (describeQueue []) (describeQueue [ "Lin" ]) (describeQueue [ "Lin"; "Ada"; "Sam" ])
 ```
+
+这个代码块可以单独运行，输出 `Queues: empty | one: Lin | next: Lin, then Ada`。
+
 `[ only ]` 只匹配长度为一的列表。`first :: second :: _` 按右结合读取为 `first :: (second :: _)`：先取第一项，再取第二项。最后的 `_` 接受余下列表但不建立名称，因此整个模式匹配任意至少两项的列表。
 
 `[ first; second ]` 表示恰好两项；`first :: second :: _` 才表示长度至少为二的列表前两项。下一章会讲列表的构造与变换，第 6 章再用 `head :: tail` 建立结构递归。

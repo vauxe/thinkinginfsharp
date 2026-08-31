@@ -10,6 +10,18 @@ Chapter 34 ended with an accepted fact. This chapter performs external operation
 
 The central question is authority. The domain decides whether a command is legal. A mapper decides whether an external representation can become protected data. A file adapter decides how bytes are replaced. A composition root decides which implementations supply capabilities and who disposes them. Keeping those decisions separate makes failures both honest and testable.
 
+This chapter continues Chapters 33–38's in-page reference implementation; the current repository does not contain a buildable solution made from these files. File names describe a proposed split, not standalone scripts. Read them—or turn them into projects—in this dependency order:
+
+| Project | Proposed compile order for this chapter | Main prerequisites |
+|---|---|---|
+| `Booking.Domain` | The domain files from Chapters 33–34 | `Booking`, commands, events, `AsyncPorts`, and smart constructors |
+| `Booking.Contracts` | `Dtos.fs` → `Mapping.fs` | `System`, `System.Text.Json`, and `Booking.Domain` |
+| `Booking.Infrastructure` | `Configuration.fs` → `FileStore.fs` → `PaymentStub.fs` → `NotificationStub.fs` → `Composition.fs` | `System.IO`, threading/task APIs, `Booking.Domain`, and `Booking.Contracts` |
+
+Before the shown type, `Dtos.fs` also needs `namespace Booking.Contracts`, the relevant `open` declarations, `BookingContract.CurrentSchemaVersion`, and the three command DTOs. `FileStore.fs` first defines its storage errors and `FileStoreImplementation`. Later short fragments focus on one design decision; they do not claim to show a complete file.
+
+“Port,” “DTO,” “composition root,” and “test stub” are architecture or testing terms, not F# syntax terms. The F# constructs used to implement them are records, discriminated unions, modules, function values, and the `task` computation expression.
+
 ## Follow dependency direction {#dependency-direction}
 
 The project dependencies point inward:
@@ -607,15 +619,7 @@ Ownership would be ambiguous if a composition accepted arbitrary externally owne
 
 One generic `Error of string` would erase which layer has authority to recover or report. Conversely, inventing a separate exception class for every domain refusal would turn ordinary business outcomes into control-flow surprises.
 
-## Verify side effects with real implementations {#testing}
-
-File-store contract tests write only to unique system temporary directories. They verify real JSON round trips, replacement without temporary residue, missing-file behavior, strict encoding, corruption categories, the size cap, and path validation. They also confirm that cancellation before save preserves the previous complete snapshot.
-
-Adapter tests run the real file adapter and deterministic substitutes. They cover authorization, decline, delivery, exact faults, cancellation without recorded side effects, token propagation to the clock, persistence through the composed ports, typed corruption errors, repeated disposal, and use-after-disposal rejection.
-
-The Release solution build passes with F# 10 null checking and warnings as errors. The complete example gate restores locked dependencies, builds every registered project, and runs tests and scripts. The capstone runtime projects add no third-party runtime package and require no service account; the test and tooling gate still restores its locked packages.
-
-These tests do not cover HTTP input, concurrent capacity, retries, restart of a multi-booking store, or a C# client. The next three chapters address those concerns explicitly.
+If this in-page reference design is turned into a buildable project, its minimum verification set should exercise the real file adapter, with a unique system-temporary directory for every test. Cover JSON round trips; missing, corrupt, and oversized snapshots; temporary-file cleanup after replacement; cancellation before save preserving the old snapshot; and each stub's authorization, decline, failure, cancellation, and post-disposal behavior. Those checks still do not prove HTTP input, concurrent capacity, retries, multi-booking restart, or C# interoperability correct; later chapters define those boundaries separately.
 
 ## Exercises {#exercises}
 

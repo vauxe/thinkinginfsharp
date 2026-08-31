@@ -20,7 +20,7 @@ The examples were reviewed with F# 10 and .NET 10. Check your installed SDK in a
 dotnet --version
 ```
 
-This chapter uses only the .NET SDK. An editor or IDE is optional, and the examples use the packages included with the SDK. A shell prompt provides visual context; enter the text that follows it.
+This chapter uses only tools and libraries supplied with the .NET SDK; no additional package is required. An editor or IDE is optional. When a command example includes a shell prompt, enter only the text after the prompt.
 
 ## Choose the shortest feedback loop {#feedback-loop}
 
@@ -71,7 +71,7 @@ The project file records the target framework, source-file order, package depend
 
 ## Read the first program as expressions {#expressions}
 
-Read the example first and focus on the flow; the symbols will become familiar through use.
+Save the following self-contained block as `ch01-first-session.fsx`, then run the script command shown earlier. Observe the output order first; later sections explain each unfamiliar symbol.
 
 ```fsharp:line-numbers
 let eventName = "Functional Foundations"
@@ -85,6 +85,15 @@ let printResult = printfn "%s" summary
 printfn "Seats available: %b" hasSeats
 printfn "Printing returned: %A" printResult
 ```
+
+The output is:
+
+```text
+Functional Foundations: 22 seats remaining
+Seats available: true
+Printing returned: ()
+```
+
 ### Literals produce values {#literals-and-values}
 
 `"Functional Foundations"`, `40`, `18`, and `0` are **literals**: they represent values directly in source code. `let eventName = ...` gives a name to the value computed on the right. Explicit mutable storage uses a different construct introduced later.

@@ -22,6 +22,9 @@ let availability remaining =
 
 printfn "Availability: %s" (availability 3)
 ```
+
+This self-contained block prints `Availability: available`.
+
 Evaluation first computes `remaining > 0`. When it is `true`, the `then` branch runs; otherwise, the `else` branch runs. Exactly one branch supplies the value of the whole `if`, so `availability` returns `string`.
 
 ### The condition must actually be `bool` {#boolean-only}
@@ -44,7 +47,7 @@ When the business operation needs a result, write every branch explicitly. If no
 
 ## A `match` inspects the shape of one value {#match-expression}
 
-`match input with` evaluates `input` once, then tries rules from top to bottom. Each rule contains a pattern, an optional guard, and a result expression:
+`match input with` evaluates `input` once, then tries rules from top to bottom. The next block is a syntax skeleton: its names are placeholders, so it is not intended to run directly.
 
 ```text
 match input with
@@ -90,6 +93,9 @@ let capacityBand remaining =
 
 printfn "Capacity bands: %s, %s, %s, %s" (capacityBand 0) (capacityBand 1) (capacityBand 4) (capacityBand 8)
 ```
+
+This self-contained block produces `full`, `last seat`, `limited`, and `available`, in that order.
+
 For input `4`, the first variable pattern initially matches, but `4 <= 0` is false, so matching continues. Literal `1` does not match. The third variable pattern matches and its guard is true, producing `"limited"`.
 
 A guard runs only after its associated pattern matches. A true guard selects that rule; a false guard continues to the next one. Keep guards easy to understand and preferably effect-free so rule order remains easy to reason about.
@@ -107,11 +113,14 @@ let bookingSummary (guest, seats) =
 
 printfn "Booking: %s" (bookingSummary ("Lin", 3))
 ```
+
+This self-contained block prints `Booking: Lin requested 3 seats`.
+
 `(guest, seats)` requires a pair and establishes two local names in the function body. Tuple patterns work positionally, and both arity and component types must agree with the input.
 
 A pattern handles shape and binding; a value test such as `seats = 1` remains a Boolean expression. This example uses `if` for singular versus plural because the question is one direct Boolean choice. Reserve `match` for decisions that benefit from pattern structure.
 
-In `match remaining, requested with`, the comma first forms a pair as the match input; the rule pattern decomposes it. F# often omits unnecessary outer parentheses around rule patterns, so `| remaining, requested ->` still denotes a tuple pattern.
+In `match remaining, requested with`, the comma first forms a pair as the match input, and the two names in the rule decompose it. A rule pattern needs no outer parentheses, so `| remaining, requested ->` still denotes a tuple pattern.
 
 ## List patterns distinguish structure {#list-patterns}
 
@@ -128,6 +137,9 @@ let describeQueue queue =
 
 printfn "Queues: %s | %s | %s" (describeQueue []) (describeQueue [ "Lin" ]) (describeQueue [ "Lin"; "Ada"; "Sam" ])
 ```
+
+This self-contained block prints `Queues: empty | one: Lin | next: Lin, then Ada`.
+
 `[ only ]` matches only a list of length one. `first :: second :: _` associates to the right as `first :: (second :: _)`. It takes the first item and then the second; the wildcard `_` accepts the rest without binding it. The pattern therefore matches any list with at least two elements.
 
 Use `[ first; second ]` for a list of exactly two elements. Use `first :: second :: _` for the first two elements of a longer-or-equal list. The next chapter covers construction and transformation, and Chapter 6 uses `head :: tail` for structural recursion.

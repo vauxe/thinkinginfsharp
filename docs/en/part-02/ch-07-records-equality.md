@@ -21,9 +21,11 @@ A tuple type puts positions into the type:
 ```fsharp
 let request = "Lin", 2
 let attendee, seats = request
+
+printfn "Tuple request: attendee=%s seats=%d" attendee seats
 ```
 
-The type is `string * int`, and the second line deconstructs by position. This is useful for temporary pairs inside a function, mathematical coordinates, or a local transformation visible at a glance. Swapping positions produces a different type. Two pairs with different meanings but the same component types still share one static type.
+This block runs by itself and prints `Tuple request: attendee=Lin seats=2`. `request` has type `string * int`, and the second line deconstructs by position. Tuples are useful for temporary pairs inside a function, mathematical coordinates, or a local transformation visible at a glance. Swapping positions of different types changes the type. Two pairs with different meanings but the same component types still share one static type.
 
 When call sites accumulate `fst` and `snd`, or readers must remember what a fourth position means, a tuple no longer communicates the domain clearly. Do not maintain a cross-module positional protocol with comments.
 
@@ -42,6 +44,8 @@ let original =
       Attendee = "Lin"
       Seats = 2 }
 ```
+Save this complete definition as `ch07-records-equality.fsx`. Unless stated otherwise, later record examples continue from `BookingDraft` and `original` in reading order.
+
 `BookingDraft` is a named type. Field labels participate in construction and access, so field order is no longer the caller's only clue to meaning. An ordinary record is a .NET reference type by default, while its fields are not assignable by default. “Reference type” and “mutable object” are not synonyms.
 
 Two separately declared record types remain distinct nominal types even when every field name and type matches. The name creates a compile-time distinction: `BookingDraft` does not become another record type merely because its fields look similar.
@@ -62,7 +66,7 @@ let another =
       Seats = 1 }
 ```
 
-The annotation does not repeat every field type; it tells the compiler which record the labels belong to. Do not rely on the most recently declared type with matching labels, because unrelated declaration order would then affect inference.
+This block continues from the `BookingDraft` type. The annotation does not repeat every field type; it tells the compiler which record the labels belong to. Do not rely on the most recently declared type with matching labels, because unrelated declaration order would then affect inference.
 
 A record pattern deconstructs by name:
 
@@ -82,6 +86,8 @@ let updated = { original with Seats = 3 }
 
 printfn "Record update: original=%d updated=%d" original.Seats updated.Seats
 ```
+This block continues from `original` and prints `Record update: original=2 updated=3`.
+
 `{ original with Seats = 3 }` produces a new `BookingDraft`. `original.Seats` remains `2`, while `updated.Seats` is `3`. It states that new state derives from old state with only these fields changed, without repeating the others.
 
 Copy-and-update performs a shallow structural update: it creates a new outer record and retains every unchanged field value. A reference-valued field can therefore point to the same object from both records. Immutable domain models commonly use immutable nested values as well, making that sharing safe by construction.
@@ -99,6 +105,8 @@ let summary =
 
 printfn "Anonymous summary: %s -> %d seats, group=%b" summary.Attendee summary.Seats summary.IsGroup
 ```
+This block continues from `updated` and prints `Anonymous summary: Lin -> 3 seats, group=true`.
+
 Every field label and type helps determine the type of `summary`, as does the choice between a reference and `struct` anonymous record. Two anonymous records have the same type only when all of those details match. “Contains at least these fields” is not a structural subtype relation here.
 
 Anonymous records support field access, structural equality and comparison, and copy-and-update, including adding fields during an update. They currently do not support record pattern matching, so dot access normally reads their fields.
@@ -124,6 +132,13 @@ let equalHashesAgree = hash original = hash equalCopy
 printfn "Equality: structural=%b physical=%b alias=%b" structurallyEqual physicallyEqual aliasIsSameReference
 printfn "Hashes agree for equal records: %b" equalHashesAgree
 ```
+This block continues from `original` and prints:
+
+```text
+Equality: structural=true physical=false alias=true
+Hashes agree for equal records: true
+```
+
 Generated record equality recursively uses each field type's equality semantics. The capability composes: if a component type does not satisfy F# equality, the containing record cannot unconditionally provide normal structural equality either. Chapter 11 will express this rule as a generic constraint.
 
 Structural equality answers whether contents are equal under the type's rules. It does not answer whether two variables represent the same memory object or whether two business entities have the same identity. Two equal booking drafts can have matching content while real bookings still require distinct request identifiers.
@@ -171,6 +186,12 @@ let sortedLabels =
 
 printfn "Structural sort: %A" sortedLabels
 ```
+This block depends only on the initial `BookingDraft` type and prints:
+
+```text
+Structural sort: ["A-1:Ada:2"; "A-1:Lin:1"; "B-2:Lin:2"]
+```
+
 This example compares in record declaration order: first `EventId`, then `Attendee` when event IDs tie, and finally `Seats`. Therefore `A-1:Ada:2` appears before `A-1:Lin:1`.
 
 Default order fits values that need determinism and whose structural order matches intent. Business order often differs—for example, seat count descending and then attendee name. Use `List.sortBy` or `List.sortWith` so that rule appears in code. Adding or reordering a record field should not silently alter an important business rule.

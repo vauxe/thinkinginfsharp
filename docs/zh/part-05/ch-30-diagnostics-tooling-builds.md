@@ -6,9 +6,11 @@ translationKey: part-05/ch-30-diagnostics-tooling-builds
 
 # 第 30 章：诊断、调试、格式化与构建 {#overview}
 
-工具只有在缩短“症状到原因”的路径时才有用。编译器诊断回答静态问题，FSI 检验小表达式，调试器观察某一次运行，格式化器消除样式差异，锁定构建则按锁文件重建依赖图。混淆这些职责只会制造无效流程。
+工具只有在缩短“症状到原因”的路径时才有用。编译器诊断回答静态问题，FSI 检验小表达式，调试器观察某一次运行，格式化器消除样式差异，锁定还原则按锁文件重建依赖图。混淆这些职责只会制造无效流程。
 
 示例使用项目命令，不绑定某个编辑器或 CI 厂商。IDE 可以在命令外增加按钮，但项目文件、锁文件、工具清单和可重复命令才是共同的事实来源。
+
+本章有两类命令。以 `examples/...` 开头的路径指向本仓库中的真实文件，可以从仓库根目录直接运行；`path/to/YourSolution.slnx` 则明确是需要替换的模板。本仓库目前没有 `global.json`、`.config/dotnet-tools.json`、解决方案文件或 NuGet 锁文件，因此后文展示这些文件时是在说明应用项目可以采用的配置，不是在声称本仓库已经采用。
 
 ## 阅读首个相关诊断 {#diagnostic-anatomy}
 
@@ -20,9 +22,9 @@ path/File.fs(12,9): error FS0039: The value or constructor 'name' is not defined
 
 路径表示构建读取的源码，行号与列号标出编译器发现问题的位置。`error` 表示严重级别，`FS0039` 是可搜索的诊断编号，其余文本提供上下文。启用警告即错误后，警告可能变成构建失败，但仍保留原编号。
 
-报告位置不承诺就是根因。缺失的结束分隔符可能在数行后才被察觉。一个未解析类型可能让后续成员查找全部失败。F# 编译顺序错误可能让某个本应在前的文件中所有名称都像不存在一样。编译器会在错误后尝试恢复，以便报告更多问题，但恢复过程中可能产生许多由首个错误引起的后续诊断。
+诊断标出的位置不一定就是根因所在。缺失的结束分隔符可能在数行后才被察觉。一个未解析的类型可能让后续成员查找全部失败。F# 编译顺序错误可能让本应先定义的名称看起来全都不存在。编译器会在错误后尝试继续分析，以便报告更多问题，但由此产生的许多后续诊断可能都源于第一处错误。
 
-从自己源码中最早的相关诊断开始，修复或解释它，然后重新构建。不要从底向上机械编辑每一条红线。如果第一条指向生成代码或依赖，应寻找更早、导致它的还原或构建失败。
+先看落在自己源码中的第一条相关诊断，修复或解释它，然后重新构建。不要从输出底部开始机械处理每一条红线。如果第一条指向生成代码或依赖，应继续向前寻找导致它的还原或构建失败。
 
 ### 选择工具前先给失败分类 {#failure-classes}
 
@@ -35,7 +37,7 @@ path/File.fs(12,9): error FS0039: The value or constructor 'name' is not defined
 | 构建通过，但值或副作用错误 | 运行时逻辑 | 聚焦测试，必要时再用调试器 |
 | 测试给出预期值/实际值失败 | 行为回归或错误预期 | 最小失败测试与领域需求 |
 
-编号告诉你类别，不告诉你修复方案。搜索 FS0039 会列出许多成因；只有周围源码、项目顺序和引用能从中做出选择。
+编号只说明错误类别，不直接给出修复方案。搜索 FS0039 会看到许多可能成因；还要结合附近源码、项目中的文件顺序和程序集引用，才能判断当前是哪一种。
 
 ## 两个故意失败的编译示例 {#expected-errors}
 
@@ -105,7 +107,7 @@ dotnet build examples/expected-errors/ch16-file-order/Ch16WrongOrder.fsproj \
 
 ## 用 FSI 回答小型静态与动态问题 {#fsi}
 
-`dotnet fsi` 是 .NET SDK 自带的读取—求值—打印循环；`dotnet fsi --exec file.fsx` 会执行脚本后退出。它适合回答以下问题：
+`dotnet fsi` 是 .NET SDK 自带的交互式读取、求值和打印环境；`dotnet fsi --exec file.fsx` 会执行脚本后退出。它适合回答以下问题：
 
 - 这个表达式推断出了什么类型？
 - 哪个模式分支处理这个值？
@@ -113,6 +115,27 @@ dotnet build examples/expected-errors/ch16-file-order/Ch16WrongOrder.fsproj \
 - 某个小型 .NET API 调用对一个受控输入返回什么？
 
 实验需要依赖时，用 `#r` 引用程序集或包，用 `#load` 加载脚本。让实验保持确定、小巧。一旦想法对产品有意义，就把它移入编译源码与自动测试。
+
+例如，`examples/chapters/ch30/diagnostic-probe.fsx` 明确加载第 16 章的两个真实源码文件。`Capacity`、`BookingRequest` 和 `Workflow` 因而都能追溯到定义，而不是凭空出现的占位名称：
+
+```fsharp:line-numbers [diagnostic-probe.fsx]
+#load "../ch16/Domain.fs"
+#load "../ch16/Workflow.fs"
+
+open ThinkingInFSharp.Ch16
+open ThinkingInFSharp.Ch16.Domain
+
+let expectOk = function
+    | Ok value -> value
+    | Error error -> failwithf "invalid probe: %A" error
+
+let capacity = Capacity.create 2 |> expectOk
+let request = BookingRequest.create "B-30" 3 |> expectOk
+
+Workflow.decide capacity request |> printfn "%A"
+```
+
+从仓库根目录运行 `dotnet fsi --exec examples/chapters/ch30/diagnostic-probe.fsx`，会输出 `Rejected (3, 2)`。这个结果只回答给定输入下的纯决策，不代表真实应用一定传入了同样的容量。
 
 ### FSI 不能替代项目构建 {#fsi-boundary}
 
@@ -132,11 +155,11 @@ FSI 定义 `INTERACTIVE`，编译代码定义 `COMPILED`。这种差异可以是
 - 调用栈显示执行如何到达当前函数；
 - 异常设置可以在异常抛出时暂停，而不只是未处理时暂停。
 
-应把断点放在信息发生改变的位置：领域决策前、外部输入转换后或外部副作用前。在大量使用管道的代码中，如果给重要中间结果命名有助于观察假设，就给它命名。不要到处添加断点，等待某处碰巧显得可疑。
+应把断点放在数据发生关键变化的位置：领域决策前、外部输入转换后或外部副作用前。在大量使用管道的代码中，如果给重要中间结果命名有助于观察假设，就给它命名。不要到处添加断点，等待某处碰巧显得可疑。
 
-面对意外的 `Rejected(requested, capacity)`，先检查进入 `decide` 前已验证的请求与容量，再看提供它们的调用方栈帧。如果两个输入都正确，就逐步执行决策；若其中一个错误，则向外追到其生产者。这样是在追踪数据来源，而不是漫游控制流。
+面对意外的 `Rejected(requested, capacity)`，先检查进入 `decide` 前已验证的请求与容量，再看提供它们的调用方栈帧。如果两个输入都正确，就逐步执行决策；若其中一个错误，则向外追到产生它的位置。这样是在追踪数据来源，而不是沿控制流盲目单步。
 
-Debug 构建通常提供最清楚的单步与局部值。Release 优化可能重排、内联或省略可观察局部变量，即使程序行为仍正确。必要时应复现仅在 Release 出现的缺陷，但要知道调试器的源码视图可能没有那么字面。
+Debug 构建通常提供最清楚的单步过程和局部值。Release 优化可能重排、内联或省略可观察的局部变量，即使程序行为仍正确。必要时仍要复现只在 Release 中出现的缺陷，但此时源码行与实际执行步骤未必一一对应。
 
 ### 不要意外改变执行过程 {#debugger-cautions}
 
@@ -146,7 +169,7 @@ Debug 构建通常提供最清楚的单步与局部值。Release 优化可能重
 
 ## 用锁定版本的工具检查格式 {#formatting}
 
-Fantomas 是源码格式化器，不是类型检查器或 linter。项目可以把它声明为本地 .NET 工具：
+Fantomas 是源码格式化器，不是类型检查器或代码检查器（linter）。下面是应用项目可以使用的本地 .NET 工具清单示例；它不是本仓库中现有的文件：
 
 ```json
 {
@@ -186,10 +209,10 @@ Fantomas 统一代码布局。F# 编译器检查语法、名称解析、类型�
 
 | 层次 | 仓库输入 | 仍在仓库之外的内容 |
 |---|---|---|
-| SDK 选择 | `global.json` 选择 10.0.301 | 宿主运行时与操作系统仍可能不同 |
+| SDK 选择 | 示例 `global.json` 选择 10.0.301 | 宿主运行时与操作系统仍可能不同 |
 | 直接与传递包 | `PackageReference` 加已提交 `packages.lock.json` | 包源可用性与外部凭据 |
-| 本地工具 | `.config/dotnet-tools.json` 锁定 Fantomas 7.0.5 | 能运行工具的宿主运行时 |
-| 编译器输出 | 相同输入配合 `Deterministic=true` | 平台原生资产、路径、编译器控制外时间戳 |
+| 本地工具 | 示例 `.config/dotnet-tools.json` 锁定 Fantomas 7.0.5 | 能运行工具的宿主运行时 |
+| 编译器输出 | 相同输入配合 `Deterministic=true` | 平台原生资产、路径、不由编译器控制的时间戳 |
 | 行为 | 测试与样例输出断言 | 未建模的外部服务和机器状态 |
 
 固定 SDK 版本可以让 SDK 自带依赖与包锁保持一致，但不会固定操作系统、部署环境的运行时、包源或本地缓存。升级 SDK 时应主动更新相关配置；调查环境特有故障时，要记录 `dotnet --info`。
@@ -198,7 +221,7 @@ Fantomas 统一代码布局。F# 编译器检查语法、名称解析、类型�
 
 ### 分离还原、构建与测试 {#build-stages}
 
-重视可复现性时，应分开执行各阶段：
+重视可复现性时，应分开执行各阶段。下面的解决方案路径是模板；只有项目确实提交了锁文件和工具清单时，`--locked-mode` 与 `dotnet tool restore` 才对应真实的仓库契约：
 
 ```console
 dotnet tool restore
@@ -261,9 +284,15 @@ dotnet test path/to/YourSolution.slnx --configuration Release --no-build
 
 按当前规则，值 `Rejected(3, 2)` 是正确的：请求三个座位无法装入容量二。在修改 `decide` 之前，应先查明调用方为何预期接受。
 
-用 FSI 以受控值隔离纯规则：
+仓库中的 `diagnostic-probe.fsx` 用 `#load` 给出完整依赖，以受控值隔离纯规则：
 
 ```fsharp
+#load "../ch16/Domain.fs"
+#load "../ch16/Workflow.fs"
+
+open ThinkingInFSharp.Ch16
+open ThinkingInFSharp.Ch16.Domain
+
 let expectOk = function
     | Ok value -> value
     | Error error -> failwithf "invalid probe: %A" error
@@ -277,15 +306,25 @@ Workflow.decide capacity request
 
 这确认了智能构造以及纯函数对受控输入的结果。它无法说明应用实际传入了什么值，也不会在会话结束后留下回归测试。
 
-若该策略符合意图，就添加一个聚焦的示例测试：
+若该策略符合意图，就在编译或引用第 16 章 `Domain.fs` 与 `Workflow.fs` 的 xUnit 测试项目中添加一个聚焦示例。下面的测试在自身作用域内重新构造输入，不依赖 FSI 会话里残留的绑定：
 
 ```fsharp
+open Xunit
+open ThinkingInFSharp.Ch16
+open ThinkingInFSharp.Ch16.Domain
+open ThinkingInFSharp.Ch16.Workflow
+
+let expectOk = function
+    | Ok value -> value
+    | Error error -> failwithf "invalid test setup: %A" error
+
 [<Fact>]
 let ``three seats do not fit capacity two`` () =
-    Assert.Equal(
-        Rejected(3, 2),
-        Workflow.decide capacity request
-    )
+    let capacity = Capacity.create 2 |> expectOk
+    let request = BookingRequest.create "B-30" 3 |> expectOk
+    let actual = Workflow.decide capacity request
+
+    Assert.Equal(Rejected(3, 2), actual)
 ```
 
 测试才是持久产物。若真实需求说容量本应为四，就应在当前产生二的转换或调用方边界保留测试；不要围绕纯核心冻结错误预期。
@@ -298,7 +337,7 @@ let ``three seats do not fit capacity two`` () =
 
 ### 练习 3：审计可复现构建 {#exercise-03}
 
-一位队友修改了一个包版本却忘记锁文件，使用全局 Fantomas，并报告 Debug 构建在已有构建缓存和产物时成功。给出一组有序、平台无关的命令来暴露每项不一致，并说明哪些仓库文件必须有意更新。
+一位队友修改了一个包版本却忘记更新锁文件，使用全局安装的 Fantomas，并报告 Debug 构建在未清理旧产物的工作区中成功。给出一组有序、平台无关的命令来暴露每项不一致，并说明哪些仓库文件必须有意更新。
 
 
 ::: details 参考答案
@@ -331,7 +370,6 @@ shell 的通配符行为各不相同；若该审阅命令不能递归展开，�
 
 ```console
 dotnet build path/to/YourSolution.slnx --configuration Release --no-restore
-dotnet test path/to/YourSolution.slnx --configuration Release --no-build
 dotnet test path/to/YourSolution.slnx --configuration Release --no-build
 ```
 

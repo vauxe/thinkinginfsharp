@@ -1,6 +1,6 @@
 ---
 title: "附录 H：高级特性识别索引"
-description: "识别 quotations、静态解析类型参数、灵活类型与 byref-like 代码，再判断当前问题是否值得深入学习。"
+description: "识别代码引用、静态解析的类型参数、灵活类型与 byref-like 代码，再判断当前问题是否值得深入学习。"
 translationKey: appendices/h-advanced-index
 ---
 
@@ -14,42 +14,42 @@ translationKey: appendices/h-advanced-index
 
 | 特性 | 识别线索 | 核心思想 | 先问什么 |
 |---|---|---|---|
-| quotations | `<@ ... @>`、`<@@ ... @@>`、`Expr<'T>`、quotation 模式 | 把 F# 表达式表示成数据 | 代码是在构造、转换、翻译还是执行表达式树？ |
-| SRTP | `inline` 加静态/成员约束；当前简化签名中的 `'T`，或旧式/复杂形式中的 `^T` | 在编译期解析所需成员并特化 | 为什么普通泛型、接口或具体重载不能清楚表达它？ |
+| 代码引用（quotations） | `<@ ... @>`、`<@@ ... @@>`、`Expr<'T>`、代码引用模式 | 把 F# 表达式表示成数据 | 代码是在构造、转换、翻译还是执行表达式树？ |
+| 静态解析的类型参数（SRTP） | `inline` 加静态/成员约束；当前简化签名中的 `'T`，或旧式/复杂形式中的 `^T` | 在编译期解析所需成员并特化 | 为什么普通泛型、接口或具体重载不能清楚表达它？ |
 | 灵活类型 | 类型表达式内部的 `#BaseType` | 在嵌套/高阶位置接受任意子类型或接口实现 | 普通参数向上转型是否已经有效，更通用签名是否值得暴露？ |
 | byref/Span | `&value`、`byref`、`inref`、`outref`、`Span`、`ReadOnlySpan` | 使用受栈约束的托管引用与连续内存视图 | 实际测量发现了哪项复制开销，或哪个互操作 API 要求承担这些生命周期限制？ |
 
-不要只从标点推断含义。同一符号还会出现在别处：`#` 可开始 FSI 指令，`^` 可出现在旧式 SRTP 语法和运算符中，`&` 也可出现在成员约束和布尔运算符中。只有 quotation 以 `<@` 开始时，它才表示下面介绍的含义。
+不要只从标点推断含义。同一符号还会出现在别处：`#` 可开始 FSI 指令，`^` 可出现在旧式 SRTP 语法和运算符中，`&` 也可出现在成员约束和布尔运算符中。只有以 `<@` 开始的代码引用才表示下面介绍的含义。
 
-## Quotations：把代码表示为表达式数据 {#quotations}
+## 代码引用（quotations）：把代码表示为表达式数据 {#quotations}
 
-有类型 quotation 使用 `<@ expression @>`，类型为 `Expr<'T>`；无类型 quotation 使用 `<@@ expression @@>`，类型为 `Expr`。编译器会建立表示该表达式的对象树，而不是在当前位置直接执行表达式。
+有类型代码引用使用 `<@ expression @>`，类型为 `Expr<'T>`；无类型代码引用使用 `<@@ expression @@>`，类型为 `Expr`。编译器会建立表示该表达式的对象树，而不是在当前位置直接执行表达式。
 
 识别信号包括：
 
 - `open Microsoft.FSharp.Quotations`；
 - `Expr<'T>` 或 `Expr` 值；
 - 来自 `Microsoft.FSharp.Quotations.Patterns`、`DerivedPatterns` 或 `ExprShape` 的模式；
-- 另一 quotation 内的 splice 运算符 `%` 与 `%%`；
+- 另一段代码引用内的拼接（splice）运算符 `%` 与 `%%`；
 - 为查询、DSL、翻译、分析或生成而接受表达式树的库 API。
 
-首先要区分“表示代码”和“执行代码”。Quotation 不会自行执行；求值器、翻译器、类型提供程序或其他使用方会解释这棵树，而且可能只支持部分表达式形式。
+首先要区分“表示代码”和“执行代码”。代码引用不会自行执行；求值器、翻译器、类型提供程序或其他使用方会解释这棵树，而且可能只支持部分表达式形式。
 
-只有调用方确实需要把代码当作数据检查时，才使用 quotations。例如，类型化查询翻译器需要读取属性访问与比较。不要只因表达式树看起来更强大，就把普通回调包进 quotation；调用方只需执行逻辑时，函数更简单。
+只有调用方确实需要把代码当作数据检查时，才使用代码引用。例如，类型化查询翻译器需要读取属性访问与比较。不要只因表达式树看起来更强大，就把普通回调包进代码引用；调用方只需执行逻辑时，函数更简单。
 
 评审：
 
 - 使用方接受哪些表达式节点，不支持的节点如何失败；
 - 捕获值是嵌入、参数化、序列化还是拒绝；
 - 求值发生在本地、远端、生成代码中，还是根本不发生；
-- quotations 是否跨越版本、进程、信任、裁剪或 AOT 边界；
+- 代码引用是否跨越版本、进程、信任、裁剪或 AOT 边界；
 - 诊断能否指回有用源码位置。
 
-遍历表达式树时，第 15 章介绍的活动模式很有帮助。[第 40 章](../part-07/ch-40-data-analytics)说明数据和查询工具为何会提供类型化表达式树 API，而无需每位用户都编写 quotation 处理器。
+遍历表达式树时，第 15 章介绍的活动模式很有帮助。[第 40 章](../part-07/ch-40-data-analytics)说明数据和查询工具为何会提供类型化表达式树 API，而无需每位用户都编写代码引用处理器。
 
-## SRTP：编译期成员约束 {#srtp}
+## 静态解析的类型参数（SRTP）：编译期成员约束 {#srtp}
 
-静态解析类型参数让内联函数要求普通 .NET 泛型约束无法表达的成员。F# 会在编译期解析所需成员，并为具体调用生成特化代码。
+静态解析的类型参数让内联函数要求普通 .NET 泛型约束无法表达的成员。F# 会在编译期解析所需成员，并为具体调用生成特化代码。
 
 当前 F# 简化语法通常会打印 `'T` 这样的撇号前缀参数，即使它们带 SRTP 约束。文档与复杂的显式分派代码仍可能使用 `^T` 这样的脱字符形式。因此，应通过以下组合识别 SRTP：
 
@@ -111,7 +111,7 @@ F# 的限制与互操作支持会随版本变化。请核对语言版本和当�
 
 - 编写类型提供程序；
 - 基于 FSharp.Compiler.Service 构建工具；
-- 编写通用 quotation 求值器或编译器；
+- 编写通用代码引用求值器或编译器；
 - 高级 SRTP 分派框架；
 - 编写自定义 byref-like 数据结构；
 - 在没有测量或互操作需求时使用底层特性。
@@ -134,9 +134,9 @@ F# 的限制与互操作支持会随版本变化。请核对语言版本和当�
 
 ## 官方入口 {#official-entry-points}
 
-- [Microsoft Learn：代码 quotations](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/code-quotations)
-- [FSharp.Core quotation API](https://fsharp.github.io/fsharp-core-docs/reference/fsharp-quotations.html)
-- [Microsoft Learn：静态解析类型参数](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/statically-resolved-type-parameters)
+- [Microsoft Learn：代码引用](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/code-quotations)
+- [FSharp.Core 代码引用 API](https://fsharp.github.io/fsharp-core-docs/reference/fsharp-quotations.html)
+- [Microsoft Learn：静态解析的类型参数](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/generics/statically-resolved-type-parameters)
 - [Microsoft Learn：灵活类型](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/flexible-types)
 - [Microsoft Learn：byref 与 byref-like 结构体](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/byrefs)
 - [Microsoft Learn：Memory 与 Span 使用指南](https://learn.microsoft.com/en-us/dotnet/standard/memory-and-spans/memory-t-usage-guidelines)

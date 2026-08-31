@@ -10,6 +10,8 @@ translationKey: part-05/ch-31-measure-before-optimizing
 
 高效的 F# 不要求放弃表达式、不可变性或领域类型。清晰代码正是检验优化假设的基线。测量找到热点循环后，可以使用严格限制在局部的可变状态或较低层表示。公开 API 仍应在满足需求的前提下保持简单、准确。
 
+本章主线代码来自可运行项目 `examples/chapters/ch31/Ch31.Benchmarks.fsproj`。`Benchmarks.fs` 依次定义参考实现、候选实现、等价性检查和 BenchmarkDotNet 基准；`Program.fs` 定义 `--verify-only`、`--smoke` 与默认 ShortRun 三种入口。后文短片段按这个文件顺序阅读，不是各自放进空文件就能运行的独立程序。
+
 ## 先定义性能问题 {#performance-question}
 
 有用的性能陈述包含四部分：
@@ -46,6 +48,11 @@ translationKey: part-05/ch-31-measure-before-optimizing
 样例对不大于配置上限的正座位值求和。基线是惯用的数组管道；候选实现以一次遍历完成同样的判断与加法：
 
 ```fsharp:line-numbers [Benchmarks.fs]
+namespace ThinkingInFSharp.Ch31
+
+open System
+open BenchmarkDotNet.Attributes
+
 module RequestAggregation =
     let arrayPipeline maxSeats (requests: int array) =
         requests
@@ -105,12 +112,15 @@ module Equivalence =
 ```
 参考实现与候选实现采用不同结构，因此比较有意义。案例覆盖空输入、恰好位于上限的值、被拒绝值、负值和不同长度。260 个案例通过并非数学证明；生产规则可能还需要更多属性、溢出案例或领域级测试。
 
-编辑期间只运行正确性检查：
+项目固定 BenchmarkDotNet 0.15.8，并提交了 `packages.lock.json`。首次运行先按锁文件还原，再只执行确定性的正确性检查：
 
 ```console
-dotnet run --project path/to/Ch31.Benchmarks.fsproj \
+dotnet restore examples/chapters/ch31/Ch31.Benchmarks.fsproj --locked-mode
+dotnet run --project examples/chapters/ch31/Ch31.Benchmarks.fsproj \
   --configuration Release --no-restore -- --verify-only
 ```
+
+输出为 `Equivalence cases: 260`。这只是等价性关卡，不会启动计时作业。
 
 不要在这个检查中写入容易波动的时间限制。正确性检查应当确定。性能历史可以帮助发现疑似退化，但把阈值放进 CI 前，需要受控执行器、重复测量以及处理方差的规则。
 
@@ -135,9 +145,40 @@ type RequestAggregationBenchmarks() =
     member _.ArrayPipeline() =
         RequestAggregation.arrayPipeline 6 requests
 
-    [<Benchmark>]
+[<Benchmark>]
     member _.SinglePass() =
         RequestAggregation.singlePass 6 requests
+```
+这些特性来自文件开头的 `open BenchmarkDotNet.Attributes`，`Random` 来自 `open System`。命令行入口同样不是隐藏的脚手架；完整的 `Program.fs` 如下：
+
+```fsharp:line-numbers [Program.fs]
+namespace ThinkingInFSharp.Ch31
+
+open BenchmarkDotNet.Configs
+open BenchmarkDotNet.Jobs
+open BenchmarkDotNet.Running
+
+module Program =
+    let private benchmarkConfig job =
+        ManualConfig.Create(DefaultConfig.Instance).AddJob([| job |])
+
+    [<EntryPoint>]
+    let main arguments =
+        let verifiedCases = Equivalence.verify ()
+
+        if Array.contains "--verify-only" arguments then
+            printfn "Equivalence cases: %d" verifiedCases
+        else
+            let job =
+                if Array.contains "--smoke" arguments then
+                    Job.Dry.WithId("Dry")
+                else
+                    Job.ShortRun.WithId("ShortRun")
+
+            BenchmarkRunner.Run<RequestAggregationBenchmarks>(benchmarkConfig job)
+            |> ignore
+
+        0
 ```
 每个选择都避免一个常见问题：
 
@@ -148,12 +189,12 @@ type RequestAggregationBenchmarks() =
 - `Baseline = true` 给出每个参数组内部的比率；
 - `MemoryDiagnoser` 报告每次操作的托管分配与 GC 频率。
 
-使用该样例的项目应锁定 BenchmarkDotNet 0.15.8 及全部已解析依赖。应在没有附加调试器的情况下，从命令行以 Release 运行。BenchmarkDotNet 会构建基准可执行文件，执行预热与测量迭代，并报告运行时环境；手写 `Stopwatch` 循环则要自行重新实现这些控制。
+该样例项目已经锁定 BenchmarkDotNet 0.15.8 及全部已解析依赖。应在没有附加调试器的情况下，从命令行以 Release 运行。BenchmarkDotNet 会构建基准可执行文件，执行预热与测量迭代，并报告运行时环境；手写 `Stopwatch` 循环则要自行重新实现这些控制。
 
 快速模式只是执行检查：
 
 ```console
-dotnet run --project path/to/Ch31.Benchmarks.fsproj \
+dotnet run --project examples/chapters/ch31/Ch31.Benchmarks.fsproj \
   --configuration Release --no-restore -- --smoke
 ```
 
@@ -208,13 +249,13 @@ dotnet run --project path/to/Ch31.Benchmarks.fsproj \
 
 ### `inline` 不是通用加速标记 {#inline}
 
-F# 的 `inline` 函数会集成到调用点，并可使用静态解析类型参数。有时类型系统角色要求这样做；普通泛型函数不需要它。编译器与 JIT 也能按自己的规则内联未标记代码。
+F# 的 `inline` 函数会集成到调用点，并可使用静态解析的类型参数。有时类型系统角色要求这样做；普通泛型函数不需要它。编译器与 JIT 也能按自己的规则内联未标记代码。
 
 给函数标记 `inline` 可能消除调用或 lambda 开销、暴露进一步优化、毫无作用，或增大生成代码并增加指令缓存压力。它也会让调用方对实现变化更敏感。应保留等价的非内联基线并测量整体行为，不要按审美规则在小函数上到处添加 `inline`。
 
 ### `voption` 用值复制换取包装器分配 {#voption}
 
-`option<'T>` 是可选数据的自然模型。`voption<'T>` 是带 `ValueSome` 与 `ValueNone` 的结构体可辨识联合。它可以在热点中避免分配 option 包装器，尤其是载荷较小时；但复制大型结构体可能更贵，装箱或经由泛型/接口使用也可能抹去预期收益。
+`option<'T>` 是可选数据的自然模型。`voption<'T>` 是带 `ValueSome` 与 `ValueNone` 的结构体可区分联合。它可以在热点中避免分配 option 包装器，尤其是载荷较小时；但复制大型结构体可能更贵，装箱或经由泛型/接口使用也可能抹去预期收益。
 
 把 `option` 改为 `voption` 会改变公开类型及其分支名称。应测量分配敏感路径，同时包含有值与无值两种分布，并保留行为测试。除非调用方确实从这个 API 受益，否则把值选项留在内部。F# 10 也支持基于结构体的可选成员参数，但同样需要测量依据。
 
@@ -376,6 +417,7 @@ let checksumValueOption values indexes =
 - [BenchmarkDotNet：入门与 Release 执行](https://benchmarkdotnet.org/articles/guides/getting-started.html)
 - [BenchmarkDotNet：良好实践与外推限制](https://benchmarkdotnet.org/articles/guides/good-practices.html)
 - [BenchmarkDotNet：诊断器与分配报告](https://benchmarkdotnet.org/articles/configs/diagnosers.html)
+- [NuGet：BenchmarkDotNet 0.15.8](https://www.nuget.org/packages/BenchmarkDotNet/0.15.8)
 - [Microsoft Learn：.NET 诊断、计数器、追踪与剖析器](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/)
 - [Microsoft Learn：F# 内联函数](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/inline-functions)
 - [Microsoft Learn：F# 值选项](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/value-options)

@@ -12,8 +12,10 @@ Unity 无需编译 F# 源码，也能执行以 F# 编写的代码。F# 会编译
 
 下面用一个小型托管插件回答这个问题：把游戏规则放在普通 F# 类库中，对外提供 C# 友好的 API，并让简短的 C# 组件处理 Unity 特有行为。随后再讨论何时值得测试直接 F# 组件、何时 F# 收益很小，以及为什么类库构建成功不能代表 Player 可以运行。
 
+先分清术语：记录、可区分联合、模式匹配、模块和函数是 F# 概念；程序集、值类型、AOT 与装箱是 CLR/.NET 概念；`MonoBehaviour`、Editor、Player、IL2CPP、UnityLinker、Burst 与 Jobs 都是 Unity 概念。它们会出现在同一条流水线中，但不能统称为 F# 标准用语。
+
 ::: tip 分两轮阅读
-初读时依次掌握[集成层次](#unity-contract-stack)、[选型方法](#decision-map)和[托管插件样例](#x44-verified-slice)。准备代表性 Player 构建时，再按需查阅序列化、游戏循环、IL2CPP、验证与发布各节。
+初读时依次掌握[集成层次](#unity-contract-stack)、[选型方法](#decision-map)和[页内插件模板](#x44-verified-slice)。准备代表性 Player 构建时，再按需查阅序列化、游戏循环、IL2CPP、验证与发布各节。
 :::
 
 ## Unity 集成由多层契约组成 {#unity-contract-stack}
@@ -87,9 +89,11 @@ Unity 的托管插件模型基于 .NET 程序集，而非源码语言身份。�
 
 同样，不要因为游戏其他部分使用 F#，就强行用 F# 编写帧关键的 Burst kernel。Burst 文档规定了 HPC# 子集与 Unity IL 后处理流水线。除非针对所选配置的 F# 实验验证了包、特性、IL、Editor、AOT、性能与 Player 行为，否则应采用受支持的 C# 数据导向形式。
 
-## 托管插件样例：一个已验证的托管插件边界 {#x44-verified-slice}
+## 页内项目模板：一个托管插件边界 {#x44-verified-slice}
 
-托管插件样例实现一条水平移动规则。它刻意小到不足以支撑生产架构，其目的只是暴露构建、API、依赖、宿主、内存分配、链接器与验证边界。
+当前仓库已不包含原先的 `examples/ecosystem/unity/FSharpGameplay` 工程。本节保留一个可重建模板，实现一条水平移动规则。它刻意小到不足以支撑生产架构，只用于说明构建、API、依赖、宿主、内存分配、链接器与验证边界。
+
+四个文件的职责不同：`FSharpGameplay.fsproj` 只编译 `Gameplay.fs`；`UnityAdapter.cs` 依赖 `UnityEngine`，必须复制到真实 Unity 项目的 `Assets/Scripts/` 后由 Unity 编译；`link.xml` 也必须放进 `Assets` 树才会参与裁剪。不要尝试用下面的 `.fsproj` 单独编译 C# 适配器，也不要以为外部目录中的 `link.xml` 已经生效。
 
 ### 项目契约与依赖产物 {#project-contract}
 
@@ -120,11 +124,11 @@ Unity 的托管插件模型基于 .NET 程序集，而非源码语言身份。�
   </Target>
 </Project>
 ```
-项目目标为 `netstandard2.1`，程序集名为 `FSharpGameplay`，且只编译 `Gameplay.fs`。`FSharp.Core` 已经是 F# SDK 隐式包；`Update` 为这个项目固定 10.1.301 引用，而不是增加重复项。
+项目目标为 `netstandard2.1`，程序集名为 `FSharpGameplay`，且只编译 `Gameplay.fs`。`FSharp.Core` 已经是 F# SDK 隐式包；`Update` 为这个模板固定 10.1.301 引用，而不是增加重复项。截至 2026-08-31，NuGet 已列出更新的稳定版 10.1.400；若升级，必须重新生成锁、检查程序集身份，并重复 Unity 导入与 Player 验证，不能只改正文数字。
 
 `CopyLocalLockFileAssemblies` 很重要，因为 Unity 导入 DLL 时不会还原这个 `.fsproj`。后置构建目标把部署假设变成失败条件：输出目录必须同时存在 `FSharpGameplay.dll` 与 `FSharp.Core.dll`。
 
-包版本与程序集版本不是同一个标识符。锁定的 NuGet 包是 10.1.301；构建后的插件记录了对 `FSharp.Core, Version=10.1.0.0` 的程序集引用。应导入锁定构建产生的依赖，而不是从任一数字猜测文件。
+包版本与程序集版本不是同一个标识符。重建并编译后，应检查 `FSharpGameplay.dll` 实际记录的程序集引用，并把同一次锁定构建输出的 `FSharp.Core.dll` 一起导入。不要从 NuGet 版本号猜程序集身份，也不要从全局缓存随意取另一个文件。
 
 ### 普通 CLR API 背后的纯逻辑 {#pure-gameplay}
 
@@ -177,7 +181,7 @@ type Gameplay private () =
 ```
 `Gameplay.Create` 与 `Gameplay.Step` 是元组式静态方法，因此 C# 看到的是普通方法调用，而不是柯里化的 `FSharpFunc` 值。`MotionState` 暴露只读 float 属性，并隐藏字段及非默认构造器。
 
-状态是 struct。较早实现使用 class，因而每次 `FixedUpdate` 都分配新的托管对象。回归测试现在检查 `IsValueType`，并解码 `Gameplay.Step` 的托管方法体以拒绝显式 `box` 指令。它消除了托管构建中的这项特定状态对象分配，但并不假装整个 Player 每帧分配零字节。大型 struct 会带来复制成本，所以应让状态保持小巧并分析真实目标。
+状态是 struct，因此 `Gameplay.Step` 不必为新的状态对象分配一个 class。重建后的外部测试应检查 `IsValueType`，并在确有性能预算时检查公开调用路径是否出现意外装箱；当前仓库没有这项 Unity 插件回归测试。即使测试通过，也只能排除这一个托管分配来源，不能证明整个 Player 每帧分配零字节。大型 struct 还会带来复制成本，所以应保持小巧并分析真实目标。
 
 转换会夹紧方向输入，拒绝非有限值与负时间或速度，计算速度并返回新状态。它没有 `UnityEngine` 引用，不读取当前时间，也不发生可变更新。测试可以直接提供所有输入。
 
@@ -245,20 +249,20 @@ C# 文件只是说明性代码，因为书站不包含 UnityEngine 程序集。�
   </assembly>
 </linker>
 ```
-C# 适配器的直接调用应对静态可达性分析可见。托管插件样例仍包含两个显式根，以展示预期跨程序集桥，并为本章提供具体裁剪产物。
+C# 适配器的直接调用应对静态可达性分析可见。页内模板仍给出两个显式根，用来展示预期的跨程序集桥与具体裁剪配置。
 
 文件没有保留整个 `FSharp.Core`。宽泛保留会隐藏缺失的反射设计、增大 Player，并增加 IL2CPP 工作量。只有真实动态路径需要某个类型或成员时才添加，然后测试对应裁剪级别。
 
 把 `link.xml` 复制到 Unity 项目的 `Assets` 树下。外部 `.fsproj` 旁的源文件在成为 Unity 资源前没有任何作用。
 
-### 严格按验证结果陈述结论 {#evidence-ledger}
+### 把页内设计与执行证据分开 {#evidence-ledger}
 
 本章提供设计；采用它的 Unity 项目必须补全以下验证清单：
 
 | 层 | 必需检查 | 验证内容 |
 | --- | --- | --- |
-| 锁定 .NET 还原 | 在复制后的项目中运行 | `netstandard2.1` 图解析到选定 FSharp.Core 包 |
-| Release 插件构建 | 在复制后的项目中运行 | F# 源码能用选定 SDK 编译 |
+| 锁定 .NET 还原 | 在重建后的项目中运行 | `netstandard2.1` 图解析到选定 FSharp.Core 包 |
+| Release 插件构建 | 在重建后的项目中运行 | F# 源码能用选定 SDK 编译 |
 | 产物检查 | 检查两个 DLL 与程序集身份 | 插件及其指定的 FSharp.Core 依赖可供导入 |
 | 聚焦规则/API 测试 | 在 Unity 外运行 | 夹紧/步进行为、struct 状态与 CLR 面向 API |
 | Unity 导入与 C# 编译 | 在选定 Editor 中运行 | UnityEngine 宿主集成可以编译 |
@@ -327,7 +331,7 @@ F# 实现内部可以保持地道。导出的 API 应遵循消费者惯例。
 - 只有回调确实是正确契约时才使用 `System.Action` 或 `System.Func`；
 - 构造必须强制不变量时使用显式工厂方法。
 
-把 F# list、map、option、result、可辨识联合、柯里化函数与度量单位留在边界内，除非 C# 调用方明确接受其编译后形式。它们都是有效 .NET 类型；代价在于调用复杂度、表示耦合、AOT 验证范围与维护成本。
+把 F# 的 `list`、`Map`、`option`、`Result`、可区分联合、柯里化函数与度量单位留在边界内，除非 C# 调用方明确接受其编译后形式。它们都是有效 .NET 类型；代价在于调用复杂度、表示耦合、AOT 验证范围与维护成本。
 
 度量单位会从生成的 .NET 签名中擦除。C# float 不会说明它代表秒、米还是米每秒。用方法名、DTO 字段、验证或不同包装类型保留含义。
 
@@ -335,7 +339,7 @@ F# 实现内部可以保持地道。导出的 API 应遵循消费者惯例。
 
 不要为每个预期游戏分支抛异常。在内部用联合或 result 建模领域结果，再一次性翻译为 C# 友好的结果类、枚举加负载、`Try...` 方法或显式回调消息。
 
-把异常留给破坏契约且当前调用无法表示的失败。托管插件样例拒绝 NaN、无穷、负速度与负 delta time，因为它们表示无效边界调用。C# 适配器会在到达边界前防止普通创作错误。
+把异常留给破坏契约且当前调用无法表示的失败。页内插件代码拒绝 NaN、无穷、负速度与负 delta time，因为它们表示无效边界调用。C# 适配器会在到达边界前防止普通创作错误。
 
 异步工作不要向 Unity 泄漏 F# `Async<'T>`。根据宿主提供 `Task`、`ValueTask`、C# 友好的轮询句柄或消息接口。明确谁可以取消，以及结果在哪个线程交付。即使纯计算或 I/O 在其他地方运行，也只能在主线程访问 Unity 对象。
 
@@ -381,7 +385,7 @@ Unity 可以重载脚本与程序集，也能从序列化字段重建组件。�
 
 把 `Awake` 或另一个明确的组合点视为从序列化配置构造运行时状态。使用 `OnEnable` 与 `OnDisable` 配对订阅和取消。不要假设私有托管缓存能跨重载存活，也不要把看似非 null 的 `UnityEngine.Object` 当成仍有对应原生对象。
 
-托管插件样例在 `Awake` 中重建 `MotionState`，并在 `OnDisable` 中重置输入。它没有验证存档持久化或 domain reload；这些需要更大的 Unity 项目测试。
+页内适配器在 `Awake` 中重建 `MotionState`，并在 `OnDisable` 中重置输入。它没有实现或验证存档持久化与 domain reload；这些需要更大的 Unity 项目测试。
 
 ## 尊重游戏循环与分配预算 {#game-loop}
 
@@ -464,7 +468,7 @@ UnityLinker 分析可达代码，并按选定 Managed Stripping Level 删除代�
 
 Burst 文档规定 HPC#：围绕非托管值、Unity collection、job 或函数指针、特性与 IL 后处理的受限高性能 C#/.NET 子集。托管对象、许多运行时服务与普通异常行为都在该 kernel 模型之外。
 
-托管插件样例是托管 F# 插件，没有验证 Burst 或 Job System。仅给 F# 生成的方法添加 `[BurstCompile]`，不能说明它受支持。
+页内模板只是托管 F# 插件设计，没有验证 Burst 或 Job System。仅给 F# 生成的方法添加 `[BurstCompile]`，不能说明它受支持。
 
 当性能分析显示确实需要 Burst 时，可以采用以下边界：
 
@@ -496,7 +500,7 @@ Unity 是编译器与资源流水线的一部分。像给编译器版本化一�
 
 ### 锁定 Editor、模块、包与插件 {#pin-editor}
 
-记录完整 Editor 补丁，而不只写“Unity 6.3”。本样例选择 6000.3.22f1，即 2026-08-25 核对时最新的 6.3 LTS 补丁。它是审阅目标，不代表本机已经安装。
+记录完整 Editor 补丁，而不只写“Unity 6.3”。页内模板选择 6000.3.22f1；官方页面记录它发布于 2026-08-13。本章在 2026-08-31 复核该目标，但不声称它永远是最新补丁，也不代表本机已经安装。
 
 锁定 Unity 包与 F# NuGet 图。从干净锁定还原只构建一次 F# DLL，把确切依赖集复制进 Unity 项目，并用哈希或其他方式标识导入产物。除非平台专属输出有意为之，不要在每个平台 job 中以不同方式重建插件。
 
@@ -632,9 +636,9 @@ C# 适配器负责 `AssetDatabase`、导入回调、GUID 与路径查找，以�
 
 :::
 
-### 练习 2：把托管插件样例变成 Unity 端到端小样 {#exercise-02}
+### 练习 2：把页内插件模板变成 Unity 端到端小样 {#exercise-02}
 
-设计最小 Unity 项目与验证记录，把托管插件样例从“托管 DLL 能构建”推进到“代表性 macOS ARM64 IL2CPP Player 可以运行”。把记录分成四组：
+设计最小 Unity 项目与验证记录，把页内代码从“只有可重建设计”推进到“代表性 macOS ARM64 IL2CPP Player 可以运行”。把记录分成四组：
 
 - **程序集导入：** 产物复制、`FSharp.Core` 身份、程序集定义和 Validate References。
 - **Editor 行为：** 场景与输入设置、Edit/Play Mode 测试、重载行为和分配分析。

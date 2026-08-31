@@ -6,9 +6,11 @@ translationKey: part-07/ch-41-fable-elmish
 
 # 第 41 章：Fable、Elmish 与浏览器应用 {#overview}
 
-在 Fable 项目中，源语言仍是 F#：记录、可辨识联合、模式匹配、模块、函数和类型推断照常工作。但运行时不再是 .NET。Fable 把受支持的 F# 与库功能转译为 JavaScript，再由浏览器按自身的安全、调度、数值、打包和 API 规则执行。
+在 Fable 项目中，源语言仍是 F#：记录、可区分联合、模式匹配、模块、函数和类型推断照常工作。但运行时不再是 .NET。Fable 把受支持的 F# 与库功能转译为 JavaScript，再由浏览器按自身的安全、调度、数值、打包和 API 规则执行。
 
 这个区别能阻止两个相反错误。.NET 团队不能假设每个 BCL 或 NuGet API 都能在浏览器中工作。JavaScript 团队也不能认为只用 Fable 就不再需要 npm、打包器、DOM 知识、可访问性或浏览器诊断。有用的问题是：“哪些逻辑能从 F# 建模获益，哪些边界属于 JavaScript 或浏览器，这个界面实际需要多少状态架构？”
+
+术语要分清：记录、可区分联合、模式匹配、模块和类型推断是 F# 语言概念；Fable 是转译器与工具链；Elmish、Feliz 和 React 是库或 UI 架构；DOM、Web API、Vite 与 npm 属于浏览器和 JavaScript 生态。后几项不是“F# 标准语法”。
 
 ## Fable 改变目标，不改变源语言 {#target-runtime}
 
@@ -23,7 +25,7 @@ F# 源码 + .fsproj + 兼容的 NuGet 包
 
 F# 编译器仍会对项目做类型检查。随后 Fable 转译受支持的程序。Vite 或其他 JavaScript 工具解析模块、摇树优化、压缩、加哈希并输出资源。浏览器加载这些资源；它不会加载项目的 `.dll` 或启动 CLR。
 
-这是转译到目标生态，不是远程控制某个 .NET 进程，也不同于 .NET WebAssembly。Fable 还能以其他语言为目标，但本章和浏览器样例只验证浏览器里的 JavaScript。
+这是转译到目标生态，不是远程控制某个 .NET 进程，也不同于 .NET WebAssembly。Fable 还能以其他语言为目标，但本章只用 JavaScript 浏览器目标说明边界。
 
 ### 把三个兼容性问题分开 {#three-compatibility-questions}
 
@@ -35,9 +37,11 @@ F# 编译器仍会对项目做类型检查。随后 Fable 转译受支持的程�
 
 一个 `netstandard2.0` 资源本身既不能回答第二问，也不能回答第三问。反过来，一个 JavaScript 库即使没有 .NET 实现，也可以通过类型化 Fable 绑定很好地工作。
 
-## 浏览器样例：一个最小浏览器边界 {#verified-slice}
+## 页内项目模板：一个最小浏览器边界 {#verified-slice}
 
-浏览器样例有意避开 React 和 Elmish 包。它隔离出最小实用路径：F# 源码变成生产 JavaScript 包，绑定可访问的 DOM 事件并更新可见状态。真实应用仍须在其支持的浏览器中测试该产物。
+当前仓库已不包含原先的 `examples/ecosystem/fable` 工程。本节保留的是可重建模板，不是当前仓库中的可执行样例。它有意避开 React 与 Elmish，只展示最小路径：F# 源码转成 JavaScript、页面加载生成模块、DOM 事件更新可见状态。
+
+重建时，把 `FableSample.fsproj`、`App.fs`、`index.html`、`package.json` 和 `vite.config.mjs` 放在同一目录；用 `.config/dotnet-tools.json` 固定 Fable 工具，用 NuGet 与 JavaScript 锁文件分别固定两份依赖图。`App.fs` 是项目唯一的 F# 编译文件，`index.html` 是 Vite 入口，`generated/` 与 `dist/` 都是生成目录。
 
 ### 锁定项目依赖 {#locked-project}
 
@@ -57,7 +61,7 @@ F# 编译器仍会对项目做类型检查。随后 Fable 转译受支持的程�
   </ItemGroup>
 </Project>
 ```
-要在应用中复现这个样例，应记录以下各自演进的输入：
+要在应用中复现这个模板，应记录以下各自演进的输入：
 
 - .NET SDK 与 F# 语言版本；
 - 本地 Fable 工具版本；
@@ -67,7 +71,20 @@ F# 编译器仍会对项目做类型检查。随后 Fable 转译受支持的程�
 
 编译器、Fable.Core 和浏览器绑定有各自的发布节奏。按看起来相同的主版本或次版本去配对不是兼容策略；要还原它们声明的依赖图、编译并在目标上运行。
 
-### 先读 F#，再读生成的 JavaScript {#sample-code}
+### 先把 HTML 前提与 F# 入口连起来 {#sample-code}
+
+`App.fs` 会查找三个固定 ID，因此 HTML 必须先提供这些元素。下面只省略了页面样式和说明文字；脚本路径与 Fable 的输出目录相对应：
+
+```html:line-numbers [index.html]
+<main>
+  <output id="count" aria-live="polite">Count: 0</output>
+  <button id="increment" type="button">Increment count</button>
+  <button id="reset" type="button">Reset count</button>
+</main>
+<script type="module" src="/generated/App.js"></script>
+```
+
+下面是完整的 `App.fs`，不是一组互不相关的片段：
 
 ```fsharp:line-numbers [App.fs]
 module FableSample.App
@@ -121,13 +138,13 @@ document.documentElement.setAttribute ("data-fable-ready", "true")
 
 最后的属性是供浏览器冒烟使用的就绪契约。只有找到元素、绑定监听器并渲染初始模型后才会设置它。
 
-### 这些检查覆盖什么 {#sample-evidence}
+### 重建后应检查什么 {#sample-evidence}
 
-生产命令执行锁定的 .NET 工具与包还原、不复用缓存的 Fable 编译，以及 Vite 生产构建。当前输出把 15 个模块转换为一个 HTML 入口和一个带哈希的 JavaScript 资源。具体文件名与大小由构建产生，不属于公开应用契约。
+重建后，生产流程应依次执行锁定的 .NET 工具/包还原、不复用缓存的 Fable 编译，以及 Vite 生产构建。检查 `dist` 中存在 HTML 入口与带哈希的 JavaScript 资源，但不要把模块数、文件名或大小写成永久契约。
 
-自动冒烟只提供 `dist`，并通过锁定的 Playwright 客户端启动已安装的 Chrome。它等待 Fable 就绪，验证 `0 -> 3 -> 0` 和重置状态，拒绝浏览器与网络错误，并检查 360 像素宽度下的页面溢出。独立 DevTools 检查中，可访问性、最佳实践、SEO 与可代理浏览也全部为 100。
+浏览器冒烟应只提供 `dist`，等待 `data-fable-ready`，验证 `0 -> 3 -> 0` 与重置按钮状态，并把浏览器错误、失败网络请求和 360 像素宽度溢出视为失败。再用键盘与可访问性树检查按钮名称、焦点和 live region。当前仓库没有这套工程与测试，因此本章不声称这些检查已经运行。
 
-这些检查覆盖一次 DOM 交互、当前工具图、生产构建与受测 Chrome 环境。它们不覆盖 React 或 Elmish 兼容性、所有浏览器、路由、HTTP、离线行为、认证、本地化、水合、服务端渲染、长会话内存或生产托管响应头。
+即使这些检查通过，也只覆盖一次 DOM 交互、锁定工具图、生产构建与受测浏览器环境；它们不覆盖 React 或 Elmish 兼容性、所有浏览器、路由、HTTP、离线行为、认证、本地化、水合、服务端渲染、长会话内存或生产托管响应头。
 
 ## 了解受支持的 F# 与 .NET API {#compatibility}
 
@@ -208,7 +225,7 @@ Cookie、Bearer 令牌、CORS、CSRF、重定向、缓存和状态码都是传�
 
 ### 可访问性属于渲染边界 {#accessibility}
 
-F# 类型能让状态显式，但不会自动产生语义 HTML、可访问名称、焦点移动、键盘操作、播报、对比度、减少动态效果或响应式布局。浏览器样例使用真实标题层级、按钮、live `output`、禁用的重置状态、可见焦点和窄屏测试，因为这些都是浏览器契约。
+F# 类型能让状态显式，但不会自动产生语义 HTML、可访问名称、焦点移动、键盘操作、播报、对比度、减少动态效果或响应式布局。重建模板时应补齐真实标题层级、按钮、live `output`、禁用的重置状态、可见焦点和窄屏测试，因为这些都是浏览器契约。
 
 要用可访问性树与键盘测试，而不只用 CSS 选择器。虚拟 DOM、Feliz DSL 或 Elmish 循环会改变构造方式；它们都不能让最终 DOM 免于可访问性要求。
 
@@ -238,7 +255,7 @@ view Model dispatch -> 渲染后的 UI
 
 模型是不可变快照。消息命名发生了什么。`update` 决定下一状态并描述命令。运行时执行命令、分派后续消息，再让渲染器更新视图。
 
-浏览器样例在没有库的情况下，已经实现了这种模式的核心：`Message`、`Model` 与纯 `update`。手写的可变外壳负责分派和渲染。当标准命令、订阅、组合、插桩或渲染器集成能替代足够多的自定义生命周期代码时，引入 Elmish 才值得。
+页内模板在没有 Elmish 库的情况下，已经写出了这种模式的核心：`Message`、`Model` 与纯 `update`。手写的可变外壳负责分派和渲染。当标准命令、订阅、组合、插桩或渲染器集成能替代足够多的自定义生命周期代码时，引入 Elmish 才值得。
 
 ### 命令描述副作用；它不会净化副作用 {#commands}
 
@@ -290,7 +307,7 @@ Feliz 是 React 的类型化 F# API。它可以配合 React 组件局部状态�
 - Elmish 提供模型—消息—更新—命令组织；
 - Fable.Elmish.React 连接 Elmish 循环与 React 渲染器。
 
-四个都加入并不会自动让程序更函数式。对于小型隔离组件，Feliz hook 可能足够。对于全应用工作流和协调副作用，Elmish 可能有帮助。对于一个计数器，浏览器样例的直接 DOM 外壳更容易审计。
+四个都加入并不会自动让程序更函数式。对于小型隔离组件，Feliz hook 可能足够。对于全应用工作流和协调副作用，Elmish 可能有帮助。对于一个计数器，页内模板的直接 DOM 外壳更容易审计。
 
 Fable.React 包页面本身建议新 React 项目使用 Feliz，因为 Fable.React 维护较少。要把它当作当前维护者指引，而不是在没有迁移证据时重写稳定应用的理由。
 
@@ -329,7 +346,7 @@ type BookingPage =
 
 如果某种状态应在刷新、深链接、历史导航或分享后保留，就判断它是否应进入 URL。把路由解析为验证后的应用状态，并明确渲染未知路由。若没有同步规则，不要在路由状态、全局模型和组件状态中保留互不相关的副本。
 
-客户端路由要求托管回退配置。浏览器样例是只有一个入口的 MPA，并且有意没有验证 SPA 重写。一个在 `/` 工作的包，在用户从静态托管直接请求 `/bookings/42` 时仍可能返回 404。
+客户端路由要求托管回退配置。页内模板按只有一个入口的 MPA 设计，并未定义 SPA 重写。一个在 `/` 工作的包，在用户从静态托管直接请求 `/bookings/42` 时仍可能返回 404。
 
 ## 在多个层次测试浏览器应用 {#testing}
 
@@ -355,7 +372,7 @@ type BookingPage =
 
 官方 Fable/Vite 工作流可以让 Fable 监听并配合 Vite，实现快速开发。生产仍必须从锁定的干净输入开始并创建不可变产物。
 
-浏览器样例的生产序列在概念上是：
+页内模板的生产序列在概念上是：
 
 ```sh
 dotnet tool restore
@@ -373,7 +390,7 @@ vite preview
 
 有意选择 MPA、SPA 回退或服务端路由。定义发布期间旧 HTML 如何配合新资源，若有 service worker 则定义它如何更新，以及如何同时回滚资源与 API 兼容性。
 
-浏览器样例的产物不需要应用服务器。本地预览服务器只是开发工具，不是生产依赖，也不代表托管选择。
+这个模板的静态产物不需要应用服务器。本地预览服务器只是开发工具，不是生产依赖，也不代表托管选择。
 
 ### 测量包体与运行成本 {#browser-performance}
 
@@ -385,18 +402,18 @@ vite preview
 
 下面是带日期的观察，不是预先批准的技术栈：
 
-| 选择 | 2026-08-25 检查的稳定版本 | 本章状态 | 采用问题 |
+| 选择 | 2026-08-31 检查的稳定版本 | 本章状态 | 采用问题 |
 |---|---|---|---|
-| Fable 工具 | 5.13.0；工具面向 .NET 10 | 已示例 | 生成的 JavaScript 是否保留此应用需要的语义？ |
-| Fable.Core | 5.2.0；`netstandard2.0` 资源 | 已示例 | 每个所用辅助函数是否受 JavaScript 目标支持？ |
-| Fable.Browser.Dom | 2.20.0；浏览器绑定图 | 已示例 | 所需 Web API 与目标浏览器是否得到覆盖？ |
-| Vite | 6.4.3 | 已示例 | 基础路径、资源、生产模式和托管行为是否验证？ |
+| Fable 工具 | 5.13.0；工具面向 .NET 10 | 页内项目模板 | 生成的 JavaScript 是否保留此应用需要的语义？ |
+| Fable.Core | 5.2.0；`netstandard2.0` 资源 | 页内项目模板 | 每个所用辅助函数是否受 JavaScript 目标支持？ |
+| Fable.Browser.Dom | 2.20.0；浏览器绑定图 | 页内项目模板 | 所需 Web API 与目标浏览器是否得到覆盖？ |
+| Vite | 模板固定 6.4.3 | 页内项目模板 | 基础路径、资源、生产模式和托管行为是否验证？ |
 | Fable.Elmish | 5.0.2 | 仅研究 | 状态与副作用是否复杂到值得引入该循环？ |
 | Fable.Elmish.React | 5.6.0 稳定版；存在 6.0 beta | 仅研究 | F# 绑定是否兼容所选 React/npm 矩阵？ |
 | Feliz | 3.3.3 | 仅研究 | 它的类型化 React API 是否适合组件与升级需求？ |
 | Fable.React | 9.4.0 稳定版；包建议新项目使用 Feliz | 仅研究 | 这是维护既有技术栈，而不是新的默认选择吗？ |
 
-“已示例”表示本章包含最小配置或用法，不表示书站仓库内保留着可执行浏览器工程。“仅研究”表示采用前必须在真实应用中继续评估。
+“页内项目模板”表示正文给出了重建所需的关键文件与上下文，不表示书站仓库内保留着可执行浏览器工程。“仅研究”表示采用前必须在真实应用中继续评估。
 
 ## 开展可逆的浏览器技术栈试验 {#adoption-spike}
 

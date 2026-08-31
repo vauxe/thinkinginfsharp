@@ -10,6 +10,8 @@ A booking service asks a remote price provider for a quote. The answer arrives l
 
 Begin with responsibilities rather than syntax. Who creates the work? When does it start? Who awaits and handles the outcome? Once those answers are clear, `async {}` and `task {}` become distinct tools instead of interchangeable punctuation.
 
+The three main-line blocks in this chapter form `examples/chapters/ch22/async-task.fsx` in reading order. `newGate` is a test helper defined by the chapter, not a built-in F# or .NET name; its definition appears before its first use below.
+
 ## A later result has more than a value type {#three-questions}
 
 For any operation that completes later, ask three questions:
@@ -34,6 +36,11 @@ Neither representation promises a new thread. Asynchrony means the caller need n
 The example creates two explicit signals. `asyncEntered` records entry into the body; `asyncRelease` keeps the body from finishing. There is no clock and no assumed scheduler speed.
 
 ```fsharp:line-numbers
+open System.Threading.Tasks
+
+let newGate<'T> () =
+    TaskCompletionSource<'T>(TaskCreationOptions.RunContinuationsAsynchronously)
+
 let asyncEntered = newGate<bool> ()
 let asyncRelease = newGate<unit> ()
 
@@ -171,6 +178,19 @@ external Task API → adapt once if needed → one internal workflow style
 ```
 
 Repeated `Async` → `Task` → `Async` conversion obscures which call starts work and which cancellation policy is active.
+
+Run `dotnet fsi examples/chapters/ch22/async-task.fsx` from the repository root. It prints, in causal order:
+
+```text
+Async before start: entered=false
+Async after StartAsTask: entered=true completed=false
+Async result: async-done
+Task after call: entered=true completed=false
+Task result: task-done
+Interop: async-to-task=21 task-to-async=42
+```
+
+The first two lines capture the chapter's central contrast: constructing the `Async` value has not entered its body, while calling the task factory has already run its body to the first incomplete await.
 
 ## Choose for the surrounding API {#choice}
 

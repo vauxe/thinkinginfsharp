@@ -10,6 +10,8 @@ translationKey: part-03/ch-18-workflow-validation
 
 Both policies can return `Result`. The difference is not the container's name but the combining function. This chapter implements both policies with ordinary functions so evaluation and error order remain visible. Computation-expression syntax is discussed only after the behavior exists without it.
 
+The main-line code in this chapter consists of consecutive excerpts from one script, available at `examples/chapters/ch18/validation.fsx`. Place the excerpts in a single `.fsx` file in reading order to run them; when a later block shows only one function, it relies on the types and functions already introduced above.
+
 ## Ask whether the next check needs the previous value {#dependency-question}
 
 Before choosing syntax, draw the data dependencies:
@@ -38,7 +40,9 @@ Do not accumulate by reflex. A command-line tool may intentionally report only t
 
 The example separates raw text from successfully checked values:
 
-```fsharp:line-numbers
+```fsharp:line-numbers [validation.fsx — start here]
+open System
+
 type ValidationError =
     | MissingRequestId
     | MissingAttendee
@@ -64,7 +68,7 @@ type ValidBooking =
 
 The error union keeps facts rather than formatted UI messages. Each field validator returns `Result<'Value, ValidationError list>`:
 
-```fsharp:line-numbers
+```fsharp:line-numbers [validation.fsx — continued]
 let validateRequestId raw =
     if String.IsNullOrWhiteSpace raw then
         Error [ MissingRequestId ]
@@ -101,7 +105,7 @@ The binder is not called in the `Error` case. The error type is preserved; `bind
 
 The first strategy nests three dependent continuations:
 
-```fsharp:line-numbers
+```fsharp:line-numbers [validation.fsx — continued]
 let validateFirstError (raw: RawBooking) =
     validateRequestId raw.RequestId
     |> Result.bind (fun requestId ->
@@ -127,7 +131,7 @@ Short-circuiting also prevents unnecessary work, but that is a consequence rathe
 
 The accumulating strategy evaluates all three field functions before deciding whether construction is possible:
 
-```fsharp:line-numbers
+```fsharp:line-numbers [validation.fsx — continued]
 let errorsOf result =
     match result with
     | Ok _ -> []
@@ -152,8 +156,8 @@ let validateAccumulating (raw: RawBooking) =
 ```
 If every result is `Ok`, the match constructs one `ValidBooking`. Otherwise, `errorsOf` contributes each failure list in field order. The invalid example therefore produces:
 
-```text
-[missing-request-id; missing-attendee; seats-not-integer:oops]
+```fsharp
+Error [ MissingRequestId; MissingAttendee; SeatsNotInteger "oops" ]
 ```
 
 This is validation accumulation: evaluate independent checks and combine their failures in a stated order. The code executes sequentially in ordinary F# evaluation order, but no check is skipped because another field failed.
@@ -170,7 +174,7 @@ Likewise, do not construct a half-valid domain record and patch it later. Keep s
 
 The direct three-way match is easy to audit. When the pattern repeats, factor only the combination mechanics:
 
-```fsharp:line-numbers
+```fsharp:line-numbers [validation.fsx — continued]
 let applyValidation valueResult functionResult =
     match functionResult, valueResult with
     | Ok mapping, Ok value -> Ok(mapping value)
@@ -205,7 +209,7 @@ Repeated list append can become expensive for very large validation sets. A smal
 
 After a seat count exists, comparing it with capacity is a dependent business check:
 
-```fsharp:line-numbers
+```fsharp:line-numbers [validation.fsx — continued]
 let ensureWithin capacity (SeatCount requested as seats) =
     if requested <= capacity then
         Ok seats
@@ -233,6 +237,52 @@ let observeDependentValidation rawSeats =
 | `"3"` with capacity 4 | `Ok(SeatCount 3)` | 1 |
 
 The zero directly demonstrates short-circuiting; it is not a timing-based optimization claim. The count is test instrumentation, and correctness must not depend on it.
+
+The script ends by connecting those definitions to concrete inputs. `invalid` contains three independent errors, while `valid` demonstrates the trimmed successful values:
+
+```fsharp:line-numbers [validation.fsx — final checks]
+let invalid: RawBooking =
+    { RequestId = " "
+      Attendee = ""
+      Seats = "oops" }
+
+let valid: RawBooking =
+    { RequestId = " REQ-18 "
+      Attendee = " Lin "
+      Seats = "3" }
+
+let expectedErrors =
+    Error [ MissingRequestId; MissingAttendee; SeatsNotInteger "oops" ]
+
+let expectedValid =
+    Ok
+        { RequestId = RequestId "REQ-18"
+          Attendee = Attendee "Lin"
+          Seats = SeatCount 3 }
+
+printfn "first-error: %b" (validateFirstError invalid = Error [ MissingRequestId ])
+printfn "all-errors: %b" (validateAccumulating invalid = expectedErrors)
+printfn "apply-agrees: %b" (validateAccumulatingWithApply invalid = expectedErrors)
+printfn "valid-booking: %b" (validateAccumulating valid = expectedValid)
+
+printfn
+    "dependent: parse=%A over=%A fit=%A"
+    (observeDependentValidation "oops")
+    (observeDependentValidation "5")
+    (observeDependentValidation "3")
+```
+
+Run `dotnet fsi examples/chapters/ch18/validation.fsx` from the repository root to get:
+
+```text
+first-error: true
+all-errors: true
+apply-agrees: true
+valid-booking: true
+dependent: parse=(Error [SeatsNotInteger "oops"], 0) over=(Error [ExceedsCapacity (5, 4)], 1) fit=(Ok (SeatCount 3), 1)
+```
+
+The booleans are executable equality checks, not business output. They pin down the chapter's claims about first-error behavior, error order, equivalence of the two accumulation implementations, and successful construction.
 
 A real booking workflow commonly uses both policies:
 

@@ -8,7 +8,13 @@ translationKey: part-06/ch-37-consistency-idempotency
 
 Chapter 36 made a dangerous interval observable: two requests can both read old capacity, a payment can succeed before local state changes, and a notification can fail after the booking is committed. Catching exceptions does not close any of those intervals. This chapter gives each one a state model and a deliberately narrow consistency boundary.
 
-This chapter adds `AtomicBookingStore` and `IdempotentBookingService`. The first stores the whole activity aggregate and command progress; the second coordinates payment and notification against that progress. The focused tests call this service directly. The Chapter 36 HTTP endpoint still uses its earlier `AsyncPorts` workflow; Chapter 38 will connect the consistent service to the final API. Keeping that staging explicit prevents test evidence below HTTP from being misreported as deployed endpoint behavior.
+The in-page reference design adds `AtomicBookingStore` and `IdempotentBookingService` here. The first stores the whole activity aggregate and command progress; the second coordinates payment and notification against that progress. When implementing the design, focused verification should call this service directly; Chapter 38 then connects it to HTTP. That staging prevents evidence below HTTP from being misreported as deployed endpoint behavior.
+
+The current repository still has no buildable project containing this design. In the proposed `Booking.Infrastructure` compile order, `AtomicBookingStore.fs` follows `FileStore.fs`. `Idempotency.fs` follows the payment/notification stubs and precedes `Composition.fs`.
+
+Both code blocks are excerpts from larger files. The first requires `System.Collections.Concurrent`, `System.Threading`, and snapshot/phase types defined earlier in its file. The second requires the previously defined `PreparedCommand`, store operations, and external-service ports.
+
+“Aggregate,” “idempotency,” and “transactional outbox” are domain-design and distributed-systems terms, not F#-specific vocabulary. F# contributes discriminated unions for phases, pattern matching for transitions, and `Result` plus `task` to separate expected outcomes from asynchronous work.
 
 ## Find the invariant's real owner {#aggregate-invariant}
 
@@ -173,7 +179,7 @@ The writer serializes the complete DTO, checks the bound, creates a random tempo
 
 Microsoft documents that [`Flush(true)` clears intermediate file buffers](https://learn.microsoft.com/en-us/dotnet/api/system.io.filestream.flush?view=net-10.0) and that [`File.Move` with `overwrite = true` replaces an existing destination](https://learn.microsoft.com/en-us/dotnet/api/system.io.file.move?view=net-10.0). Keeping the temporary file in the same directory also avoids the documented cross-volume copy behavior.
 
-Those API facts do not establish ACID durability under every filesystem, power loss, directory-metadata failure, network share, antivirus hook, or hardware cache. The tests establish complete replacement and orderly restart on the tested environment. They do not simulate power removal. A production durability claim needs the actual filesystem, mount, storage, backup, and recovery evidence.
+Those API facts do not establish ACID durability under every filesystem, power loss, directory-metadata failure, network share, antivirus hook, or hardware cache. After implementation, file tests can establish complete replacement and orderly restart only on the tested environment; they do not simulate power removal unless explicit fault injection is added. A production durability claim needs the actual filesystem, mount, storage, backup, and recovery evidence.
 
 Within this process, cooperating readers use the same state gate, so they do not parse the temporary file or read during replacement. A second OS process does not share that gate and can race. The class XML documentation states this limit directly.
 
@@ -352,25 +358,25 @@ Microsoft's [transactional outbox guidance](https://learn.microsoft.com/en-us/az
 
 Persisting `NotificationPending` with the booking resembles a tiny inline outbox. It is not a full outbox: there is no independent worker, lease, backoff, dead-letter policy, ordering policy, or retention cleanup. Calling it one would overstate the implementation.
 
-## Recover from an orderly restart {#restart-recovery}
+## Design orderly-restart verification {#restart-recovery}
 
-Every decision-relevant value survives in the aggregate snapshot. A new process can reconstruct domain bookings, command phases, capacity accounting, and exact replay results without relying on an in-memory cache.
+The design goal is for every decision-relevant value to survive in the aggregate snapshot. A new process should reconstruct domain bookings, command phases, capacity accounting, and exact replay results without relying on an in-memory cache.
 
-The restart test does not merely instantiate a second object. It completes a placement, reads the JSON to confirm schema 1 and absence of the payment transaction text, then launches a separate `dotnet fsi` process. That process loads the built assemblies and the same snapshot, supplies payment and notification functions that fail if invoked, and repeats the placement.
+After implementing the reference design, a restart test should do more than instantiate a second object. It can complete a placement, read the JSON to confirm schema 1 and absence of the payment transaction text, then launch a separate `dotnet fsi` process. The child loads the built assemblies and the same snapshot, receives payment and notification functions that fail if invoked, and repeats the placement.
 
-The child prints:
+The expected child output is:
 
 ```text
 restored|REQ-RESTART|2|pending
 ```
 
-Exit code zero proves that persisted completion was replayed without either forbidden effect. The parent process then verifies its original stubs still have one payment and one notification call.
+Zero exit status, the output above, and exactly one call in each parent-process stub together show that persisted completion replayed without invoking payment or notification again.
 
-This is orderly restart evidence. It does not prove simultaneous multi-process writing, recovery from every instruction-level crash, or survival after disk loss. Those require different storage and fault-injection tests.
+Such a test is orderly-restart evidence only. It does not prove simultaneous multi-process writing, recovery from every instruction-level crash, or survival after disk loss. Those require different storage and fault-injection tests.
 
 ## State the guarantee as a table {#guarantee-table}
 
-| Question | Current answer |
+| Question | Reference-design claim (still verify after implementation) |
 |---|---|
 | Can two controlled commands in one process oversell one activity? | no, when they use `IdempotentBookingService` and the same configured path |
 | Do pending and confirmed bookings consume seats? | yes |
@@ -380,16 +386,16 @@ This is orderly restart evidence. It does not prove simultaneous multi-process w
 | Is an uncertain payment automatically retried? | no; it requires reconciliation |
 | Can a failed notification be retried? | yes, without repeating payment or booking commit |
 | Can notification be delivered more than once after an ambiguous acknowledgment? | yes |
-| Does state survive a new process with matching activity configuration? | yes, in the tested orderly-restart scenario |
+| Does state survive a new process with matching activity configuration? | the design intends yes; verify it with the separate-process test above |
 | Can two OS processes or containers safely write the file concurrently? | no |
 | Is the snapshot an ACID, replicated, encrypted, backed-up database? | no |
 | Do the Chapter 36 HTTP endpoints already use this service? | no; final integration is Chapter 38 |
 
 The narrow wording is part of correctness. “Thread safe,” “atomic,” “durable,” and “idempotent” are incomplete claims unless they name scope, state, failures, and observers.
 
-## Test races with causality, not elapsed time {#deterministic-tests}
+## Design race tests with causal control {#deterministic-tests}
 
-The two competition tests create both tasks, have each signal readiness, and hold them behind a `TaskCompletionSource`. Only after both are ready does the test release them. No assertion depends on which request wins.
+After implementation, each competition test should create both tasks, have each signal readiness, and hold them behind a `TaskCompletionSource`. Only after both are ready should the test release them. No assertion should depend on which request wins.
 
 For capacity three and two requests of two seats, the required outcome is:
 
@@ -398,11 +404,11 @@ For capacity three and two requests of two seats, the required outcome is:
 - one payment and one notification call;
 - total persisted occupied seats equal two.
 
-The duplicate test releases two normalized forms of the same command together. Both receive success, but the counters remain one payment and one notification. Reusing the same operation key for a different seat count yields `IdempotencyConflict` without changing either counter.
+The duplicate test should release two normalized forms of the same command together. Both should receive success, while the counters remain one payment and one notification. Reusing the same operation key for a different seat count should yield `IdempotencyConflict` without changing either counter.
 
-Other tests show that notification failure commits the booking and retries only notification. They also cover an unknown payment without a second charge, capacity released by cancellation, and completed work replayed by a separate process.
+Add cases showing that notification failure commits the booking and a retry sends only notification; that an unknown payment does not cause a second charge; that cancellation releases capacity; and that a separate process replays completed work.
 
-The focused tests use a controlled happens-before structure instead of timing sleeps. This does not prove every possible schedule, but causal control is stronger evidence than `Task.Delay(50)` followed by an assertion that merely tends to win.
+These focused tests should use a controlled happens-before structure instead of timing sleeps. That does not prove every possible schedule, but causal control is stronger evidence than `Task.Delay(50)` followed by an assertion that merely tends to win.
 
 ## Choose a production boundary from requirements {#production-upgrades}
 

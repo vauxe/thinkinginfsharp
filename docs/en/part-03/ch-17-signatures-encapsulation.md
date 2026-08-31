@@ -33,15 +33,17 @@ The project records the pair explicitly:
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
+    <OutputType>Exe</OutputType>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Include="Library.fsi" />
     <Compile Include="Library.fs" />
+    <Compile Include="Program.fs" />
   </ItemGroup>
 </Project>
 ```
-The signature has the same base name as the implementation and appears immediately before it: `Library.fsi`, then `Library.fs`. Reversing them makes the compiler process the implementation too early; inserting dependent code between them breaks the pair's intended compilation position.
+This is the complete `examples/chapters/ch17/Ch17.fsproj` in the repository. The signature has the same base name as the implementation and appears immediately before it: `Library.fsi`, then `Library.fs`; the final `Program.fs` acts as a consumer. Reversing the first two files makes the compiler process the implementation too early; inserting dependent code between them breaks the pair's intended compilation position.
 
 One implementation file may have at most its matching signature in this form. A signature is not a header that several unrelated `.fs` files append to, and a later file cannot reopen the implementation to reach declarations that were omitted.
 
@@ -239,9 +241,11 @@ The example is intentionally F#-facing. Its surface uses:
 - `Result` plus transparent error unions for expected rejection;
 - abstract representations for values whose constructors establish invariants.
 
-These choices let consumer code stay direct:
+These choices let consumer code stay direct. The following fragment assumes that the chapter module is open and that `capacity` was previously obtained through `Capacity.create`:
 
 ```fsharp
+open ThinkingInFSharp.Ch17.SeatAllocation
+
 let tryAllocate capacity requested =
     requested |> allocate capacity
 ```
@@ -252,9 +256,22 @@ Before freezing a signature, write representative successful, failure, pipeline,
 
 ## Test through the public API consumers see {#consumer-tests}
 
-The chapter tests live in another project and reference the library assembly. They can construct values only through `Capacity.create` and `SeatCount.create`, allocate through the public function, and observe results through the published modules. They cover both smart constructors, successful allocation, and insufficient capacity.
+The chapter checks the contract with two consumers. `Program.fs` follows the signature/implementation pair, so it can construct values only through `Capacity.create` and `SeatCount.create`, then allocate and observe the result through the public functions:
 
-That positive suite proves the surface is sufficient. A separate expected-error consumer proves it is restrictive:
+```fsharp:line-numbers [Program.fs — core call]
+let capacity = Capacity.create 6 |> getOk "capacity"
+let requested = SeatCount.create 4 |> getOk "requested seats"
+let allocation = allocate capacity requested |> getOk "allocation"
+
+printfn
+    "allocated requested=%d remaining=%d"
+    (allocation |> Allocation.requested |> SeatCount.value)
+    (allocation |> Allocation.remaining)
+```
+
+Here `getOk` is a small assertion helper in the same file: it returns the value from `Ok` and fails the example immediately on `Error`. The complete file also checks insufficient capacity. The origins of `capacity`, `requested`, and the output are therefore explicit rather than hidden context.
+
+The successful consumer proves that the public surface is sufficient. A separate project references the assembly and proves that the implementation is hidden with an intentionally invalid call:
 
 ```fsharp:line-numbers [Consumer.fs — expected error]
 namespace ThinkingInFSharp.Ch17.InvalidConsumer
@@ -276,6 +293,27 @@ Compile-time opacity and behavioral tests answer different questions:
 | Behavioral tests pass | Published operations preserve the stated outcomes and invariants |
 
 None of these checks protects against hostile reflection, unsafe code, corrupted persistence, or bugs inside the trusted implementation. State the scope of the guarantee accurately.
+
+Run the positive example from the repository root:
+
+```console
+dotnet run --project examples/chapters/ch17/Ch17.fsproj -c Release
+```
+
+Its fixed output is:
+
+```text
+allocated requested=4 remaining=2
+rejected requested=7 available=6
+```
+
+Then run the hidden-representation case:
+
+```console
+dotnet build examples/expected-errors/ch17-hidden-representation/Ch17HiddenRepresentation.fsproj -c Release
+```
+
+The second command must fail with `FS0800`; a successful build would be the encapsulation regression.
 
 ## Treat signature edits as API edits {#evolution}
 
@@ -304,22 +342,6 @@ Explicit signature files are valuable when:
 They may be premature for a short experiment, rapidly changing private application code, or a file whose ordinary access modifiers already express the needed boundary. Maintaining both files costs attention, and frequent harmless implementation edits can become noisy if the surface has not stabilized.
 
 Generate or write a signature after representative call sites reveal the right API—not before exploration has named the problem. Once adopted, keep the pair adjacent, treat build warnings seriously, and review signature changes as public API changes.
-
-## Build and verify the example {#build-test}
-
-From the repository root:
-
-```console
-dotnet build examples/chapters/ch17/Ch17.fsproj -c Release
-```
-
-This command is intentionally expected to fail and is checked separately:
-
-```console
-dotnet build examples/expected-errors/ch17-hidden-representation/Ch17HiddenRepresentation.fsproj -c Release
-```
-
-Its required `FS0800` diagnostic verifies that the representation is hidden. A successful build of that invalid consumer would be a regression, not a passing example.
 
 ## Exercises {#exercises}
 

@@ -10,6 +10,8 @@ translationKey: part-04/ch-21-exceptions-resources-io
 
 应把这三类问题分开处理。`use` 负责在词法作用域结束时释放资源；`try/with` 只转换调用方能够处理的异常；取得字节或文本后，领域解析仍是常规的强类型函数。这样既能明确各项责任，也无须发明万能的错误包装器。
 
+本章第一段 `try/with` 代码只是语法骨架，其中的 `operation`、`KnownException` 和 `KnownFailure` 是占位名称。后续文件读取代码则属于同一个可执行示例，完整版本位于 `examples/chapters/ch21/resources.fsx`；所需命名空间、辅助函数、输入和输出都会在首次使用前给出。
+
 ## 异常会中断正常表达式求值 {#exception-flow}
 
 F# 的 `try/with` 会产生值：
@@ -64,6 +66,9 @@ let read path =
 这个共享帮助函数接收资源获取函数和后续操作：
 
 ```fsharp:line-numbers
+open System
+open System.IO
+
 let withReader (openReader: string -> StreamReader) path operation =
     use reader = openReader path
     operation reader
@@ -122,7 +127,28 @@ let readText path =
 
 ## 用真实资源测试两条完成路径 {#resource-tests}
 
-示例会在 `Path.GetTempPath()` 下创建唯一目录，写入一个文件，并打开真实 `StreamReader` 实例：
+示例会在 `Path.GetTempPath()` 下创建唯一目录，写入一个文件，并打开真实 `StreamReader` 实例。测试块先使用下面两个辅助函数：前者观察 reader 是否已释放，后者把包含异常对象的内部结果转换成稳定的演示文本。
+
+```fsharp:line-numbers
+let readerIsDisposed (reader: StreamReader option) =
+    match reader with
+    | None -> false
+    | Some value ->
+        try
+            value.Peek() |> ignore
+            false
+        with :? ObjectDisposedException ->
+            true
+
+let renderReadResult result =
+    match result with
+    | Ok text -> $"ok:{text}"
+    | Error(PathNotFound _) -> "path-not-found"
+    | Error(AccessDenied _) -> "access-denied"
+    | Error(IoFailure _) -> "io-failure"
+```
+
+然后才执行资源测试：
 
 ```fsharp:line-numbers
 let tempName = Guid.NewGuid().ToString("N")
@@ -191,6 +217,9 @@ finally
         Directory.Delete(tempDirectory, recursive = true)
 
     cleanupRemoved <- not (Directory.Exists tempDirectory)
+
+assert cleanupRemoved
+printfn "Cleanup: removed=%b" cleanupRemoved
 ```
 两个打开函数只为测试观察而保留 reader 引用。成功操作返回后，对保留 reader 调用 `Peek` 会抛出 `ObjectDisposedException`。第二项操作读取文件后抛出 `InvalidDataException`；在 `withReader` 外部捕获该异常后，这个 reader 同样已经释放。
 
@@ -199,6 +228,18 @@ finally
 外层 `try/finally` 负责清理目录。目录名包含新的 GUID，删除目标仅限平台临时目录下由本次任务创建并解析出的子目录。最终断言确认该目录已不存在。
 
 真实临时文件可以验证与 .NET 文件系统的交互。纯解析测试仍应使用内存字符串，无须准备文件系统测试环境。
+
+在仓库根目录运行 `dotnet fsi examples/chapters/ch21/resources.fsx`，输出为：
+
+```text
+Success: text=42 disposed=true
+Failure: caught=true disposed=true
+Read result: ok:42
+Missing result: path-not-found
+Cleanup: removed=true
+```
+
+最后一行来自 `finally` 之后的断言，因此不只是“计划清理”，而是实际确认本次创建的目录已经删除。
 
 ## 评审 I/O 不能只看成功值 {#io-contract}
 

@@ -304,7 +304,7 @@ printfn "Statuses: %A" descriptions
 | 模块、命名空间、文件顺序、项目 | [第 16 章](../part-03/ch-16-modules-namespaces-projects) |
 | 异常、资源、async/task、取消 | [第 21–23 章](../part-04/ch-21-exceptions-resources-io) |
 | 对象与 .NET 边界语法 | [第 25–27 章](../part-05/ch-25-objects-interfaces) |
-| quotations、当前 SRTP、灵活类型、byrefs | [附录 H](h-advanced-index) |
+| 代码引用、SRTP、灵活类型、byref | [附录 H](h-advanced-index) |
 
 ## 官方入口 {#official-entry-points}
 
@@ -313,7 +313,7 @@ printfn "Statuses: %A" descriptions
 - [类型推断](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/type-inference)
 - [函数](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/)
 - [模式匹配](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/pattern-matching)
-- [可辨识联合](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions)
+- [可区分联合](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions)
 - [计算表达式](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/computation-expressions)
 - [符号与运算符参考](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/symbol-and-operator-reference/)
 - [F# 代码格式指南](https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/formatting)

@@ -21,9 +21,11 @@ translationKey: part-02/ch-07-records-equality
 ```fsharp
 let request = "Lin", 2
 let attendee, seats = request
+
+printfn "Tuple request: attendee=%s seats=%d" attendee seats
 ```
 
-这里类型为 `string * int`，第二行的模式按位置解构。它适合函数内部的临时成对结果、数学坐标或一眼能看完的局部转换。交换位置会得到不同类型；两个含义不同、但组成类型相同的二元组却仍是同一个静态类型。
+这段代码可单独运行，输出 `Tuple request: attendee=Lin seats=2`。`request` 的类型为 `string * int`，第二行的模式按位置解构。元组适合函数内部的临时成对结果、数学坐标或一眼能看完的局部转换。交换不同类型的位置会改变类型；两个含义不同、但组成类型相同的二元组却仍是同一个静态类型。
 
 当调用处开始出现 `fst`、`snd`，或读者必须记住第四个位置是什么时，元组已不能清楚表达领域。不要靠注释维护一个跨模块的位置协议。
 
@@ -42,6 +44,8 @@ let original =
       Attendee = "Lin"
       Seats = 2 }
 ```
+把这段完整定义保存为 `ch07-records-equality.fsx`。除非另有说明，本章后续记录示例都按出现顺序承接 `BookingDraft` 和 `original`。
+
 `BookingDraft` 是一个命名类型。字段标签参与构造与访问，字段顺序不再是调用者理解含义的唯一线索。普通记录默认是 .NET 引用类型，但其字段默认不可改写；“引用类型”和“可变对象”不是同义词。
 
 两个分别声明的记录即使字段名称和类型完全相同，也仍是不同的名义类型。类型名会形成编译期区分：`BookingDraft` 不会仅因字段相似就自动成为另一种记录。
@@ -62,7 +66,7 @@ let another =
       Seats = 1 }
 ```
 
-标注的目的不是重复每个字段类型，而是消除类型归属歧义。依赖“最近声明的同名字段类型”会让无关声明顺序改变推断结果，应避免。
+这段代码承接 `BookingDraft` 类型。标注的目的不是重复每个字段类型，而是消除类型归属歧义。依赖“最近声明的同名字段类型”会让无关声明顺序改变推断结果，应避免。
 
 记录模式可以按名称解构：
 
@@ -82,6 +86,8 @@ let updated = { original with Seats = 3 }
 
 printfn "Record update: original=%d updated=%d" original.Seats updated.Seats
 ```
+这段代码承接 `original`，输出 `Record update: original=2 updated=3`。
+
 `{ original with Seats = 3 }` 产生新的 `BookingDraft`。`original.Seats` 仍为 `2`，`updated.Seats` 为 `3`。它表达“新状态源自旧状态，仅这些字段改变”，无需重复其他字段。
 
 复制更新执行浅层结构更新：它创建新的外层记录，并沿用所有未更新字段的值。因此，引用类型字段可以由新旧记录共同指向同一对象。不可变领域模型通常也使用不可变的嵌套值，让这种共享天然安全。
@@ -99,6 +105,8 @@ let summary =
 
 printfn "Anonymous summary: %s -> %d seats, group=%b" summary.Attendee summary.Seats summary.IsGroup
 ```
+这段代码继续使用 `updated`，输出 `Anonymous summary: Lin -> 3 seats, group=true`。
+
 `summary` 的类型由全部字段名、字段类型以及是否使用 `struct` 共同决定。只有这些信息全部相同，两个匿名记录才是同一类型；这里不存在“至少包含这些字段”的结构子类型。
 
 匿名记录支持字段访问、结构相等/比较与复制更新，还能在更新时增加字段。它目前不支持记录模式匹配，通常用点访问读取字段。
@@ -124,6 +132,13 @@ let equalHashesAgree = hash original = hash equalCopy
 printfn "Equality: structural=%b physical=%b alias=%b" structurallyEqual physicallyEqual aliasIsSameReference
 printfn "Hashes agree for equal records: %b" equalHashesAgree
 ```
+这段代码承接 `original`，输出：
+
+```text
+Equality: structural=true physical=false alias=true
+Hashes agree for equal records: true
+```
+
 记录自动生成的相等会递归使用字段类型的相等语义。这个能力是组合性的：若组成类型不支持 F# 相等约束，外层记录也不能无条件获得正常的结构相等。第 11 章会把这条规则写成泛型约束。
 
 结构相等回答“内容按该类型的规则是否相等”。它不回答两个变量是否指向同一内存对象，也不能判断两个值是否代表同一个业务实体。例如，两个预约草稿的内容可以相等，但真实预约仍需要各自的请求标识。
@@ -171,6 +186,12 @@ let sortedLabels =
 
 printfn "Structural sort: %A" sortedLabels
 ```
+这段代码只依赖开头的 `BookingDraft` 类型，输出：
+
+```text
+Structural sort: ["A-1:Ada:2"; "A-1:Lin:1"; "B-2:Lin:2"]
+```
+
 本例依记录声明的字段次序比较：先 `EventId`，相同时比较 `Attendee`，再比较 `Seats`。所以 `A-1:Ada:2` 位于 `A-1:Lin:1` 之前。
 
 默认顺序适合需要确定性、且结构顺序确实符合意图的值。业务顺序往往不同，例如按座位数降序再按参加者排序。此时应显式写 `List.sortBy` 或 `List.sortWith`，让规则出现在代码中。新增或重排记录字段不应悄悄改变一项重要业务规则。
@@ -184,7 +205,7 @@ printfn "Structural sort: %A" sortedLabels
 | 一个函数内部的短暂成对结果 | 元组 | 位置含义局部且明显，解构简洁 |
 | 反复传递的领域数据 | 命名记录 | 字段有名称，类型有身份，可集中演进 |
 | 局部投影或短距离适配 | 匿名记录 | 无需声明额外名称，仍保留字段标签 |
-| 多种互斥状态 | 下一章的可辨识联合 | 一个固定字段集合无法表达“只能是其中一种” |
+| 多种互斥状态 | 下一章的可区分联合 | 一个固定字段集合无法表达“只能是其中一种” |
 
 不要只追求少写几行。记录名与字段名是模型词汇；匿名记录与元组则能避免为局部中间数据声明无用的公共类型。
 

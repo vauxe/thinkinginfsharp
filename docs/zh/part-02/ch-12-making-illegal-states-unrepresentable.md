@@ -14,17 +14,23 @@ F# 可以通过 API 强制这条规则：公开 `Capacity` 类型，隐藏其表
 
 ## 没有受保护结果的验证可以被绕过 {#bypassable-validation}
 
-下面的类型缩写不会建立新的运行时或编译期区别：
+下面的反例补齐了度量定义，可以单独运行。它说明类型缩写不会建立新的运行时或编译期区别：
 
 ```fsharp
+[<Measure>]
+type seat
+
 type Capacity = int<seat>
 
 let validateCapacity capacity =
     if capacity > 0<seat> then Ok capacity
     else Error "capacity must be positive"
+
+let bypassed: Capacity = 0<seat>
+printfn "Bypassed capacity: %d" bypassed
 ```
 
-即使一条路径调用 `validateCapacity`，另一条路径仍能写出 `let capacity: Capacity = 0<seat>`。类型缩写只是同一类型的另一个名称，并不控制构造。
+输出是 `Bypassed capacity: 0`。即使一条路径调用 `validateCapacity`，另一条路径仍能直接构造零。类型缩写只是同一类型的另一个名称，并不控制构造。
 
 当调用方可以直接填写字段时，公开记录也有同一弱点。接收输入时，返回原表示的验证仍有用，却不能让后续代码区分已验证与未检查的数据。
 
@@ -37,21 +43,27 @@ let validateCapacity capacity =
 
 ## 公开类型并隐藏构造器 {#private-representation}
 
-示例在显式模块中定义领域：
+下面开始一份新的累积示例。把代码保存为 `ch12-domain.fsx`；后面两个有效代码块要按顺序追加，并保留四个空格的缩进，因为它们仍属于 `BookingDomain`：
 
 ```fsharp:line-numbers
-type CapacityError = NonPositiveCapacity of actual: int
+module BookingDomain =
+    open System
 
-type Capacity = private Capacity of int<seat>
+    [<Measure>]
+    type seat
 
-module Capacity =
-    let create raw =
-        if raw > 0 then
-            raw |> LanguagePrimitives.Int32WithMeasure<seat> |> Capacity |> Ok
-        else
-            Error(NonPositiveCapacity raw)
+    type CapacityError = NonPositiveCapacity of actual: int
 
-    let value (Capacity capacity) = capacity
+    type Capacity = private Capacity of int<seat>
+
+    module Capacity =
+        let create raw =
+            if raw > 0 then
+                raw |> LanguagePrimitives.Int32WithMeasure<seat> |> Capacity |> Ok
+            else
+                Error(NonPositiveCapacity raw)
+
+        let value (Capacity capacity) = capacity
 ```
 注意修饰符的位置：
 
@@ -63,7 +75,7 @@ type Capacity = private Capacity of int<seat>
 
 外层 `Capacity` 名称表示类型；内层案例负责构造或匹配其表示。`BookingDomain` 外的代码可以传递和存储 `Capacity`，也能调用相关公共函数，却无法调用该案例。
 
-下面这个仅用于诊断的绕过方式已经用 F# 10 验证：
+下面是消费者代码中的诊断反例，不要把它加入有效脚本。它已经用 F# 10 验证：
 
 ```fsharp
 let invalid = BookingDomain.Capacity 0<BookingDomain.seat>
@@ -76,10 +88,12 @@ F# 中，单个联合案例的可访问性不会低于联合表示本身。隐�
 
 F# 允许类型与模块同名，从而形成聚焦的 API：
 
-```fsharp
+```text
 Capacity.create : int -> Result<Capacity, CapacityError>
 Capacity.value : Capacity -> int<seat>
 ```
+
+这是供阅读的 API 签名，不是要粘贴进脚本的代码。
 
 模块位于同一个外围 `BookingDomain` 模块中，因此可以构造和模式匹配私有案例。调用方使用限定名称，不必知道表示。
 
@@ -91,34 +105,34 @@ Capacity.value : Capacity -> int<seat>
 
 ## 智能构造可以同时验证与规范化 {#validation-and-normalization}
 
-另两个受保护组成部分展示了两项策略：
+把下面代码继续追加到 `BookingDomain` 模块中。它展示两个受保护组成部分的策略：
 
 ```fsharp:line-numbers
-type EventIdError = | BlankEventId
+    type EventIdError = | BlankEventId
 
-type EventId = private EventId of string
+    type EventId = private EventId of string
 
-module EventId =
-    let create raw =
-        if String.IsNullOrWhiteSpace raw then
-            Error BlankEventId
-        else
-            raw.Trim() |> EventId |> Ok
+    module EventId =
+        let create raw =
+            if String.IsNullOrWhiteSpace raw then
+                Error BlankEventId
+            else
+                raw.Trim() |> EventId |> Ok
 
-    let value (EventId eventId) = eventId
+        let value (EventId eventId) = eventId
 
-type SeatCountError = NonPositiveSeatCount of actual: int
+    type SeatCountError = NonPositiveSeatCount of actual: int
 
-type SeatCount = private SeatCount of int<seat>
+    type SeatCount = private SeatCount of int<seat>
 
-module SeatCount =
-    let create raw =
-        if raw > 0 then
-            raw |> LanguagePrimitives.Int32WithMeasure<seat> |> SeatCount |> Ok
-        else
-            Error(NonPositiveSeatCount raw)
+    module SeatCount =
+        let create raw =
+            if raw > 0 then
+                raw |> LanguagePrimitives.Int32WithMeasure<seat> |> SeatCount |> Ok
+            else
+                Error(NonPositiveSeatCount raw)
 
-    let value (SeatCount seats) = seats
+        let value (SeatCount seats) = seats
 ```
 `EventId.create` 拒绝空白输入，并去掉两端空白。`SeatCount.create` 拒绝非正数量，并恢复编译期度量。构造成功后：
 
@@ -133,32 +147,32 @@ module SeatCount =
 
 ## 把受保护值组合成更大的有效状态 {#composing-invariants}
 
-请求模型组合两个受保护的值，并且还隐藏自己的记录表示：
+最后把请求模型继续追加到同一个模块。它组合两个受保护的值，并隐藏自己的记录表示：
 
 ```fsharp:line-numbers
-type BookingRequestError =
-    | InvalidEventId of EventIdError
-    | InvalidSeatCount of SeatCountError
+    type BookingRequestError =
+        | InvalidEventId of EventIdError
+        | InvalidSeatCount of SeatCountError
 
-type BookingRequest =
-    private
-        { EventId: EventId
-          Seats: SeatCount }
+    type BookingRequest =
+        private
+            { EventId: EventId
+              Seats: SeatCount }
 
-module BookingRequest =
-    let create rawEventId rawSeats =
-        rawEventId
-        |> EventId.create
-        |> Result.mapError InvalidEventId
-        |> Result.bind (fun eventId ->
-            rawSeats
-            |> SeatCount.create
-            |> Result.mapError InvalidSeatCount
-            |> Result.map (fun seats -> { EventId = eventId; Seats = seats }))
+    module BookingRequest =
+        let create rawEventId rawSeats =
+            rawEventId
+            |> EventId.create
+            |> Result.mapError InvalidEventId
+            |> Result.bind (fun eventId ->
+                rawSeats
+                |> SeatCount.create
+                |> Result.mapError InvalidSeatCount
+                |> Result.map (fun seats -> { EventId = eventId; Seats = seats }))
 
-    let eventId request = request.EventId |> EventId.value
+        let eventId request = request.EventId |> EventId.value
 
-    let seats request = request.Seats |> SeatCount.value
+        let seats request = request.Seats |> SeatCount.value
 ```
 `BookingRequest.create` 先构造 `EventId`，再构造 `SeatCount`，把每项组成错误映射进请求上下文。只有两者都成功后，它才会构造私有记录。通过这个 API 得到的值不可能包含空白标识或非正座位数。
 
@@ -237,7 +251,7 @@ module Capacity =
 - 无效数据会导致昂贵或安全相关行为；
 - 表示演进不应破坏消费者。
 
-若值只在局部短暂存在、组成部分已经强制全部规则，或包装仍公开无检查构造因而没有证明任何事，它很可能是过度设计。当所有案例都合法且调用方能从穷尽匹配中获益时，公开可辨识联合通常更好。
+若值只在局部短暂存在、组成部分已经强制全部规则，或包装仍公开无检查构造因而没有证明任何事，它很可能是过度设计。当所有案例都合法且调用方能从穷尽匹配中获益时，公开可区分联合通常更好。
 
 从能消除真实风险的最小类型开始。如果非空标识在各处都重要，就保护 `EventId`；不要只为增加类型数量而包装每个显示标签。
 
@@ -296,7 +310,7 @@ type BookingRequest = private { EventId: EventId; Seats: SeatCount }
 
 若没有额外验证会失败，最小私有 API 是：
 
-```fsharp
+```text
 BookingRequest.create : EventId -> SeatCount -> BookingRequest
 BookingRequest.eventId : BookingRequest -> EventId
 BookingRequest.seats : BookingRequest -> SeatCount
@@ -317,7 +331,7 @@ private 并不会自动更安全：缺少观察操作的不透明类型会迫使
 
 题设签名暴露了一处建模错误：
 
-```fsharp
+```text
 tryReserve : SeatCount -> Capacity -> Result<Capacity, ReservationError>
 ```
 
@@ -374,7 +388,48 @@ module AvailableSeats =
 
 ## 第二部分检查点 {#part-checkpoint}
 
-用上述构造函数测试有效请求、空活动 ID、非正容量和非正座位数。有效请求必须成功构造，每个无效值都必须在自己的边界被拒绝。状态转换与外部适配器会在后文加入。
+把下面的消费者代码追加到 `ch12-domain.fsx`。它的顶格缩进会结束 `BookingDomain` 模块，并测试有效请求、空活动 ID、非正容量和非正座位数：
+
+```fsharp:line-numbers
+open BookingDomain
+
+let validRequestWorks =
+    match BookingRequest.create "  EVT-1  " 2 with
+    | Ok request ->
+        BookingRequest.eventId request = "EVT-1"
+        && BookingRequest.seats request = 2<seat>
+    | Error _ -> false
+
+let blankEventIdRejected =
+    match BookingRequest.create "   " 2 with
+    | Error(InvalidEventId BlankEventId) -> true
+    | _ -> false
+
+let nonPositiveCapacityRejected =
+    match Capacity.create 0 with
+    | Error(NonPositiveCapacity 0) -> true
+    | _ -> false
+
+let nonPositiveSeatCountRejected =
+    match BookingRequest.create "EVT-1" 0 with
+    | Error(InvalidSeatCount(NonPositiveSeatCount 0)) -> true
+    | _ -> false
+
+printfn
+    "Constructors: valid=%b blank=%b capacity=%b seats=%b"
+    validRequestWorks
+    blankEventIdRejected
+    nonPositiveCapacityRejected
+    nonPositiveSeatCountRejected
+```
+
+运行 `dotnet fsi --warnaserror+ --exec ch12-domain.fsx`，预期输出为：
+
+```text
+Constructors: valid=true blank=true capacity=true seats=true
+```
+
+有效请求成功构造并完成 ID 规范化；每个无效值都在自己的边界被拒绝。状态转换与外部适配器会在后文加入。
 
 [继续阅读第 13 章](../part-03/ch-13-composition-pipeline-api)，开始组合这些带类型的操作。
 
@@ -382,6 +437,6 @@ module AvailableSeats =
 
 - [Microsoft Learn：访问控制](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/access-control)
 - [Microsoft Learn：签名文件](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/signature-files)
-- [Microsoft Learn：可辨识联合](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions)
+- [Microsoft Learn：可区分联合](https://learn.microsoft.com/zh-cn/dotnet/fsharp/language-reference/discriminated-unions)
 - [Microsoft Learn：模块](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/modules)
 - [Microsoft Learn：F# 组件设计指南](https://learn.microsoft.com/en-us/dotnet/fsharp/style-guide/component-design-guidelines)

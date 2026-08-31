@@ -31,6 +31,13 @@ let noFurtherResult = ()
 
 printfn "%s (%c): capacity=%d, fill=%.2f, open=%b" eventName eventCode capacity fillRatio registrationOpen
 ```
+
+This block runs on its own and prints:
+
+```text
+Functional Foundations (F): capacity=40, fill=0.45, open=true
+```
+
 ### How to read `let` {#read-let}
 
 Read `let capacity = 40` in three steps:
@@ -41,7 +48,7 @@ Read `let capacity = 40` in three steps:
 
 The `=` here separates the left and right sides of a binding. In an ordinary expression, `=` tests structural equality. Updating an explicitly mutable location uses `<-`. Reading each symbol by its role keeps binding, comparison, and mutation distinct.
 
-At the top of a module or script, `let` introduces a declaration. In a local scope, a sequence of `let` bindings and its following body form an expression. Both positions preserve the same core order: evaluate the right side, then make the new name visible in the following scope. An ordinary non-recursive name cannot be used before its definition; recursive bindings wait until Chapter 6.
+At the top of a module or script, `let` introduces a declaration. In a local scope, a sequence of `let` bindings and its following body form an expression. Both positions first evaluate the right side and then make the new name visible in the following scope. An ordinary non-recursive name cannot be used before its definition; recursive bindings wait until Chapter 6.
 
 ### What immutable by default means {#immutability}
 
@@ -53,9 +60,11 @@ F# also supports `let mutable`, because local counters, array updates, and some 
 
 ## Scope and shadowing {#scope-shadowing}
 
-Scope determines where a name is visible. F# uses indentation for much of its local structure. The right side of `normalizedCapacity` below contains two local bindings:
+Scope determines where a name is visible. F# uses indentation for much of its local structure. The next block runs on its own: its first line establishes the outer value `40`, and the right side of `normalizedCapacity` establishes two local bindings.
 
 ```fsharp:line-numbers
+let capacity = 40
+
 let normalizedCapacity =
     let capacity = 20
     let capacity = capacity + 4
@@ -63,6 +72,9 @@ let normalizedCapacity =
 
 printfn "Normalized capacity: %d; outer capacity: %d" normalizedCapacity capacity
 ```
+
+It prints `Normalized capacity: 24; outer capacity: 40`.
+
 The second local `capacity` **shadows** the first local binding with that name. It uses the earlier value to compute `24`, then establishes a new binding. For the rest of that local scope, the name `capacity` resolves to the new value.
 
 When the local expression ends, both local bindings leave scope, while the script-level `capacity` is still `40`. The output therefore demonstrates both that `normalizedCapacity` is `24` and that the outer `capacity` remains `40`.
@@ -151,7 +163,7 @@ Write down the types and evaluation process independently, then run a temporary 
 
 ### Exercise 1: read types instead of guessing {#exercise-01}
 
-For the `basic-values` region:
+For the first code block in “From values to bindings”:
 
 1. write the type of each of the seven bindings;
 2. explain why `0.45` and `19.50m` do not have the same type;
@@ -212,7 +224,7 @@ One risk is deliberately left here: if the text is not a valid integer, the `int
 
 ### Exercise 3: trace shadowing {#exercise-03}
 
-Explain the `local-shadowing` region one line at a time:
+Explain the code block in “Scope and shadowing” one line at a time:
 
 1. which value does `capacity` denote while each right side is evaluated?
 2. what is the final value of `normalizedCapacity`?
@@ -225,6 +237,8 @@ Explain the `local-shadowing` region one line at a time:
 Look at the same region again:
 
 ```fsharp:line-numbers
+let capacity = 40
+
 let normalizedCapacity =
     let capacity = 20
     let capacity = capacity + 4

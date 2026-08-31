@@ -28,11 +28,20 @@ let oneAttendee = "Ada" :: genericEmpty
 
 printfn "Simple generic value: ints=%A strings=%A" oneInteger oneAttendee
 ```
+这段代码可单独运行，输出：
+
+```text
+Generalized function: ints=[3; 3] strings=["Lin"; "Lin"]
+Simple generic value: ints=[1] strings=["Ada"]
+```
+
 F# 推断出：
 
-```fsharp
+```text
 duplicate : 'T -> 'T list
 ```
+
+这是 FSI 显示的推断签名，不是脚本中的另一条声明。
 
 `'T` 是泛型类型参数，并不表示“动态类型值”。每次调用中，实参与两个结果元素都具有同一个具体类型。一次调用把 `'T` 实例化为 `int`，另一次则实例化为 `string`；两次仍都经过静态检查。
 
@@ -119,6 +128,8 @@ printfn
     attendeeBuckets.Length
     (not (LanguagePrimitives.PhysicalEquality integerBuckets anotherIntegerBuckets))
 ```
+这段代码可单独运行，输出 `Value restriction fixes: ints=2 strings=2 fresh=true`。最后一个 `true` 说明两次工厂调用得到不同数组。
+
 添加 `()` 会改变语义：每次调用都分配新数组。这适合工厂，却不适合本应共享的单例缓存。让 `alwaysKeep` 直接接收 `values`，会保留其纯变换含义；类型标注则把值固定为一种类型。应根据预期共享方式与生命周期选择修复，不要只求让 FS0030 消失。
 
 少数场景存在显式泛型值语法，但它不是默认修复。清楚的普通函数更容易调用，也会让求值时机可见。
@@ -144,12 +155,16 @@ let sortedLabels =
 
 printfn "Constraints: equal=%b ordered=%b sorted=%A" (same first firstAgain) (comesBefore first second) sortedLabels
 ```
+这段代码包含所需的 `Envelope` 定义，可以单独运行。输出为 `Constraints: equal=true ordered=true sorted=["A"; "B"]`。
+
 重要的推断签名在概念上是：
 
-```fsharp
+```text
 same : 'T -> 'T -> bool when 'T : equality
 comesBefore : 'T -> 'T -> bool when 'T : comparison
 ```
+
+这些是供阅读的推断签名。
 
 `=` 引入**相等约束**。`compare`、关系运算符以及 `List.sort` 等有序操作会引入**比较约束**。公开签名确实需要时，也可以显式声明：
 
@@ -182,7 +197,7 @@ let functionEnvelope =
 let invalid = functionEnvelope = functionEnvelope
 ```
 
-同样的组合规则适用于元组、列表、option、记录和可辨识联合：外层结构操作会递归要求相关组成部分提供对应能力。类型还可以显式定制或禁止生成的相等/比较，所以不能只从表面语法推断支持情况。
+同样的组合规则适用于元组、列表、option、记录和可区分联合：外层结构操作会递归要求相关组成部分提供对应能力。类型还可以显式定制或禁止生成的相等/比较，所以不能只从表面语法推断支持情况。
 
 这与第 7 章直接相连。相等记录具有相容哈希，是因为参与的字段相等与哈希语义能够组合。第 14 章会把比较约束用于有序 `Map` 与 `Set` 键，并把它和哈希集合的要求区分开。
 
@@ -197,7 +212,7 @@ let inline add left right = left + right
 // 推断出的签名是内联的，并携带静态 (+) 成员约束。
 ```
 
-当前 F# 的**静态解析类型参数**（SRTP）简化语法通常使用 `'T` 这样的撇号前缀名称；旧资料和某些复杂分派形式仍使用 `^T`。识别 SRTP 要同时观察 `inline`、编译期特化和 `static member (+)` 这类成员约束。它适合少数泛型数值与成员抽象。`map`、相等检查和领域规则等函数通常只需普通类型参数。
+当前 F# 的**静态解析的类型参数**（SRTP）简化语法通常使用 `'T` 这样的撇号前缀名称；旧资料和某些复杂分派形式仍使用 `^T`。识别 SRTP 要同时观察 `inline`、编译期特化和 `static member (+)` 这类成员约束。它适合少数泛型数值与成员抽象。`map`、相等检查和领域规则等函数通常只需普通类型参数。
 
 示例中的带度量加法有意把表示固定为 `int`，只改变度量，因此无需自定义 SRTP 机制。附录 H 会给出识别规则与高级官方入口；对领域 API 而言，具体数值类型通常更清楚。
 
@@ -221,13 +236,17 @@ let bookingRate = 12.0<seat> / 3.0<minute>
 
 printfn "Measures: requested=%d remaining=%d rate=%.1f" requested remaining bookingRate
 ```
+这段代码可单独运行，输出 `Measures: requested=5 remaining=35 rate=4.0`。运行结果只显示底层数字；编译期仍会检查各表达式的量纲。
+
 `[<Measure>] type seat` 声明一个度量，而不是运行时记录或包装器。`int<seat>` 是座位数量。加减法要求度量相容；乘除法会组合度量，因此 `bookingRate` 的类型是 `float<seat/minute>`。
 
 `addMeasured` 中的度量变量允许任意一种度量，却要求两个实参共享它：
 
-```fsharp
+```text
 addMeasured : int<'Measure> -> int<'Measure> -> int<'Measure>
 ```
+
+这也是推断签名，不应粘贴进脚本。
 
 下面这个仅用于诊断的表达式因量纲不一致而失败：
 
@@ -268,7 +287,7 @@ let wrap value = { Label = "value"; Payload = value }
 
 最一般的签名如下：
 
-```fsharp
+```text
 pair : 'Left -> 'Right -> 'Left * 'Right
 
 contains : 'T -> 'T list -> bool

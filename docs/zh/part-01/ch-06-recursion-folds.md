@@ -21,7 +21,12 @@ let rec sumRecursive values =
     match values with
     | [] -> 0
     | head :: tail -> head + sumRecursive tail
+
+let recursiveTotal = sumRecursive [ 3; 0; 4 ]
+printfn "Recursive sum: %d" recursiveTotal
 ```
+这段代码可单独运行，输出 `Recursive sum: 7`。后文会逐步展开同一个输入，说明调用如何得到这个结果。
+
 `rec` 只改变绑定可见性。程序员仍需提供基础情况和递减步骤。递归分支若原样传回列表，代码可能无限递归；匹配若遗漏 `[]`，则会留下未覆盖的输入。
 
 互相调用的函数可用 `let rec ... and ...` 一起定义。把这种形式留给真实的相互依赖；分开其他函数可以缩小推断与理解范围。
@@ -69,7 +74,12 @@ let rec sumLoop accumulator values =
     | head :: tail -> sumLoop (accumulator + head) tail
 
 let sumTailRecursive values = sumLoop 0 values
+
+let tailRecursiveTotal = sumTailRecursive [ 3; 0; 4 ]
+printfn "Tail-recursive sum: %d" tailRecursiveTotal
 ```
+这段代码也可单独运行，输出 `Tail-recursive sum: 7`。它与直接递归版本得到相同结果，但把待完成的加法放进了累加器。
+
 `sumLoop` 每轮先计算新的 `accumulator + head`，再以该值和 `tail` 调用自身。分支直接返回调用结果，所以递归调用位于尾位置。
 
 理解累加器应写出不变量：在每一步，`accumulator + sum values` 等于原输入总和。开始时累加器为 `0`；移动一个 `head` 到累加器后等式仍成立；`values` 为空时，累加器就是完整答案。
@@ -123,7 +133,12 @@ printfn "Tail-recursive count: %d" largeCount
 ```fsharp:line-numbers
 let sumWithFold values =
     values |> List.fold (fun accumulator value -> accumulator + value) 0
+
+let foldTotal = sumWithFold [ 3; 0; 4 ]
+printfn "Fold sum: %d" foldTotal
 ```
+这段代码可单独运行，输出 `Fold sum: 7`。这里的 `List.fold` 封装了遍历，匿名函数只描述如何更新累加器。
+
 其核心类型为：
 
 ```text
@@ -283,9 +298,19 @@ printfn "Fold order: left=%d right=%d" leftAssociated rightAssociated
 dotnet fsi --warnaserror+ --exec examples/capstone/part-01/BookingBasics.fsx
 ```
 
-输出必须区分有效与无效输入行，接受容量允许的请求，拒绝超容量请求，并得到正确的已预约与剩余容量。这完成了第一部分从基础语法到小型数据处理流程的学习路径；持久化与并发保证会在后续部分加入。
+预期输出为：
 
-[继续阅读第 7 章](../part-02/ch-07-records-equality)，用记录与联合类型把更多隐含规则提升为类型。
+```text
+Rows: valid=4 invalid=2
+Labels: ["B-101:Lin:3"; "B-102:Ada:2"; "B-103:Sam:4"; "B-104:Mira:2"]
+Accepted IDs: ["B-101"; "B-102"; "B-104"]
+Rejected IDs: ["B-103"]
+Capacity: booked=7 remaining=1
+```
+
+这些行区分有效与无效输入，接受容量允许的请求，拒绝超容量请求，并给出正确的已预约与剩余容量。这完成了第一部分从基础语法到小型数据处理流程的学习路径；持久化与并发保证会在后续部分加入。
+
+[继续阅读第 7 章](../part-02/ch-07-records-equality)，用记录与可区分联合把更多隐含规则提升为类型。
 
 ## 来源 {#sources}
 

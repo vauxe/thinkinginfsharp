@@ -10,6 +10,10 @@ translationKey: part-06/ch-33-domain-language-model
 
 词汇本身就是设计的一部分。`PlaceBooking` 请求执行工作；`BookingPlaced` 记录事实；`BookingState` 表示当前领域视图；未来的 JSON 请求则表示外部数据。让四者共用一种记录类型，虽然少写几个声明，却会模糊每个值何时有效、谁可以使用它。
 
+第 33–38 章是一套逐步展开的**页内参考实现**。当前静态书稿仓库没有附带可直接构建的完整 `Booking` 解决方案；只有写出 `examples/...` 实际路径的命令才对应仓库文件。
+
+代码块标题中的 `Domain.fs`、`Commands.fs` 等名称表示建议的项目文件。阅读本章时，假定所有片段都位于 `Booking.Domain` 命名空间，并按 `Domain.fs` → `Commands.fs` → `Events.fs` → `Workflow.fs` → `PublicApi.fs` 排列。后续章节会在这个顺序中补入验证和统一决策器。
+
 ## 从一份词汇表开始 {#glossary}
 
 以下词语在本项目中具有明确的局部含义：
@@ -32,17 +36,28 @@ translationKey: part-06/ch-33-domain-language-model
 前面的教学阶段是连续改进，而不是六套互相竞争的架构：
 
 1. 第一部分用元组、列表、表达式与折叠发现座位分配行为。
-2. 第二部分用记录、单案例联合与可辨识联合取代松散的基本类型和布尔组合。
+2. 第二部分用记录、单用例联合与可区分联合取代松散的基本类型和布尔组合。
 3. 第三部分按明确的编译顺序，把验证、决策与演化拆进不同模块。
 4. 第四部分用异步端口、取消与有明确所有者的资源包围纯工作流。
 5. 第五部分测试不变量，并在不泄漏工作流类型的情况下投影出稳定的面向 F# 公共模块。
 6. 本部分统一这些语言，再把它连接到契约、存储、适配器与 HTTP。
 
-保留每一个历史类型会制造两份事实来源。贯穿项目会把调用方迁向同一模型；仅当较早章节仍需用旧名称编译时，才保留小型兼容别名。
+保留每一个历史类型会制造两份事实来源。这套参考实现把调用方迁向同一模型；仅当较早章节仍需用旧名称时，才保留小型兼容别名。
 
 ## 先建模业务，再考虑传输 {#domain-model}
 
-核心模型用领域词语命名活动、预约生命周期与失败：
+`Domain.fs` 先打开 `System`，声明度量单位 `[<Measure>] type seat`，再定义主模型所需的受保护值。下面的主模型不是空文件中的第一段代码；它依赖这些已经定义的类型：
+
+| 类型 | 智能构造规则 | 读取函数 |
+|---|---|---|
+| `EventId` | 去除首尾空白后必须非空 | `EventId.value` |
+| `RequestId` | 去除首尾空白后非空，最长 64 个字符，只允许 URI 非保留字符，且不能是 `.` 或 `..` | `RequestId.value` |
+| `Capacity` | 正整数，内部表示为 `int<seat>` | `Capacity.value` |
+| `SeatCount` | 正整数，内部表示为 `int<seat>` | `SeatCount.value` |
+| `ConfirmationCode` | 去除首尾空白后必须非空 | `ConfirmationCode.value` |
+| `CancellationReason` | 去除首尾空白后必须非空 | `CancellationReason.value` |
+
+每个智能构造函数都返回 `Result`，只有模块内部能调用私有联合用例。具备这些前置定义后，核心模型用领域词语命名活动、预约生命周期与失败：
 
 ```fsharp:line-numbers [Domain.fs]
 type Event =
@@ -119,14 +134,16 @@ module Booking =
 这里有几项 F# 选择彼此配合：
 
 - 记录把请求、活动、座位数和状态等具名值组合起来；
-- 可辨识联合明确表达生命周期选项和错误选项；
+- 可区分联合明确表达生命周期选项和错误选项；
 - 值默认不可变，所以一次转换会返回新的 `Booking`；
-- 单案例联合区分底层基本表示相同的标识符、数量、代码与原因；
+- 单用例联合区分底层基本表示相同的标识符、数量、代码与原因；
 - 度量单位在模型内部防止把座位数与无关整数误做运算；
 - 私有记录表示阻止调用方构造跳过规则的 `Booking`；
 - 模块函数组成受支持的构造、观察与转换 API。
 
 单靠类型不能执行每一项不变量。`BookingStatus` 能表达三种合法状态，但只有 `Booking.confirm` 和 `Booking.cancel` 定义允许哪些转换。`Booking.create` 会比较请求座位数与活动容量。表示方式、访问控制和少数能创建新值的函数共同保护这些约束。
+
+`Booking.restore` 专供受信任的持久化重建边界使用。它仍要求调用方先把原始字段转换成 `RequestId`、`EventId`、`SeatCount` 与合法 `BookingStatus`；不能把未经检查的 DTO 直接交给它。
 
 模型刻意不含 JSON 属性名、数据库路径、HTTP 状态码、日志级别或依赖注入服务。这些概念可以变化，而预约的业务含义不必改变。
 
@@ -253,7 +270,7 @@ let evolve (_: BookingState) (event: BookingEvent) =
 | 主要受众 | 领域函数与 F# 调用方 | 序列化器、数据库适配器、C# 调用方或远程客户端 |
 | 有效性 | 通过受保护规则构造 | 可能包含缺失、空白、默认、未知或过时字段 |
 | 何时改变表示 | 业务含义变化时 | 传输协议/存储兼容性变化时 |
-| F# 特性 | 私有记录、可辨识联合、选项、度量单位 | 显式基本类型字段和刻意版本化的表示 |
+| F# 特性 | 私有记录、可区分联合、选项、度量单位 | 显式基本类型字段和刻意版本化的表示 |
 | 失败 | 领域错误，或根本无法构造 | 解析、模式、映射与兼容性错误 |
 
 直接序列化 `Booking`、`BookingStatus` 或 `BookingEvent`，会把面向编译器的表示变成公开存储或网络契约。此时重命名联合案例、改变其载荷或重组私有字段都可能成为一次迁移。第 35 章会改为引入显式 DTO，以及要么完整成功、要么显式失败的映射。
@@ -262,7 +279,7 @@ DTO 并不是“糟糕的领域建模”。它负责隔开外部数据格式与�
 
 ## 提供稳定的公共路径 {#public-surface}
 
-贯穿项目预期的面向 F# 入口从原始边界值开始，但返回不透明模型：
+参考实现预期的面向 F# 入口从原始边界值开始，但返回不透明模型。下面是 `module PublicApi` 中的后续片段；在它之前，该模块已经声明完整的 `BookingError` 可区分联合，以及私有包装 `type BookingModel = private BookingModel of Event * BookingState`：
 
 ```fsharp:line-numbers [PublicApi.fs]
 let start rawEventId rawCapacity =
@@ -321,7 +338,7 @@ type BookingEvent = Booking.Domain.BookingEvent
 
 事件溯源是一种存储架构：每个实体的有序事件流是唯一可信的历史，当前状态通过重放导出。CQRS 是另一个独立选择，它把写命令与读查询分开。两者经常组合，但都不会因为定义了一个名为 `BookingEvent` 的 F# 联合就自动成立。
 
-贯穿项目目前只证明了纯事实词汇和演化函数。较早的内存适配器演示的是组件连接，而不是持久事件存储。后续章节可以持久化当前 DTO、追加选定事实或把事实映射成集成消息，而不把事件列表变成唯一事实来源。
+到这里，页内代码只定义了纯事实词汇和演化函数。第 32 章的内存适配器演示的是组件连接，而不是持久事件存储。后续章节可以持久化当前 DTO、追加选定事实或把事实映射成集成消息，而不把事件列表变成唯一事实来源。
 
 只有当历史访问、时态决策、审计需要或投影灵活性足以抵偿迁移和运维成本时，才选择事件溯源。“我们已经有事件”不是充分证据。
 
@@ -340,18 +357,7 @@ type BookingEvent = Booking.Domain.BookingEvent
 
 避免在整个领域范围使用 `Request`、`Response`、`Data` 或 `StatusChanged` 等泛化容器；它们迫使读者从文件夹或注释恢复上下文。也不要把实现承诺编码进领域名称：`BookingSavedToJson` 是适配器结果，不是预约事实。
 
-## 谨慎解读领域模型检查 {#evidence}
-
-统一后的实现和聚焦测试表明：
-
-- 三个命令都表达意图，三个事件都表达已接受的事实；
-- 预约构造与转换仍经过既有的受保护领域函数；
-- `PublicApi` 的函数签名不暴露内部领域或工作流类型；
-- 旧命令和事件名称只是别名，而不是第二套运行时模型；
-- 增加事件案例后，旧模式匹配因无法通过穷尽性检查而失败，直至显式更新；
-- 领域、工作流与属性测试在 F# 10、空值检查及警告即错误设置下继续通过。
-
-这些检查尚未覆盖统一决策器、持久 JSON 兼容性、原子持久化、幂等、HTTP 行为或重启恢复。后续章节会逐项实现这些能力；整洁的类型名称并不代表它们已经具备。
+本章的范围到领域词汇、受保护构造、转换、事件和演化为止。页内片段没有证明持久 JSON 兼容性、原子持久化、幂等、HTTP 行为或重启恢复；这些能力需要后续边界设计和真实可执行测试。类型名称整洁并不表示系统已经具备它们。
 
 ## 练习 {#exercises}
 
@@ -478,7 +484,7 @@ CQRS 是独立选择。当前状态设计可以使用独立读投影，事件溯
 ## 资料来源 {#sources}
 
 - [Microsoft Learn：F# 记录、不可变性、构造与访问修饰符](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/records)
-- [Microsoft Learn：F# 可辨识联合与具名案例](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions)
+- [Microsoft Learn：F# 可区分联合与联合用例](https://learn.microsoft.com/zh-cn/dotnet/fsharp/language-reference/discriminated-unions)
 - [Microsoft Learn：F# 访问控制](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/access-control)
 - [Microsoft Learn：领域事件作为事实与显式领域副作用](https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/domain-events-design-implementation)
 - [Azure 架构中心：CQRS 命令、读取与独立复杂度](https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs)

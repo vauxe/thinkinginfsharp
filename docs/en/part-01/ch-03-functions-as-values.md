@@ -14,7 +14,7 @@ This chapter uses only simple arithmetic, strings, and minimal tuples. Collectio
 
 ## A function binding is still a binding {#function-binding}
 
-Start with a function that calculates the amount for a booking line:
+Start with a self-contained booking-total example. The unit price is a `decimal`, the seat count is an `int`, and the code fixes the price before calculating the amount for three seats:
 
 ```fsharp:line-numbers
 let lineTotal unitPrice seats = unitPrice * decimal seats
@@ -23,6 +23,9 @@ let totalForThree = standardLineTotal 3
 
 printfn "Curried total: %M" totalForThree
 ```
+
+It prints `Curried total: 58.50`.
+
 `let lineTotal unitPrice seats = ...` establishes a binding between the name `lineTotal` and a function value. `unitPrice` and `seats` are **parameters**: they stand for inputs the function will later receive. In the call `lineTotal 19.50m 3`, `19.50m` and `3` are **arguments**: the values actually supplied by the caller.
 
 Defining a function creates its function value. The body `unitPrice * decimal seats` runs after the function receives enough arguments. Its final expression supplies the result directly, so an ordinary F# function uses that value in place of a `return` statement.
@@ -86,6 +89,9 @@ let tupledTotal = lineTotalTupled (19.50m, 3)
 
 printfn "Tupled total: %M" tupledTotal
 ```
+
+This block also runs on its own and produces the same amount, `58.50`.
+
 Here `(unitPrice, seats)` is a tuple pattern that separates two positions from one argument. The signature is:
 
 ```text
@@ -94,13 +100,13 @@ decimal * int -> decimal
 
 The `*` in a type denotes tuple composition. The curried version receives two successive arguments; the tupled version receives one argument containing two components. They compute the same result through different function types.
 
-Idiomatic `let`-bound functions usually favor currying because it supports partial application and higher-order composition. A tuple can be clear when the domain naturally treats the input as one grouped value. .NET method calls often contain parentheses and commas, but their CLR calling semantics should not be reduced to an ordinary tupled function; the interoperation chapter treats that boundary separately.
+Idiomatic `let`-bound functions usually favor currying because it supports partial application and higher-order composition. A tuple can be clear when the problem naturally treats several values as one grouped input. .NET method calls also use parentheses and commas, but that notation does not make every method an ordinary tupled F# function; the interoperation chapter explains the distinction.
 
 ## Partial application preserves remaining work {#partial-application}
 
 Supplying fewer than all arguments to a curried function produces a new function waiting for the rest. This is **partial application**, not an erroneous “incomplete call.”
 
-In the first example, `lineTotal 19.50m` produces an `int -> decimal` function bound as `standardLineTotal`. The unit price is fixed, so future callers provide only a seat count. The service-fee example uses the same idea:
+In the first example, `lineTotal 19.50m` produces an `int -> decimal` function bound as `standardLineTotal`. The unit price is fixed, so later calls provide only a seat count. The next block continues from that example's `totalForThree` value and adds a fixed service fee:
 
 ```fsharp:line-numbers
 let addFee fee subtotal = subtotal + fee
@@ -109,6 +115,9 @@ let finalTotal = addServiceFee totalForThree
 
 printfn "With service fee: %M" finalTotal
 ```
+
+Run it after the first block and the final line prints `With service fee: 60.50`.
+
 `addFee` has type `decimal -> decimal -> decimal`. `addFee 2.00m` returns a `decimal -> decimal` function that can still use the supplied `2.00m` later. A function value together with the surrounding values it retains is a **closure**. The runtime may optimize its representation, but the captured-value behavior remains.
 
 Parameter order is therefore part of API design. Stable configuration that callers may fix in advance often belongs first, while frequently changing data that flows through a computation often belongs last. Chapter 13 treats pipeline-oriented argument order systematically; this partial-application example shows why.
@@ -123,13 +132,16 @@ let incrementAnonymous = fun seats -> seats + 1
 
 printfn "Named and anonymous: %d, %d" (increment 3) (incrementAnonymous 3)
 ```
+
+This block runs on its own; both calls produce `4`.
+
 Read `fun seats -> seats + 1` as “receive seats and produce seats plus one.” The parameter pattern is left of the arrow, and the body expression is right of it. Both `increment` and `incrementAnonymous` infer the type `int -> int` and produce the same call result.
 
 A name records intent and improves diagnostics, so brevity is not a reason to turn every function into an anonymous one. Anonymous functions fit local behavior, especially as an argument to another function. When the same logic appears in several places or names a domain concept, a named function is usually clearer.
 
 ## Higher-order functions compose behavior {#higher-order-functions}
 
-A **higher-order function** does at least one of two things: it accepts a function value or returns one. Partial application already returned functions; this example accepts one:
+A **higher-order function** does at least one of two things: it accepts a function value or returns one. Partial application already returned functions. The next block continues from the preceding definition of `increment` and demonstrates accepting a function:
 
 ```fsharp:line-numbers
 let applyTwice transform value = transform (transform value)
@@ -137,6 +149,9 @@ let incrementedTwice = applyTwice increment 3
 
 printfn "Applied twice: %d" incrementedTwice
 ```
+
+Run after the preceding block, it prints `Applied twice: 5`.
+
 `applyTwice` does not know the business meaning of `transform`. It requires only that the first transformation's output can be supplied to the same transformation again, so FSI infers:
 
 ```text
@@ -158,6 +173,9 @@ let unchangedText = identity "F#"
 
 printfn "Identity values: %d, %s" unchangedNumber unchangedText
 ```
+
+This self-contained block prints `Identity values: 42, F#`.
+
 `identity` simply returns the value it receives, and its body imposes no concrete type. The compiler **automatically generalizes** its type to:
 
 ```text
@@ -239,7 +257,7 @@ Compare `lineTotal` with `lineTotalTupled`:
 1. write each full type and a valid call;
 2. when fixing only the unit price `19.50m`, which version can be partially applied directly?
 3. what value does `addServiceFee` retain, and what is its remaining input type?
-4. if unit price and seat count always travel as one indivisible coordinate-like pair in the domain, why might the tupled version be clearer?
+4. if unit price and seat count always travel as one indivisible input group, why might the tupled version be clearer?
 
 
 ::: details Answer

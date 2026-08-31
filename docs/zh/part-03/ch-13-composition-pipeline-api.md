@@ -12,13 +12,42 @@ translationKey: part-03/ch-13-composition-pipeline-api
 
 ## 从嵌套调用中找出数据路径 {#repeated-nesting}
 
-示例从普通函数调用开始：
+先把下面的完整起点保存为 `ch13-composition.fsx`。本章后续有效代码块都按出现顺序承接这些定义：
+
+```fsharp:line-numbers
+type BookingDraft =
+    { Attendee: string
+      RequestedSeats: int
+      Channel: string option }
+
+let rawDraft =
+    { Attendee = "  Lin  "
+      RequestedSeats = 6
+      Channel = None }
+
+let trimAttendee draft =
+    { draft with Attendee = draft.Attendee.Trim() }
+
+let capSeats maximum draft =
+    { draft with RequestedSeats = min maximum draft.RequestedSeats }
+
+let addChannel channel draft =
+    { draft with Channel = Some channel }
+
+let toLabel draft =
+    let channel = draft.Channel |> Option.defaultValue "unknown"
+    $"{draft.Attendee}:{draft.RequestedSeats}:{channel}"
+```
+
+`rawDraft` 提供可观察的脏输入；四个函数分别负责去空白、限制座位数、设置渠道和生成标签。示例从普通函数调用开始：
 
 ```fsharp:line-numbers
 let nestedLabel = toLabel (addChannel "web" (capSeats 4 (trimAttendee rawDraft)))
 
 printfn "Nested: %s" nestedLabel
 ```
+这段代码输出 `Nested: Lin:4:web`。
+
 由最内层括号向外阅读：
 
 1. 去除参与者两端空白；
@@ -34,7 +63,7 @@ printfn "Nested: %s" nestedLabel
 
 前向管道的基本行为是：
 
-```fsharp
+```text
 value |> functionValue
 // 等同于
 functionValue value
@@ -48,6 +77,8 @@ let pipedLabel =
 
 printfn "Pipeline matches nested: %b" (pipedLabel = nestedLabel)
 ```
+这段续接代码输出 `Pipeline matches nested: true`。
+
 现在源码顺序跟随数据流。每一行都变换上一行产生的值，最终结果会立即计算出来。
 
 阶段之间的类型必须相容。`trimAttendee` 返回 `BookingDraft`，正好可交给接收 `BookingDraft` 的 `toLabel`。一个需要其他输入的函数，不会只因加上 `|>` 就能插入。
@@ -62,13 +93,15 @@ printfn "Pipeline matches nested: %b" (pipedLabel = nestedLabel)
 
 前向组合连接两个函数，却尚不提供输入：
 
-```fsharp
+```text
 (>>) : ('A -> 'B) -> ('B -> 'C) -> ('A -> 'C)
 
 let composed = first >> second
 let result = composed input
 // 等同于：second (first input)
 ```
+
+这是组合关系的类型与等价式，不是可独立运行的脚本；`first`、`second` 和 `input` 只是占位名称。
 
 示例组合全部四个阶段：
 
@@ -80,11 +113,18 @@ let prepareLabelBackward = toLabel << addChannel "web" << capSeats 4 << trimAtte
 printfn "Forward composition: %s" (prepareLabel rawDraft)
 printfn "Backward composition: %s" (prepareLabelBackward rawDraft)
 ```
+这段续接代码输出：
+
+```text
+Forward composition: Lin:4:web
+Backward composition: Lin:4:web
+```
+
 `prepareLabel` 是函数值，可以保存、传递、测试，并应用于很多草稿。相比之下，前面的管道会立即从 `rawDraft` 计算一个标签。
 
 后向组合会反转函数的书写顺序：
 
-```fsharp
+```text
 second << first
 // 同样表示：先运行 first，再运行 second
 ```
@@ -102,6 +142,8 @@ capSeats : int -> BookingDraft -> BookingDraft
 addChannel : string -> BookingDraft -> BookingDraft
 ```
 
+这是 FSI 会显示的推断签名。
+
 配置在前，主要流动值在后。固定座位上限或渠道后，两项函数的剩余类型都是 `BookingDraft -> BookingDraft`。因此都能直接加入管道或组合：
 
 ```fsharp:line-numbers
@@ -116,6 +158,8 @@ let deskLabel =
 
 printfn "Configured pipeline: %s" deskLabel
 ```
+这段代码只依赖开头的类型与函数，输出 `Configured pipeline: Mira:2:desk`。
+
 面向 F# 的函数常按以下顺序排列：
 
 1. 会在多次调用中保持固定的依赖或策略值；
@@ -157,6 +201,8 @@ let fits = fitsWithin capacity requested
 
 printfn "Direct predicate: requested=%d capacity=%d fits=%b" requested capacity fits
 ```
+这段代码可单独运行，输出 `Direct predicate: requested=3 capacity=4 fits=true`。
+
 `fitsWithin capacity requested` 把关系展示在一处。`requested |> fitsWithin capacity` 同样有效，却没有揭示更长的变换路径，还可能让简单比较显得像过程。
 
 以下情况优先直接调用：

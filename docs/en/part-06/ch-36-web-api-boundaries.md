@@ -10,6 +10,12 @@ Chapter 35 assembled capabilities inside the process. This chapter adds a networ
 
 The implementation keeps one question visible at every step: which layer is allowed to decide this? HTTP decides media type and status. The JSON contract decides wire shape. DTO mapping decides whether required transport data exists. The domain decides business validity and transitions. Adapters decide effects. The API coordinates those decisions and translates only their declared outcomes.
 
+This is still Chapters 33–38's in-page reference design; the current repository has no directly runnable `Booking.Api.fsproj`. An implementation should first reference the Domain, Contracts, and Infrastructure material from Chapters 33–35, then compile `Endpoints.fs` before `Program.fs`.
+
+All `Endpoints.fs` fragments belong to `namespace Booking.Api` and depend on ASP.NET Core, `System.Text.Json`, and the previous three layers. Dependency records, input-preparation code, and response-writing helpers sit between the short excerpts, so the blocks are not standalone copy-and-paste programs.
+
+“Minimal API” and “route handler” are ASP.NET Core terms. `RequestDelegate`, `HttpContext`, and `WebApplication` are .NET/ASP.NET Core types, not F#-specific syntax. F# supplies functions, records, discriminated unions, pattern matching, and the `task` computation expression at this boundary.
+
 ## Treat HTTP as an outer interpreter {#outer-interpreter}
 
 The request crosses several representations before it may cause an effect:
@@ -323,9 +329,9 @@ The current sequence has observable interruption windows:
 | event append | booking snapshot is new | `503` if notification fails | a retry may see “already exists” while notification is missing |
 | notification | all modeled effects completed | response may still be lost to cancellation | absence of a response does not prove failure |
 
-This HTTP boundary exposes these facts rather than hiding them behind a generic `try/with`. Chapter 37 introduces atomic capacity and idempotency policy, then defines retry and restart behavior. Until then, this API is a runnable boundary demonstration, not a consistency-safe commercial booking service.
+This HTTP boundary exposes these facts rather than hiding them behind a generic `try/with`. Chapter 37 introduces atomic capacity and idempotency policy, then defines retry and restart behavior. Until then, this is a boundary design, not a consistency-safe commercial booking service.
 
-The test named “dependency failures are safe and reveal the post-commit notification window” confirms that notification failure returns a safe `503` after the recorded state becomes `Booked`. It exposes the problem; it does not solve it.
+When the design becomes a project, add a contract test that fixes the post-commit window: notification failure returns a safe `503`, but the appended state remains `Booked`. That test documents the problem; it does not solve it.
 
 ## Keep exception details inside the process {#safe-errors}
 
@@ -382,6 +388,8 @@ Chapter 38 adds structured fault diagnostics after defining explicit data classi
 
 The host reads `BOOKING_STORE_PATH`, with optional `BOOKING_EVENT_ID` and `BOOKING_CAPACITY`, then builds protected configuration and domain values. A rejected setting produces only `invalid_booking_store`, `invalid_event_id`, or `invalid_capacity`; the raw value is not printed.
 
+The following `Program.fs` is a preview of the final host after Chapter 38, not a program that compiles from this chapter alone. Chapter 37 defines `AtomicBookingStore` and `IdempotentBookingService`; Chapter 38 defines `BookingDiagnostics`. When implementing in chapter order, temporarily use `BookingEndpoints.map` with the Chapter 35 ports, or defer this file until the next two chapters are complete.
+
 ```fsharp:line-numbers [Program.fs]
 [<EntryPoint>]
 let main arguments =
@@ -425,15 +433,15 @@ The sample's path, event ID, and capacity are ordinary configuration, not creden
 
 Environment variables keep values out of committed code, but Microsoft explicitly warns that they are commonly stored as plain text and remain visible if the process or machine is compromised. Use development Secret Manager only for development; choose a controlled production secret store for deployment.
 
-The default host logging observed in the smoke test records method, route, status, content type, length, and duration—not bodies or configuration values. Do not enable request/response body logging casually: it buffers data and can capture personal or credential material. Classify and redact first.
+After implementing the project, its smoke verification should confirm that host logs contain only allowed method, route, status, content type, length, and duration fields—not bodies or configuration values. Do not enable request/response body logging casually: it buffers data and can capture personal or credential material. Classify and redact first.
 
 Kestrel's `Server` header is disabled to reduce needless implementation disclosure. That is hardening, not authentication or authorization.
 
-## Test the pipeline and the transport {#testing}
+## Plan pipeline and transport verification {#testing}
 
-The contract tests use the official `Microsoft.AspNetCore.TestHost` package. Each test builds the real `WebApplication`, maps the real endpoints, injects controlled ports, starts the in-memory pipeline, and sends requests through `HttpClient`.
+After turning the reference design into a project, contract tests should use the official `Microsoft.AspNetCore.TestHost` package. Each test builds a real `WebApplication`, maps the actual endpoints, injects controlled ports, starts the in-memory pipeline, and sends requests through `HttpClient`.
 
-The focused cases cover:
+The minimum cases should cover:
 
 - exact success JSON, `Location`, lookup, confirmation, and cancellation;
 - malformed JSON, wrong property case, unknown property, missing field, null body, and wrong media type;
@@ -448,9 +456,9 @@ The focused cases cover:
 
 Neither test style replaces the other. Starting a random real port for every contract assertion would add noise; relying only on TestServer would leave Kestrel configuration unobserved.
 
-## Run the API locally {#local-run}
+## Local-run template after assembly {#local-run}
 
-After assembling the shown files into an ASP.NET Core project, replace the template project path below. The commands use a temporary snapshot and bind only to loopback.
+The current repository cannot execute the following commands directly. After assembling Chapters 33–38 into an ASP.NET Core project and building it, replace `path/to/Booking.Api.fsproj` with the actual path. This command template uses a temporary snapshot and binds only to loopback.
 
 ### Start the host {#local-start}
 
@@ -488,7 +496,7 @@ curl --fail-with-body -i \
   http://127.0.0.1:5086/api/bookings/REQ-36
 ```
 
-The first response is `201`, includes `Location: /api/bookings/REQ-36`, and returns a pending `BookingDto`. The second is `200` with the persisted representation.
+If the assembled implementation satisfies this chapter's contract, the first response should be `201`, include `Location: /api/bookings/REQ-36`, and return a pending `BookingDto`. The second should be `200` with the persisted representation.
 
 ### Observe a strict failure {#local-failure}
 

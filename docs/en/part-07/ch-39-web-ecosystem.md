@@ -10,6 +10,10 @@ F# does not need a separate web server to participate in modern .NET. An F# proj
 
 The practical question is not “Which F# framework wins?” Ask which API style removes real friction without hiding platform behavior the team must still understand. Begin with a verified platform-native slice, then compare current packages from primary sources.
 
+This chapter's web code is an in-page complete-project template. The current repository does not contain the former `examples/ecosystem/web` project or its tests. The text uses the template to explain API shape. Adoption requires reconstructing the stated project first, then running build, contract, and real-process smoke verification.
+
+Three vocabularies meet here. `Minimal API`, `RequestDelegate`, and `HttpContext` belong to ASP.NET Core. `HttpHandler`, `EndpointHandler`, and similar names belong to particular community libraries. Records, discriminated unions, pattern matching, and computation expressions are F# language constructs. Do not treat one web library's type names as universal F# terminology.
+
 ## Start with the shared platform {#shared-platform}
 
 ASP.NET Core owns the server and most cross-cutting runtime behavior. Whether an endpoint is expressed as a Minimal API delegate, a controller action, a Giraffe `HttpHandler`, a Falco endpoint, or an Oxpecker handler, production work still includes:
@@ -28,9 +32,18 @@ Microsoft's [.NET 10 API guidance](https://learn.microsoft.com/en-us/aspnet/core
 
 ## Inspect the representative Minimal API {#representative-sample}
 
-The web sample is intentionally much smaller than the booking capstone. It answers one question: what does a direct F# endpoint look like when input, output, and errors remain explicit?
+The web template is intentionally much smaller than Part VI's booking design. It answers one question: what does a direct F# endpoint look like when input, output, and errors remain explicit?
 
-The project uses `Microsoft.NET.Sdk.Web`, targets `net10.0`, and has no third-party package reference. Its lock file records `FSharp.Core` 10.1.301. The public JSON types are ordinary CLR-friendly records rather than domain discriminated unions:
+When reconstructed, the project should use `Microsoft.NET.Sdk.Web`, target `net10.0`, and need no third-party package reference for this template. Retain the newly generated lock file after restore; do not copy a resolved version from the deleted project. The public JSON types are ordinary CLR-friendly records rather than domain discriminated unions:
+
+Read the excerpts inside this `Program.fs` file boundary:
+
+- start with `namespace ThinkingInFSharp.Ecosystem.Web` and open `System`, the JSON and task namespaces, and the ASP.NET Core Builder/HTTP namespaces;
+- place the three DTOs at namespace scope;
+- place `jsonOptions`, `writeJson`, `writeError`, `greet`, and `map` inside `[<RequireQualifiedAccess>] module WebSample`;
+- end with the `Program` entry module.
+
+The code blocks omit that shell for focus and cannot run independently.
 
 ```fsharp:line-numbers [Program.fs]
 [<CLIMutable>]
@@ -118,7 +131,7 @@ Several details matter more than the number of lines:
 
 F# 10 null checking also forced the handler to match `value.Name` before calling `Trim`. That friction is useful at this boundary: the compiler refused to pretend a deserialized string was non-null.
 
-The final mapping and host contain no hidden framework:
+The final mapping contains no hidden framework:
 
 ```fsharp:line-numbers [Program.fs]
 let map (application: WebApplication) =
@@ -126,17 +139,29 @@ let map (application: WebApplication) =
 
     application.MapPost("/api/greetings", RequestDelegate greet) |> ignore
 ```
+That function still lives inside `WebSample`. The host at the end of the file makes it executable:
+
+```fsharp:line-numbers [Program.fs]
+module Program =
+    [<EntryPoint>]
+    let main arguments =
+        let builder = WebApplication.CreateBuilder arguments
+        use application = builder.Build()
+        WebSample.map application
+        application.Run()
+        0
+```
 The mapping style is lower-level than automatic Minimal API parameter binding. That is deliberate for a stable teaching contract, not a general recommendation to deserialize every request by hand. The [.NET 10 Minimal API reference](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis?view=aspnetcore-10.0) documents built-in binding, validation, responses, filters, authorization, and other platform features. Choose automatic binding when its contract matches yours; take control when compatibility or error-response requirements justify it.
 
-### State exactly what the tests cover {#sample-evidence}
+### Plan the contract coverage precisely {#sample-evidence}
 
-Focused `TestServer` cases run the real route and handler:
+After reconstructing the project, the minimum `TestServer` contract cases should run the actual route and handler and verify that:
 
 - one valid body is trimmed and returns the exact expected success JSON;
 - malformed JSON, absent name, blank name, incorrect property case, and an unknown member fail safely;
 - a non-JSON media type returns `415` rather than entering the handler contract.
 
-The example is intentionally small. It does not test a real socket, proxy, TLS, authentication, rate limiting, body-size policy, or deployment. Those are not mysteriously supplied by using Minimal APIs.
+Even when those cases pass, they do not test a real socket, proxy, TLS, authentication, rate limiting, body-size policy, or deployment. Those are not mysteriously supplied by using Minimal APIs.
 
 ## Choose the level of abstraction first {#abstraction-level}
 
@@ -245,16 +270,16 @@ Therefore do not label Saturn “dead,” and do not select it from an old tutor
 
 The following is a dated observation, not an evergreen ranking:
 
-| Choice | Stable surface checked on 2026-08-25 | Status in this chapter | Key adoption question |
+| Choice | Stable surface checked on 2026-08-31 | Status in this chapter | Key adoption question |
 |---|---|---:|---|
-| ASP.NET Core Minimal API | .NET SDK 10.0.301; ASP.NET Core runtime 10.0.9 | illustrated | can the team contain C#-shaped API friction? |
+| ASP.NET Core Minimal API | locally checked: .NET SDK 10.0.302; ASP.NET Core runtime 10.0.10 | in-page project template | can the team contain C#-shaped API friction? |
 | controller API | ASP.NET Core 10 platform docs | research only | do required controller extension points justify the ceremony? |
 | Giraffe | NuGet 8.3.0 | research only | does continuation-style handler composition fit the team? |
 | Falco | NuGet 5.2.0 stable | research only | do its focused endpoints and related packages cover required integrations? |
 | Oxpecker | NuGet 2.1.1, `net10.0` asset | research only | is its newer endpoint/full-stack surface acceptable to operate and upgrade? |
 | Saturn | NuGet 0.17.0, `net6.0` asset | research only | do its conventions outweigh the required .NET 10 compatibility proof? |
 
-“Illustrated” means this chapter shows the approach, not that the book site ships an executable service. “Research only” is not a negative quality judgment; evaluate the option in the adopting application.
+“In-page project template” means the text provides a reconstruction structure; it does not mean the book site ships an executable service. “Research only” is not a negative quality judgment; evaluate the option in the adopting application.
 
 ## Separate the decisions that often get bundled {#separate-decisions}
 
@@ -439,7 +464,7 @@ The handler must pass the request cancellation token into deserialization and re
 
 #### Run the same executable checks {#exercise-02-evidence}
 
-Reference the spike from a copy of `WebSampleTests` and run the same contract cases unchanged. Add only framework-specific assertions that matter, such as endpoint metadata or middleware ordering. Then run:
+First create `WebSampleTests` for the direct template from the expected behavior listed in this chapter. Then make the Falco spike run that same contract suite unchanged. Add only framework-specific assertions that matter, such as endpoint metadata or middleware ordering. Then run:
 
 - locked restore and Release build with warnings as errors;
 - the unchanged `TestServer` contract;

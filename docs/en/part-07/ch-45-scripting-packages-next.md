@@ -16,6 +16,8 @@ This final chapter turns a real script into reliable local automation. It then c
 
 The right surface is the smallest one that makes the required behavior repeatable. “Smallest” refers to operational contract, not merely file count.
 
+Keep the vocabulary layers distinct. FSI, `.fsx`, and F# Interactive belong to the F# toolchain. NuGet, PackageReference, target frameworks, and .NET tools belong to the .NET platform. CLI contracts, lock files, idempotence, and supply chains are general engineering concepts. They meet in one script, but they are not all F# language features.
+
 | Surface | Best first use | Reproducibility boundary | Promotion signal |
 |---|---|---|---|
 | REPL submission | inspect one expression, type, or API | current FSI process and its hidden state | the result must be repeated or reviewed |
@@ -34,9 +36,11 @@ Likewise, do not compress a real application into one script to avoid an `.fspro
 
 The session remembers earlier bindings, opened namespaces, loaded files, referenced assemblies, and package resolutions. That is convenient while exploring and dangerous as evidence. Before preserving a result, put the necessary code in a script and execute it in a fresh process.
 
+Do not choose Polyglot Notebooks or .NET Interactive as the default surface for new work: their maintainers deprecated them in March and April 2026 respectively and archived the repository. Plan a migration for existing notebooks. This chapter uses the still-supported FSI script path when execution must be repeatable.
+
 ### Use a script for a complete, reviewable operation {#script-operation}
 
-A script should state its inputs, outputs, failure behavior, and possible side effects as clearly as a small application. It may still be concise. The manifest script has one file, uses only libraries included with .NET, creates no global installation, and can be invoked from the directory containing the example.
+A script should state its inputs, outputs, failure behavior, and possible side effects as clearly as a small application. It may still be concise. The repository's complete `examples/scripts/ch45-scripting-packages-next.fsx` manifest script has one file, uses only libraries included with .NET, creates no global installation, and runs from the repository root.
 
 The useful distinction is not “throwaway versus production.” It is “bounded operation versus growing product.” A one-off data repair may need stricter validation, backups, and an audit trail than a long-lived developer convenience.
 
@@ -84,6 +88,8 @@ Keep reusable loaded scripts free of top-level side effects. Put behavior in nam
 ## The manifest script: generate a stable artifact manifest {#x45}
 
 The manifest script solves a practical local problem. It enumerates files beneath an artifact directory and writes their normalized relative paths, byte lengths, and SHA-256 digests to deterministic JSON. It can update the manifest or check that the current file matches.
+
+The next four named code blocks appear in source order and come from that one complete file. Together they form the main implementation; they are not four independently executable snippets. The file first opens `System`, `System.IO`, `System.Security.Cryptography`, `System.Text`, and `System.Text.Json`, and each later block uses types or functions introduced earlier. Read them in sections, but run the complete `.fsx` file.
 
 Its contract is deliberately narrow:
 
@@ -235,6 +241,12 @@ Stable output prevents noisy diffs and makes equality meaningful. Sorting after 
 The application layer compares existing and desired text. Only a difference creates a temporary file and replaces the destination:
 
 ```fsharp:line-numbers [ch45-scripting-packages-next.fsx]
+let readExisting outputPath =
+    if File.Exists outputPath then
+        Some(File.ReadAllText(outputPath, Encoding.UTF8))
+    else
+        None
+
 let replaceFromSameDirectory (outputPath: string) (content: string) =
     let outputDirectory =
         match Path.GetDirectoryName outputPath with
@@ -281,13 +293,13 @@ State the guarantee precisely: the script replaces the destination after a compl
 
 With no arguments, the manifest script creates two files in a unique directory under `Path.GetTempPath()`. It writes once, sets the output timestamp to a sentinel, writes again, checks without mutation, and verifies ordinal normalized paths. In `finally`, it removes only the directory it created.
 
-Run the verified slice from the directory containing the example:
+This revision reran the complete script from the repository root on 2026-08-31 with .NET SDK 10.0.302:
 
 ```console
 dotnet fsi --exec examples/scripts/ch45-scripting-packages-next.fsx
 ```
 
-The registered example requires these ordered observations:
+That run produced these ordered lines:
 
 ```text
 First write: updated files=2
@@ -604,15 +616,15 @@ Start with the requirements, not the candidates. The promoted tool needs:
 
 Shell completion and native AOT are desirable, but they are not release requirements.
 
-#### Candidate record as of 2026-08-25 {#candidate-record}
+#### Candidate record as of 2026-08-31 {#candidate-record}
 
 The official NuGet pages reviewed for this answer show:
 
 | Choice | Reviewed version | Relevant fit | Cost or open question |
 |---|---:|---|---|
 | hand-written parser | repository code | no dependency graph; exact control over today's three arguments | we must maintain help, repeated options, aliases, diagnostics, and future subcommands |
-| Argu | 6.2.5 | F#-oriented declarative parser using discriminated unions; targets .NET Standard 2.0 | package last updated in December 2024; brings FSharp.Core and `System.Configuration.ConfigurationManager`; trimming/AOT behavior needs a real spike |
-| System.CommandLine | 2.0.11 | commands, options, arguments, validation, help, completions, and async actions; targets .NET 8 and .NET Standard 2.0 | API uses object and builder patterns common in C#; F# overload/null adaptation and help/error stability need a spike |
+| [Argu](https://www.nuget.org/packages/Argu) | 6.2.5 | F#-oriented declarative parser using discriminated unions; targets .NET Standard 2.0 | package last updated in December 2024; brings FSharp.Core and `System.Configuration.ConfigurationManager`; trimming/AOT behavior needs a real spike |
+| [System.CommandLine](https://www.nuget.org/packages/System.CommandLine) | 2.0.11 | commands, options, arguments, validation, help, completions, and async actions; targets .NET 8 and .NET Standard 2.0 | API uses object and builder patterns common in C#; F# overload/null adaptation and help/error stability need a spike |
 
 Both package versions are facts checked on that date; neither is a dependency of the book site. The manifest script verifies only its BCL parser until the package-specific spikes are run.
 
@@ -749,6 +761,7 @@ Part VII is now complete. The appendices turn the book into a working reference:
 
 - [Microsoft Learn: Interactive programming with F#](https://learn.microsoft.com/en-us/dotnet/fsharp/tools/fsharp-interactive/)
 - [Microsoft Learn: F# Interactive options](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/fsharp-interactive-options)
+- [.NET Interactive: Polyglot Notebooks and .NET Interactive deprecation announcement](https://github.com/dotnet/interactive/issues/4163)
 - [Microsoft Learn: PackageReference and lock-file behavior](https://learn.microsoft.com/en-us/nuget/consume-packages/package-references-in-project-files)
 - [Microsoft Learn: Find and evaluate NuGet packages](https://learn.microsoft.com/en-us/nuget/consume-packages/finding-and-choosing-packages)
 - [Microsoft Learn: Audit package dependencies](https://learn.microsoft.com/en-us/nuget/concepts/auditing-packages)

@@ -10,6 +10,19 @@ translationKey: part-03/ch-14-collections-evaluation
 
 下面从程序所需操作出发，在 F# `list`、数组、`seq`、`Map` 和 `Set` 中选择。真正需要基于相等的哈希查找时，再使用 .NET `Dictionary` 或 `HashSet`。
 
+本章的主示例共享一个小型断言函数和两个 .NET 命名空间。先把下面代码保存为 `ch14-collections.fsx`，再按阅读顺序追加各个有效代码块：
+
+```fsharp:line-numbers
+open System
+open System.Collections.Generic
+
+let ensureEqual label expected actual =
+    if expected <> actual then
+        failwithf "%s: expected %A, actual %A" label expected actual
+```
+
+`ensureEqual` 只在结果不符时抛出异常；每段末尾的 `printfn` 用来展示正常路径。这样，后续示例里的名称都有来源。
+
 ## 从主要操作开始 {#decision-first}
 
 先问消费者最常做什么：
@@ -55,6 +68,12 @@ ensureEqual "array element changes" [| 20; 4; 6 |] doubledArray
 ensureEqual "source stays unchanged" [ 1; 2; 3 ] source
 printfn "Eager: list=%A array=%A source=%A" doubledList doubledArray source
 ```
+这段代码输出：
+
+```text
+Eager: list=[2; 4; 6] array=[|20; 4; 6|] source=[1; 2; 3]
+```
+
 两种表示都不具有普遍“更快”的地位。主要访问模式、分配特征、元素类型与实测工作负载才决定结果。
 
 ### 序列：规定如何枚举，不代表数据已存储 {#sequence}
@@ -95,9 +114,14 @@ let candidateSeatCounts maximum =
             if seats % 2 = 1 then
                 yield seats
     }
+
+let firstThree =
+    candidateSeatCounts 1_000_000 |> Seq.truncate 3 |> Seq.toList
+
+printfn "Sequence prefix: %A" firstThree
 ```
 
-调用 `candidateSeatCounts 1_000_000` 会创建序列值，而不会立即建立一百万项候选值。`Seq.truncate 3 >> Seq.toList` 这样的消费者可以只请求一个前缀。`yield!` 可以贡献内部序列的全部元素。
+这段代码可以接在共享起点后运行，输出 `Sequence prefix: [1; 3; 5]`。调用 `candidateSeatCounts 1_000_000` 会创建序列值，而不会立即建立一百万项候选值。`Seq.truncate 3` 只请求前三项，`Seq.toList` 把该前缀保存为列表。`yield!` 可以贡献内部序列的全部元素。
 
 表达式主体仍是可执行代码，不是静态数据。其中的副作用会在元素被请求时发生。
 
@@ -128,6 +152,14 @@ ensureEqual "second values" firstPass secondPass
 ensureEqual "second pass repeats production" 6 pulls
 printfn "Second enumeration: values=%A pulls=%d" secondPass pulls
 ```
+这段代码输出：
+
+```text
+Deferred before enumeration: pulls=0
+First enumeration: values=[1; 4; 9] pulls=3
+Second enumeration: values=[1; 4; 9] pulls=6
+```
+
 构造 `delayedSquares` 后，计数器仍为零。第一次 `Seq.toList` 拉取三项；第二次会为这个序列表达式开始新枚举，并让主体再运行三次。
 
 这项观察并不表示每个 `IEnumerable<'T>` 都可以安全地重新遍历。具体来源控制其枚举器：它可能查询变化中的状态、包装资源、按约定只能使用一次，或者在再次遍历时抛出异常。`seq<'T>` 类型本身不承诺这些行为。
@@ -160,6 +192,8 @@ ensureEqual "cached values" cachedFirst cachedSecond
 ensureEqual "cached production count" 3 cachedPulls
 printfn "Cached enumerations: first=%A second=%A pulls=%d" cachedFirst cachedSecond cachedPulls
 ```
+这段代码输出 `Cached enumerations: first=[1; 4; 9] second=[1; 4; 9] pulls=3`。
+
 当一项延迟计算必须重放，并且保留已产生元素可以接受时，缓存很合适。它不是普遍优化：缓存消耗内存、保留此前观察而不是重新取得最新值，并可能随很长或无限来源无界增长。
 
 当程序需要“现在保存全部值”时，用 `Seq.toList` 或 `Seq.toArray` 明确表达。完整快照有清楚的完成时间，之后可以反复读取；代价是一次完整遍历和全部元素的存储。
@@ -185,6 +219,8 @@ mutableArray[0] <- 99
 ensureEqual "list is an independent snapshot" [ 1; 2; 3 ] listSnapshot
 printfn "Conversion snapshot: array=%A list=%A" mutableArray listSnapshot
 ```
+这段代码输出 `Conversion snapshot: array=[|99; 2; 3|] list=[1; 2; 3]`。
+
 不要只为调用熟悉的模块函数而在 `list`、数组和 `seq` 之间反复转换。应保留适合工作流的表示，或只在一个明确位置转换一次。
 
 ## 有序键与哈希键回答不同问题 {#lookup-semantics}
@@ -202,6 +238,12 @@ ensureEqual "later map binding replaces earlier" "replacement" bookingByCode["B2
 
 printfn "Ordered collections: set=%A map=%A" (Set.toList uniqueSeats) (Map.toList bookingByCode)
 ```
+这段代码输出：
+
+```text
+Ordered collections: set=[1; 2; 3] map=[("A1", "only"); ("B2", "replacement")]
+```
+
 `Map` 与 `Set` 需要全序关系来导航其树。因此，它们的类型参数带有 `comparison`，而非只有 `equality`。值作为键或元素期间，这项顺序还必须保持稳定。
 
 ### 哈希集合需要相等与相容哈希码 {#hash-collections}
@@ -231,6 +273,8 @@ ensureEqual "hash equality replaces value" 1 recipients.Count
 ensureEqual "case-insensitive lookup" "second" recipients[{ Value = "Lin@Example.com" }]
 printfn "Hash dictionary: count=%d lookup=%s" recipients.Count recipients[{ Value = "Lin@Example.com" }]
 ```
+这段代码使用开头导入的 `System` 与 `System.Collections.Generic`，输出 `Hash dictionary: count=1 lookup=second`。
+
 字典会接受该键，因为它的相等与哈希语义已经足够。尝试使用 `Map<EmailAddress,string>` 会产生 FS0001：该类型明确不支持 `comparison` 约束。这是真实能力差异，不只是性能选择。
 
 不区分大小写等相等规则可能只适用于特定场景。此时，向 `Dictionary` 或 `HashSet` 提供 `IEqualityComparer`，通常比改变领域类型的全局相等更合适。脚本把规则嵌入类型，只为展示“仅支持相等”的限制。
