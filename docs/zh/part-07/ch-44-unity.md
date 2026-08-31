@@ -1,18 +1,22 @@
 ---
 title: "第 44 章：Unity 6.3 LTS 与 F#"
-description: "通过明确的运行时、程序集、序列化、生命周期、性能、AOT、裁剪与 Player 构建边界，在 Unity 中使用 F#。"
+description: "理解如何把 F# 规则库接入 Unity，并区分类库编译、插件导入、Player 构建和设备验证。"
 translationKey: part-07/ch-44-unity
 ---
 
 # 第 44 章：Unity 6.3 LTS 与 F# {#overview}
 
-Unity 无需编译 F# 源码，也能执行以 F# 编写的代码。F# 会编译成托管 .NET 程序集，而 Unity 可以导入托管插件。这个技术事实很有用，但它只是完整流程的第一步。
+F# 代码可以先编译成 .NET DLL，再作为托管插件导入 Unity。因此，Unity 不必直接编译 F# 源文件。不过，生成 DLL 只是整个集成流程的第一步。
 
-一个能在 `dotnet` 下构建的类库仍可能无法通过 Unity 的引用验证。成功导入的插件仍可能在场景加载时失败。Play Mode 可以正常运行，而 IL2CPP Player 仍可能在提前编译、裁剪、原生链接、启动或某条设备专有路径上失败。因此，真正有用的问题是：“这个 Unity 版本、平台、脚本后端和发布流水线，已经验证了哪一层 F# 集成？”
+类库能用 `dotnet` 编译，不代表 Unity 一定能加载它。插件能导入，也不代表场景或发布后的 Player 一定能运行。即使 Play Mode 正常，IL2CPP 构建仍可能在 AOT 编译、裁剪、原生链接、启动或设备专用代码上失败。因此，每次结论都要说明具体的 Unity 版本、目标平台、脚本后端和已经验证到哪一步。
 
-下面用一个小型托管插件回答这个问题：把游戏规则放在普通 F# 类库中，对外提供 C# 友好的 API，并让简短的 C# 组件处理 Unity 特有行为。随后再讨论何时值得测试直接 F# 组件、何时 F# 收益很小，以及为什么类库构建成功不能代表 Player 可以运行。
+本章用一个小型插件展示较稳妥的边界：游戏规则放在普通 F# 类库中，对外提供容易从 C# 调用的 API；很薄的 C# 组件负责 Unity 特有行为。后面再说明什么时候值得直接编写 F# 组件，以及为什么插件构建成功不能代表 Player 已经可用。本章是可选的 Unity 拓展，不是 F# 核心语法的一部分。
 
-先分清术语：记录、可区分联合、模式匹配、模块和函数是 F# 概念；程序集、值类型、AOT 与装箱是 CLR/.NET 概念；`MonoBehaviour`、Editor、Player、IL2CPP、UnityLinker、Burst 与 Jobs 都是 Unity 概念。它们会出现在同一条流水线中，但不能统称为 F# 标准用语。
+术语分成三类：
+
+- 记录、可区分联合、模式匹配、模块和函数属于 F#；
+- 程序集、值类型、AOT 和装箱属于 CLR/.NET；
+- `MonoBehaviour`、Editor、Player、IL2CPP、UnityLinker、Burst 和 Jobs 属于 Unity。
 
 ::: tip 分两轮阅读
 初读时依次掌握[集成层次](#unity-contract-stack)、[选型方法](#decision-map)和[页内插件模板](#x44-verified-slice)。准备代表性 Player 构建时，再按需查阅序列化、游戏循环、IL2CPP、验证与发布各节。
@@ -79,7 +83,7 @@ F# 层包含离开引擎后仍有意义的决策：标识符与规则、确定�
 
 Unity 的托管插件模型基于 .NET 程序集，而非源码语言身份。派生自 `MonoBehaviour` 的预编译类型原则上可以像其他托管插件类型一样挂载。F# 项目也可以引用某个特定 Editor 安装中的 Unity 程序集。
 
-这并不使直接路径成为默认选择。构建现在依赖确切 Unity 程序集位置与版本，生成的 F# 表示也可能不符合 Inspector 预期。Unity 示例、源码生成器、分析器、包设置、调试器工作流与 Editor 回调都以 C# 为主。每项结果仍需通过导入、挂载、序列化、重载和 Player 验证。
+这并不表示直接编写 F# `MonoBehaviour` 就是默认选择。这样做会让构建依赖某个具体 Unity 安装中的程序集，而且 F# 生成的类型形状未必适合 Inspector。Unity 的示例、代码生成器、分析器、包设置、调试流程和 Editor 回调也主要围绕 C#。因此，仍要分别验证插件导入、组件挂载、序列化、脚本重载和 Player 构建。
 
 只有端到端小样在度量这些成本后确实更简单，才让 Unity 直接调用 F#。围绕稳定 F# 核心编写十行 C# 组件并不是失败；它只是工具边界上的适配器。
 
@@ -91,7 +95,7 @@ Unity 的托管插件模型基于 .NET 程序集，而非源码语言身份。�
 
 ## 页内项目模板：一个托管插件边界 {#x44-verified-slice}
 
-当前仓库已不包含原先的 `examples/ecosystem/unity/FSharpGameplay` 工程。本节保留一个可重建模板，实现一条水平移动规则。它刻意小到不足以支撑生产架构，只用于说明构建、API、依赖、宿主、内存分配、链接器与验证边界。
+当前仓库不包含原先的 `examples/ecosystem/unity/FSharpGameplay` 工程。本节只是一个页面模板，不要求你重建完整 Unity 项目。示例只实现一条水平移动规则，用来说明 DLL 构建、公开 API、依赖、Unity 宿主、内存分配、链接器和验证之间的关系；它不是生产架构。
 
 四个文件的职责不同：`FSharpGameplay.fsproj` 只编译 `Gameplay.fs`；`UnityAdapter.cs` 依赖 `UnityEngine`，必须复制到真实 Unity 项目的 `Assets/Scripts/` 后由 Unity 编译；`link.xml` 也必须放进 `Assets` 树才会参与裁剪。不要尝试用下面的 `.fsproj` 单独编译 C# 适配器，也不要以为外部目录中的 `link.xml` 已经生效。
 
@@ -181,7 +185,7 @@ type Gameplay private () =
 ```
 `Gameplay.Create` 与 `Gameplay.Step` 是元组式静态方法，因此 C# 看到的是普通方法调用，而不是柯里化的 `FSharpFunc` 值。`MotionState` 暴露只读 float 属性，并隐藏字段及非默认构造器。
 
-状态是 struct，因此 `Gameplay.Step` 不必为新的状态对象分配一个 class。重建后的外部测试应检查 `IsValueType`，并在确有性能预算时检查公开调用路径是否出现意外装箱；当前仓库没有这项 Unity 插件回归测试。即使测试通过，也只能排除这一个托管分配来源，不能证明整个 Player 每帧分配零字节。大型 struct 还会带来复制成本，所以应保持小巧并分析真实目标。
+状态使用 struct，因此 `Gameplay.Step` 不必为每个新状态分配 class 对象。如果重建示例，可以先检查 `IsValueType`；只有存在明确性能预算时，才进一步测量公开调用路径是否发生装箱。当前仓库没有这项 Unity 插件测试。即使测试通过，也只能说明这一处没有 class 分配，不能证明整个 Player 每帧都零分配。struct 过大还会增加复制成本，因此要保持小巧并在真实目标上测量。
 
 转换会夹紧方向输入，拒绝非有限值与负时间或速度，计算速度并返回新状态。它没有 `UnityEngine` 引用，不读取当前时间，也不发生可变更新。测试可以直接提供所有输入。
 
@@ -313,9 +317,9 @@ Unity 6 在 Player 设置中提供 .NET Standard 2.1 与更宽的 .NET Framework
 
 把托管插件复制到 `Assets` 下，选择平台兼容性，并保持 Validate References 开启。这能比运行期更早发现缺失引用与强名称不匹配。
 
-Auto Reference 对验证性试验（spike）很方便，但它让每个符合条件的脚本程序集都看到插件，并增加重编译与意外耦合。较大项目中应关闭它，并用程序集定义显式引用预编译程序集。把 Editor-only 适配器放入 Editor-only 程序集，并从 Player 平台排除不兼容插件。
+小型试验可以暂时使用 Auto Reference，但它会让所有符合条件的脚本程序集都看到插件，增加重编译和意外依赖。较大项目应关闭它，再通过程序集定义明确引用插件。只供 Editor 使用的适配器要放进 Editor-only 程序集，并从 Player 构建中排除。
 
-绝不要在理解不匹配前，通过关闭程序集版本验证来“修复”引用问题。如果插件要求不兼容的 `FSharp.Core` 版本，应让它们改用同一已测试版本、隔离到不同进程，或拒绝该组合。一个加载上下文无法把两个身份相同的文件当成不同程序集加载。
+遇到引用问题时，不要直接关闭程序集版本验证。先确认插件分别需要哪个 `FSharp.Core` 版本。如果版本不兼容，可以让插件统一到同一个已测试版本，把它们隔离到不同进程，或拒绝这个组合。同一个加载上下文不能同时把两个身份相同的文件当成不同程序集。
 
 ## 设计从 C# 看来自然的边界 {#design-csharp-boundary}
 

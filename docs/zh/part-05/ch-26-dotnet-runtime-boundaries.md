@@ -303,7 +303,7 @@ String comparer: count=1 found=true value=second
 Class keys: same-reference=false default=2 domain=1 value=second
 ```
 
-这些结果分别对应运行时类型、受控转换、委托调用、退订、实时视图/快照，以及两种字典相等策略；不是一组脱离上下文的独立片段。
+这些输出都来自同一个示例。它们依次验证运行时类型、受控转换、委托调用、事件退订、实时视图与快照，以及两种字典相等策略。
 
 ## 练习 {#exercises}
 

@@ -6,11 +6,18 @@ translationKey: part-05/ch-32-functions-to-applications
 
 # 第 32 章：从函数到应用 {#overview}
 
-纯函数决定应该发生什么。运行中的应用还要读取配置、调用存储或网络、传播取消、报告结果并释放资源。这些职责构成函数式核心外围的应用外壳。
+纯函数决定应该发生什么，但它本身不会启动一个应用。真正运行的程序还要读取配置、调用存储或网络、传递取消信号、报告结果并释放资源。包围纯函数、负责这些工作的代码，常被称为“应用外壳”。
 
-本章为此前的预约工作流构建最小可用的应用外壳。控制台应用只使用普通 F# 值、一个组合根、直接构造和进程内插桩（instrumentation）。确实需要分层配置、生命周期作用域、后台工作器或框架集成时，再采用更强的宿主。
+本章为此前的预约工作流添加一个最小控制台外壳。启动代码会在一个位置创建并连接全部依赖，这个位置叫作“组合根”。程序还会直接记录日志、指标和追踪；这种记录代码统称为“插桩”（instrumentation）。只有确实需要分层配置、依赖作用域、后台工作器或框架集成时，才采用更复杂的宿主。
 
-完整项目位于 `examples/chapters/ch32/Ch32.App.fsproj`，并按 F# 的固定文件顺序编译：`Domain.fs` 定义 `Booking.Domain` 中的领域类型与纯工作流；`Ports.fs` 定义配置、依赖记录和内存适配器；`Composition.fs` 定义应用编排与组合根；`Program.fs` 才处理进程参数、监听器和输出。后文代码块是这些文件的连续摘录，会使用排在前面的文件中已经定义的名称。
+完整项目位于 `examples/chapters/ch32/Ch32.App.fsproj`。它按 F# 的固定文件顺序编译：
+
+- `Domain.fs` 定义业务类型和纯工作流；
+- `Ports.fs` 定义配置、外部依赖以及用于演示的内存实现；
+- `Composition.fs` 定义副作用的执行顺序，并集中创建应用；
+- `Program.fs` 最后处理进程参数、监听器和输出。
+
+后文代码块是这些文件的连续摘录，因此会使用前面文件已经定义的名称。
 
 ## 把应用拆成多层 {#application-boundaries}
 
@@ -144,7 +151,7 @@ module Composition =
     let start config ports writeLog =
         new BookingApplication(AppConfig.event config, ports, writeLog)
 ```
-`Program` 完成其余进程特定工作：选择查找函数、安装演示监听器、构造内存存储、创建应用、运行一条命令，并把结果转换成输出和退出码。领域模块不包含这些选择。
+`Program` 处理只属于当前进程的工作。它选择查找函数，安装演示监听器，创建内存存储和应用，运行一条命令，最后把结果转换成输出和退出码。业务模块不负责这些选择。
 
 手工构造本身就是依赖注入：依赖通过参数传入。DI 容器可以自动完成注册、解析、作用域和释放，但使用容器并不是实现控制反转的前提。即使日后由容器构造对象，清晰的组合根仍然有价值。
 
@@ -152,7 +159,9 @@ module Composition =
 
 ## 围绕纯决策编排副作用 {#orchestration}
 
-应用方法控制执行顺序，同时复用现有领域工作流。下面不是独立函数，而是 `BookingApplication` 的成员。该类的构造函数接收已验证配置中的 `event`、`BookingPorts` 和 `writeLog`；类内部创建 `ActivitySource` 与计数器，`ensureActive` 检查对象尚未释放，`observe` 统一记录活动状态、指标和结构化日志。有了这些定义，成员中每个名称都能追溯到来源：
+应用方法控制副作用的执行顺序，同时复用已有的业务工作流。下面的代码不是独立函数，而是 `BookingApplication` 的成员。
+
+构造函数接收已验证的 `event`、`BookingPorts` 和 `writeLog`。类内部创建 `ActivitySource` 和计数器；`ensureActive` 检查对象尚未释放；`observe` 统一记录追踪状态、指标和结构化日志。因此，下面成员中使用的每个名称都有明确来源：
 
 ```fsharp:line-numbers [Composition.fs]
 member _.Place(command: PlaceBookingCommand, cancellationToken: CancellationToken) =
@@ -229,7 +238,9 @@ member _.Place(command: PlaceBookingCommand, cancellationToken: CancellationToke
 | DI 容器创建已注册的可释放服务 | 容器或作用域 | 使用者不得释放 |
 | 工厂创建短生命周期资源 | 使用工厂结果的作用域 | 在该作用域使用 `use`/`use!` |
 
-如果清理会执行异步 I/O，应建模为 `IAsyncDisposable`，并在适当的任务表达式中使用 `use!`。如果仍有请求正在运行，关闭流程必须先停止接收新工作、发出取消信号、在限定时间内等待现有工作完成，最后才释放依赖。这个仅执行一条命令的小进程没有并发关闭协议。
+如果清理过程包含异步 I/O，应使用 `IAsyncDisposable`，并在合适的任务表达式中使用 `use!`。
+
+关闭仍有请求运行的服务时，顺序很重要：先停止接收新工作，再发出取消信号，在限定时间内等待现有工作完成，最后释放依赖。本章的小进程只执行一条命令，因此不需要这套并发关闭流程。
 
 释放不等于崩溃恢复。`SIGKILL`、断电或进程终止可以绕过清理。持久正确性必须来自存储事务、幂等性和恢复规则，而不是一个 `finally` 块。
 
@@ -304,7 +315,9 @@ trace: name=booking.place outcome=accepted
 lifecycle: store-disposed=true
 ```
 
-输出表明，一条固定命令经过了配置、组合、纯决策、内存追加、三种本地信号和确定性释放。可执行契约脚本 `examples/chapters/ch32/application-contracts.fsx` 还验证了：独立配置错误会累积；同一个取消令牌到达两个依赖；被接受的事件只追加一次；预先取消时不会调用依赖。可从仓库根目录运行 `dotnet fsi --exec examples/chapters/ch32/application-contracts.fsx`。
+输出表明，一条固定命令依次经过配置、依赖连接、纯决策、内存追加、日志/指标/追踪记录和资源释放。
+
+可执行脚本 `examples/chapters/ch32/application-contracts.fsx` 还验证四件事：独立配置错误会一起返回；同一个取消令牌会传到两个依赖；接受命令后只追加一次事件；命令预先取消时不会调用依赖。可从仓库根目录运行 `dotnet fsi --exec examples/chapters/ch32/application-contracts.fsx`。
 
 这些结果只覆盖进程内装配。外部交付、持久存储和并发容量各自需要集成测试。`LoadBooking` 与 `AppendEvent` 是两项独立操作，因此两个调用者可能在任一方追加前读到同一状态。内存适配器只演示装配；生产存储必须原子地保证一致性。
 
@@ -329,7 +342,7 @@ lifecycle: store-disposed=true
 
 ## 知道何时需要更强的宿主 {#stronger-host}
 
-对于命令行工具、小型单用途进程、由另一宿主调用的库内工作器，或依赖和生命周期一屏可见的早期应用，显式组合根通常已经足够。
+如果程序只是命令行工具、小型单用途进程或由其他宿主调用的库内工作器，而且全部依赖和生命周期一眼就能看清，那么显式创建依赖通常已经足够。
 
 当进程同时需要多项标准设施时，.NET Generic Host 就会变得有用：
 

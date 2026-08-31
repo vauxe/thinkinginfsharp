@@ -137,7 +137,7 @@ printfn "Named and anonymous: %d, %d" (increment 3) (incrementAnonymous 3)
 
 `fun seats -> seats + 1` 可以读作“接收 seats，产生 seats 加一”。箭头左侧是形参模式，右侧是主体表达式。`increment` 与 `incrementAnonymous` 都推断为 `int -> int`，调用结果也相同。
 
-名称能记录意图并改善诊断，所以不要为了短而把所有函数改成匿名形式。匿名函数最适合局部行为，尤其是作为另一个函数的实参；相同逻辑被多处使用或本身代表领域概念时，命名通常更清楚。
+名称能记录意图并改善诊断，所以不要为了缩短代码而把所有函数改成匿名形式。匿名函数适合只在附近使用的短小行为，例如作为另一个函数的实参。逻辑需要复用或代表一个业务概念时，命名函数通常更清楚。
 
 ## 高阶函数组合行为 {#higher-order-functions}
 

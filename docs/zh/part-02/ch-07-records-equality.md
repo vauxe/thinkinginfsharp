@@ -280,7 +280,9 @@ printfn "Hashes agree for equal records: %b" equalHashesAgree
 
 ### 练习 3：设计相等、哈希与顺序 {#exercise-03}
 
-为三种需求分别选择结构相等、引用身份、领域 ID 或显式排序键：去除内容相同的草稿、确认两个变量是否为同一缓存对象、按座位数降序展示预约。解释为什么不能以 `hash x = hash y` 判断前两者相等，并写出第三项的 `List.sortByDescending` 键。
+分别为下面三项需求选择合适的比较方式：去除内容相同的草稿；确认两个变量是否指向同一个缓存对象；按座位数降序显示预约。候选方式包括结构相等、引用身份、业务 ID 和显式排序键。
+
+解释为什么不能用 `hash x = hash y` 判断前两项是否相等，并写出第三项所需的 `List.sortByDescending` 排序键。
 
 
 ::: details 参考答案

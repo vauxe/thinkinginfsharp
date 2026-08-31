@@ -163,7 +163,9 @@ let requested = request |> Domain.BookingRequest.seats |> Domain.SeatCount.value
 
 ## 项目、解决方案和程序集处在不同层级 {#project-contract}
 
-项目文件是一份 MSBuild XML 文档。对于普通的 SDK 风格 F# 构建，它定义一次编译并产出一个程序集——通常是 `.dll`；当 `OutputType` 为 `Exe` 时，还会有可执行宿主。解决方案把多个项目组合起来以执行还原、构建和测试；它不是另一个命名空间，也不会把这些项目的源文件合并成一次编译。
+项目文件是一份 MSBuild XML 文档。对于普通的 SDK 风格 F# 构建，它定义一次编译并产出一个程序集，通常是 `.dll`。当 `OutputType` 为 `Exe` 时，还会生成可执行宿主。
+
+解决方案把多个项目放在一起，方便统一还原、构建和测试。它不是命名空间，也不会把所有项目的源文件合并成一次编译。
 
 因此，两种依赖机制工作在不同层级：
 

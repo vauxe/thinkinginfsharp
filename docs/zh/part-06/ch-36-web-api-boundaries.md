@@ -6,15 +6,22 @@ translationKey: part-06/ch-36-web-api-boundaries
 
 # 第 36 章：Web API、JSON 与输入边界 {#overview}
 
-第 35 章在进程内装配了各项能力。本章通过一个小型 ASP.NET Core Minimal API 加入网络边界。“Minimal”描述宿主模型；边界仍要验证传入字节、把 DTO 映射成领域值、传播可观察的取消，并把已声明失败翻译成稳定响应。
+第 35 章已经在进程内连接了各项能力。本章再用一个小型 ASP.NET Core Minimal API 接收网络请求。“Minimal”只说明这种 API 的宿主方式比较精简，并不表示边界工作可以省略。API 仍要检查传入数据、把 DTO 转成业务值、传递取消信号，并把已知失败转成稳定的 HTTP 响应。
 
-每一步都要回答同一个问题：由哪一层决定？HTTP 决定媒体类型与状态码；JSON 契约决定传输格式；DTO 映射检查必需数据；领域决定业务有效性与状态转换；适配器执行副作用；API 只负责协调，并翻译已声明的结果。
+理解本章时，可以不断追问：“这件事应由哪一层决定？”各层的职责如下：
 
-本章仍是第 33–38 章的页内参考设计；当前仓库没有可直接运行的 `Booking.Api.fsproj`。若把设计落成项目，应先引用第 33–35 章的 Domain、Contracts 和 Infrastructure，再按 `Endpoints.fs` → `Program.fs` 编译。
+- HTTP 层决定媒体类型和状态码；
+- JSON 契约决定网络上传输的数据格式；
+- DTO 映射检查必填数据；
+- 业务层判断命令是否有效，以及状态能否改变；
+- 适配器执行文件读写、支付和通知等外部操作；
+- API 层只协调这些步骤，并把结果翻译成 HTTP 响应。
 
-所有 `Endpoints.fs` 片段都位于 `namespace Booking.Api`，并依赖 ASP.NET Core、`System.Text.Json` 以及前三层的类型。片段之间还省略了依赖记录、输入准备和写响应辅助函数，所以它们不是可以分别复制运行的小程序。
+本章仍然只是第 33–38 章的页面示例，不要求你把它们拼成完整项目。当前仓库也没有可直接运行的 `Booking.Api.fsproj`。如果以后要实现这个项目，可以先引用第 33–35 章的 Domain、Contracts 和 Infrastructure，再按 `Endpoints.fs` → `Program.fs` 的顺序编译文件。
 
-“Minimal API”和“路由处理程序”是 ASP.NET Core 术语，`RequestDelegate`、`HttpContext` 和 `WebApplication` 是 .NET/ASP.NET Core 类型，并非 F# 专有语法。F# 在这一边界主要提供函数、记录、可区分联合、模式匹配和 `task` 计算表达式。
+所有 `Endpoints.fs` 片段都位于 `namespace Booking.Api`。它们会使用 ASP.NET Core、`System.Text.Json` 和前三层定义的类型。页面省略了一些重复的辅助代码，因此这些片段不能各自独立运行。
+
+“Minimal API”和“路由处理程序”是 ASP.NET Core 的说法，不是 F# 术语。`RequestDelegate`、`HttpContext` 和 `WebApplication` 也来自 .NET/ASP.NET Core。F# 在这里主要用到函数、记录、可区分联合、模式匹配和 `task` 计算表达式。
 
 ## HTTP 负责解释外部请求 {#outer-interpreter}
 
@@ -433,13 +440,13 @@ let main arguments =
 
 环境变量能让值不进入已提交代码，但 Microsoft 明确警告，它们通常以明文保存；进程或机器失陷时仍然可见。开发 Secret Manager 只用于开发，部署时应选择受控的生产机密存储。
 
-将项目落地后，应在冒烟验证中确认宿主日志只包含允许的方法、路由、状态、内容类型、长度和耗时，不包含请求体或配置值。不要随意启用请求/响应体日志：它会缓冲数据，并可能捕获个人信息或凭据。应先分类与脱敏。
+如果以后实现完整项目，冒烟测试还要检查日志内容。日志只能包含允许记录的方法、路由、状态、内容类型、长度和耗时，不能包含请求体或配置值。不要随意记录请求体和响应体；这样做可能需要缓冲数据，还可能收集个人信息或凭据。记录之前应先为数据分类并脱敏。
 
 Kestrel 的 `Server` 头已关闭，以减少无必要的实现披露。这是加固，不是身份验证或授权。
 
 ## 规划管线与传输验证 {#testing}
 
-把参考设计落成项目后，契约测试应使用官方 `Microsoft.AspNetCore.TestHost` 包。每个测试构建真实 `WebApplication`、映射实际端点、注入受控端口、启动内存管线，再通过 `HttpClient` 发送请求。
+如果把参考设计实现成项目，可以使用官方 `Microsoft.AspNetCore.TestHost` 包编写契约测试。每个测试创建真实的 `WebApplication`，映射实际端点并注入可控制的替身，再通过 `HttpClient` 向内存中的 HTTP 管线发送请求。
 
 最低用例应覆盖：
 
@@ -458,7 +465,7 @@ Kestrel 的 `Server` 头已关闭，以减少无必要的实现披露。这是�
 
 ## 组装后的本地运行模板 {#local-run}
 
-当前仓库不能直接执行下方命令。把第 33–38 章的文件组装进 ASP.NET Core 项目并通过构建后，再把 `path/to/Booking.Api.fsproj` 替换为实际路径。这份命令模板使用临时快照，并且只绑定到回环地址。
+下方命令只是运行模板，当前仓库不能直接执行。只有在你主动把第 33–38 章实现成 ASP.NET Core 项目后，才需要把 `path/to/Booking.Api.fsproj` 换成真实路径。模板使用临时快照，并且只监听本机回环地址。
 
 ### 启动宿主 {#local-start}
 
@@ -584,7 +591,13 @@ PlaceBookingDto -> CancellationToken -> Task<IResult>
 
 ### 练习 2：从最后可见的副作用开始推理 {#exercise-02}
 
-针对每个中断——支付授权后追加失败、追加成功后通知失败、通知成功后客户端断连——说明提供商、快照、调用方与一次重试分别能观察什么。提出第 37 章必须持久化的最小幂等信息。不要声称存在分布式事务。
+分别分析以下三种中断：
+
+1. 支付授权后，追加状态失败；
+2. 追加状态成功后，发送通知失败；
+3. 发送通知成功后，客户端断开连接。
+
+对每种情况，说明支付提供商、快照、调用方和一次重试分别能看到什么。然后列出第 37 章必须持久保存的最少幂等信息。这里没有分布式事务，不要假设失败会自动撤销之前的操作。
 
 
 ::: details 参考答案

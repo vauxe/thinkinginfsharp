@@ -1,18 +1,26 @@
 ---
 title: "第 39 章：ASP.NET Core 与 F# Web 生态"
-description: "依据系统需求、团队适配度和已核实的维护状态，在平台原生 Minimal API、控制器与函数式 F# Web 库之间选择。"
+description: "了解 F# 如何使用 ASP.NET Core，并根据实际需求选择 Minimal API、控制器或 F# Web 库。"
 translationKey: part-07/ch-39-web-ecosystem
 ---
 
 # 第 39 章：ASP.NET Core 与 F# Web 生态 {#overview}
 
-F# 不需要独立的 Web 服务器才能使用现代 .NET。F# 项目可以直接使用 ASP.NET Core 的 Kestrel、端点路由、依赖注入、配置、认证、授权、日志、指标与 `TestServer`。社区库则在同一平台上增加更符合 F# 习惯的处理器、组合运算符、视图或约定。
+F# Web 程序可以直接使用 ASP.NET Core，不需要一套专门的 F# 服务器。Kestrel、路由、依赖注入、配置、认证、日志和测试工具都与 C# 项目相同。F# 社区库建立在这个平台之上，提供更适合函数组合的 API。
 
-实际问题不是“哪个 F# 框架获胜”，而是哪种 API 风格能降低系统复杂度，又不隐藏团队必须理解的平台行为。先验证平台原生样例，再依据一手资料比较当前包。
+因此，本章不是框架排行榜。真正的问题是：哪种 API 写法能让当前项目更简单，同时仍让团队看得懂 ASP.NET Core 的行为？通常可以先理解平台原生的 Minimal API，再根据具体需求比较社区库。
 
-本章的 Web 代码是页内完整项目模板，当前仓库并不包含原先的 `examples/ecosystem/web` 项目或其测试。下文用它说明 API 形状；若要采用，需先按所述结构重建项目，再执行构建、契约测试与真实进程冒烟验证。
+本章属于可选的 Web 拓展，不是掌握 F# 语法的必修内容。代码只是页面中的项目模板，用来说明各种 API 的形状；你不需要把它重建成完整项目。当前仓库也不包含原先的 `examples/ecosystem/web` 项目或测试。
 
-这一章混合了三类术语：`Minimal API`、`RequestDelegate` 和 `HttpContext` 属于 ASP.NET Core；`HttpHandler`、`EndpointHandler` 等属于具体社区库；记录、可区分联合、模式匹配与计算表达式才是 F# 语言构造。阅读时不应把某个 Web 库的类型名当成 F# 通用标准用语。
+术语分成三类：
+
+- `Minimal API`、`RequestDelegate` 和 `HttpContext` 来自 ASP.NET Core；
+- `HttpHandler`、`EndpointHandler` 等名称来自具体社区库；
+- 记录、可区分联合、模式匹配和计算表达式才是 F# 语言功能。
+
+::: tip 第一次阅读
+先理解“F# 可以直接使用 ASP.NET Core”和[抽象层次](#abstraction-level)即可。只有准备开发 Web API 时，才需要继续比较各个框架、测试与迁移方案。
+:::
 
 ## 从共享平台开始 {#shared-platform}
 
@@ -28,13 +36,13 @@ ASP.NET Core 提供服务器和大多数通用运行时行为。端点可以写�
 
 某个库可以为其中一些事项提供更安全的默认值或更易组合的 API，却不能让这些运维语义消失。理解平台是下面每种选择都可迁移的知识。
 
-Microsoft 的 [.NET 10 API 指南](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/apis?view=aspnetcore-10.0) 把 Minimal API 与基于控制器的 API 列为两种平台方案。它建议新 HTTP API 从 Minimal API 开始，同时指出高级模型绑定扩展、应用模型功能或 OData 等需求适合控制器。这是平台默认起点，并不是要求每个 F# 团队都避开社区库的命令。
+Microsoft 的 [.NET 10 API 指南](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/apis?view=aspnetcore-10.0) 介绍了两种平台方案：Minimal API 和控制器。新建普通 HTTP API 时，可以先考虑 Minimal API；如果需要高级模型绑定、应用模型扩展或 OData，控制器可能更合适。这只是平台提供的起点，并不表示 F# 团队不能使用社区库。
 
 ## 检查代表性 Minimal API {#representative-sample}
 
 Web 模板有意远小于第六部分的预约设计。它只回答一个问题：当输入、输出与错误保持显式时，直接的 F# 端点是什么样？
 
-重建时，项目应使用 `Microsoft.NET.Sdk.Web`、目标为 `net10.0`，且本模板不需要第三方包引用。还原后应保留新生成的锁文件，不应照抄已删除项目的旧解析版本。公开 JSON 类型是普通 CLR 友好记录，而不是领域可区分联合：
+如果你选择重建模板，项目使用 `Microsoft.NET.Sdk.Web`，目标框架为 `net10.0`，并且不需要第三方包。首次还原后应保留新生成的锁文件，不要复制已删除项目的旧依赖结果。公开的 JSON 类型使用普通的 CLR 友好记录，而不是业务层的可区分联合：
 
 阅读下方片段时，先补齐 `Program.fs` 的文件边界：
 
@@ -151,7 +159,7 @@ module Program =
         application.Run()
         0
 ```
-这种映射风格比自动 Minimal API 参数绑定更底层。这是为了稳定教学契约而作的刻意选择，并非建议手工反序列化每个请求。[.NET 10 Minimal API 参考](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis?view=aspnetcore-10.0) 记录了内建绑定、验证、响应、过滤器、授权及其他平台功能。自动绑定契合契约时就使用；只有兼容性或错误响应要求确实需要时，才接管控制。
+这种写法比 Minimal API 的自动参数绑定更底层，目的是把教学示例的输入和错误契约完整展示出来。它并不是建议你手工反序列化每一个请求。[.NET 10 Minimal API 参考](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis?view=aspnetcore-10.0) 介绍了内建绑定、验证、响应、过滤器和授权。内建功能满足契约时就直接使用；只有兼容性或错误格式有特殊要求时，才需要接管这些步骤。
 
 ### 准确规划契约覆盖 {#sample-evidence}
 
@@ -188,7 +196,7 @@ module Program =
 - 可调用 F# 函数式核心的小型组合根；
 - 使用标准 ASP.NET 工具进行 `TestServer` 或 `WebApplicationFactory` 集成。
 
-常见 F# 摩擦包括委托重载推断、模型绑定边界的空值性、以特性为中心的示例以及 C# 优先文档。显式类型注解、`RequestDelegate`、小适配函数和边界 DTO 通常能把摩擦限制住。如果端点层逐渐长成一套私有处理器组合器，就应重新考虑某个维护良好的 F# 库是否已经提供所需词汇。
+F# 使用 Minimal API 时，常见困难来自委托重载、可空输入、以特性为主的示例，以及偏向 C# 的文档。通常加上明确的类型注解、`RequestDelegate`、小型转换函数和边界 DTO 就能解决。如果端点层逐渐出现大量自制的处理器组合工具，再考虑是否有维护良好的 F# 库已经解决了这个问题。
 
 ## 基于控制器的 API {#controllers}
 
@@ -351,7 +359,7 @@ HTTP framework handler
 
 框架基准可以揭示开销模式，却不包含你的 JSON 载荷、认证、日志、数据库、提供商延迟、响应大小、分配特征或失败路径。沿用第 31 章的测量纪律：定义工作负载与预算，剖析完整候选，然后优化测得的瓶颈。
 
-安全同样属于最终管道。先测试正文与响应头上限、错误编码、认证质询/禁止行为和授权元数据。还要覆盖基于 Cookie 表单的 CSRF、输出编码、文件上传、重定向、代理头、速率限制、超时、日志，以及响应开始后的故障。不能从“函数式”“最小”或“类型化”推断安全。
+安全性取决于最终运行的整个 HTTP 管线。至少要测试请求体和响应头上限、错误编码、认证失败行为与授权规则。根据应用功能，还可能需要检查 CSRF、输出编码、文件上传、重定向、代理头、速率限制、超时和日志。代码是“函数式”“最小”或“类型化”的，并不自动表示它是安全的。
 
 第三方包会扩大供应链与升级范围。锁定直接依赖、保留锁文件、检查传递变化、阅读发布说明并重新运行契约和安全测试。可复现项目设置中不要复制带 `*` 的安装命令。
 
@@ -439,7 +447,14 @@ Oxpecker 与端点路由一致，提供 `HttpContext -> Task` 请求终结函数
 
 ### 练习 2：在试验中保留问候契约 {#exercise-02}
 
-选择 Giraffe、Falco 或 Oxpecker，勾勒一个只替换 `WebSample.map` 及其处理器的有界试验。保留成功与错误 JSON 的既有格式、严格成员策略、取消行为与 HTTP 契约用例。列出包版本、新增的传递依赖、引入的框架概念，以及试验落败时的删除条件。不要为了框架而让 DTO 验证进入领域项目。
+从 Giraffe、Falco 或 Oxpecker 中选择一个，设计一项范围很小的试验。它只能替换 `WebSample.map` 及其处理器，并且必须保留：
+
+- 现有的成功和错误 JSON 格式；
+- 严格的属性检查；
+- 取消行为；
+- 原有 HTTP 契约测试。
+
+另外列出包版本、新增的传递依赖、新引入的框架概念，以及什么情况下应删除这项试验。DTO 验证仍留在 Web 边界，不要因为换框架就把它移入业务项目。
 
 
 ::: details 参考答案
@@ -500,7 +515,15 @@ POST /api/greetings
 
 ### 练习 3：设计可逆迁移 {#exercise-03}
 
-一个包含 40 个端点的服务，其处理器、认证辅助函数、生成 OpenAPI 和集成测试都绑定到某个 F# 框架。请设计逐步迁移到平台 Minimal API 或另一函数式框架的方案。指出逐路由兼容边界、共享错误/DTO 策略、认证责任、冲突防止、契约比较、发布观测，以及删除旧框架包的条件。
+一个服务有 40 个端点。它的处理器、认证辅助函数、OpenAPI 生成和集成测试都依赖某个 F# 框架。请设计逐步迁移到 Minimal API 或另一个函数式框架的方案，并说明：
+
+- 如何一次迁移一条路由并保持兼容；
+- 新旧实现如何共享错误格式和 DTO；
+- 认证由哪一层负责；
+- 如何避免新旧路由冲突；
+- 如何比较迁移前后的契约；
+- 发布时观察哪些信号；
+- 满足哪些条件后才能删除旧框架包。
 
 
 ::: details 参考答案
