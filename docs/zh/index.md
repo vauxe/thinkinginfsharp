@@ -19,6 +19,14 @@ aside: false
 - 第 39–44 章是可选的应用领域介绍，第 45 章讲脚本和后续学习。
 :::
 
+## 可执行的单文件导览 {#single-file-tour}
+
+如果想在按章学习后集中复习，可以运行 `examples/learn-fsharp.fsx`。它会在一次全新的 F# Interactive 进程中检查所有内含示例，并串联核心语言、类型建模、.NET 互操作、异步与项目边界。它适合作为复习脚本，不代替正文解释和练习。
+
+```console
+dotnet fsi --nologo --warnaserror+ --checknulls+ --exec examples/learn-fsharp.fsx
+```
+
 ## 第一部分 · 表达式与函数 {#part-1}
 
 - [第 1 章：第一次 F# 会话](./part-01/ch-01-first-session)

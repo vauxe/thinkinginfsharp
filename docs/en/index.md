@@ -14,6 +14,14 @@ This book starts with F# expressions, values, types, and functions, then applies
 If F# is new to you, read the [preface](./preface/) and then [start Chapter 1](./part-01/ch-01-first-session). Continue through Parts I–III in order; use the later parts when you need their topics.
 :::
 
+## Executable single-file tour {#single-file-tour}
+
+Readers who want a compact, Chinese-commented companion can run `examples/learn-fsharp.fsx`. In one fresh F# Interactive process, it checks the included examples while surveying the core language, type modeling, .NET interoperability, asynchrony, and project boundaries. Use it for review after the ordered chapters, not as a replacement for their explanations and exercises.
+
+```console
+dotnet fsi --nologo --warnaserror+ --checknulls+ --exec examples/learn-fsharp.fsx
+```
+
 ## Part I · Expressions and functions {#part-1}
 
 - [Chapter 1: A First F# Session](./part-01/ch-01-first-session)
